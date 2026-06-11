@@ -574,8 +574,8 @@ skills.examples:
   he: דוגמאות
   verified_by_human: [en]
 skills.examples_prefix:
-  context: Intro text shown above the row of real embed example cards on a skill detail page, explaining that the cards are curated outputs from real runs of the skill.
-  en: "Real examples — tap a card to explore:"
+  context: Intro text shown above the row of real example chat cards on app-store detail pages, explaining that the cards open public example chats.
+  en: "Explore how it’s used in real chats by clicking on the example chats:"
   de: "Echte Beispiele — tippe eine Karte an, um sie zu erkunden:"
   zh: "真实示例 — 点击卡片以查看详细内容："
   es: "Ejemplos reales: toca una tarjeta para explorarla:"
@@ -611,7 +611,7 @@ content.examples:
   verified_by_human: [en]
 content.examples_prefix:
   context: Intro text above public example chats for a durable content type.
-  en: "Real examples — tap a card to explore:"
+  en: "Explore how it’s used in real chats by clicking on the example chats:"
   verified_by_human: [en]
 content.not_found:
   context: Error shown when a content type route does not match the generated app-store content catalog.

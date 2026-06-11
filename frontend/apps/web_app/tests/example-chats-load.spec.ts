@@ -172,6 +172,57 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
 	});
 
+	test('memory example cards update the reloadable chat hash on wide viewports', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 1600, height: 900 });
+
+		await page.goto(getE2EDebugUrl('/#settings/app_store/books/settings_memories/currently_reading'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await page.waitForLoadState('networkidle');
+
+		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+		const exampleCard = settingsMenu
+			.locator('[data-testid="app-store-example-chat-card"][data-chat-id="example-memory-books-currently-reading"]')
+			.first();
+		await expect(exampleCard).toBeVisible({ timeout: 15000 });
+
+		await exampleCard.click();
+		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
+		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
+
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Your One-Week Reading Plan' })).toBeVisible({ timeout: 15000 });
+	});
+
+	test('reported memory examples render document, mail, and interactive-question content', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-books-currently-reading'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Your One-Week Reading Plan' })).toBeVisible({ timeout: 15000 });
+		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
+		await expect(page.getByTestId('embed-preview').filter({ hasText: 'Reading_Plan_Project_Hail_Mary.docx' })).toBeVisible({ timeout: 15000 });
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-mail-writing-styles'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Friday client update' })).toBeVisible({ timeout: 15000 });
+		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
+		await expect(page.getByTestId('embed-preview').filter({ hasText: 'Progress Update: [Project Name]' })).toBeVisible({ timeout: 15000 });
+	});
+
 	test('sidebar example chats show newest first and append older results after show more', async ({
 		page
 	}: {

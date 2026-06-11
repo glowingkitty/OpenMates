@@ -95,7 +95,7 @@ export interface ExampleSubChat {
  */
 export interface ExampleChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string; // Actual message content (markdown with embed references)
   created_at: number; // Unix timestamp
   category?: string; // Mate category for assistant messages

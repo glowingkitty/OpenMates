@@ -278,11 +278,7 @@
 
     function openExampleChat(chat: Chat) {
         const shouldCloseSettings = get(isMobileView);
-        if (shouldCloseSettings) {
-            activeChatStore.setActiveChat(chat.chat_id);
-        } else {
-            activeChatStore.setWithoutHashUpdate(chat.chat_id);
-        }
+        activeChatStore.setActiveChat(chat.chat_id);
         dispatch('chatSelected', { chat });
         window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
         // Wide viewports keep settings open so users can inspect the app while the chat loads beside or behind it.
@@ -471,7 +467,7 @@
             <div class="chat-examples-section">
                 <SettingsSectionHeading
                     title={$text('settings.app_settings_memories.examples')}
-                    icon="task"
+                    icon="chat"
                 />
                 <p class="examples-prefix">{$text('settings.app_store.skills.examples_prefix')}</p>
                 <div class="recent-chats-scroll-container" data-testid="app-store-memory-example-chats">
@@ -486,10 +482,10 @@
              This avoids cluttering the list when user already has their own entries. -->
         {#if chatExamples.length === 0 && exampleTranslationKeys.length > 0 && (!isAuthenticated || allEntries.length === 0)}
             <div class="examples-section">
-                <!-- "Examples" section heading — uses task/checklist icon, matching skill heading style -->
+                <!-- "Examples" section heading — uses chat icon, matching example chat sections. -->
                 <SettingsSectionHeading
                     title={$text('settings.app_settings_memories.examples')}
-                    icon="task"
+                    icon="chat"
                 />
                 <div class="examples-list">
                     {#each exampleTranslationKeys as exampleKey, index}

@@ -34,7 +34,7 @@ http://:8008 {
 
 *.openmatesusercontent.org {
 	# User-content origin for generated application previews.
-	# Each preview session gets a unique ps-* hostname. Only the signed preview
+	# Each preview session gets a unique preview-* hostname. Only the signed preview
 	# gateway is exposed here; OpenMates API/auth routes stay on api.openmates.org
 	# so app cookies are never sent to previews.
 	tls {

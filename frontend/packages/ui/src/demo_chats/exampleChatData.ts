@@ -88,6 +88,7 @@ import { memoryWebReadLaterChat } from "./data/example_chats/memory-web-read-lat
 import { productTeaserRemotionVideoChat } from "./data/example_chats/product-teaser-remotion-video";
 import { dampedSineWavePlotChat } from "./data/example_chats/damped-sine-wave-plot";
 import { berlinCentralStationMapLocationChat } from "./data/example_chats/berlin-central-station-map-location";
+import { launchReadinessChecklistDocChat } from "./data/example_chats/launch-readiness-checklist-doc";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -171,4 +172,5 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   productTeaserRemotionVideoChat,
   dampedSineWavePlotChat,
   berlinCentralStationMapLocationChat,
+  launchReadinessChecklistDocChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);

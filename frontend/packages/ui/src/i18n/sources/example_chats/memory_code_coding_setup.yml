@@ -172,8 +172,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -232,8 +230,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -292,8 +288,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -352,8 +346,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -412,8 +404,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -472,8 +462,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -532,8 +520,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -592,8 +578,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -652,8 +636,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -712,8 +694,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -772,8 +752,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -832,8 +810,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -892,8 +868,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -952,8 +926,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -1012,8 +984,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -1072,8 +1042,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -1132,8 +1100,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -1192,8 +1158,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -1252,8 +1216,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     
@@ -1312,8 +1274,6 @@ message_2:
         { "id": "perf", "text": "Performance bottleneck (Slow/Memory leak)" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc"}
     ```
     
     

@@ -114,8 +114,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -158,8 +160,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -202,8 +206,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -246,8 +252,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -290,8 +298,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -334,8 +344,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -378,8 +390,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -422,8 +436,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -466,8 +482,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -510,8 +528,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -554,8 +574,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -598,8 +620,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -642,8 +666,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -686,8 +712,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -730,8 +758,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -774,8 +804,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -818,8 +850,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -862,8 +896,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -906,8 +942,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -950,8 +988,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     
@@ -994,8 +1034,10 @@ message_2:
         { "id": "add_details", "text": "Add specific project details" }
       ]
     }
+    ```
+
     ```json
-    {"type": "code", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
+    {"type": "mail-email", "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73"}
     ```
     
     

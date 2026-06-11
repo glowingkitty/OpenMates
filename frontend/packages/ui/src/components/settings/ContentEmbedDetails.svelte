@@ -38,11 +38,7 @@
 
     function openExampleChat(chat: Chat) {
         const shouldCloseSettings = get(isMobileView);
-        if (shouldCloseSettings) {
-            activeChatStore.setActiveChat(chat.chat_id);
-        } else {
-            activeChatStore.setWithoutHashUpdate(chat.chat_id);
-        }
+        activeChatStore.setActiveChat(chat.chat_id);
         dispatch('chatSelected', { chat });
         window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
         if (shouldCloseSettings) {
@@ -66,8 +62,8 @@
 
         {#if chatExamples.length > 0}
             <section class="section examples-section">
-                <SettingsSectionHeading title={$text('settings.app_store.content.examples')} icon="embed" />
-                <p class="section-description">{$text('settings.app_store.content.examples_prefix')}</p>
+                <SettingsSectionHeading title={$text('settings.app_store.content.examples')} icon="chat" />
+                <p class="section-description">{$text('settings.app_store.skills.examples_prefix')}</p>
                 <div class="recent-chats-scroll-container" data-testid="content-embed-example-chats">
                     {#each chatExamples as chat (chat.chat_id)}
                         <ChatPreviewCard {chat} {appId} skillId={content.contentTypeId} onOpen={openExampleChat} />

@@ -1,6 +1,6 @@
 id: example-chat-public-quality
 title: Public Example Chat Quality And Rendering Audit
-status: verified
+status: implementing
 
 goal: >
   Audit every public example chat that demonstrates app skills, focus modes,
@@ -62,6 +62,10 @@ context_discovery:
     - "Firecrawl review found focus-mode SSR/direct pages where public routes rendered generic shell content or omitted the expected activation/sub-chat affordances."
     - "Existing `focus-mode-example-chat-rendering` spec already documents missing focus activation embeds, incomplete sub-chat transcripts, and static sub-chat summary fallbacks."
     - "Existing `scripts/audit_example_chats.py` validates categories, missing i18n keys, some raw payload patterns, focus auto-selection, sub-chat presence for web-research, and app-skill preview basics, but it does not yet enforce the broader public-quality gate."
+    - "Issue `b88beff4-cfc5-48cd-ab62-58cb2dc4bcfd` reports memory example regressions: system messages not included/rendered, mail embed missing, interactive questions missing, document embed blank, and memory example card clicks not updating `#chat-id` for reload."
+    - "`memory-mail-writing-styles` currently contains only two messages and one `code` embed instead of renderable app-settings/memory system artifacts and a `mail-email` draft embed."
+    - "`memory-books-currently-reading` contains a `document`/`docx_model` embed payload that normalizes to `docs-doc` but lacks the `html`/`code` content shape required by `DocsEmbedPreview`, so the preview renders blank."
+    - "Settings app-store example handlers call `activeChatStore.setWithoutHashUpdate` on wide viewports, so linked example chats load in memory without updating the reloadable `#chat-id` URL."
 
 apple_impact:
   affected_files:
@@ -157,6 +161,29 @@ scenarios:
       - Interactive questions render as valid UI or are rewritten as plain conversation; they never show `[Interactive Question - Invalid JSON]`.
       - The answer avoids irrelevant disclaimers and unsafe commands such as destructive git cleanup instructions unless the prompt explicitly asks for them and includes appropriate warnings.
 
+  - id: S-7
+    title: Settings-linked example chats are reloadable
+    given:
+      - A visitor opens an app settings memory, skill, focus-mode, or content detail page with a linked example chat card.
+    when:
+      - The visitor clicks the example chat card on a wide viewport where settings remains open.
+    then:
+      - The active chat changes to the linked `example-*` chat.
+      - The browser URL hash changes to `#chat-id=<example-chat-id>`.
+      - Reloading the page restores the same example chat.
+
+  - id: S-8
+    title: Memory examples preserve system artifacts and render created content embeds
+    given:
+      - A public memory example demonstrates saved app settings/memory behavior, mail draft creation, or document creation.
+    when:
+      - The example chat is loaded from the hash route.
+    then:
+      - App-settings/memory request and response system artifacts are either preserved as system messages or represented by equivalent visible transcript context.
+      - Mail draft examples render a `mail-email` embed when the transcript says an email draft was created.
+      - Document examples render a non-empty `docs-doc` preview when the transcript references a created document.
+      - Interactive-question fences are balanced and parseable before any following embed reference.
+
   - id: S-6
     title: Deployed example pages pass Firecrawl rendering checks
     given:
@@ -194,6 +221,12 @@ acceptance_criteria:
   - id: AC-8
     scenario: S-6
     text: Deployed affected examples pass Firecrawl verification for specific page content, missing/broken embed absence, focus activation presence where applicable, and removed-slug 404 behavior.
+  - id: AC-9
+    scenario: S-7
+    text: Clicking linked example chat cards from settings updates the reloadable `#chat-id` URL on every viewport.
+  - id: AC-10
+    scenario: S-8
+    text: Memory examples preserve system-message semantics or equivalent visible context and render expected mail/document embeds without blank previews.
 
 contracts:
   data:
@@ -203,9 +236,13 @@ contracts:
     - "Media/document examples must point to public fixture assets whose URLs are stable for unauthenticated visitors."
     - "Focus-mode examples with `active_focus_id` must include a renderable focus activation artifact and must not contain @focus directives in user prompts."
     - "Memory examples must not contain malformed interactive question JSON; if interactive UI cannot be represented safely, the transcript must use plain conversation instead."
+    - "Example chat messages may use `role: system` when preserving app-settings/memory permission request/response artifacts from real chats."
+    - "Document examples using a direct document embed must store renderable `docs-doc` content (`html` or `code`) or be rejected by deterministic audit."
+    - "Mail examples whose transcript says an email draft was prepared must include at least one renderable `mail-email` embed."
   ui_states:
     - "Public `/example/<slug>` pages render crawlable SEO transcript HTML with `User:` and `OpenMates:` turns."
     - "Hash-route example chats render the normal chat transcript, embeds, sub-chat cards, focus activation cards, and parent navigation where applicable."
+    - "Settings-linked example chat cards update `#chat-id` even when the settings panel remains open beside the chat."
     - "Missing/removed old slugs return 404 from SSR lookup and do not appear in the `/example` listing."
   tooling:
     - "`scripts/audit_example_chats.py` remains the primary deterministic local audit and is expanded rather than bypassed."
@@ -227,9 +264,12 @@ tests:
       - AC-5
       - AC-6
       - AC-7
+      - AC-9
+      - AC-10
     assertions:
       - Audit inventories in-scope examples and reports capability-linked failures with chat IDs.
       - Audit fails on vault keys, presigned/private media errors, raw fenced embed JSON, invalid interactive-question placeholders, @focus directives, missing activation artifacts, and incomplete sub-chat transcripts.
+      - Audit fails on unbalanced `interactive_question` fences, blank document embed payloads, missing expected mail embeds, and memory examples with neither system artifacts nor equivalent visible context.
       - Audit passes after replacement examples and fixtures satisfy the contract.
     red_phase:
       required: true
@@ -243,8 +283,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: local-audit-example-chat-public-quality
-        timestamp: "2026-06-11T16:10:20Z"
+        run_id: local-audit-example-chat-public-quality-clean / pytest backend/tests/test_example_chat_scaffold.py
+        timestamp: "2026-06-11T20:18:55Z"
 
   - id: T-E2E-001
     type: playwright
@@ -256,11 +296,15 @@ tests:
       - AC-5
       - AC-6
       - AC-7
+      - AC-9
+      - AC-10
     assertions:
       - Example listing and every linked `/example/<slug>` page return crawlable HTML with transcript text and no unresolved i18n keys.
       - Deep research or other focus examples render activation/sub-chat affordances without @focus syntax.
       - Removed superseded slugs are absent from listing and return 404 via targeted assertions.
       - Media, PDF, memory, and app-skill examples selected by this spec do not expose broken embed text in the browser.
+      - Clicking a memory example card updates `window.location.hash` and reload restores that example chat.
+      - Reported memory examples render valid interactive questions and non-empty mail/document embed previews.
     red_phase:
       required: false
       expected: not_applicable
@@ -273,8 +317,8 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "2026-06-11T17:27:51Z / GitHub Actions run 27365646945 / git 38147d6c0"
-        timestamp: "2026-06-11T17:37:18Z"
+        run_id: "2026-06-11T20:20:03Z / GitHub Actions run 27375098399 / git d1ec9b237"
+        timestamp: "2026-06-11T20:25:40Z"
 
   - id: T-MANUAL-001
     type: manual
@@ -330,6 +374,12 @@ implementation_plan:
       reason: Remove or update localized source text for examples that still use i18n source keys.
     - path: frontend/apps/web_app/tests/example-chats-load.spec.ts
       reason: Add targeted assertions for removed slugs and representative focus/media/memory examples.
+    - path: frontend/packages/ui/src/components/settings/*Details.svelte
+      reason: Ensure settings-linked example chat navigation updates reloadable hash URLs.
+    - path: frontend/packages/ui/src/demo_chats/types.ts
+      reason: Preserve system-message roles in static examples.
+    - path: frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      reason: Convert example system messages into normal chat messages without role loss.
     - path: docs/specs/example-chat-public-quality/spec.yml
       reason: Executable product contract and verification evidence.
   verification_strategy:

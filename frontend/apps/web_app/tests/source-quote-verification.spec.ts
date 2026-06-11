@@ -31,6 +31,10 @@ const FALSE_QUOTE =
 	'Abu Dhabi and the federal government of UAE lent Dubai tens of billions of US ' +
 	'dollars so that Dubai could pay its debts.';
 
+const SHARED_CHAT_WITH_WEBSITE_QUOTE = 'https://app.dev.openmates.org/s/aUc6RjnR#bIiNzh';
+const WEBSITE_SOURCE_QUOTE =
+	'xHain is a hack+makespace in the heart of Berlin, Germany. You can drop in on our Open Monday night from 18h until late at night.';
+
 test.describe('Source quote verification', () => {
 	test.setTimeout(240_000);
 
@@ -69,5 +73,33 @@ test.describe('Source quote verification', () => {
 		await screenshot(page, 'false-source-quote-stripped');
 
 		await deleteActiveChat(page, log, screenshot, 'false-source-quote');
+	});
+
+	test('clicking a website source quote highlights matching fullscreen text', async ({ page }: { page: any }) => {
+		test.setTimeout(120_000);
+
+		const response = await page.goto(SHARED_CHAT_WITH_WEBSITE_QUOTE, { waitUntil: 'networkidle' });
+		expect(response?.status()).toBe(200);
+
+		const sourceQuote = page.getByTestId('source-quote-block').filter({ hasText: WEBSITE_SOURCE_QUOTE }).first();
+		await expect(sourceQuote).toBeVisible({ timeout: 30_000 });
+		await sourceQuote.click();
+
+		const overlay = page.getByTestId('embed-fullscreen-overlay');
+		await expect(overlay).toBeVisible({ timeout: 30_000 });
+
+		const highlight = overlay.getByTestId('embed-source-text-highlight');
+		await expect(highlight).toBeVisible({ timeout: 10_000 });
+		await expect(highlight).toContainText('xHain is a hack+makespace in the heart of Berlin');
+
+		const styles = await highlight.evaluate((el: HTMLElement) => {
+			const computed = window.getComputedStyle(el);
+			return {
+				backgroundColor: computed.backgroundColor,
+				boxShadow: computed.boxShadow,
+			};
+		});
+		expect(styles.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+		expect(styles.boxShadow).not.toBe('none');
 	});
 });

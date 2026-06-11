@@ -156,6 +156,5 @@ export const memoryTravelSavedConnectionsChat: ExampleChat = {
     featured: true,
     order: 68,
     app_settings_memory_examples: ["travel.saved_connections"],
-    content_embed_examples: ["docs.document"],
   },
 };

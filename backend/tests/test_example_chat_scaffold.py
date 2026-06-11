@@ -111,3 +111,19 @@ def test_current_example_chats_pass_audit(tmp_path: Path) -> None:
         module.REGISTRY_PATH = registry_path
 
     assert module.audit() == []
+
+
+def test_example_chat_audit_uses_parent_content_registry_keys() -> None:
+    audit_script = REPO_ROOT / "scripts" / "audit_example_chats.py"
+    spec = importlib.util.spec_from_file_location("audit_example_chats", audit_script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    catalog = module.load_content_catalog()
+
+    assert catalog["code.application"]["registryKey"] == "code-application"
+    assert catalog["code.application"]["frontendType"] == "code-application"
+    assert catalog["code.application"]["backendType"] == "application"
+    assert catalog["docs.document"]["registryKey"] == "docs-doc"

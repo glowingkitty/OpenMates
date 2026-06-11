@@ -44,14 +44,29 @@ def run_apply(source: Path, system_caddyfile: Path, fakebin: Path, extra_env: di
     )
 
 
-def prepare_fakebin(tmp_path: Path, *, adapt_fails: bool = False, restart_fails_once: bool = False) -> Path:
+def prepare_fakebin(
+    tmp_path: Path,
+    *,
+    adapt_fails: bool = False,
+    restart_fails_once: bool = False,
+    has_gandi_module: bool = False,
+    with_fake_go: bool = False,
+) -> Path:
     fakebin = tmp_path / "fakebin"
     fakebin.mkdir()
     adapt_action = 'echo "module not registered: dns.providers.gandi" >&2; exit 1' if adapt_fails else 'echo "{}"; exit 0'
+    modules_action = 'echo "dns.providers.gandi"; exit 0' if has_gandi_module else 'exit 0'
 
     write_executable(
         fakebin / "caddy",
         f"""#!/bin/bash
+if [ "$1" = "version" ]; then
+  echo "v2.8.4 h1:fake"
+  exit 0
+fi
+if [ "$1" = "list-modules" ]; then
+  {modules_action}
+fi
 if [ "$1" = "adapt" ]; then
   {adapt_action}
 fi
@@ -62,6 +77,52 @@ fi
 exit 1
 """,
     )
+    if with_fake_go:
+        write_executable(
+            fakebin / "go",
+            """#!/bin/bash
+set -e
+if [ "$1" = "install" ]; then
+  mkdir -p "$GOBIN"
+  cat > "$GOBIN/xcaddy" <<'EOF'
+#!/bin/bash
+set -e
+output=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output" ]; then
+    shift
+    output="$1"
+  fi
+  shift || true
+done
+cat > "$output" <<'EOF_CADDY'
+#!/bin/bash
+if [ "$1" = "version" ]; then
+  echo "v2.8.4 h1:fake"
+  exit 0
+fi
+if [ "$1" = "list-modules" ]; then
+  echo "dns.providers.gandi"
+  exit 0
+fi
+if [ "$1" = "adapt" ]; then
+  echo "{}"
+  exit 0
+fi
+if [ "$1" = "validate" ]; then
+  echo "adapted config to JSON"
+  exit 0
+fi
+exit 1
+EOF_CADDY
+/bin/chmod +x "$output"
+EOF
+  /bin/chmod +x "$GOBIN/xcaddy"
+  exit 0
+fi
+exit 1
+""",
+        )
     write_executable(fakebin / "chown", "#!/bin/bash\nexit 0\n")
     write_executable(fakebin / "chmod", "#!/bin/bash\nexit 0\n")
 
@@ -71,6 +132,9 @@ exit 1
         f"""#!/bin/bash
 case "$1" in
   is-active)
+    if [ -f "{state_file}" ]; then
+      exit 0
+    fi
     exit 1
     ;;
   show)
@@ -161,3 +225,62 @@ def test_check_mode_runs_without_root_and_does_not_copy_or_reload(tmp_path: Path
     assert system_caddyfile.read_text(encoding="utf-8") == "previous working config\n"
     assert not (tmp_path / "restart-count").exists()
     assert "/tmp/openmates-caddy-adapted.json" not in APPLY_SCRIPT.read_text(encoding="utf-8")
+
+
+def test_gandi_dns_config_warns_when_shell_token_missing(tmp_path: Path):
+    source = tmp_path / "candidate.Caddyfile"
+    source.write_text("*.example.test {\n  tls {\n    dns gandi {env.GANDI_BEARER_TOKEN}\n  }\n}\n", encoding="utf-8")
+    system_caddyfile = tmp_path / "system.Caddyfile"
+    system_caddyfile.write_text("previous working config\n", encoding="utf-8")
+    fakebin = prepare_fakebin(tmp_path, has_gandi_module=True)
+
+    result = run_apply(source, system_caddyfile, fakebin, extra_env={"GANDI_BEARER_TOKEN": ""})
+
+    assert result.returncode == 0
+    assert "GANDI_BEARER_TOKEN is not available to this shell" in result.stdout
+    assert "syntax check will use a dummy token" in result.stdout
+    assert "Do not put the Gandi token" in result.stdout
+    assert system_caddyfile.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
+
+
+def test_gandi_dns_check_mode_fails_when_module_missing(tmp_path: Path):
+    source = tmp_path / "candidate.Caddyfile"
+    source.write_text("*.example.test {\n  tls {\n    dns gandi {env.GANDI_BEARER_TOKEN}\n  }\n}\n", encoding="utf-8")
+    system_caddyfile = tmp_path / "system.Caddyfile"
+    system_caddyfile.write_text("previous working config\n", encoding="utf-8")
+    fakebin = prepare_fakebin(tmp_path)
+    env = os.environ.copy()
+    env.update({
+        "GANDI_BEARER_TOKEN": "fake-token",
+        "OPENMATES_SYSTEM_CADDYFILE": str(system_caddyfile),
+        "PATH": f"{fakebin}:{env['PATH']}",
+    })
+
+    result = subprocess.run(
+        ["bash", str(APPLY_SCRIPT), "--check", str(source)],
+        cwd=PROJECT_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "installed Caddy binary does not include it" in result.stdout
+    assert system_caddyfile.read_text(encoding="utf-8") == "previous working config\n"
+
+
+def test_apply_mode_installs_gandi_module_before_copy(tmp_path: Path):
+    source = tmp_path / "candidate.Caddyfile"
+    source.write_text("*.example.test {\n  tls {\n    dns gandi {env.GANDI_BEARER_TOKEN}\n  }\n}\n", encoding="utf-8")
+    system_caddyfile = tmp_path / "system.Caddyfile"
+    system_caddyfile.write_text("previous working config\n", encoding="utf-8")
+    fakebin = prepare_fakebin(tmp_path, with_fake_go=True)
+
+    result = run_apply(source, system_caddyfile, fakebin, extra_env={"GANDI_BEARER_TOKEN": "fake-token"})
+
+    assert result.returncode == 0
+    assert "building and installing a compatible binary" in result.stdout
+    assert "Installed Caddy with dns.providers.gandi" in result.stdout
+    assert system_caddyfile.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")

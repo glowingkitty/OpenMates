@@ -76,9 +76,6 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: TV watchlist memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -90,9 +87,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -104,9 +98,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -118,9 +109,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -132,9 +120,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -146,9 +131,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -160,9 +142,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -174,9 +153,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -188,9 +164,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -202,9 +175,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -216,9 +186,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -230,9 +197,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -244,9 +208,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -258,9 +219,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -272,9 +230,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -286,9 +241,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -300,9 +252,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -314,9 +263,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -328,9 +274,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -342,9 +285,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     
@@ -356,9 +296,6 @@ message_2:
     
     Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "1e715bfd-50b7-4bd8-82b5-ffa6874b184e", "app_id": "web", "skill_id": "search", "query": "The Bear TV show season 4 release date", "provider": "Brave"}
-    ```
     
     Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
     

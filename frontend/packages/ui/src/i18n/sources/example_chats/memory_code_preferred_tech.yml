@@ -106,16 +106,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -142,8 +136,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -178,16 +170,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -214,8 +200,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -250,16 +234,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -286,8 +264,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -322,16 +298,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -358,8 +328,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -394,16 +362,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -430,8 +392,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -466,16 +426,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -502,8 +456,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -538,16 +490,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -574,8 +520,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -610,16 +554,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -646,8 +584,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -682,16 +618,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -718,8 +648,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -754,16 +682,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -790,8 +712,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -826,16 +746,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -862,8 +776,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -898,16 +810,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -934,8 +840,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -970,16 +874,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -1006,8 +904,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -1042,16 +938,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -1078,8 +968,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -1114,16 +1002,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -1150,8 +1032,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -1186,16 +1066,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -1222,8 +1096,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -1258,16 +1130,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -1294,8 +1160,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -1330,16 +1194,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -1366,8 +1224,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -1402,16 +1258,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -1438,8 +1288,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -1474,16 +1322,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -1510,8 +1352,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     
@@ -1546,16 +1386,10 @@ message_2:
     ### 🚀 Getting Started (Terminal Workflow)
     
     1.  **Initialize SvelteKit:**
-        ```json
-    {"type": "code", "embed_id": "3df3a44e-95fb-4570-8a16-8498d65a90aa"}
-    ```
     
     
     2.  **Add Rust/WASM Support:**
         Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-        ```json
-    {"type": "code", "embed_id": "ce0bb0ab-3cb3-4299-95be-e0a29e09b314"}
-    ```
     
     
     3.  **Local Database:**
@@ -1582,8 +1416,6 @@ message_2:
         { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "c1967175-bd5a-445c-9181-8ce5c5e0013a"}
     ```
     
     

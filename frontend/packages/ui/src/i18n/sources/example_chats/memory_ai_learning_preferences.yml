@@ -140,9 +140,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -152,9 +149,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -176,8 +170,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -192,9 +184,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   de: |
@@ -262,9 +251,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -274,9 +260,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -298,8 +281,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -314,9 +295,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   zh: |
@@ -384,9 +362,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -396,9 +371,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -420,8 +392,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -436,9 +406,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   es: |
@@ -506,9 +473,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -518,9 +482,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -542,8 +503,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -558,9 +517,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   fr: |
@@ -628,9 +584,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -640,9 +593,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -664,8 +614,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -680,9 +628,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   pt: |
@@ -750,9 +695,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -762,9 +704,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -786,8 +725,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -802,9 +739,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   ru: |
@@ -872,9 +806,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -884,9 +815,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -908,8 +836,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -924,9 +850,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   ja: |
@@ -994,9 +917,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -1006,9 +926,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -1030,8 +947,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -1046,9 +961,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   ko: |
@@ -1116,9 +1028,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -1128,9 +1037,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -1152,8 +1058,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -1168,9 +1072,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   it: |
@@ -1238,9 +1139,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -1250,9 +1148,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -1274,8 +1169,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -1290,9 +1183,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   tr: |
@@ -1360,9 +1250,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -1372,9 +1259,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -1396,8 +1280,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -1412,9 +1294,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   vi: |
@@ -1482,9 +1361,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -1494,9 +1370,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -1518,8 +1391,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -1534,9 +1405,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   id: |
@@ -1604,9 +1472,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -1616,9 +1481,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -1640,8 +1502,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -1656,9 +1516,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   pl: |
@@ -1726,9 +1583,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -1738,9 +1592,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -1762,8 +1613,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -1778,9 +1627,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   nl: |
@@ -1848,9 +1694,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -1860,9 +1703,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -1884,8 +1724,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -1900,9 +1738,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   ar: |
@@ -1970,9 +1805,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -1982,9 +1814,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -2006,8 +1835,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -2022,9 +1849,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   hi: |
@@ -2092,9 +1916,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -2104,9 +1925,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -2128,8 +1946,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -2144,9 +1960,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   th: |
@@ -2214,9 +2027,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -2226,9 +2036,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -2250,8 +2057,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -2266,9 +2071,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   cs: |
@@ -2336,9 +2138,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -2348,9 +2147,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -2372,8 +2168,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -2388,9 +2182,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   sv: |
@@ -2458,9 +2249,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -2470,9 +2258,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -2494,8 +2279,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -2510,9 +2293,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   he: |
@@ -2580,9 +2360,6 @@ message_2:
     
     #### 🛠️ Exercise 2: The Delay Twist
     How long does it take for `Message 2` to appear?
-    ```json
-    {"type": "code", "embed_id": "e00b52a3-e7e2-4480-b553-3cecceac31da"}
-    ```
     
     
     
@@ -2592,9 +2369,6 @@ message_2:
     [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
     
     **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "fb73017c-0898-4794-a052-6641e2a58b64"}
-    ```
     
     
     *Output: `Promise` then `Timer`. Promises always cut the line.*
@@ -2616,8 +2390,6 @@ message_2:
         { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
       ]
     }
-    ```json
-    {"type": "code", "embed_id": "43043711-cb34-4ebd-bacb-b7b3b5afb605"}
     ```
     
     javascript:boss_challenge.js
@@ -2632,9 +2404,6 @@ message_2:
     });
     
     console.log("End");
-    ```json
-    {"type": "code", "embed_id": "f769cbb5-0ec8-49c3-8c70-0d4fef8488d6"}
-    ```
     
     
   verified_by_human: []

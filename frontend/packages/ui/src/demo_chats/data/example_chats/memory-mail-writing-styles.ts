@@ -23,6 +23,18 @@ export const memoryMailWritingStylesChat: ExampleChat = {
         "created_at": 1781108210
     },
     {
+        "id": "memory-mail-writing-styles-request",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"6391eb10-7e3e-41f7-81ff-91d58cf8db4e\",\"request_id\":\"example-mail-writing-styles-request\",\"requested_keys\":[\"mail-writing_styles\"],\"categories\":[{\"appId\":\"mail\",\"itemType\":\"writing_styles\",\"entryCount\":1}]}",
+        "created_at": 1781108211
+    },
+    {
+        "id": "memory-mail-writing-styles-response",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"6391eb10-7e3e-41f7-81ff-91d58cf8db4e\",\"action\":\"included\",\"categories\":[{\"appId\":\"mail\",\"itemType\":\"writing_styles\",\"entryCount\":1}]}",
+        "created_at": 1781108212
+    },
+    {
         "id": "e9d8de39-eba4-4cc6-a626-48c161f8b70d",
         "role": "assistant",
         "content": "example_chats.memory_mail_writing_styles.message_2",
@@ -34,8 +46,8 @@ export const memoryMailWritingStylesChat: ExampleChat = {
   embeds: [
     {
         "embed_id": "45ef1cc5-abac-40cb-89ba-ee703709ce73",
-        "type": "code",
-        "content": "type: code\napp_id: code\nskill_id: code\nlanguage: \"\"\ncode: \"\\n\\n**Next Steps:**\\n* If you have a specific project in mind, tell me the name and I can fill in the placeholders.\\n* You can also view or edit your other [writing styles](/#settings/app_store/mail/settings_memories/writing_styles) at any time.\"\nfilename: null\nembed_ref: code-45ef1c\nstatus: finished\nline_count: 5",
+        "type": "mail-email",
+        "content": "type: mail-email\napp_id: mail\nskill_id: email\nreceiver: \"[Client Name]\"\nsubject: \"Progress Update: [Project Name] | Friday, June 12\"\ncontent: \"Hi [Client Name],\\n\\nI hope you've had a productive week!\\n\\nWe've made some great progress on [Project Name] over the last few days. Specifically, we have successfully completed [Specific Task 1] and are currently finalizing the [Specific Task 2]. Everything is tracking well according to our timeline.\\n\\nNext steps:\\n- [Action Item 1] - Scheduled for completion by [Day]\\n- [Action Item 2] - Internal review of [Deliverable]\\n- [Action Item 3] - Follow-up meeting on [Date/Time]\\n\\nI'll keep you posted as these items progress. Have a wonderful weekend!\"\nfooter: \"Best,\\nAlex\"\nfilename: Friday_Client_Update_Draft.eml\nembed_ref: mail-45ef1c\nstatus: finished",
         "parent_embed_id": null,
         "embed_ids": null
     }

@@ -151,11 +151,7 @@
 
     function openExampleChat(chat: Chat) {
         const shouldCloseSettings = get(isMobileView);
-        if (shouldCloseSettings) {
-            activeChatStore.setActiveChat(chat.chat_id);
-        } else {
-            activeChatStore.setWithoutHashUpdate(chat.chat_id);
-        }
+        activeChatStore.setActiveChat(chat.chat_id);
         dispatch('chatSelected', { chat });
         window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
         // Wide viewports keep settings open so users can inspect the app while the chat loads beside or behind it.
@@ -167,7 +163,7 @@
 
 {#if chatExamples.length > 0}
     <div class="section examples-section">
-        <SettingsSectionHeading title={$text('settings.app_store.skills.examples')} icon="skill" />
+        <SettingsSectionHeading title={$text('settings.app_store.skills.examples')} icon="chat" />
         <p class="examples-prefix">{$text('settings.app_store.skills.examples_prefix')}</p>
         <div class="recent-chats-scroll-container" data-testid="app-store-example-chats">
             {#each chatExamples as chat (chat.chat_id)}
@@ -178,7 +174,7 @@
 {:else if available && examples.length > 0 && PreviewComponent}
     {@const Preview = PreviewComponent}
     <div class="section examples-section">
-        <SettingsSectionHeading title={$text('settings.app_store.skills.examples')} icon="skill" />
+        <SettingsSectionHeading title={$text('settings.app_store.skills.examples')} icon="chat" />
         <p class="examples-prefix">{$text('settings.app_store.skills.examples_prefix')}</p>
         <div class="examples-scroll-container">
             <div class="examples-scroll">

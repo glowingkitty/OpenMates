@@ -34,8 +34,11 @@ const str = (v: unknown): string | null =>
 const DIRECT_TYPES = new Set([
   "code",
   "code-code",
+  "code-application",
+  "application",
   "docs-doc",
   "doc",
+  "document",
   "sheets-sheet",
   "sheet",
   "pdf",
@@ -60,8 +63,11 @@ const DIRECT_TYPES = new Set([
 const DIRECT_TYPE_LABELS: Record<string, string> = {
   "code": "code",
   "code-code": "code",
+  "code-application": "application",
+  "application": "application",
   "docs-doc": "document",
   "doc": "document",
+  "document": "document",
   "sheets-sheet": "sheet",
   "sheet": "sheet",
   "pdf": "pdf",
@@ -1146,8 +1152,28 @@ function renderByDirectType(
       break;
     }
 
+    case "code-application":
+    case "application": {
+      const name = str(c.name) ?? str(c.title) ?? "Generated application";
+      const framework = str(c.framework) ?? "";
+      const runtime = str(c.runtime) ?? "";
+      ln(name);
+      if (framework || runtime) {
+        ln(`\x1b[2m${[framework, runtime].filter(Boolean).join("  ")}\x1b[0m`);
+      }
+      break;
+    }
+
     case "docs-doc":
     case "doc": {
+      const title = str(c.title) ?? str(c.filename) ?? "";
+      const wordCount = c.word_count;
+      if (title) ln(title);
+      if (wordCount) ln(`\x1b[2m${wordCount} words\x1b[0m`);
+      break;
+    }
+
+    case "document": {
       const title = str(c.title) ?? str(c.filename) ?? "";
       const wordCount = c.word_count;
       if (title) ln(title);
@@ -1320,6 +1346,17 @@ function renderDirectTypeFullscreen(
       break;
     }
 
+    case "code-application":
+    case "application": {
+      const name = str(c.name) ?? str(c.title);
+      const framework = str(c.framework);
+      const runtime = str(c.runtime);
+      if (name) process.stdout.write(`\x1b[1m${name}\x1b[0m\n`);
+      if (framework) process.stdout.write(`\x1b[2mFramework:\x1b[0m ${framework}\n`);
+      if (runtime) process.stdout.write(`\x1b[2mRuntime:\x1b[0m ${runtime}\n`);
+      break;
+    }
+
     case "docs-doc":
     case "doc": {
       const title = str(c.title);
@@ -1327,6 +1364,20 @@ function renderDirectTypeFullscreen(
       if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
       if (html) {
         // Strip HTML for text output
+        const text = html
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        console.log(text);
+      }
+      break;
+    }
+
+    case "document": {
+      const title = str(c.title);
+      const html = str(c.html) ?? "";
+      if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
+      if (html) {
         const text = html
           .replace(/<[^>]+>/g, " ")
           .replace(/\s+/g, " ")

@@ -84,6 +84,57 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TOON-decoded content is genuinely schemaless (100+ dynamic fields across embed types)
 type DecodedEmbedContent = Record<string, any>;
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function cleanDocxModelValue(value: string): string {
+  return value
+    .trim()
+    .replace(/^"|"$/g, "")
+    .replace(/",true$/g, "")
+    .replace(/^true,/, "")
+    .trim();
+}
+
+function extractLegacyDocxHtml(rawContent?: string, title?: string): string {
+  if (!rawContent?.includes("docx_model:")) return "";
+
+  const lines = rawContent.split("\n");
+  const titleMatch = rawContent.match(/(?:^|\n)title:\s*"?([^\n"]+)"?/);
+  const displayTitle = cleanDocxModelValue(title || titleMatch?.[1] || "Document");
+  const bodyLines: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = lines[index].trim();
+    const next = lines[index + 1]?.trim() || "";
+
+    if (trimmed.startsWith("text:")) {
+      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^text:\s*/, "")));
+    } else if (trimmed.includes("runs[") && next && !next.includes(":")) {
+      bodyLines.push(cleanDocxModelValue(next));
+    } else if (trimmed.startsWith("items[")) {
+      bodyLines.push(...trimmed.replace(/^items\[[^\]]+\]:\s*/, "").split(",").map(cleanDocxModelValue));
+    } else if (trimmed.startsWith("headers[")) {
+      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^headers\[[^\]]+\]:\s*/, "")));
+    } else if (trimmed.startsWith("- [")) {
+      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^- \[[^\]]+\]:\s*/, "")));
+    }
+  }
+
+  const uniqueBodyLines = bodyLines.filter(
+    (line, index, all) => line && line !== displayTitle && all.indexOf(line) === index,
+  );
+  return [
+    `<h1>${escapeHtml(displayTitle)}</h1>`,
+    ...uniqueBodyLines.map((line) => `<p>${escapeHtml(line)}</p>`),
+  ].join("\n");
+}
+
 /** Match result from PDF search skill (mirrors PdfSearchEmbedFullscreen.SearchMatch) */
 interface PdfSearchMatch {
   page_num?: number;
@@ -2435,7 +2486,11 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     // Use decoded content if available, otherwise fall back to item attributes
-    const htmlContent = decodedContent?.html || item.code || "";
+    const htmlContent =
+      decodedContent?.html ||
+      decodedContent?.code ||
+      item.code ||
+      extractLegacyDocxHtml(embedData?.content, decodedContent?.title || item.title);
     const title = decodedContent?.title || item.title;
     const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
@@ -3248,7 +3303,11 @@ export class GroupRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): Promise<void> {
     // Use decoded content if available, otherwise fall back to item attributes
-    const htmlContent = decodedContent?.html || item.code || "";
+    const htmlContent =
+      decodedContent?.html ||
+      decodedContent?.code ||
+      item.code ||
+      extractLegacyDocxHtml(embedData?.content, decodedContent?.title || item.title);
     const title = decodedContent?.title || item.title;
     const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
@@ -4579,10 +4638,18 @@ export class GroupRenderer implements EmbedRenderer {
 
     const title = (decodedContent?.title as string | undefined) || "";
     const sourceDomain = resolveImageSourceDomain(decodedContent);
-    const thumbnailUrl =
-      (decodedContent?.thumbnail_url as string | undefined) || "";
-    const faviconUrl =
+    const rawImageUrl = (decodedContent?.image_url as string | undefined) || "";
+    const rawThumbnailUrl =
+      (decodedContent?.thumbnail_url as string | undefined) ||
+      (decodedContent?.public_thumbnail_url as string | undefined) ||
+      "";
+    const rawFaviconUrl =
       (decodedContent?.favicon_url as string | undefined) || "";
+    const imageUrl = rawImageUrl ? proxyImage(rawImageUrl) : undefined;
+    const thumbnailUrl = rawThumbnailUrl
+      ? proxyImage(rawThumbnailUrl)
+      : undefined;
+    const faviconUrl = rawFaviconUrl ? proxyImage(rawFaviconUrl) : undefined;
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -4609,6 +4676,7 @@ export class GroupRenderer implements EmbedRenderer {
           title,
           sourceDomain,
           thumbnailUrl,
+          imageUrl,
           faviconUrl,
           status,
           isMobile: false,

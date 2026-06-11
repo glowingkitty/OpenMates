@@ -127,7 +127,7 @@ function exampleMessagesToMessages(example: ExampleChatRecord): Message[] {
   const messages = example.messages.map((msg) => ({
     message_id: msg.id,
     chat_id: example.chat_id,
-    role: msg.role as "user" | "assistant",
+    role: msg.role,
     content: translate(msg.content),
     category: msg.category,
     model_name: msg.model_name,

@@ -10,6 +10,7 @@ quality; quality review belongs to the CLI regeneration workflow.
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -95,15 +96,28 @@ def load_content_catalog() -> dict[str, dict[str, str]]:
             app_id = embed_type.get("app_id") or path.parent.name
             content_type_id = content_catalog.get("content_type_id") or embed_type.get("id")
             catalog_id = f"{app_id}.{content_type_id}"
+            source = content_catalog.get("source", "self")
             registry_key = (
                 f"app:{app_id}:{embed_type.get('skill_id')}"
-                if embed_type.get("category") == "app-skill-use" and content_catalog.get("source", "self") != "child"
-                else embed_type.get("child_frontend_type") or embed_type.get("frontend_type") or embed_type.get("id")
+                if embed_type.get("category") == "app-skill-use" and source != "child"
+                else (
+                    embed_type.get("child_frontend_type")
+                    if source == "child"
+                    else embed_type.get("frontend_type") or embed_type.get("id")
+                )
             )
             catalog[catalog_id] = {
                 "registryKey": registry_key,
-                "frontendType": embed_type.get("child_frontend_type") or embed_type.get("frontend_type") or "",
-                "backendType": embed_type.get("child_type") or embed_type.get("backend_type") or "",
+                "frontendType": (
+                    embed_type.get("child_frontend_type")
+                    if source == "child"
+                    else embed_type.get("frontend_type") or ""
+                ),
+                "backendType": (
+                    embed_type.get("child_type")
+                    if source == "child"
+                    else embed_type.get("backend_type") or ""
+                ),
                 "skillId": embed_type.get("skill_id") or "",
             }
     return catalog
@@ -111,8 +125,8 @@ def load_content_catalog() -> dict[str, dict[str, str]]:
 
 def unescape_ts_string(value: str) -> str:
     try:
-        return bytes(value, "utf-8").decode("unicode_escape")
-    except UnicodeDecodeError:
+        return json.loads(f'"{value}"')
+    except json.JSONDecodeError:
         return value
 
 
@@ -232,7 +246,89 @@ def parse_embed_content(block: str) -> str:
     return content.replace("\\n", "\n") if content else ""
 
 
-def has_matching_content_embed(source: str, catalog_item: dict[str, str]) -> bool:
+def embed_ids_in_source(source: str) -> set[str]:
+    ids: set[str] = set()
+    for block in iter_embed_blocks(source):
+        embed_id = parse_ts_string_field(block, "embed_id")
+        if embed_id:
+            ids.add(embed_id)
+    return ids
+
+
+def json_embed_refs_in_text(text: str) -> set[str]:
+    refs: set[str] = set()
+    for match in re.finditer(r"```json\s*(?P<body>[\s\S]*?)\s*```", text):
+        body = match.group("body").strip()
+        if '"embed_id"' not in body:
+            continue
+        try:
+            parsed = json.loads(body)
+        except json.JSONDecodeError:
+            continue
+        embed_id = parsed.get("embed_id")
+        if isinstance(embed_id, str):
+            refs.add(embed_id)
+    return refs
+
+
+def audit_interactive_questions(chat_id: str, message_index: int, text: str) -> list[str]:
+    issues: list[str] = []
+    lines = text.splitlines()
+    index = 0
+    while index < len(lines):
+        if lines[index].strip() != "```interactive_question":
+            index += 1
+            continue
+
+        start_line = index + 1
+        index += 1
+        body_lines: list[str] = []
+        closed = False
+        while index < len(lines):
+            marker = lines[index].strip()
+            if marker == "```":
+                closed = True
+                break
+            if marker.startswith("```"):
+                issues.append(
+                    f"{chat_id}: message {message_index} interactive_question opened at line {start_line} is not closed before {marker!r}"
+                )
+                closed = True
+                break
+            body_lines.append(lines[index])
+            index += 1
+
+        if not closed:
+            issues.append(f"{chat_id}: message {message_index} interactive_question opened at line {start_line} is not closed")
+            break
+
+        try:
+            json.loads("\n".join(body_lines).strip())
+        except json.JSONDecodeError as error:
+            issues.append(
+                f"{chat_id}: message {message_index} interactive_question opened at line {start_line} has invalid JSON: {error.msg}"
+            )
+        index += 1
+    return issues
+
+
+def has_renderable_document_content(content: str) -> bool:
+    content_type = toon_value(content, "type")
+    if content_type not in {"document", "docs-doc"}:
+        return True
+    return any(marker in content for marker in ("\nhtml:", "\ncode:", "\ndocx_model:"))
+
+
+def has_embed_type(source: str, expected_types: set[str]) -> bool:
+    for block in iter_embed_blocks(source):
+        embed_type = parse_ts_string_field(block, "type")
+        content_type = toon_value(parse_embed_content(block), "type")
+        if embed_type in expected_types or content_type in expected_types:
+            return True
+    return False
+
+
+def content_catalog_accepted_types(catalog_item: dict[str, str]) -> set[str]:
     registry_key = catalog_item.get("registryKey", "")
     accepted_types = {
         value
@@ -244,22 +340,61 @@ def has_matching_content_embed(source: str, catalog_item: dict[str, str]) -> boo
         if value
     }
     accepted_types.update({value.replace("-", "_") for value in list(accepted_types)})
+    return accepted_types
+
+
+def embed_block_matches_content_catalog(block: str, catalog_item: dict[str, str]) -> bool:
+    registry_key = catalog_item.get("registryKey", "")
+    accepted_types = content_catalog_accepted_types(catalog_item)
 
     expected_app_id: str | None = None
     expected_skill_id: str | None = catalog_item.get("skillId")
     if registry_key.startswith("app:"):
         _, expected_app_id, expected_skill_id = registry_key.split(":", 2)
 
-    for block in iter_embed_blocks(source):
-        embed_type = parse_ts_string_field(block, "type")
-        content = parse_embed_content(block)
-        content_type = toon_value(content, "type")
-        app_id = toon_value(content, "app_id")
-        skill_id = toon_value(content, "skill_id")
+    embed_type = parse_ts_string_field(block, "type")
+    content = parse_embed_content(block)
+    content_type = toon_value(content, "type")
+    app_id = toon_value(content, "app_id")
+    skill_id = toon_value(content, "skill_id")
 
-        if expected_app_id and app_id == expected_app_id and skill_id == expected_skill_id:
-            return True
-        if embed_type in accepted_types or content_type in accepted_types:
+    if expected_app_id and app_id == expected_app_id and skill_id == expected_skill_id:
+        return True
+    return embed_type in accepted_types or content_type in accepted_types
+
+
+def has_matching_content_embed(source: str, catalog_item: dict[str, str]) -> bool:
+    return any(
+        embed_block_matches_content_catalog(block, catalog_item)
+        for block in iter_embed_blocks(source)
+    )
+
+
+def parse_message_embed_references(source: str) -> set[str]:
+    references: set[str] = set()
+    for message in parse_messages(source):
+        resolved, _ = resolve_message_content(message.content)
+        for match in re.finditer(r"```(?:json_embed|json)\n([\s\S]*?)\n```", resolved):
+            try:
+                parsed = json.loads(match.group(1).strip())
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict) and isinstance(parsed.get("embed_id"), str):
+                references.add(parsed["embed_id"])
+        references.update(re.findall(r"\[[^\]]*\]\(embed:([^\)]+)\)", resolved))
+    return references
+
+
+def has_visible_content_embed_reference(source: str, catalog_item: dict[str, str]) -> bool:
+    references = parse_message_embed_references(source)
+    for block in iter_embed_blocks(source):
+        if not embed_block_matches_content_catalog(block, catalog_item):
+            continue
+        embed_id = parse_ts_string_field(block, "embed_id")
+        content = parse_embed_content(block)
+        embed_ref = toon_value(content, "embed_ref")
+
+        if (embed_id and embed_id in references) or (embed_ref and embed_ref in references):
             return True
 
     return False
@@ -285,6 +420,8 @@ def audit() -> list[str]:
         source = path.read_text(encoding="utf-8")
         chat_id = parse_ts_string_field(source, "chat_id") or path.stem
         category = parse_ts_string_field(source, "category")
+        source_embed_ids = embed_ids_in_source(source)
+        settings_memory_examples = parse_ts_string_array_field(source, "app_settings_memory_examples")
         issues.extend(audit_static_source(chat_id, source))
 
         if category not in valid_categories:
@@ -298,6 +435,8 @@ def audit() -> list[str]:
             content_example_counts[content_key] = content_example_counts.get(content_key, 0) + 1
             if not has_matching_content_embed(source, catalog_item):
                 issues.append(f"{chat_id}: content embed example {content_key!r} has no matching embed")
+            elif not has_visible_content_embed_reference(source, catalog_item):
+                issues.append(f"{chat_id}: content embed example {content_key!r} is not referenced in any message")
 
         active_focus_id = parse_ts_string_field(source, "active_focus_id")
         if active_focus_id and not has_matching_focus_activation(source, active_focus_id):
@@ -320,6 +459,12 @@ def audit() -> list[str]:
             resolved, missing_key = resolve_message_content(message.content)
             if missing_key:
                 issues.append(f"{chat_id}: message {index} references missing i18n key {missing_key}")
+            issues.extend(audit_interactive_questions(chat_id, index, resolved))
+            missing_json_refs = sorted(json_embed_refs_in_text(resolved) - source_embed_ids)
+            if missing_json_refs:
+                issues.append(
+                    f"{chat_id}: message {index} references missing JSON embed IDs: {', '.join(missing_json_refs)}"
+                )
             if active_focus_id in FOCUS_MODES_REQUIRING_SUB_CHATS and message.role == "user":
                 if FOCUS_MENTION_RE.search(resolved):
                     issues.append(
@@ -338,9 +483,12 @@ def audit() -> list[str]:
 
         for block in iter_embed_blocks(source):
             embed_type = parse_ts_string_field(block, "type")
+            content = parse_embed_content(block)
+            if embed_type in {"document", "docs-doc"} and not has_renderable_document_content(content):
+                embed_id = parse_ts_string_field(block, "embed_id") or "<unknown>"
+                issues.append(f"{chat_id}: document embed {embed_id} has no renderable html/code/docx_model content")
             if embed_type != "app_skill_use":
                 continue
-            content = parse_embed_content(block)
             app_id = toon_value(content, "app_id")
             skill_id = toon_value(content, "skill_id")
             if not app_id or not skill_id:
@@ -351,6 +499,12 @@ def audit() -> list[str]:
                 issues.append(
                     f"{chat_id}: {registry_key} has no registry preview and no generic preview fields"
                 )
+
+        if "mail.writing_styles" in settings_memory_examples:
+            if not has_embed_type(source, {"mail-email"}):
+                issues.append(f"{chat_id}: mail writing memory example is missing a mail-email embed")
+            if not any(message.role == "system" for message in parse_messages(source)):
+                issues.append(f"{chat_id}: mail writing memory example is missing app settings/memory system messages")
 
     for content_key, count in sorted(content_example_counts.items()):
         if count == 0:

@@ -76,9 +76,6 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Watched TV shows memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -98,9 +95,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -120,9 +114,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -142,9 +133,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -164,9 +152,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -186,9 +171,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -208,9 +190,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -230,9 +209,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -252,9 +228,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -274,9 +247,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -296,9 +266,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -318,9 +285,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -340,9 +304,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -362,9 +323,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -384,9 +342,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -406,9 +361,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -428,9 +380,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -450,9 +399,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -472,9 +418,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -494,9 +437,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     
@@ -516,9 +456,6 @@ message_2:
     - Would you like more details on any of these specific shows, such as where to watch them?
     - Are you interested in movies that have a similar "corporate nightmare" or "mind-bending" vibe?
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "606d2a33-d15e-41b4-8368-449e480f6173", "app_id": "web", "skill_id": "search", "query": "TV shows like Severance with eerie mystery and slow-burn reveals 2026", "provider": "Brave"}
-    ```
     
     Since you are currently enjoying the eerie office mystery and slow-burn reveals of Severance, here are a few series you should try next that capture a similar atmosphere and set of themes:
     

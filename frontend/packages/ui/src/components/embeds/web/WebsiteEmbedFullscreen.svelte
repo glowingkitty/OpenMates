@@ -83,6 +83,8 @@
   let image = $derived(typeof dc.image === 'string' ? dc.image : (typeof attrs.image === 'string' ? attrs.image : undefined));
   let extra_snippets = $derived(dc.extra_snippets as string | string[] | undefined);
   let dataDate = $derived(typeof dc.page_age === 'string' ? dc.page_age : undefined);
+  let highlightQuoteText = $derived(data.highlightQuoteText ?? null);
+  let contentEl: HTMLDivElement | undefined = $state(undefined);
   
   // ===========================================
   // HTML Tag Stripping (Client-side fallback)
@@ -371,6 +373,55 @@
   
   // Track image loading error to hide broken images
   let imageError = $state(false);
+
+  $effect(() => {
+    void cleanedDescription;
+    void cleanedSnippets;
+    const quote = highlightQuoteText?.trim();
+    if (!contentEl) return;
+    if (!quote) {
+      clearSourceQuoteHighlights();
+      return;
+    }
+    const raf = requestAnimationFrame(() => highlightSourceQuoteText(quote));
+    return () => cancelAnimationFrame(raf);
+  });
+
+  function clearSourceQuoteHighlights() {
+    if (!contentEl) return;
+    contentEl.querySelectorAll('mark.embed-source-text-highlight').forEach((el) => {
+      const parent = el.parentNode;
+      if (!parent) return;
+      parent.replaceChild(document.createTextNode(el.textContent || ''), el);
+      parent.normalize();
+    });
+  }
+
+  function highlightSourceQuoteText(quote: string) {
+    if (!contentEl) return;
+    clearSourceQuoteHighlights();
+
+    const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode() as Text | null;
+    const lowerQuote = quote.toLowerCase();
+
+    while (node) {
+      const textValue = node.nodeValue || '';
+      const index = textValue.toLowerCase().indexOf(lowerQuote);
+      if (index !== -1) {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + quote.length);
+        const marker = document.createElement('mark');
+        marker.className = 'embed-source-text-highlight';
+        marker.dataset.testid = 'embed-source-text-highlight';
+        range.surroundContents(marker);
+        marker.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        return;
+      }
+      node = walker.nextNode() as Text | null;
+    }
+  }
 </script>
 
 <!-- 
@@ -400,6 +451,7 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  skipInitialScrollReset={!!highlightQuoteText}
 >
   {#snippet embedHeaderCta()}
     <EmbedHeaderCtaButton label="Open on {hostname()}" onclick={handleOpenInNewTab} />
@@ -407,7 +459,7 @@
 
   <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
   {#snippet content(_)}
-    <div class="website-fullscreen-content">
+    <div class="website-fullscreen-content" bind:this={contentEl}>
       <!-- Header Image - large rounded preview at top -->
       {#if imageUrl && !imageError}
         <div class="header-image-container">
@@ -574,6 +626,18 @@
     line-height: 1.5;
     margin: 0;
     word-break: break-word;
+  }
+
+  .website-fullscreen-content :global(.embed-source-text-highlight) {
+    background: none;
+    background-color: rgba(255, 213, 0, 0.4);
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
   }
   
   /* ===========================================

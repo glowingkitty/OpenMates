@@ -89,3 +89,58 @@ describe("Remotion videos.create CLI renderer", () => {
     assert.match(output, /QR code:/);
   });
 });
+
+describe("Direct content embed CLI renderers", () => {
+  it("renders backend document aliases as document embeds", async () => {
+    const output = await captureStdout(async () => {
+      await renderEmbedPreview(
+        {
+          id: "embed-document-1",
+          embedId: "22345678-1234-4234-9234-123456789abc",
+          type: "document",
+          textPreview: "Trip checklist",
+          appId: "docs",
+          skillId: "document",
+          createdAt: 1_700_000_000,
+          content: {
+            type: "document",
+            title: "Berlin to Prague Trip Preparation",
+            word_count: 89,
+          },
+        },
+        mockClient() as never,
+      );
+    });
+
+    assert.match(output, /document/);
+    assert.match(output, /Berlin to Prague Trip Preparation/);
+    assert.match(output, /89 words/);
+  });
+
+  it("renders generated application embeds as application content", async () => {
+    const output = await captureStdout(async () => {
+      await renderEmbedPreview(
+        {
+          id: "embed-application-1",
+          embedId: "32345678-1234-4234-9234-123456789abc",
+          type: "code-application",
+          textPreview: "Habit Garden",
+          appId: "code",
+          skillId: "application",
+          createdAt: 1_700_000_000,
+          content: {
+            type: "application",
+            name: "Habit Garden",
+            framework: "Vite",
+            runtime: "node",
+          },
+        },
+        mockClient() as never,
+      );
+    });
+
+    assert.match(output, /application/);
+    assert.match(output, /Habit Garden/);
+    assert.match(output, /Vite/);
+  });
+});
