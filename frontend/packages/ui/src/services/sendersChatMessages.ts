@@ -32,6 +32,8 @@ import { encryptedChatKeyMatchesRawKey } from "./chatKeyConsistency";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { promptChatErrorReportConsent } from "./chatErrorReportConsent";
 import type { Chat, Message } from "../types/chat";
+import { get } from "svelte/store";
+import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
 
 async function abortUnsafeKeyMismatch(
 	chatId: string,
@@ -100,6 +102,34 @@ export async function sendNewMessageImpl(
 			}
 		}
 
+		return;
+	}
+
+	let serverStatusState = get(serverStatusStore);
+	if (!serverStatusState.initialized && !serverStatusState.loading) {
+		await initializeServerStatus();
+		serverStatusState = get(serverStatusStore);
+	}
+
+	if (
+		serverStatusState.status?.is_self_hosted === true &&
+		serverStatusState.status.ai_models_configured === false
+	) {
+		notificationStore.error(
+			"Server setup incomplete. AI models not set up. Add an AI provider API key in your self-hosted .env file and restart OpenMates."
+		);
+		if (message.status === "sending") {
+			await chatDB.updateMessageStatus(message.message_id, "failed");
+			serviceInstance.dispatchEvent(
+				new CustomEvent("messageStatusChanged", {
+					detail: {
+						chatId: message.chat_id,
+						messageId: message.message_id,
+						status: "failed"
+					}
+				})
+			);
+		}
 		return;
 	}
 
@@ -1219,15 +1249,21 @@ export async function sendCompletedAIResponseImpl(
 			return;
 		}
 
-		// MESSAGES_V HANDLING: For assistant responses, the server already incremented
-		// messages_v in the cache and sent the new version via `chat_message_added`.
+		// MESSAGES_V HANDLING: The server's `_update_chat_versions_if_needed`
+		// uses the client-provided `versions.messages_v` to set Directus values
+		// (optimistic locking: only updates if client value > current Directus value).
+		// We MUST increment the local version so the server advances past the previous
+		// value. Without this increment, every AI response sends the same stale
+		// messages_v (e.g. 1) and the server's optimistic lock skips the update,
+		// causing permanent client/server version drift.
 		// The `handleChatMessageReceivedImpl` handler is the SOLE authority for
-		// writing the server's messages_v to IndexedDB.
+		// writing the server's messages_v to IndexedDB — we only control what we
+		// send to the server; the broadcast response updates the local DB.
 		// DO NOT write the chat back here — the previous addChat() call created a
 		// race condition: if `chat_message_added` updated messages_v between our
 		// getChat() read above and the addChat() write, we would CLOBBER the
 		// correct value with a stale one, causing permanent client/server drift.
-		const newMessagesV = chat.messages_v || 1;
+		const newMessagesV = (chat.messages_v || 0) + 1;
 		const newLastEdited = aiMessage.created_at;
 
 		console.debug(

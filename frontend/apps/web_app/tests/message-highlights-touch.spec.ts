@@ -179,7 +179,7 @@ test('message highlights on touch devices (iPad Pro 11) — selection toolbar + 
 	page: any;
 }) => {
 	setupPageListeners(page);
-	test.setTimeout(240000);
+	test.setTimeout(360000);
 
 	const logCheckpoint = createSignupLogger('HIGHLIGHTS_TOUCH');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {

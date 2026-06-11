@@ -20,7 +20,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getRecentExampleChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getRecentExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -3908,7 +3908,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 						<!-- Pass the translation function `$_` to the utility -->
 						<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 		{#each groupItems as chat (chat.chat_id)}
-						{@const subChats = allChatsFromDB.filter(c => c.parent_id === chat.chat_id)}
+						{@const subChats = [...getExampleSubChats(chat.chat_id), ...allChatsFromDB.filter(c => c.parent_id === chat.chat_id)]}
 						<div
 							role="button"
 							tabindex="0"
@@ -4049,7 +4049,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 											/>
 										</div>
 										<!-- Nested Grandchild Sub-chats (Tier 2) -->
-										{@const grandChats = allChatsFromDB.filter(c => c.parent_id === subChat.chat_id)}
+										{@const grandChats = [...getExampleSubChats(subChat.chat_id), ...allChatsFromDB.filter(c => c.parent_id === subChat.chat_id)]}
 										{#if grandChats.length > 0}
 											<div class="sub-chats-container grandchild-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
 												{#each grandChats as grandChat (grandChat.chat_id)}

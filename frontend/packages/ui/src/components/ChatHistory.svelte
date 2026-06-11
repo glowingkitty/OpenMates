@@ -22,7 +22,7 @@
   import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
-  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { getDemoMessages, getExampleChat as getStaticExampleChat, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent,
@@ -297,6 +297,12 @@
   let headerImageBubbleRequestId = 0;
   let headerImageBubbleCandidateKey = '';
   const HEADER_IMAGE_BUBBLE_LIMIT = 8;
+  const VIRTUALIZATION_THRESHOLD = 160;
+  const VIRTUALIZATION_OVERSCAN = 24;
+  const VIRTUALIZATION_ESTIMATED_MESSAGE_HEIGHT = 132;
+  const VIRTUALIZATION_MIN_RENDERED_MESSAGES = 48;
+  let virtualStartIndex = $state(0);
+  let virtualEndIndex = $state(VIRTUALIZATION_MIN_RENDERED_MESSAGES);
 
   function normalizeEmbedIds(embedIds: unknown): string[] {
     if (typeof embedIds === 'string') {
@@ -628,6 +634,68 @@
     });
   });
 
+  let shouldVirtualizeMessages = $derived(
+    displayMessages.length > VIRTUALIZATION_THRESHOLD && !messages.some(m => m.status === 'streaming'),
+  );
+
+  let virtualizedDisplayMessages = $derived.by(() => {
+    if (!shouldVirtualizeMessages) return displayMessages;
+    const safeStart = Math.max(0, Math.min(virtualStartIndex, displayMessages.length));
+    const safeEnd = Math.max(
+      safeStart,
+      Math.min(virtualEndIndex, displayMessages.length),
+    );
+    return displayMessages.slice(safeStart, safeEnd);
+  });
+
+  let virtualTopSpacerHeight = $derived(
+    shouldVirtualizeMessages
+      ? Math.max(0, virtualStartIndex * VIRTUALIZATION_ESTIMATED_MESSAGE_HEIGHT)
+      : 0,
+  );
+
+  let virtualBottomSpacerHeight = $derived(
+    shouldVirtualizeMessages
+      ? Math.max(0, (displayMessages.length - virtualEndIndex) * VIRTUALIZATION_ESTIMATED_MESSAGE_HEIGHT)
+      : 0,
+  );
+
+  function clampVirtualRange(startIndex: number, endIndex: number): void {
+    if (!shouldVirtualizeMessages) {
+      virtualStartIndex = 0;
+      virtualEndIndex = displayMessages.length;
+      return;
+    }
+
+    const total = displayMessages.length;
+    const minimumEnd = startIndex + VIRTUALIZATION_MIN_RENDERED_MESSAGES;
+    virtualStartIndex = Math.max(0, Math.min(startIndex, total));
+    virtualEndIndex = Math.max(
+      virtualStartIndex,
+      Math.min(Math.max(endIndex, minimumEnd), total),
+    );
+  }
+
+  function updateVirtualRangeAroundScroll(): void {
+    if (!container || !shouldVirtualizeMessages) return;
+    const firstVisibleEstimate = Math.floor(container.scrollTop / VIRTUALIZATION_ESTIMATED_MESSAGE_HEIGHT);
+    const visibleEstimate = Math.ceil(container.clientHeight / VIRTUALIZATION_ESTIMATED_MESSAGE_HEIGHT);
+    clampVirtualRange(
+      firstVisibleEstimate - VIRTUALIZATION_OVERSCAN,
+      firstVisibleEstimate + visibleEstimate + VIRTUALIZATION_OVERSCAN,
+    );
+  }
+
+  function ensureVirtualMessageRendered(messageId: string): void {
+    if (!shouldVirtualizeMessages) return;
+    const index = displayMessages.findIndex((message) => message.id === messageId);
+    if (index < 0) return;
+    clampVirtualRange(index - VIRTUALIZATION_OVERSCAN, index + VIRTUALIZATION_OVERSCAN + 1);
+    if (container) {
+      container.scrollTop = Math.max(0, index * VIRTUALIZATION_ESTIMATED_MESSAGE_HEIGHT - 70);
+    }
+  }
+
   async function toggleForgottenMessages(): Promise<void> {
     if (!latestCompressionCheckpoint) {
       showForgottenMessages = !showForgottenMessages;
@@ -857,6 +925,13 @@
       return;
     }
     try {
+      const staticChat = getStaticExampleChat(activeId);
+      if (staticChat?.parent_id) {
+        parentChatId = staticChat.parent_id;
+        parentChatTitle = getStaticExampleChat(staticChat.parent_id)?.title || "Parent Chat";
+        return;
+      }
+
       const { getChat } = await import('../services/db/chatCrudOperations');
       const { chatDB } = await import('../services/db');
       await chatDB.init();
@@ -1737,6 +1812,8 @@
     // Don't track scroll position during restoration
     if (isRestoringScroll) return;
 
+    updateVirtualRangeAroundScroll();
+
     // Detect if user has manually scrolled away during streaming.
     // If streaming is active and the user scrolls upward (away from the bottom),
     // freeze spacer updates so their scroll position isn't disrupted.
@@ -1861,6 +1938,7 @@
     
     // Set flag to prevent scroll tracking during restoration
     isRestoringScroll = true;
+    ensureVirtualMessageRendered(messageId);
     
     // Wait for messages to be rendered before attempting to restore scroll position
     const attemptRestore = (attempts = 0) => {
@@ -1981,6 +2059,19 @@
     };
   });
 
+  $effect(() => {
+    if (!shouldVirtualizeMessages) {
+      virtualStartIndex = 0;
+      virtualEndIndex = displayMessages.length;
+      return;
+    }
+
+    updateVirtualRangeAroundScroll();
+    if (virtualEndIndex <= virtualStartIndex) {
+      clampVirtualRange(0, VIRTUALIZATION_MIN_RENDERED_MESSAGES);
+    }
+  });
+
   // Cleanup on component destroy
   onDestroy(() => {
     // Cancel any pending scroll tracking operations
@@ -2075,6 +2166,8 @@
         <div class="chat-history-content" 
              class:has-messages={displayMessages.length > 0}
              class:has-header={showChatHeader}
+             data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}
+             data-rendered-message-count={virtualizedDisplayMessages.length}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
 
@@ -2096,7 +2189,11 @@
               </div>
             {/if}
 
-            {#each displayMessages as msg, msgIndex (msg.id)}
+            {#if virtualTopSpacerHeight > 0}
+              <div class="virtual-message-spacer" style="height: {virtualTopSpacerHeight}px;" aria-hidden="true"></div>
+            {/if}
+
+            {#each virtualizedDisplayMessages as msg, msgIndex (msg.id)}
                 <!-- Disable fade/flip animations for streaming and processing messages
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
@@ -2130,7 +2227,7 @@
                         {piiRevealed}
                         messageId={msg.id}
                         userMessageId={msg.original_message?.user_message_id}
-                        isFirstMessage={msgIndex === 0}
+                        isFirstMessage={(shouldVirtualizeMessages ? virtualStartIndex + msgIndex : msgIndex) === 0}
                         {isCreditsRestored}
                         {onResend}
                         {canAnnotate}
@@ -2138,6 +2235,10 @@
 
                 </div>
             {/each}
+
+            {#if virtualBottomSpacerHeight > 0}
+              <div class="virtual-message-spacer" style="height: {virtualBottomSpacerHeight}px;" aria-hidden="true"></div>
+            {/if}
 
             <!-- Admin debug panel: shown after the last assistant message when debug mode is active.
                  Must be OUTSIDE the {#each} loop — message-wrapper uses display:flex which would
@@ -2398,6 +2499,12 @@
     width: 100%;
     display: flex;
     flex-shrink: 0;
+  }
+
+  .virtual-message-spacer {
+    width: 100%;
+    flex-shrink: 0;
+    pointer-events: none;
   }
 
   .message-wrapper.user {

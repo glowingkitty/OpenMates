@@ -20,7 +20,7 @@
     let { name, size = '30px' }: Props = $props();
     
     let providerMeta = $derived(findProviderByName(name));
-    let iconUrl = $derived(providerMeta ? getProviderIconUrl(providerMeta.logo_svg) : '/icons/server.svg');
+    let iconUrl = $derived(providerMeta ? getProviderIconUrl(providerMeta.logo_svg) : getProviderIconUrl('icons/server.svg'));
     let providerDisplayName = $derived(providerMeta?.name || name);
     let isOpenMatesProvider = $derived(providerMeta?.id === 'openmates');
 </script>

@@ -9,8 +9,12 @@
   - Skill icon (29x29px)
   - Status text (skill name/title + optional processing status)
   - Stop button (when processing)
-  
+
   Supports both desktop and mobile layouts.
+
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+  - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
 -->
 
 <script lang="ts">
@@ -86,10 +90,11 @@
   );
 
   // Hint animation phases for the 'finished' state:
+  //   'encrypted'  → showing "Stored encrypted" (2s)
   //   'hint'       → showing "Click/Tap to show details" (2s)
   //   'fading'     → hint text fading out (0.35s CSS transition)
   //   'settled'    → final state: custom text fades in, or status line collapses
-  type HintPhase = 'hint' | 'fading' | 'settled';
+  type HintPhase = 'encrypted' | 'hint' | 'fading' | 'settled';
   let hintPhase = $state<HintPhase>('settled');
   // true during the brief window between hint fade-out and custom-text fade-in
   let hintFadingIn = $state(false);
@@ -101,6 +106,9 @@
   // reliably separates the two without any API changes.
   let processingStartTime: number | null = null;
   const MIN_STREAMING_DURATION_MS = 500;
+  const STORED_ENCRYPTED_HINT_MS = 2_000;
+  const OPEN_DETAILS_HINT_MS = 2_000;
+  const HINT_FADE_MS = 350;
 
   $effect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
@@ -112,25 +120,30 @@
       const duration = processingStartTime !== null ? Date.now() - processingStartTime : 0;
       processingStartTime = null;
       if (duration >= MIN_STREAMING_DURATION_MS) {
-        hintPhase = 'hint';
+        hintPhase = 'encrypted';
 
         timers.push(setTimeout(() => {
           if (cancelled) return;
-          hintPhase = 'fading';
+          hintPhase = 'hint';
 
-          timers.push(setTimeout(async () => {
+          timers.push(setTimeout(() => {
             if (cancelled) return;
-            if (customStatusText) {
-              // Cross-fade: keep opacity at 0 while swapping text, then fade in
-              hintFadingIn = true;
-              hintPhase = 'settled';
-              await tick();
-              if (!cancelled) hintFadingIn = false;
-            } else {
-              hintPhase = 'settled';
-            }
-          }, 350));
-        }, 2000));
+            hintPhase = 'fading';
+
+            timers.push(setTimeout(async () => {
+              if (cancelled) return;
+              if (customStatusText) {
+                // Cross-fade: keep opacity at 0 while swapping text, then fade in
+                hintFadingIn = true;
+                hintPhase = 'settled';
+                await tick();
+                if (!cancelled) hintFadingIn = false;
+              } else {
+                hintPhase = 'settled';
+              }
+            }, HINT_FADE_MS));
+          }, OPEN_DETAILS_HINT_MS));
+        }, STORED_ENCRYPTED_HINT_MS));
       }
     } else {
       // cancelled / error — reset any in-progress hint
@@ -148,6 +161,9 @@
   // Text shown in the status-value line. During hint phases shows the interaction prompt;
   // at settled it shows the custom text (or nothing, since the line collapses).
   let displayedStatusText = $derived(() => {
+    if (status === 'finished' && hintPhase === 'encrypted') {
+      return $text('embeds.stored_encrypted');
+    }
     if (status === 'finished' && hintPhase !== 'settled') {
       return isMobile ? $text('embeds.tap_to_show_details') : $text('embeds.click_to_show_details');
     }

@@ -1978,11 +1978,11 @@ Usage Settings - View usage statistics and export usage data
                         : oAppName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const oEntryIcon = getEntryIcon(entry)}
                     
-                    <button
-                        type="button"
-                        class="detail-entry clickable"
-                        onclick={() => overviewSelectedEntry = entry}
-                    >
+					<button
+						type="button"
+						class="detail-entry clickable"
+						onclick={() => overviewSelectedEntry = entry}
+					>
                         <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
                         <div class="entry-content">
                             <div class="entry-icon icon icon_{oEntryIcon}"></div>

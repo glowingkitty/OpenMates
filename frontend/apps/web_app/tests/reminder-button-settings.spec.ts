@@ -195,13 +195,13 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 	await page.waitForTimeout(2000);
 	await screenshot(page, 'form-submitted');
 
-	// ── Step 6: Verify navigation to reminder app store page ──
-	// After creation the settings panel navigates to app_store/reminder which
-	// shows ActiveRemindersList with the newly created reminder.
-	const reminderItem = page.getByTestId('reminder-item');
-	await expect(reminderItem.first()).toBeVisible({ timeout: 15000 });
-	log('Navigated to reminder app store page — active reminder visible.');
-	await screenshot(page, 'app-store-active-reminders');
+	// ── Step 6: Verify inline success message ──
+	// After creation SettingsReminders shows an inline SettingsInfoBox success message.
+	// (commit 90f1e4bd6 removed the old app_store/reminder navigation.)
+	const successBox = page.getByTestId('settings-info-box-success');
+	await expect(successBox).toBeVisible({ timeout: 15000 });
+	log('Inline success message visible — reminder created.');
+	await screenshot(page, 'reminder-success');
 
 	// ── Step 7: Close settings and go back to chat ──
 	await page.keyboard.press('Escape');

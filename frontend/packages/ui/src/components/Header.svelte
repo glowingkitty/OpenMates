@@ -562,14 +562,15 @@
         position: absolute;
         left: 0;
         font-size: 0.75rem;
-        color: var(--color-grey-60);
+        color: var(--color-grey-100);
+        background: var(--color-grey-0);
         font-weight: 400;
         text-align: left;
         line-height: 1.2;
         cursor: pointer;
         white-space: nowrap;
         /* Add padding to make clickable area larger */
-        padding: 0.125rem 0;
+        padding: 0.125rem 0.125rem;
         left: 4px;
         top: 24px;
     }
@@ -842,10 +843,11 @@
     }
 
     .login-signup-button {
-        all: unset;
+        border: none;
+        margin: 0;
         padding: var(--spacing-4) var(--spacing-6);
         border-radius: var(--radius-3);
-        background-color: var(--color-button-primary);
+        background: #7a281e;
         color: white;
         cursor: pointer;
         transition: all var(--duration-normal) var(--easing-default);
@@ -858,7 +860,7 @@
     }
 
     .login-signup-button:active {
-        background-color: var(--color-button-primary-pressed);
+        background-color: #a62c16;
         transform: scale(0.98);
         box-shadow: none;
     }
