@@ -342,6 +342,24 @@ async def test_collect_code_files_accepts_validated_client_fallback() -> None:
 
 
 @pytest.mark.anyio
+async def test_collect_code_files_accepts_target_client_file_when_metadata_is_not_indexed_yet() -> None:
+    files, target_path = await _collect_code_files(
+        CHAT_ID,
+        TARGET_EMBED_ID,
+        [CodeRunClientFile(embed_id=TARGET_EMBED_ID, code="print('client')", language="python", filename="client.py", is_target=True)],
+        [],
+        None,
+        _user(),
+        FakeCache([], {}),
+        FakeDirectus({}),
+        FakeEncryption(),
+    )
+
+    assert target_path == "client.py"
+    assert files == [{"path": "client.py", "content": "print('client')", "language": "python", "is_target": True}]
+
+
+@pytest.mark.anyio
 async def test_collect_code_files_accepts_compiled_language_client_fallback() -> None:
     files, target_path = await _collect_code_files(
         CHAT_ID,

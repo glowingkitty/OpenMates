@@ -1073,6 +1073,20 @@ async def _collect_code_files(
             )
 
     if not target_path:
+        target_client_file = client_files_by_id.get(target_embed_id)
+        if target_client_file:
+            total_chars, maybe_target_path = _append_code_file(
+                embed_id=target_embed_id,
+                target_embed_id=target_embed_id,
+                content=_client_file_to_content(target_client_file),
+                used_paths=used_paths,
+                files=files,
+                total_chars=total_chars,
+            )
+            if maybe_target_path:
+                target_path = maybe_target_path
+
+    if not target_path:
         metadata = await _get_embed_metadata(target_embed_id, cache_service, directus_service)
         if metadata and _embed_metadata_matches(metadata, chat_id, expected_user_hash) and not client_files_by_id.get(target_embed_id):
             raise HTTPException(
