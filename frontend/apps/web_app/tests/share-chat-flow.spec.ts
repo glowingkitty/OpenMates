@@ -6,8 +6,8 @@ export {};
  *
  * Tests the full share creation flow:
  *   1. Login with existing account + 2FA
- *   2. Start a new chat and send a simple question
- *   3. Wait for AI response
+ *   2. Start a new chat and trigger an image-search result
+ *   3. Wait for AI response and header image bubbles
  *   4. Open the share panel via the chat header share button
  *   5. Generate a share link (default settings)
  *   6. Verify copy-link button, QR code, short link generation
@@ -33,22 +33,27 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	withMockMarker
+	withLiveMockMarker
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { waitForEmbedFinished } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { docAssert, docCheckpoint } = require('./helpers/doc-checkpoint');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const SHARING_GUIDE_PATH = 'docs/user-guide/sharing.md';
-const EXPECTED_CHAT_OG_DESCRIPTION_TERM = 'Paris';
+const EXPECTED_CHAT_OG_DESCRIPTION_TERM = 'sunset';
 
 function metaContent(html: string, selector: string): string {
 	const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const regex = new RegExp(`<meta[^>]+(?:property|name)="${escapedSelector}"[^>]+content="([^"]*)"`, 'i');
 	const match = html.match(regex);
 	return match?.[1] ?? '';
+}
+
+function shortLinkMetadataUrlFromOgImage(ogImage: string): string {
+	return ogImage.replace(/\/og-image\.png(?:\?.*)?$/, '/metadata');
 }
 
 // ─── Test ────────────────────────────────────────────────────────────────────
@@ -80,23 +85,22 @@ test('creates and shares a chat link with QR code and short link', async ({
 	// ── Step 2: Start new chat ────────────────────────────────────────────
 	await startNewChat(page, logCheckpoint);
 
-	// ── Step 3: Send a simple question ────────────────────────────────────
+	// ── Step 3: Trigger image search so the shared preview has header bubbles ─
 	await sendMessage(
 		page,
-		withMockMarker('What is the capital of France?', 'share_chat_flow'),
+		withLiveMockMarker('Search for images of sunsets over the ocean', 'share_chat_flow_images'),
 		logCheckpoint,
 		takeStepScreenshot,
 		'share-chat'
 	);
 
-	// ── Step 4: Wait for AI response ──────────────────────────────────────
+	// ── Step 4: Wait for AI response and header image bubbles ─────────────
 	logCheckpoint('Waiting for assistant response...');
-	await waitForAssistantMessage(page, {
-		which: 'last',
-		contains: 'Paris',
-		logCheckpoint
-	});
-	logCheckpoint('Assistant response received and contains "Paris".');
+	await waitForAssistantMessage(page, { which: 'last', logCheckpoint });
+	await waitForEmbedFinished(page, 'images', 'search');
+	await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('chat-header-image-bubble-right')).toBeVisible({ timeout: 30000 });
+	logCheckpoint('Assistant response received and chat header image bubbles are visible.');
 	await takeStepScreenshot(page, 'assistant-response');
 
 	saveWarnErrorLogs('share-chat', 'after_response');
@@ -209,15 +213,22 @@ test('creates and shares a chat link with QR code and short link', async ({
 
 	const ogDescription = metaContent(crawlerHtml, 'og:description');
 	const ogImage = metaContent(crawlerHtml, 'og:image');
+	const metadataResponse = await page.request.get(shortLinkMetadataUrlFromOgImage(ogImage));
+	const shortLinkMetadata = await metadataResponse.json();
 	await docAssert('share-link-has-chat-og-metadata', async () => {
-		expect(ogDescription).toContain(EXPECTED_CHAT_OG_DESCRIPTION_TERM);
+		expect(ogDescription.toLowerCase()).toContain(EXPECTED_CHAT_OG_DESCRIPTION_TERM);
 		expect(ogImage).toContain('/v1/share/short-url/');
 		expect(ogImage).toContain('/og-image.png');
+		expect(metadataResponse.ok()).toBe(true);
+		expect(shortLinkMetadata.image_bubbles.length).toBeGreaterThanOrEqual(2);
+		expect(shortLinkMetadata.image_bubbles[0].imageUrl).toContain('preview.openmates.org/api/v1/image');
+		expect(shortLinkMetadata.image_bubbles[1].imageUrl).toContain('preview.openmates.org/api/v1/image');
 	});
-	logCheckpoint('Short link crawler metadata uses chat title, summary, and generated OG image.', {
+	logCheckpoint('Short link crawler metadata uses chat title, summary, image bubbles, and generated OG image.', {
 		ogTitle: expectedChatOgTitle,
 		ogDescription,
-		ogImage
+		ogImage,
+		imageBubbleCount: shortLinkMetadata.image_bubbles.length
 	});
 
 	const ogImageResponse = await page.request.get(ogImage);
@@ -226,9 +237,9 @@ test('creates and shares a chat link with QR code and short link', async ({
 		expect(ogImageResponse.headers()['content-type']).toContain('image/png');
 		const imageBytes = await ogImageResponse.body();
 		expect(imageBytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
-		expect(imageBytes.length).toBeGreaterThan(1000);
+		expect(imageBytes.length).toBeGreaterThan(10000);
 	});
-	logCheckpoint('Generated OG image URL returns PNG data.');
+	logCheckpoint('Generated OG image URL returns PNG data large enough to include rendered preview artwork.');
 
 	await takeStepScreenshot(page, 'short-link-generated');
 	await docCheckpoint(page, {

@@ -292,8 +292,9 @@ async def test_short_url_metadata_uses_shared_chat_title_and_summary():
 
 
 @pytest.mark.asyncio
-async def test_short_url_og_image_generates_png_for_shared_chat_metadata():
+async def test_short_url_og_image_generates_png_for_shared_chat_metadata(monkeypatch):
     directus = FakeDirectusService()
+    monkeypatch.setattr(share_routes, "_load_safe_og_bubble_image", lambda _url: None)
     directus.short_links.append(
         {
             "token": "Abc123XY",
@@ -327,11 +328,15 @@ async def test_short_url_og_image_generates_png_for_shared_chat_metadata():
     assert image.size == (share_routes.OG_IMAGE_WIDTH, share_routes.OG_IMAGE_HEIGHT)
 
 
-def test_short_url_og_image_omits_side_images_and_draws_openmates_logo(monkeypatch):
+def test_short_url_og_image_draws_header_style_side_images(monkeypatch):
     from PIL import Image
 
-    def fake_load_safe_bubble(_url: str):
-        raise AssertionError("OG renderer should not fetch side images")
+    loaded_urls = []
+
+    def fake_load_safe_bubble(url: str):
+        loaded_urls.append(url)
+        color = (220, 40, 40, 255) if "one.jpg" in url else (40, 80, 220, 255)
+        return Image.new("RGBA", (320, 320), color)
 
     monkeypatch.setattr(share_routes, "_load_safe_og_bubble_image", fake_load_safe_bubble)
 
@@ -349,8 +354,39 @@ def test_short_url_og_image_omits_side_images_and_draws_openmates_logo(monkeypat
     )
 
     image = Image.open(io.BytesIO(png)).convert("RGBA")
-    logo_head_pixel = image.getpixel((96, 74))
-    assert logo_head_pixel[:3] == (255, 255, 255)
+    assert loaded_urls == [
+        "https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Fone.jpg",
+        "https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Ftwo.jpg",
+    ]
+    left_bubble_pixel = image.getpixel((180, 460))
+    right_bubble_pixel = image.getpixel((1020, 460))
+    assert left_bubble_pixel[0] > left_bubble_pixel[2]
+    assert right_bubble_pixel[2] > right_bubble_pixel[0]
+
+
+@pytest.mark.asyncio
+async def test_chat_og_metadata_includes_header_image_bubbles():
+    get_metadata = getattr(
+        share_routes.get_og_metadata,
+        "__wrapped__",
+        share_routes.get_og_metadata,
+    )
+
+    response = await get_metadata(
+        request=None,
+        chat_id="chat-1",
+        directus_service=FakeDirectusService(),
+        encryption_service=FakeEncryptionService(),
+    )
+
+    assert response["category"] == "general_knowledge"
+    assert response["icon"] == "map"
+    assert response["image_bubbles"] == [
+        {
+            "imageUrl": "https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Fone.jpg",
+            "title": "One",
+        }
+    ]
 
 
 def test_short_url_og_image_uses_packaged_lexend_deca_font():

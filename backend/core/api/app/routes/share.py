@@ -498,6 +498,9 @@ async def get_og_metadata(
         # Chat exists and is shared - decrypt metadata
         shared_encrypted_title = chat.get("shared_encrypted_title")
         shared_encrypted_summary = chat.get("shared_encrypted_summary")
+        shared_encrypted_category = chat.get("shared_encrypted_category")
+        shared_encrypted_icon = chat.get("shared_encrypted_icon")
+        shared_encrypted_image_bubbles = chat.get("shared_encrypted_image_bubbles")
 
         # Log what we received to help debug OG tag issues
         logger.debug(
@@ -543,11 +546,34 @@ async def get_og_metadata(
         else:
             logger.warning(f"No shared_encrypted_summary found for chat {chat_id} - using fallback")
 
-        # Get category for OG image selection
-        # Note: We can't decrypt encrypted_category here because it's encrypted with
-        # the user's chat key, not the shared vault key. For now, we'll use the default image.
-        # In the future, we could add a shared_category field if needed.
         category = None
+        icon = None
+        image_bubbles: List[Any] = []
+
+        if shared_encrypted_category:
+            try:
+                category = await encryption_service.decrypt(
+                    shared_encrypted_category,
+                    key_name="shared-content-metadata"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt shared_encrypted_category for chat {chat_id}: {e}")
+
+        if shared_encrypted_icon:
+            try:
+                icon = await encryption_service.decrypt(
+                    shared_encrypted_icon,
+                    key_name="shared-content-metadata"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt shared_encrypted_icon for chat {chat_id}: {e}")
+
+        decrypted_image_bubbles = await _decrypt_shared_json_metadata(
+            shared_encrypted_image_bubbles,
+            encryption_service,
+        )
+        if isinstance(decrypted_image_bubbles, list):
+            image_bubbles = decrypted_image_bubbles[:2]
 
         # Determine OG image based on category (fallback to default for now)
         og_image = "/og-images/default-chat.png"
@@ -556,7 +582,9 @@ async def get_og_metadata(
             "title": title,
             "description": description,
             "image": og_image,
-            "category": category
+            "category": category,
+            "icon": icon,
+            "image_bubbles": image_bubbles,
         }
 
     except Exception as e:
@@ -1716,6 +1744,36 @@ def _draw_image_bubble(canvas: Any, bubble_image: Any, center_x: int, center_y: 
     canvas.alpha_composite(bubble, (center_x - bubble.width // 2, center_y - bubble.height // 2))
 
 
+def _draw_og_image_bubbles(canvas: Any, metadata: Dict[str, Any]) -> int:
+    image_bubbles = metadata.get("image_bubbles")
+    if not isinstance(image_bubbles, list):
+        return 0
+
+    loaded_bubbles = []
+    for bubble in image_bubbles[:2]:
+        if not isinstance(bubble, dict):
+            continue
+        image_url = bubble.get("imageUrl")
+        if not isinstance(image_url, str) or not image_url.strip():
+            continue
+        bubble_image = _load_safe_og_bubble_image(image_url)
+        if bubble_image is not None:
+            loaded_bubbles.append(bubble_image)
+
+    if not loaded_bubbles:
+        return 0
+
+    # Match ChatHeader.svelte: large circular, glassy image bubbles rotated at
+    # the lower left/right edges without letting arbitrary remote URLs through.
+    if len(loaded_bubbles) == 1:
+        _draw_image_bubble(canvas, loaded_bubbles[0], 1020, 460, 210, 15)
+        return 1
+
+    _draw_image_bubble(canvas, loaded_bubbles[0], 180, 460, 210, -15)
+    _draw_image_bubble(canvas, loaded_bubbles[1], 1020, 460, 210, 15)
+    return 2
+
+
 def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
     import io
     from PIL import Image, ImageDraw
@@ -1738,28 +1796,28 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
     draw = ImageDraw.Draw(overlay)
     white = (255, 255, 255, 255)
     soft_white = (255, 255, 255, 238)
-    title_font = _load_og_font(58, bold=True)
-    summary_font = _load_og_font(42, bold=True)
+    summary_font = _load_og_font(48, bold=True)
 
     icon_center_x = OG_IMAGE_WIDTH // 2
     icon_center_y = 122
 
     _draw_openmates_logo(overlay, 62, 52, 70)
     _draw_og_icon(draw, icon_center_x, icon_center_y, 112, metadata, white)
+    bubble_count = _draw_og_image_bubbles(overlay, metadata)
 
-    title_lines = _wrap_text(draw, str(metadata.get("title") or DEFAULT_CHAT_TITLE), title_font, 1120, 2)
+    text_width = 760 if bubble_count else 940
+    summary_lines = _wrap_text(
+        draw,
+        str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION),
+        summary_font,
+        text_width,
+        4,
+    )
     y = 220
-    for line in title_lines:
-        bbox = draw.textbbox((0, 0), line, font=title_font)
-        draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=white, font=title_font)
-        y += 76
-
-    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 1080, 2)
-    y += 24
     for line in summary_lines:
         bbox = draw.textbbox((0, 0), line, font=summary_font)
         draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=soft_white, font=summary_font)
-        y += 56
+        y += 62
 
     image = Image.alpha_composite(image, overlay)
     buffer = io.BytesIO()
