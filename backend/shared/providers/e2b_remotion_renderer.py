@@ -17,6 +17,9 @@ from backend.shared.providers.e2b_application_preview import ApplicationPreviewF
 
 REMOTION_RENDER_OUTPUT = "out/openmates-remotion.mp4"
 REMOTION_THUMBNAIL_OUTPUT = "out/openmates-remotion-thumbnail.png"
+REMOTION_DEFAULT_WIDTH = 1280
+REMOTION_DEFAULT_HEIGHT = 720
+REMOTION_RENDER_FLAGS = "--concurrency=1 --chromium-flags=\"--disable-dev-shm-usage --no-sandbox\""
 REMOTION_PACKAGE_JSON = {
     "scripts": {"render": "remotion render src/Root.tsx Main out/openmates-remotion.mp4"},
     "dependencies": {
@@ -82,9 +85,9 @@ def plan_remotion_render(*, source: str, filename: str | None = None, enable_int
     return RemotionRenderPlan(
         files=files,
         install_commands=[REMOTION_CHROME_DEPS_INSTALL, "npm install --ignore-scripts --no-audit --no-fund"],
-        render_command=f"npm exec remotion render src/Root.tsx Main {REMOTION_RENDER_OUTPUT}",
+        render_command=f"npm exec remotion render src/Root.tsx Main {REMOTION_RENDER_OUTPUT} {REMOTION_RENDER_FLAGS}",
         output_path=REMOTION_RENDER_OUTPUT,
-        thumbnail_command=f"npm exec remotion still src/Root.tsx Main {REMOTION_THUMBNAIL_OUTPUT} --frame=0",
+        thumbnail_command=f"npm exec remotion still src/Root.tsx Main {REMOTION_THUMBNAIL_OUTPUT} --frame=0 {REMOTION_RENDER_FLAGS}",
         thumbnail_path=REMOTION_THUMBNAIL_OUTPUT,
         enable_internet=enable_internet,
     )
@@ -183,7 +186,7 @@ def _build_root_source(component_path: str) -> str:
         "  throw new Error('Remotion source must export a React component');\n"
         "}\n\n"
         "export const RemotionRoot = () => (\n"
-        "  <Composition id=\"Main\" component={Component} durationInFrames={150} fps={30} width={1920} height={1080} />\n"
+        f"  <Composition id=\"Main\" component={{Component}} durationInFrames={{150}} fps={{30}} width={{{REMOTION_DEFAULT_WIDTH}}} height={{{REMOTION_DEFAULT_HEIGHT}}} />\n"
         ");\n"
         "\nregisterRoot(RemotionRoot);\n"
     )
