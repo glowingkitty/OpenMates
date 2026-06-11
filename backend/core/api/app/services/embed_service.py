@@ -188,7 +188,10 @@ class EmbedService:
 
         if not preview_results:
             return {}
-        return {"preview_results": preview_results}
+        return {
+            "preview_results": preview_results,
+            "preview_results_json": json.dumps(preview_results, separators=(",", ":")),
+        }
 
     @staticmethod
     def _slugify_direct_ref_base(value: Any, fallback: str) -> str:

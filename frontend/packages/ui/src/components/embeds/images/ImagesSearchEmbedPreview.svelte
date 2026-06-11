@@ -43,6 +43,8 @@
     status: 'processing' | 'finished' | 'error';
     /** Image results array (for preview thumbnails) */
     results?: ImageResult[];
+    /** JSON fallback for TOON transports that flatten nested arrays poorly */
+    previewResultsJson?: string;
     /** Task ID for cancellation */
     taskId?: string;
     /** Whether to use mobile layout */
@@ -57,6 +59,7 @@
     provider: providerProp,
     status: statusProp,
     results: resultsProp = [],
+    previewResultsJson: previewResultsJsonProp = '',
     taskId: taskIdProp,
     isMobile = false,
     onFullscreen
@@ -73,7 +76,7 @@
     localQuery       = queryProp       || '';
     localProvider    = providerProp    || 'Brave';
     localStatus      = statusProp      || 'processing';
-    localResults     = resultsProp     || [];
+    localResults     = resultsProp.length > 0 ? resultsProp : parsePreviewResultsJson(previewResultsJsonProp);
     localTaskId      = taskIdProp;
   });
 
@@ -126,6 +129,16 @@
     return proxyImage(url, MAX_WIDTH_PREVIEW_THUMBNAIL);
   }
 
+  function parsePreviewResultsJson(value: unknown): ImageResult[] {
+    if (typeof value !== 'string' || !value.trim()) return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed as ImageResult[] : [];
+    } catch {
+      return [];
+    }
+  }
+
   /**
    * Handle embed data updates from server (processing -> finished transition).
    * UnifiedEmbedPreview calls this when an embedUpdated event arrives.
@@ -142,7 +155,7 @@
       const c = data.decodedContent as Record<string, unknown>;
       if (c.query)    localQuery    = c.query    as string;
       if (c.provider) localProvider = c.provider as string;
-      const previewResults = c.results || c.preview_results || c.preview_thumbnails;
+      const previewResults = c.results || c.preview_results || c.preview_thumbnails || parsePreviewResultsJson(c.preview_results_json);
       if (Array.isArray(previewResults) && (previewResults as unknown[]).length > 0) {
         localResults = previewResults as ImageResult[];
       }

@@ -1913,6 +1913,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       decodedContent?.preview_results ||
       decodedContent?.preview_thumbnails ||
       [];
+    const previewResultsJson = decodedContent?.preview_results_json || "";
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -1940,6 +1941,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error",
           results,
+          previewResultsJson,
           taskId,
           skillTaskId,
           isMobile: false,
@@ -3018,6 +3020,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           files: decodedContent?.files || undefined,
           aesKey: decodedContent?.aes_key || "",
           aesNonce: decodedContent?.aes_nonce || "",
+          videoUrl: decodedContent?.video_url || decodedContent?.public_video_url || "",
+          thumbnailUrl: decodedContent?.thumbnail_url || decodedContent?.public_thumbnail_url || "",
           status: status as "processing" | "rendering" | "finished" | "error" | "cancelled" | "needs_rerender",
           errorMessage: decodedContent?.error || decodedContent?.render_metadata?.safe_error || "",
           taskId: decodedContent?.task_id || "",

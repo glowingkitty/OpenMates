@@ -214,11 +214,13 @@
                     <div class="items-scroll">
                         {#each contentTypes as content (content.id)}
                             {@const contentApp = contentToAppMetadata(content, appId, app)}
-                            <AppStoreCard
-                                app={contentApp}
-                                cardIconType="skill"
-                                onSelect={() => handleContentSelect(content.contentTypeId)}
-                            />
+                            <div data-testid={`content-embed-card-${content.id}`}>
+                                <AppStoreCard
+                                    app={contentApp}
+                                    cardIconType="skill"
+                                    onSelect={() => handleContentSelect(content.contentTypeId)}
+                                />
+                            </div>
                         {/each}
                     </div>
                 </div>

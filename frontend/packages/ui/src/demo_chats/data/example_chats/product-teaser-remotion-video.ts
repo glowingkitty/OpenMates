@@ -2,8 +2,8 @@
 //
 // Example chat: Product Teaser Remotion Video
 // Public static example for the videos.rendered_video content catalog item.
-// It demonstrates an already-supported videos.create Remotion embed without
-// bundling private render artifacts or encrypted storage metadata.
+// It demonstrates an already-supported videos.create Remotion embed using a
+// public static MP4 instead of private encrypted render storage metadata.
 
 import type { ExampleChat } from "../../types";
 
@@ -83,6 +83,7 @@ skill_id: create
 type: remotion-video
 status: finished
 filename: LaunchTeaser.tsx
+summary: Editable three-scene product teaser video
 current_source_version: 1
 remotion_source: ${JSON.stringify(remotionSource)}
 render_metadata:
@@ -91,6 +92,7 @@ render_metadata:
   width: 1920
   height: 1080
   duration_seconds: 8
+video_url: /store-examples/video-generate-1.mp4
 embed_ref: launch-teaser-e07d18`,
       parent_embed_id: null,
       embed_ids: null,

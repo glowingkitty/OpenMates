@@ -6,6 +6,7 @@ These tests keep provider routing metadata available during that processing
 window so previews do not guess a default provider until final results arrive.
 """
 
+import json
 import sys
 import types
 from pathlib import Path
@@ -162,17 +163,19 @@ def test_images_search_parent_preview_metadata_contains_lightweight_results() ->
         ],
     )
 
+    preview_results = [
+        {
+            "title": "Sunset",
+            "source_page_url": "https://example.com/page",
+            "image_url": "https://example.com/image.jpg",
+            "thumbnail_url": "https://example.com/thumb.jpg",
+            "source": "example.com",
+            "favicon_url": "https://example.com/favicon.ico",
+        }
+    ]
     assert metadata == {
-        "preview_results": [
-            {
-                "title": "Sunset",
-                "source_page_url": "https://example.com/page",
-                "image_url": "https://example.com/image.jpg",
-                "thumbnail_url": "https://example.com/thumb.jpg",
-                "source": "example.com",
-                "favicon_url": "https://example.com/favicon.ico",
-            }
-        ]
+        "preview_results": preview_results,
+        "preview_results_json": json.dumps(preview_results, separators=(",", ":")),
     }
 
 
