@@ -1011,10 +1011,14 @@ struct SettingsInterfaceSubPage: View {
         if let dest = destination {
             VStack(spacing: 0) {
                 HStack(spacing: .spacing4) {
-                    OMIconButton(icon: "back", label: AppStrings.back, size: 36) {
+                    OMIconButton(
+                        icon: "back",
+                        label: AppStrings.back,
+                        size: 36,
+                        accessibilityIdentifier: dest.backAccessibilityIdentifier
+                    ) {
                         destination = nil
                     }
-                    .accessibilityIdentifier(dest.backAccessibilityIdentifier)
                     Text(dest.title)
                         .font(.omH3)
                         .fontWeight(.semibold)
