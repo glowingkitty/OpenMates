@@ -20,6 +20,11 @@ struct SettingsAppsFullView: View {
     @State private var searchText = ""
     @State private var selectedApp: AppInfo?
     @State private var isShowingAllApps = false
+    let onOpenExampleChat: (String) -> Void
+
+    init(onOpenExampleChat: @escaping (String) -> Void = { _ in }) {
+        self.onOpenExampleChat = onOpenExampleChat
+    }
 
     struct AppInfo: Identifiable, Decodable {
         let id: String
@@ -43,6 +48,7 @@ struct SettingsAppsFullView: View {
         let providers: [String]?
         let howToUseExamples: [String]?
         let exampleTitles: [String]?
+        let exampleChatIds: [String]?
         let processBullets: [String]?
         let systemPrompt: String?
         let modelNames: [String]?
@@ -55,6 +61,7 @@ struct SettingsAppsFullView: View {
             case providers
             case howToUseExamples = "how_to_use_examples"
             case exampleTitles = "example_titles"
+            case exampleChatIds = "example_chat_ids"
             case processBullets = "process_bullets"
             case systemPrompt = "system_prompt"
             case modelNames = "model_names"
@@ -68,6 +75,7 @@ struct SettingsAppsFullView: View {
             providers: [String]? = nil,
             howToUseExamples: [String]? = nil,
             exampleTitles: [String]? = nil,
+            exampleChatIds: [String]? = nil,
             processBullets: [String]? = nil,
             systemPrompt: String? = nil,
             modelNames: [String]? = nil
@@ -79,6 +87,7 @@ struct SettingsAppsFullView: View {
             self.providers = providers
             self.howToUseExamples = howToUseExamples
             self.exampleTitles = exampleTitles
+            self.exampleChatIds = exampleChatIds
             self.processBullets = processBullets
             self.systemPrompt = systemPrompt
             self.modelNames = modelNames
@@ -121,7 +130,7 @@ struct SettingsAppsFullView: View {
             if let selectedApp {
                 AppDetailView(app: selectedApp, onToggle: {
                     toggleApp(selectedApp)
-                }) {
+                }, onOpenExampleChat: onOpenExampleChat) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         self.selectedApp = nil
                     }
@@ -284,6 +293,7 @@ struct SettingsAppsFullView: View {
                 providers: ["OpenWeather"],
                 howToUseExamples: ["Will it rain in Berlin tomorrow?"],
                 exampleTitles: ["Berlin forecast"],
+                exampleChatIds: ["example-flights-berlin-bangkok"],
                 modelNames: ["OpenWeather Forecast"]
             )],
             focusModes: [AppSkill(
@@ -292,6 +302,7 @@ struct SettingsAppsFullView: View {
                 description: "Plan around weather",
                 howToUseExamples: ["Plan a weekend trip around sunny weather"],
                 exampleTitles: ["Weekend trip forecast"],
+                exampleChatIds: ["example-flights-berlin-bangkok"],
                 processBullets: ["Check the forecast", "Recommend timing around bad weather"],
                 systemPrompt: "Prioritize weather-aware travel planning."
             )],
@@ -614,6 +625,7 @@ private struct SettingsAllAppsNativeView: View {
 struct AppDetailView: View {
     let app: SettingsAppsFullView.AppInfo
     let onToggle: () -> Void
+    let onOpenExampleChat: (String) -> Void
     let onBack: () -> Void
 
     @State private var selectedSkill: SettingsAppsFullView.AppSkill?
@@ -621,13 +633,13 @@ struct AppDetailView: View {
 
     var body: some View {
         if let selectedSkill {
-            AppSkillDetailNativeView(app: app, skill: selectedSkill) {
+            AppSkillDetailNativeView(app: app, skill: selectedSkill, onOpenExampleChat: onOpenExampleChat) {
                 withAnimation(.easeOut(duration: 0.2)) {
                     self.selectedSkill = nil
                 }
             }
         } else if let selectedFocusMode {
-            AppFocusModeDetailNativeView(app: app, focusMode: selectedFocusMode) {
+            AppFocusModeDetailNativeView(app: app, focusMode: selectedFocusMode, onOpenExampleChat: onOpenExampleChat) {
                 withAnimation(.easeOut(duration: 0.2)) {
                     self.selectedFocusMode = nil
                 }
@@ -738,6 +750,7 @@ struct AppDetailView: View {
 private struct AppSkillDetailNativeView: View {
     let app: SettingsAppsFullView.AppInfo
     let skill: SettingsAppsFullView.AppSkill
+    let onOpenExampleChat: (String) -> Void
     let onBack: () -> Void
 
     @State private var mentionInserted = false
@@ -765,7 +778,12 @@ private struct AppSkillDetailNativeView: View {
 
             if let examples = skill.exampleTitles, !examples.isEmpty {
                 OMSettingsSection(AppStrings.appStoreExamples, icon: "skill") {
-                    horizontalTextCards(examples, identifierPrefix: "settings-skill-example-card")
+                    horizontalTextCards(
+                        examples,
+                        identifierPrefix: "settings-skill-example-card",
+                        chatIds: skill.exampleChatIds ?? fallbackExampleChatIds(appId: app.id, itemId: skill.id),
+                        onOpenExampleChat: onOpenExampleChat
+                    )
                 }
             }
 
@@ -860,6 +878,7 @@ private struct AppSkillDetailNativeView: View {
 private struct AppFocusModeDetailNativeView: View {
     let app: SettingsAppsFullView.AppInfo
     let focusMode: SettingsAppsFullView.AppSkill
+    let onOpenExampleChat: (String) -> Void
     let onBack: () -> Void
 
     @State private var showFullPrompt = false
@@ -875,7 +894,12 @@ private struct AppFocusModeDetailNativeView: View {
 
             if let examples = focusMode.exampleTitles, !examples.isEmpty {
                 OMSettingsSection(AppStrings.appStoreExamples, icon: "skill") {
-                    horizontalTextCards(examples, identifierPrefix: "settings-focus-example-card")
+                    horizontalTextCards(
+                        examples,
+                        identifierPrefix: "settings-focus-example-card",
+                        chatIds: focusMode.exampleChatIds ?? fallbackExampleChatIds(appId: app.id, itemId: focusMode.id),
+                        onOpenExampleChat: onOpenExampleChat
+                    )
                 }
             }
 
@@ -959,22 +983,52 @@ private struct AppFocusModeDetailNativeView: View {
 }
 
 @MainActor
-private func horizontalTextCards(_ values: [String], identifierPrefix: String) -> some View {
+private func horizontalTextCards(
+    _ values: [String],
+    identifierPrefix: String,
+    chatIds: [String]? = nil,
+    onOpenExampleChat: ((String) -> Void)? = nil
+) -> some View {
     ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: .spacing4) {
             ForEach(Array(values.enumerated()), id: \.offset) { index, value in
-                Text(value)
-                    .font(.omSmall.weight(.semibold))
-                    .foregroundStyle(Color.fontPrimary)
-                    .frame(width: 230, alignment: .leading)
-                    .padding(.spacing5)
-                    .background(Color.grey10)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                let chatId = chatIds?.indices.contains(index) == true ? chatIds?[index] : nil
+                if let chatId, let onOpenExampleChat {
+                    Button {
+                        onOpenExampleChat(chatId)
+                    } label: {
+                        textCard(value)
+                    }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("\(identifierPrefix)-\(index)")
+                } else {
+                    textCard(value)
+                        .accessibilityIdentifier("\(identifierPrefix)-\(index)")
+                }
             }
         }
         .padding(.horizontal, .spacing5)
         .padding(.bottom, .spacing3)
+    }
+}
+
+@MainActor
+private func textCard(_ value: String) -> some View {
+    Text(value)
+        .font(.omSmall.weight(.semibold))
+        .foregroundStyle(Color.fontPrimary)
+        .frame(width: 230, alignment: .leading)
+        .padding(.spacing5)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+}
+
+private func fallbackExampleChatIds(appId: String, itemId: String) -> [String]? {
+    switch (appId, itemId) {
+    case ("travel", "search_connections"):
+        return ["example-flights-berlin-bangkok"]
+    default:
+        return nil
     }
 }
 

@@ -745,7 +745,7 @@ struct MainAppView: View {
                     HStack(spacing: showSettings ? .spacing10 : 0) {
                         shellContent
 
-                        settingsPanel(width: 323)
+                        settingsPanel(width: 323, closesOnExampleChatOpen: false)
                             .frame(width: showSettings ? 323 : 0, alignment: .trailing)
                             .opacity(showSettings ? 1 : 0)
                             .clipped()
@@ -830,10 +830,18 @@ struct MainAppView: View {
 
     // MARK: - Settings slide panel (web: slides from right, 323px wide, shadow)
 
-    private func settingsPanel(width: CGFloat) -> some View {
+    private func settingsPanel(width: CGFloat, closesOnExampleChatOpen: Bool) -> some View {
         SettingsView {
             withAnimation(.easeInOut(duration: 0.3)) {
                 showSettings = false
+            }
+        } onOpenExampleChat: { chatId in
+            selectedChatId = chatId
+            showNewChat = false
+            if closesOnExampleChatOpen {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showSettings = false
+                }
             }
         }
         .environmentObject(authManager)
@@ -861,7 +869,7 @@ struct MainAppView: View {
             if showSettings || dragReveal > 0 {
                 HStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    settingsPanel(width: panelWidth)
+                    settingsPanel(width: panelWidth, closesOnExampleChatOpen: true)
                         .offset(x: showSettings ? max(0, shellDragOffset) : max(0, panelWidth + shellDragOffset))
                 }
                 .transition(.move(edge: .trailing))

@@ -210,6 +210,7 @@ struct ChatView: View {
                     }
                 }
                 .background(Color.grey20)
+                .accessibilityIdentifier("chat-view-\(chatId)")
 
                 if showReminder {
                     customOverlay(title: AppStrings.setReminder, isPresented: $showReminder) {

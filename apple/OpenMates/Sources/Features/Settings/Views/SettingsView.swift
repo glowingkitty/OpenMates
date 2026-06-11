@@ -210,14 +210,16 @@ struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.openURL) private var openURL
     var onClose: (() -> Void)?
+    var onOpenExampleChat: ((String) -> Void)?
     @State private var showIncognitoInfo = false
     @State private var destination: SettingsDestination?
     @State private var navigationDirection: SettingsNavigationDirection = .forward
     @State private var homeScrollTop: CGFloat = 0
     @State private var destinationScrollTop: CGFloat = 0
 
-    init(onClose: (() -> Void)? = nil) {
+    init(onClose: (() -> Void)? = nil, onOpenExampleChat: ((String) -> Void)? = nil) {
         self.onClose = onClose
+        self.onOpenExampleChat = onOpenExampleChat
     }
 
     private var isAuthenticated: Bool { authManager.currentUser != nil || AccountSettingsUITestFixture.enabled }
@@ -516,6 +518,8 @@ struct SettingsView: View {
                 onOpenApps: { navigateTo(.apps) },
                 onOpenAI: { navigateTo(.ai) }
             )
+        case .apps:
+            SettingsAppsFullView(onOpenExampleChat: onOpenExampleChat ?? { _ in })
         default:
             destination.view
         }
