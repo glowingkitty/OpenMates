@@ -17,8 +17,8 @@ from backend.shared.providers.e2b_application_preview import ApplicationPreviewF
 
 REMOTION_RENDER_OUTPUT = "out/openmates-remotion.mp4"
 REMOTION_THUMBNAIL_OUTPUT = "out/openmates-remotion-thumbnail.png"
-REMOTION_DEFAULT_WIDTH = 1280
-REMOTION_DEFAULT_HEIGHT = 720
+REMOTION_DEFAULT_WIDTH = 640
+REMOTION_DEFAULT_HEIGHT = 360
 REMOTION_RENDER_FLAGS = "--concurrency=1 --chromium-flags=\"--disable-dev-shm-usage --no-sandbox\""
 REMOTION_PACKAGE_JSON = {
     "scripts": {"render": "remotion render src/Root.tsx Main out/openmates-remotion.mp4"},

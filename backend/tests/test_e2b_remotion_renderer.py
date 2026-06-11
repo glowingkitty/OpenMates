@@ -32,8 +32,8 @@ def test_remotion_render_plan_writes_safe_project_files() -> None:
     assert "--omit=optional" in plan.install_commands[1]
     assert "--concurrency=1" in plan.render_command
     assert "--disable-dev-shm-usage" in plan.render_command
-    assert "width={1280}" in root
-    assert "height={720}" in root
+    assert "width={640}" in root
+    assert "height={360}" in root
     assert plan.render_command.startswith("npm exec remotion render")
     assert plan.enable_internet is True
 
