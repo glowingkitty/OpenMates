@@ -329,8 +329,10 @@ export class RecordingRenderer implements EmbedRenderer {
         );
       };
 
-      // Read auth state from authStore (same pattern as ImageRenderer.ts)
-      const isAuthenticated = get(authStore).isAuthenticated;
+      // Read-only recordings in shared chats already decrypted their embed
+      // payload from the share key, so transcript display must not depend on a
+      // logged-in upload session. Keep the auth gate for live editor uploads.
+      const isAuthenticated = get(authStore).isAuthenticated || !isEditable;
 
       const component = mount(RecordingEmbedPreview, {
         target: content,
