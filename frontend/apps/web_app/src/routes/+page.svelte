@@ -104,6 +104,7 @@
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
 	const DEFAULT_GUEST_INTRO_CHAT_ID = 'demo-for-everyone';
 	const STAY_LOGGED_IN_FLAG = 'openmates_was_stay_logged_in';
+	const AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS = 12_000;
 
 	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
 
@@ -798,7 +799,17 @@
 				await loadChatFromIndexedDB();
 			} else {
 				// Sync not yet complete — register event listener and wait
-				// CRITICAL: No setTimeout fallback — a premature load causes missing chat header
+				// Prefer the sync-complete event. If backend cache rewarming stays unprimed,
+				// a bounded fallback can safely load chats that already exist locally once
+				// cryptoReady has loaded IndexedDB keys.
+				let authDeepLinkFallbackTimeout: number | null = null;
+				const clearDeepLinkWaiters = () => {
+					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+					if (authDeepLinkFallbackTimeout !== null) {
+						window.clearTimeout(authDeepLinkFallbackTimeout);
+						authDeepLinkFallbackTimeout = null;
+					}
+				};
 				const handlePhasedSyncComplete = async () => {
 					// Guard: if the user switched to a different chat while waiting for sync,
 					// don't force them back to the deep-linked chat. This prevents the bug where
@@ -808,14 +819,48 @@
 						console.debug(
 							`[+page.svelte] Phased sync complete, but user made explicit choice — skipping deep link load for: ${chatId}`
 						);
-						chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+						clearDeepLinkWaiters();
 						return;
 					}
 					console.debug(`[+page.svelte] Phased sync complete, loading deep-linked chat: ${chatId}`);
 					await loadChatFromIndexedDB();
-					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+					clearDeepLinkWaiters();
 				};
 				chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+
+				authDeepLinkFallbackTimeout = window.setTimeout(() => {
+					void (async () => {
+						try {
+							await cryptoReady;
+							if (window.location.hash !== `#chat-id=${chatId}`) {
+								console.debug(
+									`[+page.svelte] Auth deep-link fallback skipped because hash changed for: ${chatId}`
+								);
+								clearDeepLinkWaiters();
+								return;
+							}
+
+							await chatDB.init();
+							const localChat = await chatDB.getChat(chatId);
+							if (!localChat) {
+								console.debug(
+									`[+page.svelte] Auth deep-link fallback found no local chat for: ${chatId}`
+								);
+								clearDeepLinkWaiters();
+								return;
+							}
+
+							console.debug(
+								`[+page.svelte] Auth deep-link fallback loading local chat after sync wait: ${chatId}`
+							);
+							await loadChatFromIndexedDB();
+						} catch (error) {
+							console.warn(`[+page.svelte] Auth deep-link fallback failed for ${chatId}:`, error);
+						} finally {
+							clearDeepLinkWaiters();
+						}
+					})();
+				}, AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS);
 			}
 		}
 	}
