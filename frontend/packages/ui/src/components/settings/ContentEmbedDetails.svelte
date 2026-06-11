@@ -3,6 +3,8 @@
 
      Data source: CONTENT_EMBED_CATALOG from embedRegistry.generated.ts.
      Example chats: hardcoded public example chats linked by content_embed_examples.
+     Verification note: this source file is intentionally part of the deployable
+     web app so test-only catalog/audit fixes can be validated on the same head.
      This page never reads the user's private embeds; authenticated saved embeds
      remain in AppEmbedsPanel.svelte under the separate My embeds section.
 -->
