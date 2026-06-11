@@ -5,7 +5,7 @@
  *
  * This wraps scripts/extract-shared-chat.mjs, preserves extracted embeds exactly,
  * writes the example chat data file, writes English i18n source entries copied to
- * all supported languages, and registers the chat in exampleChatStore.ts.
+ * all supported languages, and registers the chat in exampleChatData.ts.
  *
  * Usage:
  *   node scripts/create-example-chat-from-share.mjs "https://app.dev.openmates.org/share/chat/...#key=..." \
@@ -33,9 +33,9 @@ const I18N_SOURCE_DIR = path.join(
   REPO_ROOT,
   'frontend/packages/ui/src/i18n/sources/example_chats',
 );
-const STORE_PATH = path.join(
+const DATA_REGISTRY_PATH = path.join(
   REPO_ROOT,
-  'frontend/packages/ui/src/demo_chats/exampleChatStore.ts',
+  'frontend/packages/ui/src/demo_chats/exampleChatData.ts',
 );
 const EXTRACT_SCRIPT = path.join(REPO_ROOT, 'scripts/extract-shared-chat.mjs');
 
@@ -371,7 +371,7 @@ function readExistingMetadata(slug) {
 }
 
 function nextOrder(excludeSlug = null) {
-  const store = readFileSync(STORE_PATH, 'utf8');
+  const store = readFileSync(DATA_REGISTRY_PATH, 'utf8');
   const importMatches = [...store.matchAll(/import \{ (\w+) \} from "\.\/data\/example_chats\/([^";]+)";/g)];
   const orders = [];
   for (const [, , importPath] of importMatches) {
@@ -546,12 +546,12 @@ function formatYaml(chat, metadata) {
   return `${entries.join('\n')}\n`;
 }
 
-function updateStoreSource(source, slug, varName) {
+function updateDataRegistrySource(source, slug, varName) {
   const importLine = `import { ${varName} } from "./data/example_chats/${slug}";`;
   if (!source.includes(importLine)) {
     const importMatches = [...source.matchAll(/^import \{ \w+ \} from "\.\/data\/example_chats\/[^"]+";$/gm)];
     const lastImport = importMatches[importMatches.length - 1];
-    if (!lastImport) throw new Error('Could not find example chat imports in exampleChatStore.ts.');
+    if (!lastImport) throw new Error('Could not find example chat imports in exampleChatData.ts.');
     source = `${source.slice(0, lastImport.index + lastImport[0].length)}\n${importLine}${source.slice(lastImport.index + lastImport[0].length)}`;
   }
 
@@ -606,7 +606,7 @@ function main() {
   const varName = `${toCamel(slug)}Chat`;
   const tsContent = formatTs(chat, metadata);
   const yamlContent = formatYaml(chat, metadata);
-  const updatedStore = updateStoreSource(readFileSync(STORE_PATH, 'utf8'), slug, varName);
+  const updatedDataRegistry = updateDataRegistrySource(readFileSync(DATA_REGISTRY_PATH, 'utf8'), slug, varName);
 
   console.log(`Example chat scaffold: ${metadata.title}`);
   console.log(`  chat_id: ${metadata.chatId}`);
@@ -618,7 +618,7 @@ function main() {
   console.log(`  order: ${metadata.order}`);
   console.log(`  data: ${path.relative(REPO_ROOT, dataPath)}`);
   console.log(`  i18n: ${path.relative(REPO_ROOT, yamlPath)}`);
-  console.log(`  store: ${path.relative(REPO_ROOT, STORE_PATH)}`);
+  console.log(`  registry: ${path.relative(REPO_ROOT, DATA_REGISTRY_PATH)}`);
 
   if (args.dryRun) {
     console.log('\nDry run: no files written.');
@@ -627,7 +627,7 @@ function main() {
 
   writeIfChanged(dataPath, tsContent, args);
   writeIfChanged(yamlPath, yamlContent, args);
-  writeIfChanged(STORE_PATH, updatedStore, { ...args, force: true });
+  writeIfChanged(DATA_REGISTRY_PATH, updatedDataRegistry, { ...args, force: true });
 }
 
 main();
