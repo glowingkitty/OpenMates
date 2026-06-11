@@ -5,8 +5,6 @@
  * Access at: /dev/preview/embeds/videos
  */
 
-import { parseRemotionTimeline } from '../../../utils/remotionTimelineParser';
-
 const PRODUCT_LAUNCH_CODE = `import { Sequence, AbsoluteFill, Audio } from "remotion";
 
 export const ProductLaunch: React.FC = () => {
@@ -78,13 +76,20 @@ export const Root = () => (
   />
 );`;
 
-const productLaunchManifest = parseRemotionTimeline(PRODUCT_LAUNCH_CODE);
-const dataVizManifest = parseRemotionTimeline(DATA_VIZ_CODE);
-
 /** Default props — product launch video with synced timeline */
 const defaultProps = {
-	manifest: productLaunchManifest,
-	videoUrl: '/dev-fixtures/video-creation/product-launch.mp4',
+	data: {
+		decodedContent: {
+			filename: 'ProductLaunch.tsx',
+			status: 'finished' as const,
+			remotion_source: PRODUCT_LAUNCH_CODE,
+			current_source_version: 1,
+			active_render_version: 1,
+			render_metadata: { runtime_seconds: 12, charged_credits: 0 }
+		},
+		embedData: { status: 'finished' },
+		attrs: { app_id: 'videos' }
+	},
 	onClose: () => {},
 	hasPreviousEmbed: false,
 	hasNextEmbed: false
@@ -96,8 +101,17 @@ export default defaultProps;
 export const variants = {
 	/** Data visualization video */
 	dataViz: {
-		manifest: dataVizManifest,
-		videoUrl: '/dev-fixtures/video-creation/data-viz.mp4',
+		data: {
+			decodedContent: {
+				filename: 'DataViz.tsx',
+				status: 'finished' as const,
+				remotion_source: DATA_VIZ_CODE,
+				current_source_version: 1,
+				active_render_version: 1
+			},
+			embedData: { status: 'finished' },
+			attrs: { app_id: 'videos' }
+		},
 		onClose: () => {}
 	},
 
