@@ -214,6 +214,14 @@ class EmbedTypeDefinition(BaseModel):
     icon: Optional[str] = Field(default=None, description="Icon identifier (maps to SVG filename or icon set)")
     gradient_var: Optional[str] = Field(default=None, description="CSS custom property for the gradient (e.g., '--color-app-web')")
     i18n_namespace: Optional[str] = Field(default=None, description="i18n namespace for embed-specific translations")
+    content_catalog: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Optional app-store Content catalog metadata. When enabled, the "
+            "frontend registry generator exposes this embed or its child type as "
+            "a durable browsable content type."
+        ),
+    )
 
     @model_validator(mode='after')
     def validate_category_fields(self):

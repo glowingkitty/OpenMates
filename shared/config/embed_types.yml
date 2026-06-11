@@ -21,6 +21,14 @@ embed_types:
     icon: sheets
     gradient_var: "--color-app-sheets"
     i18n_namespace: embeds.sheets.sheet
+    content_catalog:
+      enabled: true
+      content_type_id: sheet
+      name: Spreadsheet
+      description: Tables and spreadsheet-style artifacts created from markdown table content.
+      icon: sheets
+      example_key: sheets.sheet
+      order: 10
     content_fields:
       - name: table
         type: string
@@ -69,6 +77,14 @@ embed_types:
     icon: github
     gradient_var: "--color-app-code"
     i18n_namespace: embeds.code.repo
+    content_catalog:
+      enabled: true
+      content_type_id: repo
+      name: Git repository
+      description: Standalone repository cards with project metadata, language, license, stars, and links.
+      icon: github
+      example_key: code.repo
+      order: 30
     content_fields:
       - name: url
         type: string

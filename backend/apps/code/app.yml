@@ -348,6 +348,14 @@ embed_types:
     icon: coding
     gradient_var: "--color-app-code"
     i18n_namespace: embeds.code.code
+    content_catalog:
+      enabled: true
+      content_type_id: code
+      name: Code block
+      description: Standalone code snippets and files created or edited directly in chat.
+      icon: coding
+      example_key: code.code
+      order: 20
     content_fields:
       - name: language
         type: string
@@ -374,6 +382,14 @@ embed_types:
     icon: coding
     gradient_var: "--color-app-code"
     i18n_namespace: embeds.code.application
+    content_catalog:
+      enabled: true
+      content_type_id: application
+      name: Application
+      description: Generated runnable applications with source files, entrypoints, and preview metadata.
+      icon: coding
+      example_key: code.application
+      order: 10
     content_fields:
       - name: name
         type: string

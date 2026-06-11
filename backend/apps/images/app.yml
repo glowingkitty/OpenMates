@@ -85,6 +85,14 @@ embed_types:
     icon: image
     gradient_var: "--color-app-images"
     i18n_namespace: embeds.images.view
+    content_catalog:
+      enabled: true
+      content_type_id: image
+      name: Image
+      description: Uploaded or generated image artifacts shown as first-class chat content.
+      icon: image
+      example_key: images.image
+      order: 10
     content_fields:
       - name: filename
         type: string

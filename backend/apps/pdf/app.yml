@@ -35,6 +35,14 @@ embed_types:
     icon: pdf
     gradient_var: "--color-app-pdf"
     i18n_namespace: embeds.pdf.view
+    content_catalog:
+      enabled: true
+      content_type_id: pdf
+      name: PDF
+      description: Uploaded PDF documents with encrypted page, OCR, and visual inspection metadata.
+      icon: pdf
+      example_key: pdf.pdf
+      order: 10
   - id: read
     category: app-skill-use
     skill_id: read

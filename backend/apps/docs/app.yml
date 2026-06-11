@@ -29,6 +29,14 @@ embed_types:
     icon: docs
     gradient_var: "--color-app-docs"
     i18n_namespace: embeds.docs.doc
+    content_catalog:
+      enabled: true
+      content_type_id: document
+      name: Document
+      description: Formatted documents, reports, proposals, and articles created from structured document blocks.
+      icon: docs
+      example_key: docs.document
+      order: 10
     content_fields:
       - name: docx_model
         type: object

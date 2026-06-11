@@ -127,6 +127,7 @@ export interface ExampleChat {
     featured: boolean; // Show in default 10 on homepage
     order: number; // Display order
     app_skill_examples?: string[]; // App-store skill pages this chat demonstrates, e.g. "travel.search_connections"
+    content_embed_examples?: string[]; // App-store content pages this chat demonstrates, e.g. "videos.rendered_video"
     app_focus_mode_examples?: string[]; // App-store focus mode pages this chat demonstrates, e.g. "web.research"
     app_settings_memory_examples?: string[]; // App-store memory pages this chat demonstrates, e.g. "code.projects"
     active_focus_id?: string; // Public cleartext focus mode active in this example, e.g. "web-research"

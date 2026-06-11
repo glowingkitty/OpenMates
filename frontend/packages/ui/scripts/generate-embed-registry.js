@@ -306,6 +306,70 @@ function buildEmbedMetadataMap(allEmbedTypes) {
   return metadataMap;
 }
 
+function getRegistryKey(def) {
+  if (def.category === "app-skill-use" && def.app_id && def.skill_id) {
+    return `app:${def.app_id}:${def.skill_id}`;
+  }
+  if (def.category === "direct" && def.frontend_type) {
+    return def.frontend_type;
+  }
+  return null;
+}
+
+/**
+ * Build app-store Content catalog entries from explicit embed metadata.
+ * This intentionally stays opt-in so internal skill containers and transient
+ * indicators never appear as browsable content types by accident.
+ *
+ * @param {Array<Object>} allEmbedTypes - All embed type definitions
+ * @returns {Array<Object>} Ordered content catalog entries
+ */
+function buildContentEmbedCatalog(allEmbedTypes) {
+  const catalog = [];
+
+  for (const def of allEmbedTypes) {
+    const contentCatalog = def.content_catalog;
+    if (!contentCatalog?.enabled || !def.app_id) continue;
+
+    const source = contentCatalog.source ?? "self";
+    const registryKey = source === "child" ? def.child_frontend_type : getRegistryKey(def);
+    const frontendType = source === "child" ? def.child_frontend_type : def.frontend_type;
+    const backendType = source === "child" ? def.child_type : def.backend_type;
+
+    if (!registryKey || !frontendType) {
+      console.warn(
+        `[generate-embed-registry] Skipping content catalog entry '${def.id}' because it has no frontend registry key`,
+      );
+      continue;
+    }
+
+    const contentTypeId = contentCatalog.content_type_id ?? def.id;
+    catalog.push({
+      id: `${def.app_id}.${contentTypeId}`,
+      appId: def.app_id,
+      contentTypeId,
+      registryKey,
+      frontendType,
+      ...(backendType ? { backendType } : {}),
+      ...(def.skill_id ? { skillId: def.skill_id } : {}),
+      name: contentCatalog.name ?? contentTypeId,
+      description: contentCatalog.description ?? "",
+      icon: contentCatalog.icon ?? def.icon,
+      gradientVar: def.gradient_var,
+      i18nNamespace: def.i18n_namespace,
+      exampleKey: contentCatalog.example_key ?? `${def.app_id}.${contentTypeId}`,
+      order: Number.isFinite(contentCatalog.order) ? contentCatalog.order : 100,
+      source,
+    });
+  }
+
+  return catalog.sort((a, b) => {
+    if (a.appId !== b.appId) return a.appId.localeCompare(b.appId);
+    if (a.order !== b.order) return a.order - b.order;
+    return a.contentTypeId.localeCompare(b.contentTypeId);
+  });
+}
+
 /**
  * Build the groupable types set for the TipTap editor.
  *
@@ -467,6 +531,7 @@ function generateTypeScript(maps) {
     rendererMap,
     embedMetadataMap,
     groupableTypes,
+    contentEmbedCatalog,
     contentTypeInterfaces,
     totalCount,
   } = maps;
@@ -593,6 +658,34 @@ function generateTypeScript(maps) {
   );
   lines.push(``);
 
+  // App-store Content catalog
+  lines.push(`/**`);
+  lines.push(` * Browsable durable content types shown in app-store app detail pages.`);
+  lines.push(` * Entries are opt-in via embed type content_catalog metadata.`);
+  lines.push(` */`);
+  lines.push(`export interface ContentEmbedCatalogItem {`);
+  lines.push(`  id: string;`);
+  lines.push(`  appId: string;`);
+  lines.push(`  contentTypeId: string;`);
+  lines.push(`  registryKey: string;`);
+  lines.push(`  frontendType: string;`);
+  lines.push(`  backendType?: string;`);
+  lines.push(`  skillId?: string;`);
+  lines.push(`  name: string;`);
+  lines.push(`  description: string;`);
+  lines.push(`  icon?: string;`);
+  lines.push(`  gradientVar?: string;`);
+  lines.push(`  i18nNamespace?: string;`);
+  lines.push(`  exampleKey: string;`);
+  lines.push(`  order: number;`);
+  lines.push(`  source: string;`);
+  lines.push(`}`);
+  lines.push(``);
+  lines.push(
+    `export const CONTENT_EMBED_CATALOG: ContentEmbedCatalogItem[] = ${JSON.stringify(contentEmbedCatalog, null, 2)};`,
+  );
+  lines.push(``);
+
   // Groupable types
   lines.push(`/**`);
   lines.push(
@@ -706,6 +799,7 @@ function main() {
   const rendererMap = buildRendererMap(allEmbedTypes);
   const embedMetadataMap = buildEmbedMetadataMap(allEmbedTypes);
   const groupableTypes = buildGroupableTypes(allEmbedTypes);
+  const contentEmbedCatalog = buildContentEmbedCatalog(allEmbedTypes);
   const contentTypeInterfaces = buildContentTypeInterfaces(allEmbedTypes);
 
   if (contentTypeInterfaces.interfaceCount > 0) {
@@ -722,6 +816,7 @@ function main() {
     rendererMap,
     embedMetadataMap,
     groupableTypes,
+    contentEmbedCatalog,
     contentTypeInterfaces,
     totalCount: allEmbedTypes.length,
   });

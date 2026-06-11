@@ -90,6 +90,15 @@ embed_types:
     icon: search
     gradient_var: "--color-app-web"
     i18n_namespace: embeds.web.search
+    content_catalog:
+      enabled: true
+      source: child
+      content_type_id: website
+      name: Website
+      description: Saved website result cards with title, URL, favicon, snippet, and page metadata.
+      icon: web
+      example_key: web.website
+      order: 10
     # Content fields for the parent app_skill_use embed (finished state)
     content_fields:
       - name: query

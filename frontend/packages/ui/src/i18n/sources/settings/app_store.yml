@@ -597,6 +597,26 @@ skills.examples_prefix:
   sv: "Verkliga exempel — tryck på ett kort för att utforska:"
   he: "דוגמאות אמיתיות — הקש על כרטיס כדי לחקור:"
   verified_by_human: [en]
+content.title:
+  context: Section title above durable content type cards in an app details page.
+  en: Content
+  verified_by_human: [en]
+content.section_description:
+  context: Description text under the Content section heading in app details, explaining that these cards are durable content artifacts.
+  en: "Content this app can create, attach, or show as reusable chat artifacts:"
+  verified_by_human: [en]
+content.examples:
+  context: Section title above real example chats on a content type detail page.
+  en: Examples
+  verified_by_human: [en]
+content.examples_prefix:
+  context: Intro text above public example chats for a durable content type.
+  en: "Real examples — tap a card to explore:"
+  verified_by_human: [en]
+content.not_found:
+  context: Error shown when a content type route does not match the generated app-store content catalog.
+  en: Content type not found.
+  verified_by_human: [en]
 skills.open_example:
   context: Accessibility label announced when focusing an example card in the skill detail page, so screen readers explain the card is clickable.
   en: Open example

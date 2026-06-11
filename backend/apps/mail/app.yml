@@ -60,6 +60,14 @@ embed_types:
     icon: mail
     gradient_var: "--color-app-mail"
     i18n_namespace: embeds.mail.email
+    content_catalog:
+      enabled: true
+      content_type_id: email
+      name: Email draft
+      description: Drafted email messages with recipients, subject, body, and optional signature/footer.
+      icon: mail
+      example_key: mail.email
+      order: 10
     content_fields:
       - name: receiver
         type: string

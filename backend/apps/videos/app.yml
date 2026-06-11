@@ -22,6 +22,15 @@ embed_types:
     icon: search
     gradient_var: "--color-app-videos"
     i18n_namespace: embeds.videos.search
+    content_catalog:
+      enabled: true
+      source: child
+      content_type_id: video
+      name: Video
+      description: Video result cards with title, channel, duration, thumbnail, and source URL.
+      icon: videos
+      example_key: videos.video
+      order: 10
   - id: get_transcript
     category: app-skill-use
     skill_id: get_transcript
@@ -55,6 +64,14 @@ embed_types:
     icon: videos
     gradient_var: "--color-app-videos"
     i18n_namespace: embeds.videos.create
+    content_catalog:
+      enabled: true
+      content_type_id: rendered_video
+      name: Rendered video
+      description: Deterministic Remotion videos rendered from durable editable source code.
+      icon: videos
+      example_key: videos.rendered_video
+      order: 20
 settings_and_memories:
   - id: to_watch_list
     name_translation_key: videos.to_watch_list
