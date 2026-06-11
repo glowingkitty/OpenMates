@@ -251,7 +251,7 @@ test('creates and shares a chat link with QR code and short link', async ({
 		screenshot: 'docs/images/user-guide/sharing/short-link-generated.jpg'
 	});
 
-	await page.keyboard.press('Escape');
+	await page.getByTestId('icon-button-close').click();
 	await expect(copyLinkButton).not.toBeVisible({ timeout: 5000 });
 	await shareButton.click();
 	await expect(copyLinkButton).toBeVisible({ timeout: 10000 });
