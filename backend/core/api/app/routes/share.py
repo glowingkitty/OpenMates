@@ -1489,6 +1489,7 @@ def _wrap_text(draw: Any, text: str, font: Any, max_width: int, max_lines: int) 
     words = (text or "").split()
     lines: List[str] = []
     current = ""
+    consumed_words = 0
     for word in words:
         candidate = f"{current} {word}".strip()
         bbox = draw.textbbox((0, 0), candidate, font=font)
@@ -1497,13 +1498,15 @@ def _wrap_text(draw: Any, text: str, font: Any, max_width: int, max_lines: int) 
             continue
         if current:
             lines.append(current)
+            consumed_words += len(current.split())
         current = word
         if len(lines) >= max_lines:
             break
     if current and len(lines) < max_lines:
         lines.append(current)
-    if words and len(lines) == max_lines and " ".join(lines).split() != words[:len(" ".join(lines).split())]:
-        lines[-1] = lines[-1].rstrip(".") + "..."
+        consumed_words += len(current.split())
+    if words and len(lines) == max_lines and consumed_words < len(words):
+        lines[-1] = lines[-1].rstrip(" .") + "..."
     return lines or [""]
 
 
@@ -1676,8 +1679,8 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
     white = (255, 255, 255, 255)
     soft_white = (255, 255, 255, 238)
     muted_white = (255, 255, 255, 92)
-    title_font = _load_og_font(58, bold=True)
-    summary_font = _load_og_font(37, bold=True)
+    title_font = _load_og_font(44, bold=True)
+    summary_font = _load_og_font(34, bold=True)
 
     icon_center_x = OG_IMAGE_WIDTH // 2
     icon_center_y = 170
@@ -1697,8 +1700,8 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
     if loaded_bubbles:
         if len(loaded_bubbles) == 1:
             loaded_bubbles.append(loaded_bubbles[0])
-        _draw_image_bubble(overlay, loaded_bubbles[0], 260, OG_IMAGE_HEIGHT - 58, 250, -15)
-        _draw_image_bubble(overlay, loaded_bubbles[1], OG_IMAGE_WIDTH - 260, OG_IMAGE_HEIGHT - 58, 250, 15)
+        _draw_image_bubble(overlay, loaded_bubbles[0], 260, OG_IMAGE_HEIGHT - 20, 250, -15)
+        _draw_image_bubble(overlay, loaded_bubbles[1], OG_IMAGE_WIDTH - 260, OG_IMAGE_HEIGHT - 20, 250, 15)
     else:
         # ChatHeader.svelte falls back to large low-opacity category icons when
         # image bubbles are unavailable. Do the same rather than drawing a generic
@@ -1708,19 +1711,19 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
 
     _draw_og_icon(draw, icon_center_x, icon_center_y, 76, metadata, white)
 
-    title_lines = _wrap_text(draw, str(metadata.get("title") or DEFAULT_CHAT_TITLE), title_font, 900, 2)
-    y = 250
+    title_lines = _wrap_text(draw, str(metadata.get("title") or DEFAULT_CHAT_TITLE), title_font, 1120, 2)
+    y = 245
     for line in title_lines:
         bbox = draw.textbbox((0, 0), line, font=title_font)
         draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=white, font=title_font)
-        y += 72
+        y += 66
 
-    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 900, 3)
+    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 1040, 2)
     y += 18
     for line in summary_lines:
         bbox = draw.textbbox((0, 0), line, font=summary_font)
         draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=soft_white, font=summary_font)
-        y += 50
+        y += 46
 
     image = Image.alpha_composite(image, overlay)
     buffer = io.BytesIO()
