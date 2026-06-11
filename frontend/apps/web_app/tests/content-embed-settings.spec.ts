@@ -60,7 +60,9 @@ test.describe('Content embed app-store settings', () => {
 		await videosCard.click();
 		logCheckpoint('Opened Videos app detail page.');
 
-		const renderedVideoCard = settingsMenu.getByTestId('content-embed-card-videos.rendered_video');
+		const renderedVideoCard = settingsMenu
+			.getByTestId('content-embed-card-videos.rendered_video')
+			.getByTestId('app-store-card');
 		await expect(renderedVideoCard).toBeVisible({ timeout: 10000 });
 		await renderedVideoCard.click();
 		logCheckpoint('Opened Rendered video content detail page.');
