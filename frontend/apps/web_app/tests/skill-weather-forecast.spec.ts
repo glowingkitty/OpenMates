@@ -154,6 +154,27 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 	});
 
+	test('Phase 1b mobile: app store example chat closes settings on narrow viewports', async ({ page }: { page: any }) => {
+		test.setTimeout(120_000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.goto(getE2EDebugUrl('/#settings/app_store/weather/skill/forecast'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await page.waitForLoadState('networkidle');
+
+		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
+
+		const exampleChatCard = settingsMenu.locator('[data-testid="app-store-example-chat-card"][data-app-id="weather"][data-skill-id="forecast"]').first();
+		await expect(exampleChatCard).toBeVisible({ timeout: 15_000 });
+
+		await exampleChatCard.click();
+		await expect(page).toHaveURL(/#chat-id=example-berlin-weather-bike-commute/, { timeout: 15_000 });
+		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
+		await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0, { timeout: 15_000 });
+	});
+
 	test('Phase 1c: app store linked example chat uses the large continue-card preview and opens the chat', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 1600, height: 900 });
