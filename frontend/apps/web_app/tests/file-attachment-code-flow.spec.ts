@@ -187,6 +187,10 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(fileSelection).toBeVisible({ timeout: 20000 });
 	await expect(fileSelection.getByText('requests', { exact: true })).toBeVisible({ timeout: 30000 });
 	await expect(fileSelection).not.toContainText('Install Python packages');
+	const selectAllButton = fileSelection.getByRole('button', { name: 'Select all' });
+	if (await selectAllButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await selectAllButton.click();
+	}
 	await fileSelection.getByTestId('code-run-continue').click();
 
 	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
