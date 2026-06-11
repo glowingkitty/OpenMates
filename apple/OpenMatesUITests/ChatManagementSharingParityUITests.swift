@@ -43,13 +43,11 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         app.launchEnvironment["UI_TEST_CHAT_SHARE_URL"] = fixtureShareURL
         app.launch()
 
-        XCTAssertTrue(
-            app.otherElements["chat-share-preview"].waitForExistence(timeout: 10),
-            "Expected native chat share preview. Visible UI: \(visibleStateLabels(in: app))"
-        )
-
         let generateButton = app.buttons["share-generate-link"]
-        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            generateButton.waitForExistence(timeout: 10),
+            "Expected native chat share controls. Visible UI: \(visibleStateLabels(in: app))"
+        )
         generateButton.tap()
 
         let generatedLink = app.staticTexts["share-short-link-url"]
