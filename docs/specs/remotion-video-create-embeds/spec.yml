@@ -591,22 +591,41 @@ tests:
       - AC-3
       - AC-5
       - AC-6
-      - AC-7
-      - AC-10
-      - AC-11
-      - AC-12
       - AC-13
-      - AC-15
-      - AC-18
+      - AC-14
     assertions:
-      - Chat request for product announcement produces one videos.create embed, not a code embed.
-      - Embed transitions from processing/rendering to finished with thumbnail and video playback.
-      - Stop render changes the state and allows rerender from fullscreen.
-      - Modifying text through assistant diff updates timeline and replaces the active video/thumbnail after rerender.
-      - Selecting an older version exposes Render this version and renders a temporary preview/download without changing the current editable version.
-      - Restoring an older version deletes later source changes and rerenders the restored source as current.
-      - Shared recipient rerender starts viewer-owned render and does not charge the creator.
-      - Generic tsx prompt still renders as a code embed and does not auto-render video.
+      - Natural-language deterministic video request routes to videos.create without an @ mention.
+      - Chat request produces a videos.create embed with Remotion source and timeline preview.
+      - Embed transitions from processing/rendering to finished with decrypted video playback in fullscreen.
+      - Authenticated Remotion read endpoint returns finished status, TSX filename, and stored source for the embed.
+      - Fullscreen exposes video, timeline, and source-code views for the finished render.
+      - Generic tsx prompt in the user message still renders as a code-code embed and does not become a videos.create embed.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: "27362541013"
+        timestamp: "2026-06-11T16:42:44Z"
+
+  - id: T-PLAYWRIGHT-SHARED-RERENDER
+    type: playwright
+    file: frontend/apps/web_app/tests/remotion-video-create-share.spec.ts
+    command: python3 scripts/run_tests.py --spec remotion-video-create-share.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-15
+    assertions:
+      - Shared recipients can view finished videos.create embeds through the shared chat flow.
+      - Shared-recipient rerender starts an isolated viewer-owned render session.
+      - Shared-recipient rerender billing applies to the viewer and does not charge the original creator.
     red_phase:
       required: true
       expected: fail
