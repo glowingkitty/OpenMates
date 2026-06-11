@@ -86,7 +86,7 @@
     "@opentelemetry/sdk-trace-web": "^2.7.1",
     "@stripe/stripe-js": "^7.9.0",
     "@sveltejs/adapter-auto": "^6.1.0",
-    "@sveltejs/kit": "2.60.1",
+    "@sveltejs/kit": "2.64.0",
     "@tiptap/core": "^3.26.0",
     "@tiptap/extension-highlight": "^3.26.0",
     "@tiptap/extension-link": "^3.26.0",
@@ -126,7 +126,7 @@
     "tweetnacl": "^1.0.3",
     "uuid": "^13.0.1",
     "vite": "^7.3.2",
-    "yaml": "^2.8.1"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
