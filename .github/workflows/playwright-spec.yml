@@ -10,6 +10,7 @@
 # Architecture: docs/architecture/github-actions-ci.md
 
 name: "Playwright: Single Spec"
+run-name: "Playwright: ${{ github.event.inputs.spec }} account ${{ github.event.inputs.account }} ${{ github.event.inputs.dispatch_token }}"
 
 on:
   workflow_dispatch:
@@ -41,6 +42,10 @@ on:
         default: true
       create_account_slot:
         description: "Account slot for create-test-account.spec.ts (1-20). Leave empty for normal tests."
+        type: string
+        default: ""
+      dispatch_token:
+        description: "Unique token from scripts/run_tests.py used to identify this dispatch."
         type: string
         default: ""
 

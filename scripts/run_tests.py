@@ -667,6 +667,19 @@ def _build_multipart_body(
 # GitHubActionsClient
 # ---------------------------------------------------------------------------
 
+def _matching_dispatched_run_id(runs: list[dict], dispatch_token: str) -> Optional[int]:
+    """Return the run ID whose workflow title contains the dispatch token."""
+    for run in runs:
+        display_title = str(run.get("displayTitle") or "")
+        if dispatch_token not in display_title:
+            continue
+        try:
+            return int(run["databaseId"])
+        except (KeyError, TypeError, ValueError):
+            return None
+    return None
+
+
 class GitHubActionsClient:
     """Wraps the `gh` CLI for workflow dispatch and status polling."""
 
@@ -692,8 +705,7 @@ class GitHubActionsClient:
         Returns the run ID or None on failure.
         """
         self.last_dispatch_error = None
-        # Record the latest run ID before dispatch so we can find the new one
-        pre_ids = self._recent_run_ids(limit=5)
+        dispatch_token = f"rt-{os.getpid()}-{time.time_ns()}-{account}"
 
         # playwright-spec.yml: lightweight 1-job workflow per spec
         rc = subprocess.run(
@@ -704,7 +716,8 @@ class GitHubActionsClient:
              "-f", f"account={account}",
              "-f", f"use_mocks={'true' if use_mocks else 'false'}",
              "-f", "use_live_mocks=true",
-             "-f", "record_live_fixtures=false"],
+             "-f", "record_live_fixtures=false",
+             "-f", f"dispatch_token={dispatch_token}"],
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
@@ -713,33 +726,42 @@ class GitHubActionsClient:
             _log(f"Dispatch failed for {spec}: {detail}", "ERROR")
             return None
 
-        # Wait for GitHub to register the run, then find its ID
+        # Wait for GitHub to register the run, then find the exact dispatch.
+        # Concurrent OpenMates sessions can dispatch this workflow at the same
+        # time, so "newest run after dispatch" can attach to another spec.
         for attempt in range(6):
             time.sleep(2)
-            new_ids = self._recent_run_ids(limit=10)
-            fresh = [rid for rid in new_ids if rid not in pre_ids]
-            if fresh:
-                return fresh[0]  # Most recent new run
+            run_id = _matching_dispatched_run_id(self._recent_runs(limit=50), dispatch_token)
+            if run_id is not None:
+                return run_id
 
         _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
         self.last_dispatch_error = "Workflow dispatched, but GitHub did not expose a new run ID in time"
         return None
 
-    def _recent_run_ids(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[int]:
-        """Get the most recent run IDs for a workflow."""
+    def _recent_runs(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[dict]:
+        """Get the most recent runs for a workflow."""
         rc = subprocess.run(
             ["gh", "run", "list",
              "--repo", GH_REPO,
              "--workflow", workflow,
              "--limit", str(limit),
-             "--json", "databaseId"],
+             "--json", "databaseId,displayTitle"],
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
             return []
         try:
-            return [r["databaseId"] for r in json.loads(rc.stdout)]
-        except (json.JSONDecodeError, KeyError):
+            data = json.loads(rc.stdout)
+        except json.JSONDecodeError:
+            return []
+        return data if isinstance(data, list) else []
+
+    def _recent_run_ids(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[int]:
+        """Get the most recent run IDs for a workflow."""
+        try:
+            return [int(r["databaseId"]) for r in self._recent_runs(limit, workflow)]
+        except (KeyError, TypeError, ValueError):
             return []
 
     def poll_run(self, run_id: int) -> dict:

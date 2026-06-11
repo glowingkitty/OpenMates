@@ -59,6 +59,18 @@ def test_batch_size_is_capped_to_normal_account_pool():
     assert plan[13] == (1, "regular-13.spec.ts", 1)
 
 
+def test_dispatch_run_matching_uses_unique_token():
+    run_tests = load_run_tests_module()
+
+    runs = [
+        {"databaseId": 111, "displayTitle": "Playwright: chat-flow.spec.ts account 1 rt-other"},
+        {"databaseId": 222, "displayTitle": "Playwright: test-account-preflight.spec.ts account 11 rt-target"},
+    ]
+
+    assert run_tests._matching_dispatched_run_id(runs, "rt-target") == 222
+    assert run_tests._matching_dispatched_run_id(runs, "rt-missing") is None
+
+
 def test_credential_update_artifacts_are_persisted_outside_screenshots(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact_root = tmp_path / "artifact"
