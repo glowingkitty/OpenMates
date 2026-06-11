@@ -360,6 +360,10 @@ test.describe('Example chats loading for new users', () => {
 			expect(qaPage.url, `/example/${slug} JSON-LD canonical`).toContain(
 				`/example/${slug}`
 			);
+			expect(
+				qaPage.mainEntity?.length,
+				`/example/${slug} JSON-LD QAPage should include question/answer entries`
+			).toBeGreaterThan(0);
 		}
 	});
 

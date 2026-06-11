@@ -194,7 +194,7 @@ function buildQuestionAnswerPairs(messages: SeoMessage[]) {
 	const pairs: { question: string; answer: string }[] = [];
 	for (let i = 0; i < messages.length; i++) {
 		const current = messages[i];
-		const next = messages[i + 1];
+		const next = messages.slice(i + 1).find((message) => message.role !== 'system');
 		if (current?.role === 'user' && next?.role === 'assistant') {
 			pairs.push({
 				question: stripMarkdownForSchema(current.content),
