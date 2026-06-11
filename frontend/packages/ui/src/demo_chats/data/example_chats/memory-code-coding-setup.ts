@@ -33,13 +33,6 @@ export const memoryCodeCodingSetupChat: ExampleChat = {
 ],
   embeds: [
     {
-        "embed_id": "7d40d5c4-1ee4-4aec-ba2a-d55734f769bc",
-        "type": "code",
-        "content": "type: code\napp_id: code\nskill_id: code\nlanguage: \"\"\ncode: \"\\n\\n**Next Steps:**\\n*   If you're using a specific language (like Python or C++), I can provide the exact **CLI debugger** flags for your setup.\\n*   Would you like a template for a **reproduction shell script**?\"\nfilename: null\nembed_ref: code-7d40d5\nstatus: finished\nline_count: 5",
-        "parent_embed_id": null,
-        "embed_ids": null
-    },
-    {
         "embed_id": "2ff43224-0546-4f2f-ba70-3b305c2ed9f8",
         "type": "code",
         "content": "type: code\napp_id: code\nskill_id: code\nlanguage: bash\ncode: \"    # Example: Run reproduction every 2 seconds\\n    watch -n 2 ./repro.sh\\n    \"\nfilename: null\nembed_ref: code-2ff432\nstatus: finished\nline_count: 3",
