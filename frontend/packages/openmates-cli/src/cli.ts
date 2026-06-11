@@ -52,6 +52,12 @@ import {
   buildCodeRunRequestsFromFlags,
   buildCodeRunStreamUrl,
 } from "./codeRunInput.js";
+import {
+  getExampleChatConversation,
+  listExampleChats,
+  searchExampleChats,
+  type ExampleChatConversation,
+} from "./exampleChats.js";
 
 type CliArgs = {
   positionals: string[];
@@ -245,7 +251,9 @@ async function handleChats(
     const limit =
       typeof flags.limit === "string" ? parseInt(flags.limit, 10) : 10;
     const page = typeof flags.page === "string" ? parseInt(flags.page, 10) : 1;
-    const result = await client.listChats(limit, page);
+    const result = client.hasSession()
+      ? await client.listChats(limit, page)
+      : listExampleChats(limit, page);
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -260,7 +268,9 @@ async function handleChats(
       throw new Error(
         "Missing search query. Usage: openmates chats search <query>",
       );
-    const result = await client.searchChats(query);
+    const result = client.hasSession()
+      ? await client.searchChats(query)
+      : searchExampleChats(query);
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -429,6 +439,27 @@ async function handleChats(
     }
     // "last" opens the most recently modified chat
     const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+    if (!client.hasSession()) {
+      const example = resolveExampleChatForOpen(resolvedId === "__last__" ? "1" : resolvedId);
+      if (!example) {
+        console.error(
+          `Example chat '${chatId}' not found. Run 'openmates chats list' to see available examples.`,
+        );
+        process.exit(1);
+      }
+      if (flags.json === true) {
+        printJson({
+          chat: example.chat,
+          messages: example.messages,
+          follow_up_suggestions: example.followUpSuggestions,
+        });
+      } else if (flags.raw === true) {
+        await printChatConversationRaw(example.chat, example.messages, { example: true });
+      } else {
+        await printChatConversation(client, example.chat, example.messages, example.followUpSuggestions, { example: true });
+      }
+      return;
+    }
     const { chat, messages } = await client.getChatMessages(resolvedId);
     if (flags.json === true) {
       // Fetch follow-up suggestions for JSON output too
@@ -883,8 +914,36 @@ async function handleChats(
   }
 
   if (subcommand === "open") {
-    const n =
-      rest[0] !== undefined ? parseInt(rest[0], 10) : 1;
+    if (!client.hasSession()) {
+      const target = rest[0] ?? "1";
+      const example = resolveExampleChatForOpen(target);
+      if (!example) {
+        console.error(
+          `Example chat '${target}' not found. Run 'openmates chats list' to see available examples.`,
+        );
+        process.exit(1);
+      }
+      const appUrl = deriveAppUrl(client.apiUrl);
+      const url = `${appUrl}/example/${example.chat.slug}`;
+      if (!flags.json) {
+        process.stderr.write(
+          `\x1b[2mOpening example chat: "${example.chat.title ?? example.chat.slug}"\x1b[0m\n`,
+        );
+      }
+      await openUrl(url);
+      if (flags.json === true) {
+        printJson({
+          url,
+          chat_id: example.chat.id,
+          slug: example.chat.slug,
+          title: example.chat.title,
+          source: "example",
+        });
+      }
+      return;
+    }
+
+    const n = rest[0] !== undefined ? parseInt(rest[0], 10) : 1;
     if (isNaN(n) || n < 1) {
       console.error(
         `Invalid position '${rest[0]}'. Must be a positive integer (1 = most recent, 2 = second most recent, ...).`,
@@ -918,21 +977,7 @@ async function handleChats(
       );
     }
 
-    // Open in default browser using platform-appropriate command
-    const { exec } = await import("node:child_process");
-    const platform = process.platform;
-    const openCmd =
-      platform === "darwin"
-        ? `open "${url}"`
-        : platform === "win32"
-          ? `start "" "${url}"`
-          : `xdg-open "${url}"`;
-    exec(openCmd, (err) => {
-      if (err) {
-        // Fallback: print the URL so the user can open it manually
-        console.log(url);
-      }
-    });
+    await openUrl(url);
 
     if (flags.json === true) {
       printJson({ url, chat_id: chat.id, position: n, title: chat.title });
@@ -943,6 +988,35 @@ async function handleChats(
   console.error(`Unknown chats subcommand '${subcommand}'.\n`);
   printChatsHelp();
   process.exit(1);
+}
+
+function resolveExampleChatForOpen(target: string): ExampleChatConversation | null {
+  const numericTarget = parseInt(target, 10);
+  if (!Number.isNaN(numericTarget) && String(numericTarget) === target.trim()) {
+    if (numericTarget < 1) return null;
+    const page = listExampleChats(numericTarget, 1);
+    const chat = page.chats[numericTarget - 1];
+    return chat ? getExampleChatConversation(chat.id) : null;
+  }
+  return getExampleChatConversation(target);
+}
+
+async function openUrl(url: string): Promise<void> {
+  // Open in default browser using platform-appropriate command.
+  const { exec } = await import("node:child_process");
+  const platform = process.platform;
+  const openCmd =
+    platform === "darwin"
+      ? `open "${url}"`
+      : platform === "win32"
+        ? `start "" "${url}"`
+        : `xdg-open "${url}"`;
+  exec(openCmd, (err) => {
+    if (err) {
+      // Fallback: print the URL so the user can open it manually.
+      console.log(url);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -3144,6 +3218,7 @@ function printChatsTable(result: ChatListPage): void {
   const { chats, total, page, limit, hasMore } = result;
   const start = (page - 1) * limit + 1;
   const end = start + chats.length - 1;
+  const exampleOnly = chats.every((chat) => chat.source === "example");
 
   if (chats.length === 0) {
     console.log("No chats found.");
@@ -3152,7 +3227,7 @@ function printChatsTable(result: ChatListPage): void {
 
   const totalPages = Math.ceil(total / limit);
   process.stdout.write(
-    `\x1b[2mChats ${start}–${end} of ${total}  (page ${page}/${totalPages})\x1b[0m\n\n`,
+    `\x1b[2m${exampleOnly ? "Example chats" : "Chats"} ${start}–${end} of ${total}  (page ${page}/${totalPages})\x1b[0m\n\n`,
   );
 
   for (const chat of chats) {
@@ -3160,9 +3235,10 @@ function printChatsTable(result: ChatListPage): void {
     const time = formatTimestamp(chat.updatedAt);
     const title = chat.title ?? "(no title)";
     const idStr = chat.shortId;
+    const sourceLabel = chat.source === "example" ? "  \x1b[33mEXAMPLE CHAT\x1b[0m" : "";
 
     // Line 1: colored block + timestamp
-    process.stdout.write(`${block}  \x1b[2m${time}\x1b[0m\n`);
+    process.stdout.write(`${block}  \x1b[2m${time}\x1b[0m${sourceLabel}\n`);
     // Line 2: bold title as headline
     process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
     // Line 3: full summary (no truncation)
@@ -3891,10 +3967,16 @@ async function printChatConversation(
   },
   messages: DecryptedMessage[],
   followUpSuggestions?: string[],
+  options: { example?: boolean } = {},
 ): Promise<void> {
   const block = ansiColorBlock(chat.category);
   const title = chat.title ?? "(no title)";
   const ts = formatTimestamp(chat.updatedAt);
+
+  if (options.example) {
+    process.stdout.write("\x1b[33mEXAMPLE CHAT\x1b[0m\n");
+    process.stdout.write("\x1b[2mThis is a public example chat. Log in to create and sync your own private chats.\x1b[0m\n\n");
+  }
 
   // Header: colored block + date + # Title
   process.stdout.write(`${block}  \x1b[2m${chat.shortId}  ${ts}\x1b[0m\n`);
@@ -3919,7 +4001,7 @@ async function printChatConversation(
     }
   }
   // Also check if any message text contains embed: refs at all
-  const hasEmbedRefs = messages.some(
+  const hasEmbedRefs = !options.example && messages.some(
     (m) => m.content && /\(embed:[^)]+\)/.test(m.content),
   );
   const embedRefIndex = hasEmbedRefs
@@ -3999,7 +4081,9 @@ async function printChatConversation(
   }
 
   process.stdout.write(
-    `\x1b[2mContinue: openmates chats send --chat ${chat.shortId} "your message"\x1b[0m\n`,
+    options.example
+      ? `\x1b[2mOpen in browser: openmates chats open ${chat.shortId}\x1b[0m\n`
+      : `\x1b[2mContinue: openmates chats send --chat ${chat.shortId} "your message"\x1b[0m\n`,
   );
 }
 
@@ -4018,9 +4102,15 @@ async function printChatConversationRaw(
     updatedAt: number | null;
   },
   messages: DecryptedMessage[],
+  options: { example?: boolean } = {},
 ): Promise<void> {
   const title = chat.title ?? "(no title)";
   const ts = formatTimestamp(chat.updatedAt);
+
+  if (options.example) {
+    process.stdout.write("EXAMPLE CHAT\n");
+    process.stdout.write("This is a public example chat. Log in to create and sync your own private chats.\n\n");
+  }
 
   process.stdout.write(`\x1b[2m${chat.shortId}  ${ts}\x1b[0m\n`);
   process.stdout.write(`\x1b[1;4m# ${title}\x1b[0m  \x1b[2m(raw)\x1b[0m\n\n`);
@@ -5294,7 +5384,7 @@ function printChatsHelp(): void {
   console.log(`Chats commands:
   openmates chats list [--limit <n>] [--page <n>] [--json]
   openmates chats show <chat-id> [--raw] [--json]
-  openmates chats open [<n>] [--json]
+  openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
   openmates chats new <message> [--json] [--auto-approve] [--auto-approve-memories]
   openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories]
@@ -5316,6 +5406,8 @@ Options for 'show':
 
 Options for 'open':
   <n>           Position of the chat to open (default: 1 = most recent)
+  <example-id|slug>
+                Logged out: public example chat ID or slug
                 1 = most recent, 2 = second most recent, etc.
                 Opens the chat in your default browser.
 
@@ -5361,6 +5453,7 @@ Examples:
   openmates chats list
   openmates chats open              (opens most recent chat in browser)
   openmates chats open 3            (opens 3rd most recent chat)
+  openmates chats open gigantic-airplanes-transporting-rocket-parts
   openmates chats show d262cb68
   openmates chats show last
   openmates chats show "Flight Connections Berlin to Bangkok"

@@ -28,6 +28,18 @@ claims:
       command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
       assertion: cli-apps-memory-type-registry-is-available
     verified: '2026-06-11'
+  - id: cli-apps-docs-cover-code-run-commands
+    type: unit
+    claim: Apps docs cover the Code Run command forms exposed by CLI help.
+    source:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/codeRunInput.ts
+    test:
+      file: frontend/packages/openmates-cli/tests/cli.test.ts
+      command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+      assertion: cli-apps-docs-cover-code-run-commands
+    verified: '2026-06-11'
 ---
 
 # Apps & Skills
@@ -91,6 +103,18 @@ openmates apps travel booking-link --token "<booking_token>" --context '{"curren
 ```
 
 The `booking_token` is included in the output of `openmates apps travel search_connections`.
+
+## Code Run
+
+The Code app has a dedicated convenience command for running local snippets or project files through the app-skill endpoint:
+
+```
+openmates apps code run --language python --code 'print("Hello")'
+openmates apps code run --entry main.py --file main.py --file requirements.txt
+openmates apps code run --entry main.py --dir ./project --exclude node_modules
+```
+
+Use inline `--code` for short snippets, repeated `--file` flags for a small set of files, or `--dir` plus `--entry` for a project folder. The command streams status/output when available and falls back to polling the execution status endpoint.
 
 ## Authentication
 

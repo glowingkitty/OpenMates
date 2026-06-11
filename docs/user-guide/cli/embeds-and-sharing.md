@@ -48,6 +48,17 @@ claims:
       command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/shareEncryption.test.ts
       assertion: cli-share-links-use-web-share-routes
     verified: '2026-06-11'
+  - id: cli-embeds-docs-cover-remotion-video-create
+    type: unit
+    claim: Embed docs describe CLI terminal rendering for Remotion videos/create embeds.
+    source:
+      - frontend/packages/openmates-cli/src/embedRenderers.ts
+      - frontend/packages/openmates-cli/src/client.ts
+    test:
+      file: frontend/packages/openmates-cli/tests/cli.test.ts
+      command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+      assertion: cli-embeds-docs-cover-remotion-video-create
+    verified: '2026-06-11'
 ---
 
 # Embeds & Sharing
@@ -63,6 +74,10 @@ openmates embeds show a3f2b1c4 --json
 ```
 
 Displays the full decrypted content of an embed in the terminal. The embed ID can be a full UUID or the first 8 characters. Embed IDs are shown when viewing chat conversations with `openmates chats show`.
+
+### Remotion Video Create Embeds
+
+`videos/create` embeds render as terminal-native status cards. While a Remotion render is `processing`, `rendering`, or `needs_rerender`, the CLI refreshes the embed content from the video status endpoint before printing it. Run the command again after rendering finishes to get the rendered video link and QR code.
 
 ## Sharing an Embed
 

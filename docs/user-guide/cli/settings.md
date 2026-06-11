@@ -28,6 +28,18 @@ claims:
       command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
       assertion: cli-settings-rejects-raw-passthrough
     verified: '2026-06-11'
+  - id: cli-settings-docs-cover-notification-commands
+    type: unit
+    claim: Settings docs list each executable notification command exposed by CLI help.
+    source:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/ws.ts
+    test:
+      file: frontend/packages/openmates-cli/tests/cli.test.ts
+      command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+      assertion: cli-settings-docs-cover-notification-commands
+    verified: '2026-06-11'
 ---
 
 # Settings Commands
@@ -126,11 +138,15 @@ Bank-transfer credit and gift-card purchases are supported in the CLI. The gift-
 
 ```
 openmates settings notifications status
+openmates settings notifications list --limit 20 --json
+openmates settings notifications stream --count 1 --json
 openmates settings notifications email set --enabled true --email you@example.com --ai-responses true --backup-reminder true
 openmates settings notifications backup set --enabled true --interval 30 --email you@example.com
 ```
 
 Notification writes use the same WebSocket `email_notification_settings` contract as the web app. Enabling email notifications requires an email address so the backend can encrypt it with the user's vault key before storage.
+
+`notifications list` prints recent notification events. `notifications stream` opens the CLI notification stream and can be bounded with `--count <n>` for scripts.
 
 ## Reminders
 

@@ -18,11 +18,22 @@ claims:
       command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
       assertion: cli-authentication-uses-pair-login-command
     verified: '2026-06-11'
+  - id: cli-authentication-docs-cover-login-and-signup
+    type: unit
+    claim: CLI authentication docs cover pair-login and terminal signup without documenting password flags.
+    source:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+    test:
+      file: frontend/packages/openmates-cli/tests/cli.test.ts
+      command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+      assertion: cli-authentication-docs-cover-login-and-signup
+    verified: '2026-06-11'
 ---
 
 # Authentication
 
-The OpenMates CLI uses pair-auth for login -- it never asks for your email or password. Authentication is completed by confirming a pair PIN in the web app or scanning a QR code.
+The OpenMates CLI uses pair-auth for login -- it never asks for your account password during login. Authentication is completed by confirming a pair PIN in the web app or scanning a QR code. New accounts can also be created with the guided `openmates signup` flow, which collects passwords and recovery secrets through hidden terminal prompts instead of command-line flags.
 
 ## Login
 
@@ -56,6 +67,28 @@ openmates whoami --json
 
 Displays your account information (username, email, plan). Use `--json` for machine-readable output.
 
+## Signup
+
+```
+openmates signup --email you@example.com --username your_name --invite-code <code>
+openmates signup --backup-codes-output ./backup-codes.txt --recovery-key-output ./recovery-key.txt
+```
+
+Signup creates a password account from the terminal using the same client-side encrypted signup crypto as the web app. Passwords, 2FA verification codes, backup codes, and recovery keys are handled through hidden prompts or owner-only files; the CLI rejects password-style command-line flags so secrets do not land in shell history.
+
+| Option | Description |
+|--------|-------------|
+| `--email <email>` | Email address; prompted when omitted |
+| `--username <name>` | Username; prompted when omitted |
+| `--invite-code <code>` | Invite code when required |
+| `--gift-card-code <code>` | Redeem a gift card after account creation |
+| `--backup-codes-output <path>` | Save backup codes to a `0600` file |
+| `--recovery-key-output <path>` | Save recovery key to a `0600` file |
+| `--skip-2fa` | Explicitly skip 2FA setup after warning |
+| `--skip-recovery-key` | Explicitly skip recovery-key setup after warning |
+| `--yes` | Confirm warning prompts |
+| `--json` | Output a non-secret JSON summary |
+
 ## Session Storage
 
 Session data is stored in `~/.openmates/session.json`. This file contains your session token and is used for all authenticated API requests.
@@ -63,9 +96,9 @@ Session data is stored in `~/.openmates/session.json`. This file contains your s
 ## Security
 
 - **File permissions:** All files in `~/.openmates/` are created with `0o600` (owner read/write only). The directory itself is `0o700` (owner only).
-- **No credentials stored:** The CLI never stores your email, password, or passkey. Only the session token from pair-auth is persisted.
-- **Pair-auth only:** This design ensures that the CLI cannot be used for credential phishing. Authentication always requires explicit approval in the web app.
-- **Blocked operations:** Security-sensitive actions (passkey management, password setup, 2FA configuration, device sessions) are blocked in the CLI and must be performed in the web app. See [settings.md](./settings.md) for the full list.
+- **No credentials stored:** The CLI never stores your password or passkey. Login persists only the session token from pair-auth; signup stores only the normal encrypted account/session material needed for later CLI use.
+- **Pair-auth login:** Login requires explicit approval in the web app, which keeps normal account-password authentication out of the CLI login path.
+- **Blocked operations:** Security-sensitive actions (passkey management, password changes, 2FA changes, device sessions) are blocked in the CLI and must be performed in the web app. Guided signup and missing-method setup are dedicated CLI flows, not raw settings passthrough. See [settings.md](./settings.md) for the full list.
 
 ## Key Files
 

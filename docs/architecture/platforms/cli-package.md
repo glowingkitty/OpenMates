@@ -69,9 +69,9 @@ CLI login derives and stores the email encryption key after pair-auth by decrypt
 
 **Auth:** `signup`, `login`, `logout`, `whoami`
 
-**Chats:** `list`, `search`, `new`, `send`, `show`, `delete`, `share` (with expiry/password), `incognito`, `incognito-history`, `incognito-clear`
+**Chats:** `list`, `search`, `open`, `new`, `send`, `show`, `download`, `delete`, `share` (with expiry/password), `incognito`, `incognito-history`, `incognito-clear`
 
-**Apps:** `list`, `info`, `skill-info`, `<app-id> <skill-id> "<query>"` (run skill with text or `--input` JSON)
+**Apps:** `list`, `info`, `skill-info`, `<app-id> <skill-id> "<query>"` (run skill with text or `--input` JSON), `code run`, and `travel booking-link`
 
 **Settings:** predefined account, profile picture, interface, privacy, billing, invoices, notifications, reminders, mates, newsletter, developer, issue-report, gift-card, and memory commands. Raw settings path passthrough is not exposed.
 
@@ -79,7 +79,7 @@ CLI login derives and stores the email encryption key after pair-auth by decrypt
 
 **Test provisioning:** `e2e provision-auth-accounts` writes local ignored artifacts for reserved auth E2E accounts and refuses production API URLs.
 
-**Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`
+**Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`, `docs list/search/show/download`
 
 **Server management:** `install`, `start`, `stop`, `restart`, `status`, `logs`, `update`, `reset`, `make-admin`, `uninstall` -- manages self-hosted instances via Docker Compose. No login required.
 

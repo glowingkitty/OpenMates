@@ -598,7 +598,7 @@ interface PairBundle {
   master_key_exported: string;
 }
 
-interface ChatListItem {
+export interface ChatListItem {
   id: string;
   shortId: string;
   title: string | null;
@@ -606,6 +606,7 @@ interface ChatListItem {
   updatedAt: number | null;
   category: string | null;
   mateName: string | null;
+  source?: "example";
 }
 
 /** A single parameter extracted from the OpenAPI skill schema. */

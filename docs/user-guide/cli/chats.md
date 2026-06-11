@@ -19,11 +19,25 @@ claims:
       command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
       assertion: cli-chats-help-lists-chat-operations
     verified: '2026-06-11'
+  - id: cli-unauthenticated-example-chats
+    type: unit
+    claim: Logged-out users can list and show clearly labeled public example chats, while private encrypted chats still require login.
+    source:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/exampleChats.ts
+      - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    test:
+      file: frontend/packages/openmates-cli/tests/cli.test.ts
+      command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+      assertion: cli-unauthenticated-example-chats
+    verified: '2026-06-11'
 ---
 
 # Chat Commands
 
-Encrypted chat operations -- list, search, view, send messages, share, download, and send incognito messages. All saved chat data is decrypted client-side using your session's encryption keys.
+Encrypted chat operations -- list, search, view, send messages, share, download, and send incognito messages. Private saved chat data is decrypted client-side using your session's encryption keys.
+
+Without a session, `list`, `show`, and `open` expose only public example chats from the web app. These entries are labeled `EXAMPLE CHAT` and do not include private user data.
 
 ## Listing Chats
 
@@ -32,6 +46,8 @@ openmates chats list
 openmates chats list --limit 20 --page 2
 openmates chats list --json
 ```
+
+Logged-out output lists public examples. Logged-in output lists your private synced chats.
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -51,13 +67,14 @@ Searches across chat titles and decrypted content. Returns all matching chats.
 
 ```
 openmates chats show <chat-id>
+openmates chats show example-gigantic-airplanes
 openmates chats show last
 openmates chats show "Flight Connections Berlin to Bangkok"
 openmates chats show d262cb68 --raw
 openmates chats show d262cb68 --json
 ```
 
-The chat ID accepts: full UUID, 8-character short ID, exact or partial title match, or the keyword `last` for the most recent chat.
+For private chats, the chat ID accepts: full UUID, 8-character short ID, exact or partial title match, or the keyword `last` for the most recent chat. When logged out, use an example chat ID, slug, title, or position from `openmates chats list`; the full output starts with an `EXAMPLE CHAT` banner.
 
 | Option | Description |
 |--------|-------------|
@@ -71,9 +88,15 @@ openmates chats new "Hello, what can you help me with?"
 openmates chats new "@Sophia tell me about React hooks"
 openmates chats new "@Web-Search latest AI news"
 openmates chats new "@best review @./src/app.ts"
+openmates chats new "Research flights" --auto-approve
 ```
 
 Creates a new chat and streams the AI response to your terminal. Supports @mentions for models, mates, skills, and local file attachments. See [embeds-and-sharing.md](./embeds-and-sharing.md) for mention types.
+
+| Option | Description |
+|--------|-------------|
+| `--auto-approve` | Automatically approve server-requested sub-chat batches for trusted non-interactive runs |
+| `--auto-approve-memories` | Automatically approve server-requested memory categories for trusted non-interactive runs |
 
 ## Sending a Message to an Existing Chat
 
@@ -81,6 +104,7 @@ Creates a new chat and streams the AI response to your terminal. Supports @menti
 openmates chats send --chat d262cb68 "follow-up question"
 openmates chats send --chat d262cb68 --followup 1
 openmates chats send --chat d262cb68 --incognito "private question"
+openmates chats send --chat d262cb68 "continue" --auto-approve-memories
 ```
 
 | Option | Description |
@@ -88,15 +112,18 @@ openmates chats send --chat d262cb68 --incognito "private question"
 | `--chat <id>` | Chat to continue (full UUID or 8-char short ID) |
 | `--followup <n>` | Send the nth AI-generated follow-up suggestion instead of typing a message (requires `--chat`) |
 | `--incognito` | Send without saving to chat history |
+| `--auto-approve` | Automatically approve server-requested sub-chat batches for trusted non-interactive runs |
+| `--auto-approve-memories` | Automatically approve server-requested memory categories for trusted non-interactive runs |
 
 ## Opening a Chat in the Browser
 
 ```
 openmates chats open
 openmates chats open 3
+openmates chats open gigantic-airplanes-transporting-rocket-parts
 ```
 
-Opens a chat in your default browser. The optional number selects by position (1 = most recent, 2 = second most recent, etc.). Defaults to 1.
+Opens a chat in your default browser. Logged in, the optional number selects by private-chat position (1 = most recent, 2 = second most recent, etc.). Logged out, the number, example ID, or example slug opens the public `/example/<slug>` page. Defaults to 1.
 
 ## Downloading a Chat
 
@@ -147,6 +174,7 @@ Incognito messages are not saved to the server and are not stored locally by the
 
 ```
 openmates chats incognito "private question"
+openmates chats incognito "private question" --auto-approve
 openmates chats incognito-history
 openmates chats incognito-history --json
 openmates chats incognito-clear
@@ -188,6 +216,6 @@ openmates newchatsuggestions --json
 ## Related Docs
 
 - [README](./README.md) -- CLI overview
-- [Authentication](./authentication.md) -- login required for all chat commands
+- [Authentication](./authentication.md) -- login, signup, and session security
 - [Embeds & Sharing](./embeds-and-sharing.md) -- @mentions and share link encryption
 - [Apps & Skills](./apps-and-skills.md) -- skill invocation via @mentions in chat

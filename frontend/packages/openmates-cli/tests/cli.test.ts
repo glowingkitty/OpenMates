@@ -11,7 +11,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -29,14 +29,30 @@ import {
 } from "../dist/index.js";
 
 const execFileAsync = promisify(execFile);
+const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 
 function runCli(args: string[], env: Record<string, string> = {}): string {
   return execFileSync("node", ["dist/cli.js", ...args], {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    cwd: PACKAGE_ROOT,
     encoding: "utf-8",
     env: { ...process.env, TERM: "dumb", ...env },
     timeout: 15_000,
   });
+}
+
+function runCliWithoutSession(args: string[]): string {
+  const tempHome = join(tmpdir(), `openmates-cli-no-session-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  mkdirSync(tempHome, { recursive: true });
+  try {
+    return runCli(args, { HOME: tempHome, USERPROFILE: tempHome });
+  } finally {
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+function readRepoText(path: string): string {
+  return readFileSync(join(REPO_ROOT, path), "utf-8");
 }
 
 function docAssert(claimId: string, assertion: () => void): void {
@@ -52,7 +68,7 @@ function docAssert(claimId: string, assertion: () => void): void {
 
 async function runCliAsync(args: string[], env: Record<string, string> = {}): Promise<string> {
   const { stdout } = await execFileAsync("node", ["dist/cli.js", ...args], {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    cwd: PACKAGE_ROOT,
     encoding: "utf-8",
     env: { ...process.env, TERM: "dumb", ...env },
     timeout: 15_000,
@@ -1169,17 +1185,131 @@ describe("incognito command surface", () => {
   });
 });
 
+describe("unauthenticated example chats", () => {
+  it("lists public example chats without a session", () => {
+    const output = runCliWithoutSession(["chats", "list", "--json"]);
+    const parsed = JSON.parse(output) as { chats: Array<{ source?: string; title?: string; id?: string }> };
+    assert.ok(parsed.chats.length > 0);
+    assert.ok(parsed.chats.every((chat) => chat.source === "example"));
+    assert.ok(parsed.chats.some((chat) => chat.id === "example-gigantic-airplanes"));
+  });
+
+  it("labels example chats in human list output", () => {
+    const output = runCliWithoutSession(["chats", "list", "--limit", "1"]);
+    assert.ok(output.includes("Example chats"));
+    assert.ok(output.includes("EXAMPLE CHAT"));
+  });
+
+  it("shows an example chat with an explicit example banner", () => {
+    const output = runCliWithoutSession(["chats", "show", "example-gigantic-airplanes"]);
+    assert.ok(output.includes("EXAMPLE CHAT"));
+    assert.ok(output.includes("Gigantic airplanes for transporting rocket and airplane parts"));
+    assert.ok(output.includes("This is a public example chat"));
+  });
+});
+
 describe("documented CLI command reference", () => {
   it("top-level help lists the user guide command categories", () => {
     const output = runCli(["--help"]);
+    const doc = readRepoText("docs/user-guide/cli/README.md");
     docAssert("cli-readme-lists-command-categories", () => {
-      for (const command of ["login", "chats", "apps", "settings", "embeds", "mentions", "server"]) {
+      for (const command of [
+        "login",
+        "signup",
+        "logout",
+        "whoami",
+        "chats",
+        "apps",
+        "settings",
+        "embeds",
+        "mentions",
+        "inspirations",
+        "newchatsuggestions",
+        "server",
+        "docs",
+      ]) {
         assert.ok(output.includes(command), `expected top-level help to mention ${command}`);
+        assert.ok(doc.includes(command), `expected user guide overview to mention ${command}`);
       }
+      assert.ok(!doc.includes("e2e provision-auth-accounts"));
     });
     docAssert("cli-authentication-uses-pair-login-command", () => {
       assert.ok(output.includes("login"));
       assert.ok(!output.includes("password"));
+    });
+  });
+
+  it("npm README onboarding matches the current command surface", () => {
+    const readme = readRepoText("frontend/packages/openmates-cli/README.md");
+    const help = runCli(["--help"]);
+    docAssert("cli-npm-readme-onboarding-matches-command-surface", () => {
+      for (const command of ["login", "signup", "chats", "apps", "settings", "server", "docs"]) {
+        assert.ok(help.includes(command), `expected help to mention ${command}`);
+        assert.ok(readme.includes(`openmates ${command}`), `expected README to include openmates ${command}`);
+      }
+      assert.ok(readme.includes("openmates apps code run"));
+      assert.ok(readme.includes("openmates settings account export data --json"));
+      assert.ok(readme.includes("Predefined settings commands"));
+      assert.ok(!readme.includes("settings get /v1/settings"));
+      assert.ok(!readme.includes("BLOCKED_SETTINGS_POST_PATHS"));
+      assert.ok(readme.includes("BLOCKED_SETTINGS_MUTATE_PATHS"));
+    });
+  });
+
+  it("authentication docs cover both pair login and terminal signup", () => {
+    const doc = readRepoText("docs/user-guide/cli/authentication.md");
+    const signupHelp = runCli(["signup", "--help"]);
+    docAssert("cli-authentication-docs-cover-login-and-signup", () => {
+      assert.ok(doc.includes("openmates login"));
+      assert.ok(doc.includes("openmates signup"));
+      assert.ok(doc.includes("hidden prompts"));
+      assert.ok(signupHelp.includes("--backup-codes-output"));
+      assert.ok(!doc.includes("pair-auth only"));
+    });
+  });
+
+  it("settings docs cover executable notification commands", () => {
+    const doc = readRepoText("docs/user-guide/cli/settings.md");
+    const help = runCli(["settings", "notifications", "--help"]);
+    docAssert("cli-settings-docs-cover-notification-commands", () => {
+      for (const command of [
+        "notifications status",
+        "notifications list",
+        "notifications stream",
+        "notifications email set",
+        "notifications backup set",
+      ]) {
+        assert.ok(help.includes(command), `expected settings help to mention ${command}`);
+        assert.ok(doc.includes(`openmates settings ${command}`), `expected settings docs to mention ${command}`);
+      }
+    });
+  });
+
+  it("apps docs cover code run commands exposed by help", () => {
+    const doc = readRepoText("docs/user-guide/cli/apps-and-skills.md");
+    const help = runCli(["apps", "--help"]);
+    docAssert("cli-apps-docs-cover-code-run-commands", () => {
+      for (const fragment of [
+        "apps code run --language",
+        "apps code run --entry main.py --file",
+        "apps code run --entry main.py --dir",
+      ]) {
+        assert.ok(help.includes(fragment), `expected app help to mention ${fragment}`);
+        assert.ok(doc.includes(`openmates ${fragment}`), `expected apps docs to mention openmates ${fragment}`);
+      }
+    });
+  });
+
+  it("docs command reference matches docs help", () => {
+    const doc = readRepoText("docs/user-guide/cli/docs.md");
+    const help = runCli(["docs", "--help"]);
+    docAssert("cli-docs-command-reference-matches-help", () => {
+      for (const command of ["docs list", "docs search", "docs show", "docs download"]) {
+        assert.ok(help.includes(command), `expected docs help to mention ${command}`);
+        assert.ok(doc.includes(`openmates ${command}`), `expected docs reference to mention ${command}`);
+      }
+      assert.ok(doc.includes("docs download --all"));
+      assert.ok(!doc.includes("docs get"));
     });
   });
 
@@ -1192,12 +1322,34 @@ describe("documented CLI command reference", () => {
     });
   });
 
+  it("chat docs cover logged-out example chat behavior", () => {
+    const doc = readRepoText("docs/user-guide/cli/chats.md");
+    const output = runCliWithoutSession(["chats", "list", "--limit", "1"]);
+    docAssert("cli-unauthenticated-example-chats", () => {
+      assert.ok(output.includes("EXAMPLE CHAT"));
+      assert.ok(doc.includes("public example chats"));
+      assert.ok(doc.includes("EXAMPLE CHAT"));
+      assert.ok(doc.includes("openmates chats show example-gigantic-airplanes"));
+    });
+  });
+
   it("embeds and mentions help list sharing and mention operations", () => {
     const embeds = runCli(["embeds", "--help"]);
     const mentions = runCli(["mentions", "--help"]);
     docAssert("cli-embeds-sharing-help-lists-commands", () => {
       assert.ok(embeds.includes("share"));
       assert.ok(mentions.includes("search"));
+    });
+  });
+
+  it("embeds docs cover Remotion video create terminal rendering", () => {
+    const doc = readRepoText("docs/user-guide/cli/embeds-and-sharing.md");
+    const renderer = readRepoText("frontend/packages/openmates-cli/src/embedRenderers.ts");
+    docAssert("cli-embeds-docs-cover-remotion-video-create", () => {
+      assert.ok(renderer.includes('case "videos/create"'));
+      assert.ok(renderer.includes("Run again after rendering finishes"));
+      assert.ok(doc.includes("videos/create"));
+      assert.ok(doc.includes("Run the command again after rendering finishes"));
     });
   });
 });

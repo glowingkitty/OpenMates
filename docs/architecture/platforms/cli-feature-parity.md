@@ -57,7 +57,7 @@ The main exceptions are browser-bound or high-risk account operations that canno
 | Level | Meaning |
 | --- | --- |
 | Full | First-class CLI command exists and mirrors the web flow. |
-| Partial | CLI can perform part of the workflow, or only via raw `settings get/post/patch/delete`. |
+| Partial | CLI can perform part of the workflow, while another browser-only or not-yet-audited part remains outside the CLI. |
 | Missing | Web app supports it, but CLI has no practical path yet. |
 | Web-only | Intentionally excluded from CLI for security, browser, or payment reasons. |
 
@@ -109,7 +109,7 @@ The main exceptions are browser-bound or high-risk account operations that canno
 | Auto-delete chats/files | Partial | Chat auto-delete command is implemented; file auto-delete route should be checked before exposing. |
 | Share debug logs | Full | `settings privacy debug-logs share` prompts for consent unless `--confirm`/`--yes`. |
 | Reminders | Full | `settings reminders list/update/delete`; deletion requires confirmation unless `--yes`. |
-| Chat/backup notification preferences | Full | `settings notifications status`, `email set`, and `backup set` use the web app's WebSocket settings contract. |
+| Chat/backup notification preferences | Full | `settings notifications status/list/stream`, `email set`, and `backup set` use the web app's notification and WebSocket settings contracts. |
 | API key list/revoke | Full for safe actions | `settings developers api-keys list/revoke`. |
 | API key create | Web-only | Secret shown once and developer-device approval should stay browser-first unless a separate secure CLI design is approved. |
 | Developer devices | Web-only | Device approvals/revocations are sensitive. |
@@ -119,7 +119,7 @@ The main exceptions are browser-bound or high-risk account operations that canno
 | Newsletter | Full | `settings newsletter categories/set/subscribe/confirm/unsubscribe`. |
 | Server admin settings | Web-only | Web server stats/tests/logs are admin-only; CLI has separate self-hosting `server` commands. |
 | Self-hosted server management | Full | CLI-only feature: `server install/start/stop/restart/status/logs/update/reset/make-admin/uninstall`. |
-| Docs browsing | Full | `docs list/search/get` covers docs access outside the web UI. |
+| Docs browsing | Full | `docs list/search/show/download` covers docs access outside the web UI. |
 
 ## Required Security Boundary
 
@@ -178,10 +178,10 @@ Implemented examples include interface preferences, timezone, username, profile 
 
 Acceptance criteria:
 
-- `openmates settings storage overview` wraps `GET /v1/settings/storage`.
-- `openmates settings storage files [--category images|videos|...] [--json]` wraps `GET /v1/settings/storage/files`.
-- `openmates settings storage delete <file-id>` wraps `DELETE /v1/settings/storage/files` with `scope=single` and a confirmation prompt.
-- `openmates settings storage delete --category <name>` and `--all` wrap the backend's supported bulk deletion scopes.
+- `openmates settings account storage overview` wraps `GET /v1/settings/storage`.
+- `openmates settings account storage files [--category images|videos|...] [--json]` wraps `GET /v1/settings/storage/files`.
+- `openmates settings account storage delete <file-id>` wraps `DELETE /v1/settings/storage/files` with `scope=single` and a confirmation prompt.
+- `openmates settings account storage delete --category <name>` and `--all` wrap the backend's supported bulk deletion scopes.
 - Download/view behavior is either implemented safely or explicitly documented as browser-only if auth-gated file URLs cannot be streamed from Node.
 
 ### P2: Add Privacy and Debug-Log Helpers
