@@ -11,7 +11,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, setToggleChecked } = require('./signup-flow-helpers');
 
 type FreeTestingPromotion = {
 	active: boolean;
@@ -123,8 +123,8 @@ test('gift-card signup hides Free credits claim and sends pending code to passwo
 
 	await page.locator('input[type="email"][autocomplete="email"]').fill('giftcard-e2e@example.com');
 	await page.locator('input[autocomplete="username"]').fill('giftcard_e2e');
-	await page.locator('#terms-agreed-toggle').check({ force: true });
-	await page.locator('#privacy-agreed-toggle').check({ force: true });
+	await setToggleChecked(page.locator('#terms-agreed-toggle'), true);
+	await setToggleChecked(page.locator('#privacy-agreed-toggle'), true);
 	await page.getByRole('button', { name: /create new account/i }).click();
 
 	await page.locator('input[inputmode="numeric"][maxlength="6"]').fill('123456');
