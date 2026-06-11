@@ -31,6 +31,9 @@ import {
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { basename, dirname } from "node:path";
 import WebSocket from "ws";
 
 import {
@@ -5757,8 +5760,26 @@ Examples:
   openmates docs download --all --output ./docs`);
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`Error: ${message}`);
-  process.exit(1);
-});
+function isCliEntrypoint(): boolean {
+  const entrypoint = process.argv[1];
+  if (!entrypoint) return false;
+
+  try {
+    const invokedPath = realpathSync(entrypoint);
+    const modulePath = realpathSync(fileURLToPath(import.meta.url));
+    return (
+      invokedPath === modulePath ||
+      (basename(invokedPath) === "cli.js" && dirname(invokedPath) === dirname(modulePath))
+    );
+  } catch {
+    return false;
+  }
+}
+
+if (isCliEntrypoint()) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Error: ${message}`);
+    process.exit(1);
+  });
+}

@@ -233,6 +233,19 @@ async function withCodeRunStreamingMockApi<T>(
   }
 }
 
+describe("SDK entrypoint", () => {
+  it("does not run CLI help when imported", () => {
+    const output = execFileSync("node", ["--input-type=module", "-e", "import './dist/index.js';"], {
+      cwd: PACKAGE_ROOT,
+      encoding: "utf-8",
+      env: { ...process.env, TERM: "dumb" },
+      timeout: 15_000,
+    });
+
+    assert.equal(output, "");
+  });
+});
+
 // ---------------------------------------------------------------------------
 // deriveAppUrl
 // ---------------------------------------------------------------------------
