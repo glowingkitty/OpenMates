@@ -25,6 +25,7 @@ from backend.core.api.app.routes.code_execution import (
     CodeRunClientFile,
     RUN_CREDITS_PER_MINUTE as ROUTE_RUN_CREDITS_PER_MINUTE,
     _collect_code_files,
+    _dependency_installs_from_imports,
     _dependency_installs_from_install_snippets,
     _execution_key,
     _infer_import_packages,
@@ -536,6 +537,37 @@ def test_infer_import_packages_maps_python_imports_and_ignores_stdlib() -> None:
         ("python", "sklearn", "scikit-learn", "main.py"),
         ("python", "PIL", "Pillow", "main.py"),
     ]
+
+
+def test_dependency_installs_from_imports_adds_python_packages_without_manifest() -> None:
+    installs = _dependency_installs_from_imports([
+        {
+            "path": "main.py",
+            "language": "python",
+            "content": "import os\nimport requests\n",
+        }
+    ])
+
+    assert [install.model_dump() for install in installs] == [
+        {"ecosystem": "python", "packages": ["requests"]}
+    ]
+
+
+def test_dependency_installs_from_imports_skips_when_manifest_exists() -> None:
+    installs = _dependency_installs_from_imports([
+        {
+            "path": "main.py",
+            "language": "python",
+            "content": "import requests\n",
+        },
+        {
+            "path": "requirements.txt",
+            "language": "",
+            "content": "requests==2.32.5\n",
+        },
+    ])
+
+    assert installs == []
 
 
 def test_infer_import_packages_normalizes_javascript_packages() -> None:

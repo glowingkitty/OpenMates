@@ -775,6 +775,22 @@ async def _dependency_suggestions_from_imports(files: list[dict[str, Any]], cach
     return suggestions
 
 
+def _dependency_installs_from_imports(files: list[dict[str, Any]]) -> list[CodeRunDependencyInstall]:
+    if _has_dependency_instructions(files):
+        return []
+    installs: dict[Literal["python", "npm"], list[str]] = {"python": [], "npm": []}
+    seen: dict[Literal["python", "npm"], set[str]] = {"python": set(), "npm": set()}
+    for ecosystem, _import_name, package, _source in _infer_import_packages(files):
+        if package not in seen[ecosystem]:
+            installs[ecosystem].append(package)
+            seen[ecosystem].add(package)
+    return [
+        CodeRunDependencyInstall(ecosystem=ecosystem, packages=packages)
+        for ecosystem, packages in installs.items()
+        if packages
+    ]
+
+
 def _merge_dependency_installs(*groups: list[CodeRunDependencyInstall]) -> list[CodeRunDependencyInstall]:
     merged: dict[Literal["python", "npm"], list[str]] = {"python": [], "npm": []}
     seen: dict[Literal["python", "npm"], set[str]] = {"python": set(), "npm": set()}
@@ -1204,6 +1220,7 @@ async def start_code_run_execution(
     dependency_installs = _merge_dependency_installs(
         dependency_installs,
         _dependency_installs_from_install_snippets(files),
+        _dependency_installs_from_imports(files),
     )
     if dependency_installs:
         logger.info(
