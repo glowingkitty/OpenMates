@@ -280,6 +280,7 @@
         activeChatStore.setActiveChat(chat.chat_id);
         dispatch('chatSelected', { chat });
         window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
+        // Wide viewports keep settings open so users can inspect the app while the chat loads beside it.
         if (get(isMobileView)) {
             dispatch('closeSettings');
         }
