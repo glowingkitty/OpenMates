@@ -1549,6 +1549,7 @@ export class OpenMatesClient {
         content = parseYamlLikeContent(rawContent);
       }
     }
+    content = await this.refreshRemotionVideoCreateContent(embedId, content);
 
     // Derive type/appId/skillId from content if not on the embed record itself
     const strVal = (v: unknown) =>
@@ -1573,6 +1574,32 @@ export class OpenMatesClient {
       skillId: resolvedSkillId,
       createdAt: typeof embed.created_at === "number" ? embed.created_at : null,
     };
+  }
+
+  private async refreshRemotionVideoCreateContent(
+    embedId: string,
+    content: Record<string, unknown> | null,
+  ): Promise<Record<string, unknown> | null> {
+    if (!content || content.app_id !== "videos" || content.skill_id !== "create") {
+      return content;
+    }
+    const status = typeof content.status === "string" ? content.status : "";
+    if (!["processing", "rendering", "needs_rerender"].includes(status)) {
+      return content;
+    }
+
+    const response = await this.http.get<{
+      content?: Record<string, unknown>;
+      status?: string;
+    }>(`/v1/videos/remotion/${encodeURIComponent(embedId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data?.content) {
+      return content;
+    }
+    const refreshed = response.data.content;
+    if (refreshed.app_id !== "videos" || refreshed.skill_id !== "create") {
+      return content;
+    }
+    return refreshed;
   }
 
   /**

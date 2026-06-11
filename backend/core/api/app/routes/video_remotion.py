@@ -108,6 +108,21 @@ async def start_remotion_render(
     return {"render_id": render_id, "embed_id": embed_id, "source_version": source_version, "status": "rendering"}
 
 
+@router.get("/{embed_id}")
+async def get_remotion_embed(
+    embed_id: str,
+    current_user: Any = Depends(get_current_user),
+    cache_service: Any = Depends(get_cache_service),
+    encryption_service: Any = Depends(get_encryption_service),
+):
+    content = await _load_remotion_embed_content(embed_id, current_user, cache_service, encryption_service)
+    return {
+        "embed_id": embed_id,
+        "status": content.get("status") or "processing",
+        "content": content,
+    }
+
+
 @router.post("/{embed_id}/render/{render_id}/stop")
 async def stop_remotion_render(
     embed_id: str,
