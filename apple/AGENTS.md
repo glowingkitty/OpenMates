@@ -103,10 +103,10 @@ Performance matters. Avoid expensive work in SwiftUI `body`, including markdown 
 ## Remote Mac Verification
 
 When the active OpenCode session runs on a Linux/dev server, attempt Apple
-verification through a trusted Mac on Tailscale/SSH before saying Mac/Xcode
-verification is unavailable. This is mandatory for changes that affect
-Apple-backed surfaces such as chat, sync, auth, settings, embeds, billing,
-shared UI, app chrome, or provider result rendering.
+verification through the redacted wrapper in `scripts/apple_remote.py` before
+saying Mac/Xcode verification is unavailable. This is mandatory for changes that
+affect Apple-backed surfaces such as chat, sync, auth, settings, embeds,
+billing, shared UI, app chrome, or provider result rendering.
 
 Use only operator-provided connection details from local runtime configuration,
 such as `~/.ssh/config`, environment variables, or the current chat. Never commit
@@ -116,7 +116,7 @@ auth keys, and local filesystem paths outside generic placeholders.
 
 Remote verification flow:
 
-1. Confirm SSH access with key-based authentication before running build commands.
+1. Run `python3 scripts/apple_remote.py status` to confirm redacted SSH reachability before running build commands.
 2. Locate the Mac checkout without printing private paths. Prefer known local
    configuration; if needed, use a sanitized project lookup for
    `apple/OpenMates.xcodeproj` and report only success or `project_not_found`.
@@ -131,23 +131,25 @@ Remote verification flow:
 6. Before native end-to-end UI tests that depend on first-run, login, signup,
    permissions, local storage, Keychain, or notification prompts, uninstall the
    app from the target simulator so the run starts from a clean app container:
-   `xcrun simctl uninstall booted org.openmates.app`. Ignore the uninstall error
-   only when the app is already absent.
-7. At minimum, run `xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "generic/platform=iOS Simulator" build`
+   `python3 scripts/apple_remote.py simctl -- uninstall booted org.openmates.app`.
+   Ignore the uninstall error only when the app is already absent.
+7. At minimum, run `python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"`
    to prove the native project compiles.
-8. For visual or interaction parity, run a simulator build with a concrete
-   destination, install and launch the app with `xcrun simctl`, optionally adjust
-   simulator UI state, and capture a screenshot.
-9. After verification, shut down any simulator booted by the session with
-   `xcrun simctl shutdown <simulator>` unless the operator explicitly asks to
-   keep it running.
-10. Clean up only temporary artifacts created by the current session, such as
-   copied screenshots or throwaway build logs. Do not delete unrelated
-   DerivedData, caches, or local checkout changes.
-11. Report only generic evidence in committed docs and summaries: build command
-   class, scheme, simulator family, result, and sanitized failure classes such as
-   `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Keep private
-   connection details in local shell history or operator notes, not repo files.
+8. For native test coverage, run `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/<testName>"`.
+9. For visual or interaction parity, run a simulator build with a concrete
+   destination, install and launch the app with `python3 scripts/apple_remote.py
+   simctl -- <args>`, optionally adjust simulator UI state, and capture a
+   screenshot.
+10. After verification, shut down any simulator booted by the session with
+    `python3 scripts/apple_remote.py cleanup` unless the operator explicitly asks
+    to keep it running.
+11. Clean up only temporary artifacts created by the current session, such as
+    copied screenshots or throwaway build logs. Do not delete unrelated
+    DerivedData, caches, or local checkout changes.
+12. Report only generic evidence in committed docs and summaries: build command
+    class, scheme, simulator family, result, and sanitized failure classes such as
+    `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Keep private
+    connection details in local shell history or operator notes, not repo files.
 
 Validated 2026-06-08 from the Linux dev server: a configured SSH alias reached
 a Tailscale Mac, `xcodebuild -version` responded, sanitized project lookup found

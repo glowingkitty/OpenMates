@@ -31,6 +31,12 @@ xcrun simctl install booted <path-to-.app>
 xcrun simctl launch booted org.openmates.app
 ```
 
+If the active session runs on Linux, attempt the redacted remote Mac wrapper
+`python3 scripts/apple_remote.py status` followed by `build-ios` or `test-ios`
+from `docs/contributing/guides/testing.md` and `apple/AGENTS.md` before saying
+Apple verification is unavailable. Record only sanitized evidence or failure
+classes such as `ssh_failed`, `project_not_found`, or `xcode_build_failed`.
+
 ---
 
 ## Design Token Pipeline (web → Xcode)
