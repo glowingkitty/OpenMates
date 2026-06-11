@@ -61,7 +61,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
 
         XCTAssertTrue(
             waitForSystemShareSheet(in: app, timeout: 8),
-            "Expected iOS system share sheet after tapping native share button. Visible UI: \(visibleStateLabels(in: app))"
+            "Expected iOS system share sheet after tapping native share button."
         )
         attachScreenshot(name: "Native chat share sheet")
     }
@@ -85,6 +85,8 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         repeat {
             if app.sheets.firstMatch.exists { return true }
             if app.buttons["Copy"].exists || app.buttons["Add to Reading List"].exists { return true }
+            if app.staticTexts["cellTitleLabel"].exists { return true }
+            if app.collectionViews.firstMatch.exists { return true }
             if app.otherElements.matching(NSPredicate(format: "label CONTAINS[c] %@", "Activity")).firstMatch.exists {
                 return true
             }
