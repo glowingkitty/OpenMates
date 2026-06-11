@@ -25,8 +25,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROD_CADDYFILE="$SCRIPT_DIR/prod_server/Caddyfile"
 DEV_CADDYFILE="$SCRIPT_DIR/dev_server/Caddyfile"
 
-# System Caddyfile location
-SYSTEM_CADDYFILE="/etc/caddy/Caddyfile"
+# System Caddyfile location. Tests may override this with a temp file.
+SYSTEM_CADDYFILE="${OPENMATES_SYSTEM_CADDYFILE:-/etc/caddy/Caddyfile}"
 
 # Load SERVER_ENVIRONMENT from .env if not already set
 if [ -z "$SERVER_ENVIRONMENT" ]; then
@@ -62,7 +62,7 @@ else
 fi
 
 # Check if running as root
-if [ "$EUID" -ne 0 ]; then 
+if [ "$EUID" -ne 0 ] && [ "${OPENMATES_CADDY_APPLY_TEST:-}" != "1" ]; then 
     echo -e "${RED}Error: This script must be run as root (use sudo)${NC}"
     echo "Usage: sudo $0 [path-to-caddyfile]"
     exit 1
@@ -88,23 +88,47 @@ if [ "$SERVER_ENVIRONMENT" = "production" ] && echo "$CADDYFILE_PATH" | grep -q 
     exit 1
 fi
 
-# Step 1: Validate Caddyfile syntax
+# Step 1: Validate Caddyfile syntax with the installed Caddy binary.
+# This must fail closed. A config that cannot adapt or validate can prevent
+# Caddy from starting, so never offer an interactive override here.
 echo -e "${BLUE}[1/3] Validating Caddyfile syntax...${NC}"
+if ! caddy adapt --config "$CADDYFILE_PATH" --adapter caddyfile >/tmp/openmates-caddy-adapted.json; then
+    echo -e "${RED}✗ Caddyfile adaptation failed${NC}"
+    echo -e "${YELLOW}The installed Caddy binary cannot load this config or one of its modules.${NC}"
+    echo -e "${YELLOW}Nothing was copied to $SYSTEM_CADDYFILE and Caddy was not reloaded.${NC}"
+    exit 1
+fi
+
 if caddy validate --config "$CADDYFILE_PATH" --adapter caddyfile 2>&1; then
     echo -e "${GREEN}✓ Caddyfile syntax is valid${NC}"
 else
     echo -e "${RED}✗ Caddyfile validation failed${NC}"
-    echo -e "${YELLOW}Note: Permission errors on log files are expected and can be ignored${NC}"
-    echo -e "${YELLOW}The actual syntax validation passed if you see 'adapted config to JSON'${NC}"
-    echo ""
-    read -p "Continue anyway? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${RED}Aborted${NC}"
-        exit 1
-    fi
+    echo -e "${YELLOW}Nothing was copied to $SYSTEM_CADDYFILE and Caddy was not reloaded.${NC}"
+    exit 1
 fi
 echo ""
+
+BACKUP_CADDYFILE=""
+if [ -f "$SYSTEM_CADDYFILE" ]; then
+    BACKUP_CADDYFILE="$(mktemp /tmp/openmates-caddyfile-backup.XXXXXX)"
+    cp "$SYSTEM_CADDYFILE" "$BACKUP_CADDYFILE"
+    chmod 600 "$BACKUP_CADDYFILE"
+fi
+
+restore_previous_caddyfile() {
+    if [ -n "$BACKUP_CADDYFILE" ] && [ -f "$BACKUP_CADDYFILE" ]; then
+        echo -e "${YELLOW}Restoring previous Caddyfile from backup...${NC}"
+        cp "$BACKUP_CADDYFILE" "$SYSTEM_CADDYFILE"
+        chown root:root "$SYSTEM_CADDYFILE"
+        chmod 644 "$SYSTEM_CADDYFILE"
+        if systemctl restart caddy; then
+            echo -e "${GREEN}✓ Previous Caddy configuration restored${NC}"
+        else
+            echo -e "${RED}✗ Failed to restart Caddy with the previous configuration${NC}"
+            echo -e "${YELLOW}Backup remains at: $BACKUP_CADDYFILE${NC}"
+        fi
+    fi
+}
 
 # Step 2: Copy Caddyfile to system location
 echo -e "${BLUE}[2/3] Copying Caddyfile to system location...${NC}"
@@ -143,6 +167,7 @@ if systemctl is-active --quiet caddy && [[ "$(systemctl show caddy --property=Ac
             echo -e "${GREEN}✓ Caddy restarted successfully${NC}"
         else
             echo -e "${RED}✗ Failed to restart Caddy${NC}"
+            restore_previous_caddyfile
             exit 1
         fi
     fi
@@ -152,6 +177,7 @@ else
         echo -e "${GREEN}✓ Caddy restarted successfully${NC}"
     else
         echo -e "${RED}✗ Failed to restart Caddy${NC}"
+        restore_previous_caddyfile
         exit 1
     fi
 fi
