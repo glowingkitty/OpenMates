@@ -35,6 +35,7 @@ APP_PROVIDER_PATH_RE = re.compile(r"^(backend/apps/[^/]+/app\.yml|backend/provid
 OPENCODE_AUTOMATION_PATH_RE = re.compile(
     r"^(scripts/.*\.(py|sh|js|mjs)|scripts/prompts/.*\.md|\.agents/skills/.*/SKILL\.md|opencode\.json)$"
 )
+CADDYFILE_PATH_RE = re.compile(r"^deployment/[^/]+/Caddyfile$")
 
 BLOCK_PATTERNS = {
     "hardcoded secret-like assignment": re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{8,}"),
@@ -145,6 +146,25 @@ def _paths_matching(staged_files: list[str], pattern: re.Pattern[str]) -> list[P
     return [REPO_ROOT / path for path in staged_files if pattern.search(path)]
 
 
+def _run_caddyfile_preflight(staged_files: list[str]) -> list[str]:
+    issues: list[str] = []
+    caddyfiles = [path for path in staged_files if CADDYFILE_PATH_RE.search(path)]
+    for path in caddyfiles:
+        checks = [
+            ["bash", "deployment/apply-caddy-config.sh", "--check", path],
+            ["python3", "deployment/verify-caddyfile.py", path],
+        ]
+        for cmd in checks:
+            result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, check=False)
+            if result.returncode != 0:
+                output = (result.stdout + result.stderr).strip()
+                if len(output) > 1200:
+                    output = output[-1200:]
+                issues.append(f"{path}: Caddy preflight failed for `{' '.join(cmd)}`\n{output}")
+                break
+    return issues
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
@@ -158,6 +178,9 @@ def main() -> int:
             blocks.append(f"embed structure: {issue}")
         for warning in audit_result.warnings:
             blocks.append(f"embed structure: {warning}")
+
+    for issue in _run_caddyfile_preflight(staged_files):
+        blocks.append(f"caddy preflight: {issue}")
 
     added_lines_with_numbers = _added_lines_with_numbers()
 

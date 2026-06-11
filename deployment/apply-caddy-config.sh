@@ -1,7 +1,9 @@
 #!/bin/bash
 #
 # Script to validate, copy, and apply Caddy configuration
-# Usage: sudo deployment/apply-caddy-config.sh [path-to-caddyfile]
+# Usage:
+#   sudo deployment/apply-caddy-config.sh [path-to-caddyfile]
+#   sudo deployment/apply-caddy-config.sh --check [path-to-caddyfile]
 #
 # If no path is provided, automatically detects Caddyfile:
 # 1. Checks for deployment/dev_server/Caddyfile (default)
@@ -27,6 +29,12 @@ DEV_CADDYFILE="$SCRIPT_DIR/dev_server/Caddyfile"
 
 # System Caddyfile location. Tests may override this with a temp file.
 SYSTEM_CADDYFILE="${OPENMATES_SYSTEM_CADDYFILE:-/etc/caddy/Caddyfile}"
+
+CHECK_ONLY=false
+if [ "${1:-}" = "--check" ]; then
+    CHECK_ONLY=true
+    shift
+fi
 
 # Load SERVER_ENVIRONMENT from .env if not already set
 if [ -z "$SERVER_ENVIRONMENT" ]; then
@@ -62,7 +70,7 @@ else
 fi
 
 # Check if running as root
-if [ "$EUID" -ne 0 ] && [ "${OPENMATES_CADDY_APPLY_TEST:-}" != "1" ]; then 
+if [ "$CHECK_ONLY" != true ] && [ "$EUID" -ne 0 ] && [ "${OPENMATES_CADDY_APPLY_TEST:-}" != "1" ]; then 
     echo -e "${RED}Error: This script must be run as root (use sudo)${NC}"
     echo "Usage: sudo $0 [path-to-caddyfile]"
     exit 1
@@ -75,6 +83,9 @@ if [ ! -f "$CADDYFILE_PATH" ]; then
 fi
 
 echo -e "${BLUE}=== Applying Caddy Configuration ===${NC}"
+if [ "$CHECK_ONLY" = true ]; then
+    echo -e "Mode: ${GREEN}check only${NC}"
+fi
 echo -e "Environment: ${GREEN}${SERVER_ENVIRONMENT:-unknown}${NC}"
 echo -e "Source: ${GREEN}$CADDYFILE_PATH${NC}"
 echo -e "Target: ${GREEN}$SYSTEM_CADDYFILE${NC}"
@@ -107,6 +118,11 @@ else
     exit 1
 fi
 echo ""
+
+if [ "$CHECK_ONLY" = true ]; then
+    echo -e "${GREEN}=== Caddy configuration check passed; no files copied and no reload attempted ===${NC}"
+    exit 0
+fi
 
 BACKUP_CADDYFILE=""
 if [ -f "$SYSTEM_CADDYFILE" ]; then
