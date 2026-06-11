@@ -141,6 +141,7 @@
           {#if thumbnailUrl}
             <img src={thumbnailUrl} alt={currentManifest.meta.title} class="thumbnail" />
           {:else if videoUrl}
+            <!-- Public example chats can expose a video URL without private thumbnail storage. -->
             <video src={videoUrl} class="thumbnail" muted playsinline preload="metadata" aria-label={currentManifest.meta.title}>
               <track kind="captions" src="data:text/vtt,WEBVTT" />
             </video>
