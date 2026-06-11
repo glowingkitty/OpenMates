@@ -28,6 +28,12 @@ REMOTION_PACKAGE_JSON = {
     },
     "devDependencies": {"typescript": "latest"},
 }
+REMOTION_CHROME_DEPS_INSTALL = (
+    "sudo apt-get update && "
+    "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "
+    "libnspr4 libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libxcomposite1 "
+    "libxdamage1 libxrandr2 libgbm1 libasound2 libxshmfence1"
+)
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"gh[oprsu]_[A-Za-z0-9_]{20,}"),
@@ -75,7 +81,7 @@ def plan_remotion_render(*, source: str, filename: str | None = None, enable_int
     ]
     return RemotionRenderPlan(
         files=files,
-        install_commands=["npm install --ignore-scripts --no-audit --no-fund"],
+        install_commands=[REMOTION_CHROME_DEPS_INSTALL, "npm install --ignore-scripts --no-audit --no-fund"],
         render_command=f"npm exec remotion render src/Root.tsx Main {REMOTION_RENDER_OUTPUT}",
         output_path=REMOTION_RENDER_OUTPUT,
         thumbnail_command=f"npm exec remotion still src/Root.tsx Main {REMOTION_THUMBNAIL_OUTPUT} --frame=0",

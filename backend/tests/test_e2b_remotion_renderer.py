@@ -25,6 +25,8 @@ def test_remotion_render_plan_writes_safe_project_files() -> None:
     assert "registerRoot(RemotionRoot);" in root
     assert "UserModule.RemotionVideo" in root
     assert "UserModule.ProductAnnouncement" in root
+    assert plan.install_commands[0].startswith("sudo apt-get update")
+    assert "libnspr4" in plan.install_commands[0]
     assert plan.render_command.startswith("npm exec remotion render")
     assert plan.enable_internet is True
 
