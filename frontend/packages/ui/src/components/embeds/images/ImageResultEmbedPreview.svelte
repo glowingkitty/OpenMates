@@ -98,6 +98,7 @@
     <div class="image-result-content">
       {#if displayImage && !imageFailed && status === 'finished'}
         <img
+          data-testid="image-result-preview-image"
           src={displayImage}
           alt={title || ''}
           class="result-image"

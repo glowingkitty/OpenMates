@@ -201,7 +201,7 @@
         <div class="thumbnail-strip" data-testid="images-search-thumbnail-strip">
           {#each previewThumbnails as result, i (i)}
             <img
-              src={proxyUrl(result.thumbnail_url || result.image_url)}
+              src={proxyUrl(result.image_url || result.thumbnail_url)}
               alt={result.title || ''}
               class="thumb-img"
               data-testid="images-search-thumbnail"
