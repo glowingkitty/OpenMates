@@ -175,12 +175,13 @@
         </div>
       {:else if status === 'finished' && previewThumbnails.length > 0}
         <!-- Image thumbnails at top (full-width, fills available space) -->
-        <div class="thumbnail-strip">
+        <div class="thumbnail-strip" data-testid="images-search-thumbnail-strip">
           {#each previewThumbnails as result, i (i)}
             <img
               src={proxyUrl(result.thumbnail_url || result.image_url)}
               alt={result.title || ''}
               class="thumb-img"
+              data-testid="images-search-thumbnail"
               use:handleImageError
             />
           {/each}

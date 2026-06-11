@@ -106,6 +106,9 @@ test.describe('App: Images / Skill: search', () => {
 
 		const embed = await waitForEmbedFinished(page, 'images', 'search');
 		logCheckpoint('Images search embed finished.');
+		await expect(embed.getByTestId('images-search-thumbnail-strip')).toBeVisible({ timeout: 30_000 });
+		await expect(embed.getByTestId('images-search-thumbnail').first()).toBeVisible({ timeout: 30_000 });
+		logCheckpoint('Images search preview thumbnails visible.');
 		await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30_000 });
 		logCheckpoint('Chat header image bubbles visible.');
 

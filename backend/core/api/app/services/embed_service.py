@@ -32,6 +32,7 @@ from backend.shared.providers.e2b_application_preview import (
 logger = logging.getLogger(__name__)
 
 APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS = {"package.json"}
+IMAGE_SEARCH_PREVIEW_RESULT_LIMIT = 10
 APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
     ".svelte",
     ".vue",
@@ -56,6 +57,8 @@ EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
     "embed_ref",
     "result_count",
     "results",
+    "preview_results",
+    "preview_thumbnails",
     "encrypted_content",
     "text_length_chars",
     "created_at",
@@ -151,6 +154,41 @@ class EmbedService:
                 merged[key] = value
 
         return merged
+
+    @staticmethod
+    def _build_parent_preview_metadata(
+        app_id: str,
+        skill_id: str,
+        results: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Return lightweight parent-only preview metadata for composite embeds."""
+        if app_id != "images" or skill_id != "search":
+            return {}
+
+        preview_results: List[Dict[str, Any]] = []
+        preview_fields = (
+            "title",
+            "source_page_url",
+            "image_url",
+            "thumbnail_url",
+            "source",
+            "favicon_url",
+        )
+        for result in results:
+            preview_result = {
+                key: result[key]
+                for key in preview_fields
+                if result.get(key)
+            }
+            if not (preview_result.get("thumbnail_url") or preview_result.get("image_url")):
+                continue
+            preview_results.append(preview_result)
+            if len(preview_results) >= IMAGE_SEARCH_PREVIEW_RESULT_LIMIT:
+                break
+
+        if not preview_results:
+            return {}
+        return {"preview_results": preview_results}
 
     @staticmethod
     def _slugify_direct_ref_base(value: Any, fallback: str) -> str:
@@ -3521,7 +3559,8 @@ class EmbedService:
                     "result_count": len(results),
                     "embed_ids": child_embed_ids,
                     "status": "finished",
-                    **original_metadata  # Preserve query, provider, url, etc. from placeholder
+                    **original_metadata,  # Preserve query, provider, url, etc. from placeholder
+                    **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
                 }
                 
                 # Log final parent content to verify query is included
@@ -4323,6 +4362,7 @@ class EmbedService:
                     "embed_ids": child_embed_ids,
                     "status": "finished",
                     "embed_ref": parent_embed_ref,
+                    **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
                 }
                 
                 # Add request metadata (query, provider, etc.) if available
