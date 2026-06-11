@@ -18,6 +18,7 @@
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
+  import { getParentPreviewResultState, normalizeEmbedIdList } from '../embedPreviewHydration';
 
   /**
    * Single image search result (child embed content schema).
@@ -43,6 +44,10 @@
     status: 'processing' | 'finished' | 'error';
     /** Image results array (for preview thumbnails) */
     results?: unknown;
+    /** Parent-level result_count for metadata-only legacy previews */
+    resultCount?: number;
+    /** Child IDs indicate legacy results exist even when preview metadata is absent */
+    childEmbedIds?: string[] | string;
     /** JSON fallback for TOON transports that flatten nested arrays poorly */
     previewResultsJson?: string;
     /** Task ID for cancellation */
@@ -59,6 +64,8 @@
     provider: providerProp,
     status: statusProp,
     results: resultsProp = [],
+    resultCount: resultCountProp,
+    childEmbedIds: childEmbedIdsProp,
     previewResultsJson: previewResultsJsonProp = '',
     taskId: taskIdProp,
     isMobile = false,
@@ -84,6 +91,7 @@
   let provider  = $derived(localProvider);
   let status    = $derived(localStatus);
   let results   = $derived(localResults);
+  let childEmbedIds = $derived(normalizeEmbedIdList(childEmbedIdsProp));
   let taskId    = $derived(localTaskId);
 
   const skillIconName = 'search';
@@ -123,6 +131,13 @@
       return Math.max(0, totalUniqueSources - faviconResults.length);
     })()
   );
+
+  let resultState = $derived(getParentPreviewResultState({
+    status,
+    previewResultCount: results.length,
+    resultCount: resultCountProp,
+    childEmbedIds,
+  }));
 
   function proxyUrl(url: string | undefined): string | undefined {
     if (!url) return undefined;
@@ -233,10 +248,16 @@
           {/if}
         </div>
       {:else if status === 'finished'}
-        <!-- Finished but no thumbnails -->
+        <!-- Finished but no thumbnails. Legacy parents with child IDs have results,
+             just no parent preview thumbnails yet. -->
         <div class="text-content">
           <span class="search-query">{query}</span>
           <span class="search-provider">{$text('embeds.via')} {provider}</span>
+          {#if resultState === 'missing_preview_metadata'}
+            <span class="preview-metadata-missing" data-testid="images-search-preview-metadata-missing-message">
+              {$text('embeds.search_preview_open_to_view_results')}
+            </span>
+          {/if}
         </div>
       {:else}
         <!-- Processing: show query + provider -->
@@ -292,6 +313,13 @@
     font-size: var(--font-size-small);
     color: var(--color-grey-70, #555);
     line-height: 1.4;
+  }
+
+  .preview-metadata-missing {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--color-grey-60);
+    font-style: italic;
   }
 
   /* Horizontal thumbnail strip — fixed 30px height, images sized to fit */

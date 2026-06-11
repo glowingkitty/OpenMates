@@ -23,6 +23,9 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { text } from "@repo/ui";
+  import { embedStore } from '../../../services/embedStore';
+  import { chatSyncService } from '../../../services/chatSyncService';
+  import { buildWebSearchPreviewMetadata } from '../embedPreviewHydration';
 
   // YouTube URL detection pattern — matches youtube.com and youtu.be variants
   const YOUTUBE_URL_RE =
@@ -318,6 +321,21 @@
     }
     if (typeof c.error === "string") localErrorMessage = c.error;
   }
+
+  async function backfillParentPreviewMetadata(results: WebSearchResult[]): Promise<void> {
+    if (!embedId || results.length === 0) return;
+
+    const fields = buildWebSearchPreviewMetadata(results);
+    const updated = await embedStore.mergeDecodedContentInMemory(`embed:${embedId}`, fields);
+    if (!updated) return;
+
+    chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
+      detail: {
+        embed_id: embedId,
+        status: localStatus,
+      },
+    }));
+  }
 </script>
 
 <SearchResultsTemplate
@@ -336,6 +354,7 @@
   status={localStatus}
   errorMessage={localErrorMessage}
   {query}
+  onResultsLoaded={(results) => { void backfillParentPreviewMetadata(results as WebSearchResult[]); }}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   {initialChildEmbedId}
   {hasPreviousEmbed}

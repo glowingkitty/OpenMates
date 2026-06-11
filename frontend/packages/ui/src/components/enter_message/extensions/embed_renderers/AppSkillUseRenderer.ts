@@ -926,6 +926,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Create placeholder results with favicon URLs from the results data
     // These will be populated from the decoded content if available
     const results = decodedContent?.results || [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -960,6 +963,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error" | "cancelled",
           results,
+          resultCount,
+          childEmbedIds,
           taskId,
           skillTaskId, // For individual skill cancellation
           isMobile: false, // Default to desktop in message view
@@ -1914,6 +1919,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       decodedContent?.preview_thumbnails ||
       [];
     const previewResultsJson = decodedContent?.preview_results_json || "";
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds
+        : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -1942,6 +1956,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status: status as "processing" | "finished" | "error",
           results,
           previewResultsJson,
+          resultCount,
+          childEmbedIds,
           taskId,
           skillTaskId,
           isMobile: false,

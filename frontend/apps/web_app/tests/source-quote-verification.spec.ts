@@ -32,6 +32,7 @@ const FALSE_QUOTE =
 	'dollars so that Dubai could pay its debts.';
 
 const SHARED_CHAT_WITH_WEBSITE_QUOTE = 'https://app.dev.openmates.org/s/aUc6RjnR#bIiNzh';
+const SHARED_CHAT_WITH_LEGACY_SEARCH_PARENTS = 'https://app.dev.openmates.org/s/J0XO58G8#n4oYu6';
 const WEBSITE_SOURCE_QUOTE =
 	'xHain is a hack+makespace in the heart of Berlin, Germany. You can drop in on our Open Monday night from 18h until late at night.';
 
@@ -104,5 +105,23 @@ test.describe('Source quote verification', () => {
 		});
 		expect(styles.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
 		expect(styles.boxShadow).not.toBe('none');
+	});
+
+	test('legacy search parent previews do not claim zero results before fullscreen backfill', async ({ page }: { page: any }) => {
+		const response = await page.goto(SHARED_CHAT_WITH_LEGACY_SEARCH_PARENTS, { waitUntil: 'networkidle' });
+		expect(response?.status()).toBe(200);
+
+		const webPreview = page
+			.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]')
+			.first();
+		await expect(webPreview).toBeVisible({ timeout: 30_000 });
+		await expect(webPreview.getByTestId('search-no-results-message')).toHaveCount(0);
+		await expect(webPreview.getByTestId('search-preview-metadata-missing-message')).toBeVisible();
+
+		const imagePreview = page
+			.locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="search"]')
+			.first();
+		await expect(imagePreview).toBeVisible({ timeout: 30_000 });
+		await expect(imagePreview.getByTestId('images-search-preview-metadata-missing-message')).toBeVisible();
 	});
 });

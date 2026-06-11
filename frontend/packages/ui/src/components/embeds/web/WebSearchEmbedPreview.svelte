@@ -25,6 +25,7 @@
   import { chatSyncService } from '../../../services/chatSyncService';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import type { WebSearchSkillPreviewData } from '../../../types/appSkills';
+  import { getParentPreviewResultState, normalizeEmbedIdList } from '../embedPreviewHydration';
   
   /**
    * Web search result interface for favicon display
@@ -79,6 +80,10 @@
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Search results (for finished state) (direct format) */
     results?: WebSearchResult[];
+    /** Parent-level result_count for metadata-only legacy previews */
+    resultCount?: number;
+    /** Child IDs indicate legacy results exist even when preview metadata is absent */
+    childEmbedIds?: string[] | string;
     /** Task ID for cancellation of entire AI response (direct format) */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill (allows AI to continue) */
@@ -97,6 +102,8 @@
     provider: providerProp,
     status: statusProp,
     results: resultsProp,
+    resultCount: resultCountProp,
+    childEmbedIds: childEmbedIdsProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     previewData,
@@ -149,6 +156,7 @@
   let provider = $derived(localProvider);
   let status = $derived(localStatus);
   let results = $derived(localResults);
+  let childEmbedIds = $derived(normalizeEmbedIdList(childEmbedIdsProp));
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
@@ -318,6 +326,13 @@
   let remainingCount = $derived(
     Math.max(0, (flatResults?.length || 0) - faviconResults.length)
   );
+
+  let resultState = $derived(getParentPreviewResultState({
+    status,
+    previewResultCount: flatResults.length,
+    resultCount: resultCountProp,
+    childEmbedIds,
+  }));
   
   // DEBUG: Log results data to understand what we're receiving
   $effect(() => {
@@ -401,12 +416,16 @@
       {:else if status === 'finished'}
         <!-- Finished state: show favicons and remaining count, or "0 results found" -->
         <div class="ds-search-results-info">
-          {#if flatResults.length === 0}
-            <!-- Search completed but returned zero preview results. -->
+          {#if resultState === 'known_zero_results'}
+            <!-- Search completed and the parent explicitly says there were zero results. -->
             <span class="no-results-text" data-testid="search-no-results-message">
               {query
                 ? $text('embeds.search_no_results_for_query').replace('{query}', query)
                 : $text('embeds.search_no_results')}
+            </span>
+          {:else if resultState === 'missing_preview_metadata'}
+            <span class="no-results-text" data-testid="search-preview-metadata-missing-message">
+              {$text('embeds.search_preview_open_to_view_results')}
             </span>
           {:else}
             <!-- Favicons row -->

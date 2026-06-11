@@ -1197,10 +1197,11 @@ export class GroupRenderer implements EmbedRenderer {
         ? decodedContent.result_count
         : 0;
     const results = decodedContent?.results || [];
-    const childEmbedIds = Array.isArray(embedData?.embed_ids)
-      ? embedData.embed_ids
-      : Array.isArray(decodedContent?.embed_ids)
-        ? decodedContent.embed_ids
+    const rawChildEmbedIds = embedData?.embed_ids || decodedContent?.embed_ids;
+    const childEmbedIds = typeof rawChildEmbedIds === "string"
+      ? rawChildEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawChildEmbedIds)
+        ? rawChildEmbedIds
         : [];
 
     // Error embeds are kept in the group and rendered with status: 'error'.
@@ -1256,6 +1257,9 @@ export class GroupRenderer implements EmbedRenderer {
 
     try {
       if (appId === "web" && skillId === "search") {
+        const webResultCount = typeof decodedContent?.result_count === "number"
+          ? decodedContent.result_count
+          : results.length || childEmbedIds.length;
         const component = mount(WebSearchEmbedPreview, {
           target,
           props: {
@@ -1264,6 +1268,8 @@ export class GroupRenderer implements EmbedRenderer {
             provider: provider || "Brave Search",
             status,
             results,
+            resultCount: webResultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -1716,6 +1722,9 @@ export class GroupRenderer implements EmbedRenderer {
           decodedContent?.preview_results ||
           decodedContent?.preview_thumbnails ||
           [];
+        const imageResultCount = typeof decodedContent?.result_count === "number"
+          ? decodedContent.result_count
+          : (Array.isArray(imagePreviewResults) ? imagePreviewResults.length : 0) || childEmbedIds.length;
         const component = mount(ImagesSearchEmbedPreview, {
           target,
           props: {
@@ -1725,6 +1734,8 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             results: imagePreviewResults,
             previewResultsJson: decodedContent?.preview_results_json || "",
+            resultCount: imageResultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

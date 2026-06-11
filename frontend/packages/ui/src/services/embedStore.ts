@@ -1852,6 +1852,41 @@ export class EmbedStore {
   }
 
   /**
+   * Merge lightweight decoded fields into the in-memory parent embed content.
+   *
+   * Used after an explicit fullscreen open loads child results for a legacy
+   * parent embed. This backfills preview metadata for the current session without
+   * doing preview-time child hydration or attempting to rewrite shared encrypted
+   * server state from a read-only client.
+   */
+  async mergeDecodedContentInMemory(
+    contentRef: string,
+    fields: Record<string, unknown>,
+  ): Promise<boolean> {
+    const existing = await this.get(contentRef);
+    if (!existing || typeof existing !== "object") return false;
+
+    const rawContent = existing.content;
+    let decodedContent: Record<string, unknown> = {};
+    if (rawContent && typeof rawContent === "string") {
+      const decoded = await decodeToonContentLocal(rawContent);
+      if (decoded && typeof decoded === "object") {
+        decodedContent = decoded as Record<string, unknown>;
+      }
+    }
+
+    const mergedContent = { ...decodedContent, ...fields };
+    this.setInMemoryOnly(contentRef, {
+      ...existing,
+      ...fields,
+      content: JSON.stringify(mergedContent),
+      status: existing.status || fields.status || "finished",
+      updatedAt: Date.now(),
+    });
+    return true;
+  }
+
+  /**
    * Remove an embed from the in-memory cache.
    * Used to clean up "processing" placeholders when an embed transitions to
    * error/cancelled status without being persisted to IndexedDB.

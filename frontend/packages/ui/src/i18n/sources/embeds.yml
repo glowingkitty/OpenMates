@@ -262,6 +262,30 @@ search_no_results_for_query:
   sv: 'Inga resultat för "{query}"'
   he: 'לא נמצאו תוצאות עבור "{query}"'
   verified_by_human: []
+search_preview_open_to_view_results:
+  context: Shown in legacy search embed previews when result children exist but parent preview metadata has not been backfilled yet. The user can click the card to load the full results.
+  en: Open to view results
+  de: Zum Anzeigen der Ergebnisse öffnen
+  zh: 打开以查看结果
+  es: Abrir para ver resultados
+  fr: Ouvrir pour voir les résultats
+  pt: Abrir para ver resultados
+  ru: Откройте, чтобы посмотреть результаты
+  ja: 開いて結果を表示
+  ko: 결과를 보려면 열기
+  it: Apri per vedere i risultati
+  tr: Sonuçları görmek için aç
+  vi: Mở để xem kết quả
+  id: Buka untuk melihat hasil
+  pl: Otwórz, aby zobaczyć wyniki
+  nl: Open om resultaten te bekijken
+  ar: افتح لعرض النتائج
+  hi: परिणाम देखने के लिए खोलें
+  th: เปิดเพื่อดูผลลัพธ์
+  cs: Otevřít výsledky
+  sv: Öppna för att visa resultat
+  he: פתחו כדי לראות תוצאות
+  verified_by_human: []
 
 application_title:
   context: Default title for generated application embeds

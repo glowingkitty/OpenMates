@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  getParentPreviewResultState,
   shouldHydrateCarouselSlide,
 } from '../embedPreviewHydration';
 
@@ -30,5 +31,17 @@ describe('embed preview hydration bounds', () => {
     const helpers = await import('../embedPreviewHydration');
 
     expect(Object.keys(helpers)).not.toContain('limitLegacyPreviewChildIds');
+  });
+
+  it('does not treat legacy parents with child IDs as zero-result previews', () => {
+    expect(getParentPreviewResultState({ status: 'finished', previewResultCount: 0, childEmbedIds: ['child-1'] })).toBe('missing_preview_metadata');
+  });
+
+  it('does not treat positive parent result counts without preview metadata as zero-result previews', () => {
+    expect(getParentPreviewResultState({ status: 'finished', previewResultCount: 0, resultCount: 6 })).toBe('missing_preview_metadata');
+  });
+
+  it('only reports known zero results when the parent explicitly stores result_count zero', () => {
+    expect(getParentPreviewResultState({ status: 'finished', previewResultCount: 0, resultCount: 0 })).toBe('known_zero_results');
   });
 });
