@@ -401,16 +401,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "27340381011"
+        timestamp: "2026-06-11"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "27272270433"
-        timestamp: "2026-06-10"
+        run_id: "27341704555"
+        timestamp: "2026-06-11"
   - id: T-PLAYWRIGHT-002
     type: playwright
     file: frontend/apps/web_app/tests/server-free-testing-budget.spec.ts
