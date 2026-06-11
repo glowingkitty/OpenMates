@@ -140,6 +140,8 @@ function exampleMessagesToMessages(example: ExampleChatRecord): Message[] {
   const content = focusEmbed ? focusActivationContent(focusEmbed) : null;
   if (!focusEmbed || !content) return messages;
 
+  // Keep checked-in public transcripts free of raw embed JSON while still
+  // rendering the historical focus activation card in the interactive chat.
   const firstAssistantIndex = messages.findIndex((message) => message.role === "assistant");
   const insertAt = firstAssistantIndex >= 0 ? firstAssistantIndex : messages.length;
   const priorTimestamp = messages[Math.max(0, insertAt - 1)]?.created_at ?? Date.now() / 1000;
