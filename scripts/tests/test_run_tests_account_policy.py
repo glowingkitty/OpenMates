@@ -71,6 +71,33 @@ def test_dispatch_run_matching_uses_unique_token():
     assert run_tests._matching_dispatched_run_id(runs, "rt-missing") is None
 
 
+def test_preflight_account_payload_deduplicates_emails():
+    run_tests = load_run_tests_module()
+
+    results = [
+        run_tests.SpecResult(name="test-account-preflight.spec.ts", status="passed", account=1, account_email="Test@Example.test"),
+        run_tests.SpecResult(name="test-account-preflight.spec.ts", status="passed", account=2, account_email="test@example.test"),
+        run_tests.SpecResult(name="test-account-preflight.spec.ts", status="passed", account=3, account_email=None),
+    ]
+
+    assert run_tests._configured_preflight_accounts(results) == [
+        {"slot": 1, "email": "Test@Example.test"}
+    ]
+
+
+def test_extract_account_email_from_playwright_stdout(tmp_path):
+    run_tests = load_run_tests_module()
+    report = tmp_path / "playwright.json"
+    report.write_text(
+        '{"suites":[{"specs":[{"tests":[{"results":[{"stdout":['
+        '{"text":"[ACCOUNT_PREFLIGHT][slot 1] Starting. | meta={\\"email\\":\\"acct@example.test\\"}\\n"}'
+        ']}]}]}]}]}',
+        encoding="utf-8",
+    )
+
+    assert run_tests.BatchRunner._extract_account_email_from_playwright_json(report) == "acct@example.test"
+
+
 def test_credential_update_artifacts_are_persisted_outside_screenshots(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact_root = tmp_path / "artifact"
