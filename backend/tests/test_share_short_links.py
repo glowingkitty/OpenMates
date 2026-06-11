@@ -367,7 +367,8 @@ def test_short_url_og_image_uses_packaged_lexend_deca_font():
 
 
 def test_chat_metadata_field_list_includes_shared_preview_fields_and_stored_url():
-    chat_methods_source = Path("backend/core/api/app/services/directus/chat_methods.py").read_text()
+    repo_root = Path(__file__).resolve().parents[2]
+    chat_methods_source = (repo_root / "backend/core/api/app/services/directus/chat_methods.py").read_text()
 
     assert "shared_encrypted_category" in chat_methods_source
     assert "shared_encrypted_icon" in chat_methods_source
