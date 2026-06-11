@@ -511,5 +511,16 @@ async def test_password_protected_short_url_metadata_hides_chat_metadata():
 
     assert response["title"] == "Password protected chat"
     assert "Paris" not in response["description"]
-    assert response["image"] == "/v1/share/short-url/Abc123XY/og-image.png"
+    assert response["image"] == "/images/password-protected-chat-og.png"
     assert response["password_protected"] is True
+
+
+def test_password_protected_og_image_asset_exists_with_social_preview_size():
+    from PIL import Image
+
+    repo_root = Path(__file__).resolve().parents[2]
+    image_path = repo_root / "frontend/apps/web_app/static/images/password-protected-chat-og.png"
+    assert image_path.exists()
+
+    image = Image.open(image_path)
+    assert image.size == (share_routes.OG_IMAGE_WIDTH, share_routes.OG_IMAGE_HEIGHT)

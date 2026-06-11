@@ -1244,6 +1244,7 @@ SHORT_URL_FIELDS = (
 
 PROTECTED_CHAT_TITLE = "Password protected chat"
 PROTECTED_CHAT_DESCRIPTION = "Open this password-protected chat on OpenMates."
+PROTECTED_CHAT_OG_IMAGE_PATH = "/images/password-protected-chat-og.png"
 DEFAULT_CHAT_TITLE = "Shared Chat - OpenMates"
 DEFAULT_CHAT_DESCRIPTION = "View this shared conversation on OpenMates"
 DEFAULT_EMBED_TITLE = "Shared Embed - OpenMates"
@@ -1437,7 +1438,7 @@ async def _build_short_url_metadata(
         return {
             "title": PROTECTED_CHAT_TITLE,
             "description": PROTECTED_CHAT_DESCRIPTION,
-            "image": _short_url_image_path(token),
+            "image": PROTECTED_CHAT_OG_IMAGE_PATH,
             "content_type": "chat",
             "password_protected": True,
             "category": "openmates_official",

@@ -43,7 +43,11 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 		console.warn(`[ShortUrl] Failed to fetch metadata for ${token}:`, error);
 	}
 
-	const absoluteImage = image.startsWith('http') ? image : `${backendUrl}${image}`;
+	const absoluteImage = image.startsWith('http')
+		? image
+		: image.startsWith('/v1/')
+			? `${backendUrl}${image}`
+			: `${siteUrl}${image}`;
 	const shareUrl = `${siteUrl}/s/${token}`;
 	const safeTitle = escapeHtml(title);
 	const safeDescription = escapeHtml(description);
