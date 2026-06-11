@@ -2,36 +2,69 @@
 status: active
 doc_type: explanation
 audience:
-  - contributors
+- contributors
 last_verified: 2026-06-01
 key_files:
+- frontend/packages/ui/src/services/chatSyncService*.ts
+- frontend/packages/ui/src/stores/phasedSyncStateStore.ts
+- backend/core/api/app/routes/websockets.py
+- backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+- backend/core/api/app/routes/sync_api.py
+- apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+- backend/core/api/app/routes/debug_sync.py
+- backend/core/api/app/tasks/user_cache_tasks.py
+- backend/core/api/app/services/cache_chat_mixin.py
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+  - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+  - frontend/packages/ui/src/services/chatSyncService*.ts
+claims:
+- id: phase1-partial-cache-metadata-fills-from-directus
+  type: backend
+  file: backend/tests/test_phased_sync_handler.py
+  assertion: phase1-partial-cache-metadata-fills-from-directus
+  claim: Sync Architecture documents behavior that is covered by the linked assertion against current source code.
+  source: &id001
   - frontend/packages/ui/src/services/chatSyncService*.ts
   - frontend/packages/ui/src/stores/phasedSyncStateStore.ts
   - backend/core/api/app/routes/websockets.py
   - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
   - backend/core/api/app/routes/sync_api.py
-  - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
-  - backend/core/api/app/routes/debug_sync.py
-  - backend/core/api/app/tasks/user_cache_tasks.py
-  - backend/core/api/app/services/cache_chat_mixin.py
-claims:
-  - id: phase1-partial-cache-metadata-fills-from-directus
-    type: backend
+  test:
     file: backend/tests/test_phased_sync_handler.py
+    command: docker exec api python -m pytest /app/backend/tests/test_phased_sync_handler.py
     assertion: phase1-partial-cache-metadata-fills-from-directus
-  - id: phase-all-does-not-run-background-content-sync
-    type: backend
+  verified: '2026-06-11'
+- id: phase-all-does-not-run-background-content-sync
+  type: backend
+  file: backend/tests/test_phased_sync_handler.py
+  assertion: phase-all-does-not-run-background-content-sync
+  claim: Sync Architecture documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
     file: backend/tests/test_phased_sync_handler.py
+    command: docker exec api python -m pytest /app/backend/tests/test_phased_sync_handler.py
     assertion: phase-all-does-not-run-background-content-sync
-  - id: phase1-full-content-limited-to-recent-parent-chats
-    type: backend
+  verified: '2026-06-11'
+- id: phase1-full-content-limited-to-recent-parent-chats
+  type: backend
+  file: backend/tests/test_phased_sync_handler.py
+  assertion: phase1-full-content-limited-to-recent-parent-chats
+  claim: Sync Architecture documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
     file: backend/tests/test_phased_sync_handler.py
+    command: docker exec api python -m pytest /app/backend/tests/test_phased_sync_handler.py
     assertion: phase1-full-content-limited-to-recent-parent-chats
-coverage:
-  policy: assertion-backed
-  reviewed_context:
-    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
-    - frontend/packages/ui/src/services/chatSyncService*.ts
+  verified: '2026-06-11'
+- id: arch-data-sync-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-sync-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
 ---
 
 # Sync Architecture

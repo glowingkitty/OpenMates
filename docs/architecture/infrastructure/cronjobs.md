@@ -2,32 +2,68 @@
 status: active
 last_verified: 2026-06-05
 key_files:
+- .github/dependabot.yml
+- pnpm-workspace.yaml
+- scripts/check-deploy-status.sh
+- scripts/run_tests.py
+- scripts/auto_fix_failed_tests.py
+- scripts/nightly-dead-code-removal.sh
+- scripts/weekly-codebase-audit.sh
+- scripts/weekly-technical-debt.sh
+- scripts/technical_debt_scan.py
+- scripts/_technical_debt_helper.py
+- scripts/security-audit.sh
+- scripts/nightly-ui-design-review.sh
+- scripts/nightly-apple-parity-review.sh
+- scripts/nightly-seo-audit.sh
+- scripts/_scheduled_review_helper.py
+- scripts/nightly-code-structure.sh
+- scripts/weekly-contract-audits.sh
+- scripts/run_contract_audits.py
+- scripts/contract_audits.py
+- scripts/_contract_audit_review_helper.py
+- scripts/prompts/contract-audit-review.md
+- scripts/daily-meeting.sh
+- scripts/update_obsidian_daily_note.py
+- scripts/_opencode_daily_meeting.py
+- scripts/_daily_meeting_helper.py
+- scripts/_opencode_utils.py
+claims:
+- id: arch-infrastructure-cronjobs-behavior
+  type: unit
+  claim: Scheduled Cronjobs is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - .github/dependabot.yml
   - pnpm-workspace.yaml
   - scripts/check-deploy-status.sh
   - scripts/run_tests.py
   - scripts/auto_fix_failed_tests.py
-  - scripts/nightly-dead-code-removal.sh
-  - scripts/weekly-codebase-audit.sh
-  - scripts/weekly-technical-debt.sh
-  - scripts/technical_debt_scan.py
-  - scripts/_technical_debt_helper.py
-  - scripts/security-audit.sh
-  - scripts/nightly-ui-design-review.sh
-  - scripts/nightly-apple-parity-review.sh
-  - scripts/nightly-seo-audit.sh
-  - scripts/_scheduled_review_helper.py
-  - scripts/nightly-code-structure.sh
-  - scripts/weekly-contract-audits.sh
-  - scripts/run_contract_audits.py
-  - scripts/contract_audits.py
-  - scripts/_contract_audit_review_helper.py
-  - scripts/prompts/contract-audit-review.md
-  - scripts/daily-meeting.sh
-  - scripts/update_obsidian_daily_note.py
-  - scripts/_opencode_daily_meeting.py
-  - scripts/_daily_meeting_helper.py
-  - scripts/_opencode_utils.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-infrastructure-cronjobs-behavior
+  verified: '2026-06-11'
+- id: arch-infrastructure-cronjobs-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-cronjobs-source-1
+  anchors:
+  - type: file_exists
+    path: .github/dependabot.yml
+- id: arch-infrastructure-cronjobs-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-cronjobs-source-2
+  anchors:
+  - type: file_exists
+    path: pnpm-workspace.yaml
+- id: arch-infrastructure-cronjobs-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-cronjobs-source-3
+  anchors:
+  - type: file_exists
+    path: scripts/_contract_audit_review_helper.py
 ---
 
 # Scheduled Cronjobs
@@ -66,7 +102,6 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `*/1h (xx:35)`                | `check-eu-vulns-daily.sh`              | EU/OSV/NVD vulnerability detection        |
 | `02:00 Sun`                   | `docker-cleanup.sh`                    | Remove dangling images, build cache; aggressive mode at >90% disk |
 | `01:30 daily`                 | `cleanup-opencode-sessions.sh`         | Delete OpenCode chats older than 14 days, except TODO sessions |
-| `@reboot`                     | `agent-trigger-watcher.sh`             | Poll for admin-submitted issue triggers   |
 
 > **Consolidated (2026-03-27):** `nightly-issues-check.sh` and `nightly-workflow-review.sh` have been folded into the daily meeting. Their helpers (`_issues_checker.py`, `_workflow_review_helper.py`) are kept as importable libraries.
 
@@ -80,7 +115,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 
 **Codebase audit** (Mon+Thu 02:00): Uses 2 weeks of git history to find top 5 improvements (security, performance, reliability, quality). Plan mode only -- no implementation. State: `scripts/.audit-state.json`.
 
-**Daily test run** (03:00): Full Playwright E2E + pytest suite. Sends summary email on completion + Discord fallback post (OPE-76). If failures occur, runs `scripts/auto_fix_failed_tests.py --from-daily-run` unless `E2E_AUTO_FIX_FAILED_TESTS=false`: one blocking OpenCode fix run per root-cause group, controller-owned verification, Discord summary after each group, and deploy only after a safe green fix. Auto-fix OpenCode sessions are hidden from the OpenCode web history by default after the controller captures their JSONL output and summary. On-demand status comes from `test-results/auto-fix-state.json`, `logs/auto-fix-failed-tests-manual.log`, and `scripts/.tmp/auto-fix/**/opencode-output-*.jsonl`; set `AUTO_FIX_EXPOSE_OPENCODE_CHATS=true` only for manual debugging when web-visible chats are desired. If auto-fix is disabled, the daily runner sends notifications only. Archives to `test-results/daily-run-YYYY-MM-DD.json`. Env: `E2E_DAILY_RUN_ENABLED=true`, `ADMIN_NOTIFY_EMAIL`, `INTERNAL_API_SHARED_TOKEN`, `OPENCODE_WEB_BASE_URL`, `DISCORD_WEBHOOK_DEV_NIGHTLY` (optional), `DISCORD_WEBHOOK_TEST_FIXES` (optional dedicated auto-fix channel), `E2E_AUTO_FIX_FAILED_TESTS=false` (optional opt-out), `AUTO_FIX_EXPOSE_OPENCODE_CHATS=true` (optional visible debug opt-in).
+**Daily test run** (03:00): Full Playwright E2E + pytest suite. Sends summary email on completion + Discord fallback post (OPE-76), writes `last-passed-tests.json` / `last-failed-tests.json`, pushes one OpenObserve summary, and archives to `test-results/daily-run-YYYY-MM-DD.json`. The scheduled runner is notification-only: it does not start OpenCode auto-fix, so failed-test remediation can never hold the daily lock and block the next scheduled run. Manual follow-up can still use `scripts/auto_fix_failed_tests.py --from-daily-run` when an operator intentionally wants controller-owned fixes. Env: `E2E_DAILY_RUN_ENABLED=true`, `ADMIN_NOTIFY_EMAIL`, `INTERNAL_API_SHARED_TOKEN`, `OPENCODE_WEB_BASE_URL`, `DISCORD_WEBHOOK_DEV_NIGHTLY` (optional), `DISCORD_WEBHOOK_TEST_FIXES` (optional dedicated manual auto-fix channel).
 
 **Obsidian daily note updater** (every minute): Refreshes today's local daily note under `vaults/memory/Daily Notes/` with changed note links, same-day git commits, and cached server stats. Preserves manual content outside `<!-- AUTO:* -->` sections. Log: `logs/obsidian-daily-note.log`. State: `vaults/memory/.obsidian-auto/daily-note-state/`.
 
@@ -89,6 +124,8 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 **Dependabot version updates** (GitHub native, daily 04:30 UTC): Opens npm/pnpm version-update PRs against `dev`. Routine patch/minor updates use a 48-hour cooldown (`cooldown.default-days: 2`) to avoid newly published malicious npm versions during supply-chain incidents; major updates use a 14-day cooldown for extra stability. This is separate from security-alert processing below, which remains immediate for critical/high/medium advisories. pnpm also enforces `minimumReleaseAge: 2880` minutes in `pnpm-workspace.yaml` so manual and CI dependency resolution follow the same 48-hour delay.
 
 **Issues check**: _Consolidated into daily meeting (2026-03-27)._ Helper `_issues_checker.py` still available as importable library.
+
+**Admin issue investigation**: automatic OpenCode handoff from admin issue reports is disabled. Admin reports still return an issue ID; copy that ID into OpenCode manually when investigation is needed.
 
 **Dependabot check** (hourly at xx:30): Fetches critical/high/medium alerts via `gh` CLI. Dispatches fix session for new or stale (>7 days) alerts. No-ops in seconds when no new alerts are found (no Claude session spawned). Uses `sessions.py deploy` for commits. Resolved entries auto-pruned after 72h. State: `scripts/dependabot-processed.json`.
 

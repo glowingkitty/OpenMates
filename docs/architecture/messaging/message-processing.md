@@ -2,13 +2,48 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/api/app/routes/websockets.py
+- backend/apps/ai/skills/*/skill.py
+- backend/apps/base_skill.py
+- backend/apps/ai/processing/preprocessor.py
+- backend/apps/ai/processing/main_processor.py
+- backend/apps/ai/tasks/stream_consumer.py
+- backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+claims:
+- id: arch-messaging-message-processing-behavior
+  type: unit
+  claim: Message Processing Architecture is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/routes/websockets.py
-  - backend/apps/ai/skills/*/skill.py
   - backend/apps/base_skill.py
   - backend/apps/ai/processing/preprocessor.py
   - backend/apps/ai/processing/main_processor.py
-  - backend/apps/ai/tasks/stream_consumer.py
-  - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-messaging-message-processing-behavior
+  verified: '2026-06-11'
+- id: arch-messaging-message-processing-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-processing-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/main_processor.py
+- id: arch-messaging-message-processing-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-processing-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/preprocessor.py
+- id: arch-messaging-message-processing-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-processing-source-3
+  anchors:
+  - type: file_exists
+    path: backend/apps/base_skill.py
 ---
 
 # Message Processing Architecture

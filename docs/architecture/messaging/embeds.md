@@ -2,14 +2,50 @@
 status: active
 last_verified: 2026-06-07
 key_files:
-  - backend/apps/*/skills/*/embed*.py
+- backend/apps/*/skills/*/embed*.py
+- frontend/packages/ui/src/components/embeds/**/*.svelte
+- frontend/packages/ui/src/components/embeds/**/*.ts
+- frontend/packages/ui/src/services/embedResolver.ts
+- frontend/packages/ui/src/services/embedStore.ts
+- frontend/packages/ui/src/services/embedStateMachine.ts
+- frontend/packages/ui/src/services/embedSenders.ts
+- backend/shared/python_schemas/embed*.py
+claims:
+- id: arch-messaging-embeds-behavior
+  type: unit
+  claim: Embeds Architecture is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
+  - backend/core/api/app/services/embed_service.py
   - frontend/packages/ui/src/components/embeds/**/*.svelte
   - frontend/packages/ui/src/components/embeds/**/*.ts
   - frontend/packages/ui/src/services/embedResolver.ts
   - frontend/packages/ui/src/services/embedStore.ts
-  - frontend/packages/ui/src/services/embedStateMachine.ts
-  - frontend/packages/ui/src/services/embedSenders.ts
-  - backend/shared/python_schemas/embed*.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-messaging-embeds-behavior
+  verified: '2026-06-11'
+- id: arch-messaging-embeds-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-embeds-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/services/embed_service.py
+- id: arch-messaging-embeds-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-embeds-source-2
+  anchors:
+  - type: file_exists
+    path: backend/shared/python_schemas/embed*.py
+- id: arch-messaging-embeds-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-embeds-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/embeds/**/*.svelte
 ---
 
 # Embeds Architecture

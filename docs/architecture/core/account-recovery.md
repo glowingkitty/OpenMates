@@ -2,12 +2,48 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/api/app/routes/auth_routes/auth_recovery.py
+- backend/core/api/app/schemas/auth_recovery.py
+- backend/core/api/app/tasks/email_tasks/recovery_account_email_task.py
+- frontend/packages/ui/src/components/AccountRecovery.svelte
+- frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+- frontend/packages/ui/src/components/signup/steps/recoverykey/RecoveryKeyTopContent.svelte
+claims:
+- id: arch-core-account-recovery-behavior
+  type: unit
+  claim: Account Recovery is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/routes/auth_routes/auth_recovery.py
   - backend/core/api/app/schemas/auth_recovery.py
   - backend/core/api/app/tasks/email_tasks/recovery_account_email_task.py
   - frontend/packages/ui/src/components/AccountRecovery.svelte
   - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
-  - frontend/packages/ui/src/components/signup/steps/recoverykey/RecoveryKeyTopContent.svelte
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-core-account-recovery-behavior
+  verified: '2026-06-11'
+- id: arch-core-account-recovery-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-account-recovery-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/auth_routes/auth_recovery.py
+- id: arch-core-account-recovery-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-account-recovery-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/schemas/auth_recovery.py
+- id: arch-core-account-recovery-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-account-recovery-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/tasks/email_tasks/recovery_account_email_task.py
 ---
 
 # Account Recovery

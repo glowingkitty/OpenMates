@@ -183,7 +183,7 @@ openmates server uninstall --path ~/openmates --yes
 
 For image-mode installs, `openmates server update` pulls newer images and restarts the stack. For source-mode installs, it runs `git pull --ff-only`, rebuilds images, and restarts containers.
 
-See [CLI server management](../cli/server-management.md) for the full command reference.
+See [CLI server management](../user-guide/cli/server-management.md) for the full command reference.
 
 ## Images and Runtime Containers
 
@@ -280,4 +280,4 @@ openmates server start --path ~/openmates
 
 - GitHub Issues: report bugs and feature requests.
 - Logs: include relevant `openmates server logs` output when asking for help.
-- Documentation: see the rest of `docs/self-hosting/` and `docs/cli/`.
+- Documentation: see the rest of `docs/self-hosting/` and `docs/user-guide/cli/`.

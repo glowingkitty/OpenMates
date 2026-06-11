@@ -5,12 +5,48 @@ created: 2026-04-04
 updated: 2026-04-05
 linear_task: OPE-326
 key_files:
-  - frontend/packages/ui/src/tokens/sources/          # YAML source of truth
-  - frontend/packages/ui/src/tokens/generated/         # Auto-generated outputs
-  - frontend/packages/ui/scripts/build-tokens.js       # Generator script
-  - frontend/packages/ui/scripts/audit-tokens.js       # Migration audit tool
-  - frontend/packages/ui/scripts/validate-token-usage.js  # Lint guardrail
-  - frontend/packages/ui/package.json                  # Build pipeline
+- frontend/packages/ui/src/tokens/sources/
+- frontend/packages/ui/src/tokens/generated/
+- frontend/packages/ui/scripts/build-tokens.js
+- frontend/packages/ui/scripts/audit-tokens.js
+- frontend/packages/ui/scripts/validate-token-usage.js
+- frontend/packages/ui/package.json
+claims:
+- id: arch-frontend-design-tokens-behavior
+  type: unit
+  claim: Unified Design Token System is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
+  - frontend/packages/ui/src/tokens/sources/
+  - frontend/packages/ui/src/tokens/generated/
+  - frontend/packages/ui/scripts/build-tokens.js
+  - frontend/packages/ui/scripts/audit-tokens.js
+  - frontend/packages/ui/scripts/validate-token-usage.js
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-frontend-design-tokens-behavior
+  verified: '2026-06-11'
+- id: arch-frontend-design-tokens-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-design-tokens-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/package.json
+- id: arch-frontend-design-tokens-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-design-tokens-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/scripts/audit-tokens.js
+- id: arch-frontend-design-tokens-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-design-tokens-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/scripts/build-tokens.js
 ---
 
 # Unified Design Token System

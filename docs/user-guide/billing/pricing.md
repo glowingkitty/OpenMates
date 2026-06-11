@@ -4,14 +4,19 @@ doc_type: guide
 audience:
   - users
 last_verified: 2026-06-10
-claims: []
+claims:
+  - id: user-guide-billing-pricing-source
+    type: unit
+    claim: Pricing guidance is grounded in credit billing utilities, payment routes, and charge behavior.
+    file: scripts/tests/test_user_guide_billing_docs_claims.py
+    assertion: user-guide-billing-pricing-source
 ---
 
 # Pricing
 
 ## Summary
 
-OpenMates uses a pay-per-use credits system. No subscriptions -- you only pay for what you use, and credits never expire.
+Cloud OpenMates uses a credits system for paid usage. You buy credits and spend them as you send messages or use paid app skills.
 
 ## What It Does
 
@@ -19,8 +24,7 @@ Instead of monthly subscriptions, OpenMates uses **credits**. You buy credits an
 
 ## How Credits Work
 
-- **Buy credits** in Settings > Billing. You can purchase as many or as few as you need.
-- **Credits never expire** -- they stay in your account until you use them.
+- **Buy credits** in Settings > Billing.
 - **Minimum charge** is 1 credit per request.
 - **Prices vary** by model and skill. More powerful models cost more credits per message.
 
@@ -38,8 +42,8 @@ Instead of monthly subscriptions, OpenMates uses **credits**. You buy credits an
 
 ## Running Out of Credits
 
-- If you try to send a message with **insufficient credits**, your request is rejected and a system notice appears in the chat with a **Buy Credits** button. Once you purchase credits, you can resend your message.
-- The chat enters a waiting state until you top up -- no credits are lost on a rejected request.
+- OpenMates allows a small overdraft so multi-step requests can finish cleanly.
+- If your balance reaches the hard overdraft limit, paid calls are refused with an insufficient-credits error until you buy or redeem more credits.
 
 ## Tips
 

@@ -2,9 +2,43 @@
 status: active
 last_verified: 2026-06-10
 key_files:
+- frontend/packages/ui/src/i18n/sources/
+- frontend/packages/ui/scripts/build-translations.js
+- frontend/packages/ui/package.json
+claims:
+- id: arch-data-translations-behavior
+  type: unit
+  claim: Translations (i18n) is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/i18n/sources/
   - frontend/packages/ui/scripts/build-translations.js
   - frontend/packages/ui/package.json
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-data-translations-behavior
+  verified: '2026-06-11'
+- id: arch-data-translations-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-translations-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/package.json
+- id: arch-data-translations-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-translations-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/scripts/build-translations.js
+- id: arch-data-translations-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-translations-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/i18n/sources/
 ---
 
 # Translations (i18n)

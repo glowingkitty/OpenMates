@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-issue-reporting-source
+    type: unit
+    claim: Issue reporting guidance is grounded in the report issue settings component.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-issue-reporting-source
 ---
 
 # Issue Reporting

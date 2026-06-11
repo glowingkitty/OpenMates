@@ -2,8 +2,38 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+- frontend/packages/ui/src/stores/authSessionActions.ts
+claims:
+- id: arch-data-device-sessions-behavior
+  type: unit
+  claim: Device and Session Management is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
   - frontend/packages/ui/src/stores/authSessionActions.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-data-device-sessions-behavior
+  verified: '2026-06-11'
+- id: arch-data-device-sessions-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-device-sessions-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+- id: arch-data-device-sessions-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-device-sessions-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/stores/authSessionActions.ts
+- id: arch-data-device-sessions-manual-3
+  type: manual
+  reason: 'Tiny architecture note: source-file existence claims cover the implemented anchor surface; deeper behavior remains
+    covered by linked canonical docs.'
 ---
 
 # Device and Session Management

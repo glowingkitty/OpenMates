@@ -39,6 +39,17 @@ function runCli(args: string[], env: Record<string, string> = {}): string {
   });
 }
 
+function docAssert(claimId: string, assertion: () => void): void {
+  try {
+    assertion();
+  } catch (error) {
+    if (error instanceof Error) {
+      error.message = `[doc-assert:${claimId}] ${error.message}`;
+    }
+    throw error;
+  }
+}
+
 async function runCliAsync(args: string[], env: Record<string, string> = {}): Promise<string> {
   const { stdout } = await execFileAsync("node", ["dist/cli.js", ...args], {
     cwd: fileURLToPath(new URL("..", import.meta.url)),
@@ -304,9 +315,11 @@ describe("apps code run command variants", () => {
         "--no-internet",
       ]);
       const result = JSON.parse(output) as { execution_id: string; final: { status: string } };
-      assert.equal(result.execution_id, "exec-1");
-      assert.equal(result.final.status, "finished");
-      assert.equal(getHeaders().authorization, "Bearer test-key");
+      docAssert("cli-apps-code-run-uses-app-skill-endpoint", () => {
+        assert.equal(result.execution_id, "exec-1");
+        assert.equal(result.final.status, "finished");
+        assert.equal(getHeaders().authorization, "Bearer test-key");
+      });
       const body = requests[0] as { requests: Array<{ entry_path: string; enable_internet: boolean; files: Array<{ path: string; language: string; is_target: boolean }> }> };
       assert.equal(body.requests[0].entry_path, "hello.py");
       assert.equal(body.requests[0].enable_internet, false);
@@ -422,7 +435,9 @@ describe("apps code run command variants", () => {
 describe("MEMORY_TYPE_REGISTRY", () => {
   it("contains at least 10 memory types", () => {
     const keys = Object.keys(MEMORY_TYPE_REGISTRY);
-    assert.ok(keys.length >= 10, `expected >=10 types, got ${keys.length}`);
+    docAssert("cli-apps-memory-type-registry-is-available", () => {
+      assert.ok(keys.length >= 10, `expected >=10 types, got ${keys.length}`);
+    });
   });
 
   it("every type has appId, itemType, required, and properties", () => {
@@ -1082,11 +1097,13 @@ describe("getExtForLang", () => {
 describe("settings command surface", () => {
   it("lists predefined settings commands instead of raw passthrough", () => {
     const output = runCli(["settings", "--help"]);
-    assert.ok(output.includes("Predefined commands only"));
-    assert.ok(output.includes("openmates settings account timezone set"));
-    assert.ok(output.includes("openmates settings billing gift-card redeem"));
-    assert.ok(!output.includes("settings get <path>"));
-    assert.ok(!output.includes("settings post <path>"));
+    docAssert("cli-settings-lists-predefined-commands", () => {
+      assert.ok(output.includes("Predefined commands only"));
+      assert.ok(output.includes("openmates settings account timezone set"));
+      assert.ok(output.includes("openmates settings billing gift-card redeem"));
+      assert.ok(!output.includes("settings get <path>"));
+      assert.ok(!output.includes("settings post <path>"));
+    });
   });
 
   it("shows nested help examples for settings groups", () => {
@@ -1109,10 +1126,12 @@ describe("settings command surface", () => {
   });
 
   it("rejects raw settings passthrough before auth or network", () => {
-    assert.throws(
-      () => runCli(["settings", "get", "billing"]),
-      /Raw settings passthrough is no longer supported/,
-    );
+    docAssert("cli-settings-rejects-raw-passthrough", () => {
+      assert.throws(
+        () => runCli(["settings", "get", "billing"]),
+        /Raw settings passthrough is no longer supported/,
+      );
+    });
   });
 
   it("rejects account deletion verification codes passed as flags", () => {
@@ -1147,5 +1166,38 @@ describe("incognito command surface", () => {
     const parsed = JSON.parse(output);
     assert.deepEqual(parsed.history, []);
     assert.strictEqual(parsed.stored, false);
+  });
+});
+
+describe("documented CLI command reference", () => {
+  it("top-level help lists the user guide command categories", () => {
+    const output = runCli(["--help"]);
+    docAssert("cli-readme-lists-command-categories", () => {
+      for (const command of ["login", "chats", "apps", "settings", "embeds", "mentions", "server"]) {
+        assert.ok(output.includes(command), `expected top-level help to mention ${command}`);
+      }
+    });
+    docAssert("cli-authentication-uses-pair-login-command", () => {
+      assert.ok(output.includes("login"));
+      assert.ok(!output.includes("password"));
+    });
+  });
+
+  it("chat help lists documented chat operations", () => {
+    const output = runCli(["chats", "--help"]);
+    docAssert("cli-chats-help-lists-chat-operations", () => {
+      for (const operation of ["list", "search", "show", "send", "share", "download", "delete", "incognito"]) {
+        assert.ok(output.includes(operation), `expected chat help to mention ${operation}`);
+      }
+    });
+  });
+
+  it("embeds and mentions help list sharing and mention operations", () => {
+    const embeds = runCli(["embeds", "--help"]);
+    const mentions = runCli(["mentions", "--help"]);
+    docAssert("cli-embeds-sharing-help-lists-commands", () => {
+      assert.ok(embeds.includes("share"));
+      assert.ok(mentions.includes("search"));
+    });
   });
 });

@@ -2,15 +2,51 @@
 status: active
 last_verified: 2026-06-04
 key_files:
+- scripts/accessibility_audit.py
+- scripts/run_accessibility_weekly.py
+- frontend/packages/ui/src/tokens/sources/colors.yml
+- frontend/packages/ui/src/styles/theme.css
+- frontend/packages/ui/src/actions/focusTrap.ts
+- frontend/apps/web_app/tests/a11y-helpers.ts
+- frontend/apps/web_app/tests/a11y-pages.spec.ts
+- frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+- frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+claims:
+- id: arch-frontend-accessibility-behavior
+  type: unit
+  claim: Accessibility is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - scripts/accessibility_audit.py
   - scripts/run_accessibility_weekly.py
   - frontend/packages/ui/src/tokens/sources/colors.yml
   - frontend/packages/ui/src/styles/theme.css
   - frontend/packages/ui/src/actions/focusTrap.ts
-  - frontend/apps/web_app/tests/a11y-helpers.ts
-  - frontend/apps/web_app/tests/a11y-pages.spec.ts
-  - frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
-  - frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-frontend-accessibility-behavior
+  verified: '2026-06-11'
+- id: arch-frontend-accessibility-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-accessibility-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/tests/a11y-helpers.ts
+- id: arch-frontend-accessibility-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-accessibility-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/tests/a11y-keyboard-nav.spec.ts
+- id: arch-frontend-accessibility-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-accessibility-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/tests/a11y-modal-dialogs.spec.ts
 ---
 
 # Accessibility

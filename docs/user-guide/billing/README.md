@@ -4,7 +4,12 @@ doc_type: index
 audience:
   - users
 last_verified: 2026-06-10
-claims: []
+claims:
+  - id: user-guide-billing-index-source
+    type: unit
+    claim: The billing index links to implemented billing settings, usage, invoice, and gift-card surfaces.
+    file: scripts/tests/test_user_guide_billing_docs_claims.py
+    assertion: user-guide-billing-index-source
 ---
 
 # Billing

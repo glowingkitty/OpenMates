@@ -200,7 +200,7 @@ apps/action-confirmation.md:
   - backend/apps/base_skill.py
   - frontend/packages/ui/src/components/chats/**/*.svelte
 
-apps/cli-package.md:
+platforms/cli-package.md:
   - frontend/packages/openmates-cli/src/**/*.ts
 
 apps/cli-remote-access.md:

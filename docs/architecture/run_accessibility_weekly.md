@@ -2,8 +2,38 @@
 status: active
 last_verified: 2026-06-04
 key_files:
+- scripts/run_accessibility_weekly.py
+- scripts/accessibility_audit.py
+claims:
+- id: arch-run-accessibility-weekly-behavior
+  type: unit
+  claim: Weekly Accessibility Audit Runner is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - scripts/run_accessibility_weekly.py
   - scripts/accessibility_audit.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-run-accessibility-weekly-behavior
+  verified: '2026-06-11'
+- id: arch-run-accessibility-weekly-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-run-accessibility-weekly-source-1
+  anchors:
+  - type: file_exists
+    path: scripts/accessibility_audit.py
+- id: arch-run-accessibility-weekly-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-run-accessibility-weekly-source-2
+  anchors:
+  - type: file_exists
+    path: scripts/run_accessibility_weekly.py
+- id: arch-run-accessibility-weekly-manual-3
+  type: manual
+  reason: 'Tiny architecture note: source-file existence claims cover the implemented anchor surface; deeper behavior remains
+    covered by linked canonical docs.'
 ---
 
 # Weekly Accessibility Audit Runner

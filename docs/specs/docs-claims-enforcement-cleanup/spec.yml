@@ -42,7 +42,7 @@ context_discovery:
     - docs/user-guide/pricing.md
     - docs/user-guide/usage-and-billing.md
     - docs/user-guide/gift-cards.md
-    - docs/cli/settings.md
+    - docs/user-guide/cli/settings.md
     - docs/self-hosting/setup.md
     - scripts/.tmp/docs-claims-implementation-plan.md
   code_patterns:
@@ -340,7 +340,7 @@ contracts:
   public_docs_app:
     include:
       - docs/user-guide/
-      - docs/cli/
+      - docs/user-guide/cli/
       - docs/self-hosting/
       - docs/architecture/
       - docs/design-guide/ if intentionally exposed

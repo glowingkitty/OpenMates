@@ -2,9 +2,43 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/api/app/tasks/health_check_tasks.py
+- backend/core/api/app/tasks/celery_config.py
+- backend/core/api/app/routes/status_routes.py
+claims:
+- id: arch-infrastructure-health-checks-behavior
+  type: unit
+  claim: Health Checks is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/tasks/health_check_tasks.py
   - backend/core/api/app/tasks/celery_config.py
   - backend/core/api/app/routes/status_routes.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-infrastructure-health-checks-behavior
+  verified: '2026-06-11'
+- id: arch-infrastructure-health-checks-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-health-checks-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/status_routes.py
+- id: arch-infrastructure-health-checks-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-health-checks-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/tasks/celery_config.py
+- id: arch-infrastructure-health-checks-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-health-checks-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/tasks/health_check_tasks.py
 ---
 
 # Health Checks

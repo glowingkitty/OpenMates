@@ -1,11 +1,20 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-file-uploads-source
+    type: unit
+    claim: File upload guidance is grounded in current embed upload and fullscreen renderer sources.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-file-uploads-source
 ---
 
 # File Uploads
 
-> Send images, PDFs, and audio files in your chats. Files are encrypted and scanned for safety before storage.
+> Send images, PDFs, audio files, code, and text files in your chats. Uploads are handled as encrypted embed content with previews where supported.
 
 ## What It Does
 
@@ -22,23 +31,21 @@ You can upload files directly into a chat. Your digital team mate can then view,
 
 1. Click the attachment icon in the message input field
 2. Select a file from your device
-3. The file is uploaded, scanned for safety, and encrypted
+3. The file is uploaded and stored as encrypted embed content
 4. Send your message — your digital team mate can now see and discuss the file
 
 You can also drag and drop files into the chat.
 
 ## What Happens Behind the Scenes
 
-- **Malware scanning** — every file is checked for viruses before it's stored
-- **Content safety** — images are checked for inappropriate content
-- **Encryption** — files are encrypted before storage so no one else can access them
-- **Previews** — image uploads get a small preview thumbnail for quick viewing
+- **Encryption** -- upload payloads include encryption material so files can be opened by your devices.
+- **Image safety metadata** -- supported image uploads can include AI/content-detection metadata.
+- **Previews** -- supported image and PDF uploads can be opened in preview or fullscreen views.
 
 ## Storage
 
-- You get 1 GB of free file storage
-- Additional storage costs 3 credits per GB per week
-- Deleting a chat also deletes all files attached to it
+- File storage and retention follow the current account storage settings and billing rules.
+- Deleting a chat can remove the file references attached to that chat.
 
 ## Tips
 

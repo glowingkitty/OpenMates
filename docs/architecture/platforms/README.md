@@ -2,10 +2,23 @@
 status: active
 doc_type: index
 audience:
-  - contributors
-  - technical-users
+- contributors
+- technical-users
 last_verified: 2026-06-10
-claims: []
+claims:
+- id: arch-platforms-readme-behavior
+  type: unit
+  claim: Platform Architecture is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
+  - docs/architecture/platforms/README.md
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-platforms-readme-behavior
+  verified: '2026-06-11'
+- id: arch-platforms-readme-index-scope
+  type: manual
+  reason: 'Index doc: verifies navigation scope through Markdown link validation rather than source-code anchors.'
 ---
 
 # Platform Architecture
@@ -20,5 +33,5 @@ claims: []
 ## Platform Docs
 
 - [Web App](../frontend/web-app.md) -- SvelteKit app architecture and public docs processing.
-- [CLI](../../cli/README.md) -- command-line usage and platform capabilities.
+- [CLI](cli.md) -- command-line platform architecture and capabilities.
 - [Apple App](../frontend/native-apps.md) -- native app architecture and web-parity model.

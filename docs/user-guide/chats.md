@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-chats-source
+    type: unit
+    claim: Chat management guidance is grounded in current chat UI and sync sources.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-chats-source
 ---
 
 # Chats
@@ -17,7 +26,7 @@ Your chats appear in the sidebar, sorted by most recent activity. They are group
 
 - **Icons and categories** are assigned automatically based on your first message.
 - **Unread badges** show when a team mate has replied and you have not scrolled to the bottom of the response.
-- **Pinned chats** always stay at the top of the list. You can pin up to 100 chats.
+- **Pinned chats** stay prioritized in the chat list.
 
 ## How to Use It
 
@@ -33,7 +42,7 @@ Right-click (or long-press on mobile) any chat to see these options:
 | Action | What it does |
 |--------|-------------|
 | **Pin / Unpin** | Keep a chat at the top of your list |
-| **Download** | Save the chat as a file (YAML format) |
+| **Download** | Save the chat as an export file |
 | **Copy** | Copy the full conversation to your clipboard |
 | **Delete** | Permanently remove the chat from all your devices |
 

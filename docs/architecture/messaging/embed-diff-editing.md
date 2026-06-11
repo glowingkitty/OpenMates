@@ -2,13 +2,49 @@
 status: active
 last_verified: 2026-05-03
 key_files:
+- backend/apps/ai/instructions/base_diff_editing_instruction.md
+- backend/apps/ai/tasks/stream_consumer.py
+- backend/core/api/app/services/embed_service.py
+- backend/core/api/app/services/embed_diff_service.py
+- backend/core/directus/schemas/embed_diffs.yml
+- frontend/packages/ui/src/services/embedDiffStore.ts
+- frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+claims:
+- id: arch-messaging-embed-diff-editing-behavior
+  type: unit
+  claim: Embed Diff-Based Editing is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/ai/instructions/base_diff_editing_instruction.md
   - backend/apps/ai/tasks/stream_consumer.py
   - backend/core/api/app/services/embed_service.py
   - backend/core/api/app/services/embed_diff_service.py
   - backend/core/directus/schemas/embed_diffs.yml
-  - frontend/packages/ui/src/services/embedDiffStore.ts
-  - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-messaging-embed-diff-editing-behavior
+  verified: '2026-06-11'
+- id: arch-messaging-embed-diff-editing-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-embed-diff-editing-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/tasks/stream_consumer.py
+- id: arch-messaging-embed-diff-editing-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-embed-diff-editing-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/services/embed_diff_service.py
+- id: arch-messaging-embed-diff-editing-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-embed-diff-editing-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/services/embed_service.py
 ---
 
 # Embed Diff-Based Editing

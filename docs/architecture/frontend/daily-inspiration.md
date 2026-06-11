@@ -2,14 +2,50 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/apps/ai/daily_inspiration/generator.py
+- backend/apps/ai/daily_inspiration/video_processor.py
+- backend/apps/ai/daily_inspiration/schemas.py
+- backend/shared/config/corporate_channel_patterns.yml
+- frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+- frontend/packages/ui/src/stores/dailyInspirationStore.ts
+- frontend/packages/ui/src/services/dailyInspirationDB.ts
+- backend/core/api/app/tasks/daily_inspiration_tasks.py
+claims:
+- id: arch-frontend-daily-inspiration-behavior
+  type: unit
+  claim: Daily Inspiration is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/ai/daily_inspiration/generator.py
   - backend/apps/ai/daily_inspiration/video_processor.py
   - backend/apps/ai/daily_inspiration/schemas.py
   - backend/shared/config/corporate_channel_patterns.yml
   - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
-  - frontend/packages/ui/src/stores/dailyInspirationStore.ts
-  - frontend/packages/ui/src/services/dailyInspirationDB.ts
-  - backend/core/api/app/tasks/daily_inspiration_tasks.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-frontend-daily-inspiration-behavior
+  verified: '2026-06-11'
+- id: arch-frontend-daily-inspiration-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-daily-inspiration-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/daily_inspiration/generator.py
+- id: arch-frontend-daily-inspiration-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-daily-inspiration-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/daily_inspiration/schemas.py
+- id: arch-frontend-daily-inspiration-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-daily-inspiration-source-3
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/daily_inspiration/video_processor.py
 ---
 
 # Daily Inspiration

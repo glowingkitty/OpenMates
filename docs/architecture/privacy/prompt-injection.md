@@ -2,17 +2,53 @@
 status: active
 last_verified: 2026-05-10
 key_files:
+- backend/core/api/app/utils/text_sanitization.py
+- backend/apps/ai/processing/content_sanitization.py
+- backend/apps/ai/processing/preprocessor.py
+- backend/apps/ai/tasks/stream_consumer.py
+- backend/apps/ai/prompt_injection_detection.yml
+- backend/shared/python_utils/url_normalizer.py
+- backend/shared/providers/groq/safeguard.py
+- backend/preview/app/services/content_sanitization.py
+- backend/preview/app/services/text_sanitization.py
+- backend/apps/ai/app.yml
+- backend/preview/app/config.py
+claims:
+- id: arch-privacy-prompt-injection-behavior
+  type: unit
+  claim: Prompt Injection Protection is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/utils/text_sanitization.py
   - backend/apps/ai/processing/content_sanitization.py
   - backend/apps/ai/processing/preprocessor.py
   - backend/apps/ai/tasks/stream_consumer.py
   - backend/apps/ai/prompt_injection_detection.yml
-  - backend/shared/python_utils/url_normalizer.py
-  - backend/shared/providers/groq/safeguard.py
-  - backend/preview/app/services/content_sanitization.py
-  - backend/preview/app/services/text_sanitization.py
-  - backend/apps/ai/app.yml
-  - backend/preview/app/config.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-privacy-prompt-injection-behavior
+  verified: '2026-06-11'
+- id: arch-privacy-prompt-injection-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-prompt-injection-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/app.yml
+- id: arch-privacy-prompt-injection-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-prompt-injection-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/content_sanitization.py
+- id: arch-privacy-prompt-injection-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-prompt-injection-source-3
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/preprocessor.py
 ---
 
 # Prompt Injection Protection

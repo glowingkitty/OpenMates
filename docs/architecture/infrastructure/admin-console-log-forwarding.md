@@ -2,10 +2,45 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/services/clientLogForwarder.ts
+- frontend/packages/ui/src/services/logCollector.ts
+- backend/core/api/app/routes/admin_client_logs.py
+- backend/core/api/app/services/openobserve_push_service.py
+claims:
+- id: arch-infrastructure-admin-console-log-forwarding-behavior
+  type: unit
+  claim: Admin Console Log Forwarding is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/services/clientLogForwarder.ts
   - frontend/packages/ui/src/services/logCollector.ts
   - backend/core/api/app/routes/admin_client_logs.py
   - backend/core/api/app/services/openobserve_push_service.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-infrastructure-admin-console-log-forwarding-behavior
+  verified: '2026-06-11'
+- id: arch-infrastructure-admin-console-log-forwarding-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-admin-console-log-forwarding-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/admin_client_logs.py
+- id: arch-infrastructure-admin-console-log-forwarding-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-admin-console-log-forwarding-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/services/openobserve_push_service.py
+- id: arch-infrastructure-admin-console-log-forwarding-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-admin-console-log-forwarding-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/services/clientLogForwarder.ts
 ---
 
 # Admin Console Log Forwarding

@@ -2,9 +2,44 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/docker-compose.yml
+- backend/preview/docker-compose.preview.yml
+- deployment/dev_server/Caddyfile
+claims:
+- id: arch-core-servers-behavior
+  type: unit
+  claim: Server Architecture is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/docker-compose.yml
   - backend/preview/docker-compose.preview.yml
   - deployment/dev_server/Caddyfile
+  - docs/architecture/apps
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-core-servers-behavior
+  verified: '2026-06-11'
+- id: arch-core-servers-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-servers-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/docker-compose.yml
+- id: arch-core-servers-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-servers-source-2
+  anchors:
+  - type: file_exists
+    path: backend/preview/docker-compose.preview.yml
+- id: arch-core-servers-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-servers-source-3
+  anchors:
+  - type: file_exists
+    path: deployment/dev_server/Caddyfile
 ---
 
 # Server Architecture

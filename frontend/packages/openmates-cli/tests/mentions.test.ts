@@ -16,6 +16,17 @@ import {
   type MentionContext,
 } from "../src/mentions.ts";
 
+function docAssert(claimId: string, assertion: () => void): void {
+  try {
+    assertion();
+  } catch (error) {
+    if (error instanceof Error) {
+      error.message = `[doc-assert:${claimId}] ${error.message}`;
+    }
+    throw error;
+  }
+}
+
 /** Minimal mention context for testing */
 const testContext: MentionContext = {
   models: CHAT_MODELS,
@@ -305,12 +316,14 @@ describe("listMentionOptions", () => {
     assert.ok(options.length > 0);
 
     const types = new Set(options.map((o) => o.type));
-    assert.ok(types.has("model_alias"));
-    assert.ok(types.has("model"));
-    assert.ok(types.has("mate"));
-    assert.ok(types.has("skill"));
-    assert.ok(types.has("focus_mode"));
-    assert.ok(types.has("settings_memory"));
+    docAssert("cli-mentions-list-includes-skills-focus-and-memories", () => {
+      assert.ok(types.has("model_alias"));
+      assert.ok(types.has("model"));
+      assert.ok(types.has("mate"));
+      assert.ok(types.has("skill"));
+      assert.ok(types.has("focus_mode"));
+      assert.ok(types.has("settings_memory"));
+    });
   });
 
   it("filters by type", () => {

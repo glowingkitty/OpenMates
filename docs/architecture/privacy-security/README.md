@@ -2,10 +2,23 @@
 status: active
 doc_type: index
 audience:
-  - contributors
-  - technical-users
+- contributors
+- technical-users
 last_verified: 2026-06-10
-claims: []
+claims:
+- id: arch-privacy-security-readme-behavior
+  type: unit
+  claim: Privacy and Security Architecture is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
+  - docs/architecture/privacy-security/README.md
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-privacy-security-readme-behavior
+  verified: '2026-06-11'
+- id: arch-privacy-security-readme-index-scope
+  type: manual
+  reason: 'Index doc: verifies navigation scope through Markdown link validation rather than source-code anchors.'
 ---
 
 # Privacy and Security Architecture

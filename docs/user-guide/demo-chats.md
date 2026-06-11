@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-demo-chats-source
+    type: unit
+    claim: Demo chat guidance is grounded in the demo chat catalog sources.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-demo-chats-source
 ---
 
 # Demo Chats
@@ -40,6 +49,8 @@ Demo chats appear under **Example Chats** in the sidebar. Click any demo to read
 - Content updates are detected automatically -- you always see the latest versions.
 
 ## Sharing a Chat with the Community
+
+Community-demo submission is planned product behavior and may not be available in every build yet.
 
 If you have a great conversation and want to share it as a community demo:
 

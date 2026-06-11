@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-scroll-read-status-source
+    type: unit
+    claim: Scroll and read-status behavior is grounded in current chat UI sources.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-scroll-read-status-source
 ---
 
 # Scroll Position & Read Status

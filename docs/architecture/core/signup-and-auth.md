@@ -2,47 +2,101 @@
 status: active
 doc_type: explanation
 audience:
-  - contributors
+- contributors
 last_verified: 2026-03-24
-claims:
-  - id: auth-login-request-requires-lookup-fields
-    type: backend
-    file: backend/tests/test_auth_endpoints.py
-    assertion: auth-login-request-requires-lookup-fields
-  - id: auth-login-request-defaults-stay-logged-in-off
-    type: backend
-    file: backend/tests/test_auth_endpoints.py
-    assertion: auth-login-request-defaults-stay-logged-in-off
-  - id: auth-login-accepts-supported-methods
-    type: backend
-    file: backend/tests/test_auth_endpoints.py
-    assertion: auth-login-accepts-supported-methods
-  - id: auth-login-routes-use-client-verifier
-    type: backend
-    file: backend/tests/test_auth_endpoints.py
-    assertion: auth-login-routes-use-client-verifier
-  - id: auth-session-falls-back-on-cache-miss
-    type: backend
-    file: backend/tests/test_auth_endpoints.py
-    assertion: auth-session-falls-back-on-cache-miss
-  - id: auth-rest-endpoints-return-errors-not-500
-    type: integration
-    file: backend/tests/test_rest_api_auth.py
-    assertion: auth-rest-endpoints-return-errors-not-500
 coverage:
   policy: assertion-backed
   reviewed_context:
-    - backend/core/api/app/routes/auth_routes/auth_login.py
-    - backend/core/api/app/routes/auth_routes/auth_common.py
-    - backend/core/api/app/schemas/auth.py
+  - backend/core/api/app/routes/auth_routes/auth_login.py
+  - backend/core/api/app/routes/auth_routes/auth_common.py
+  - backend/core/api/app/schemas/auth.py
 key_files:
+- backend/core/api/app/routes/auth_routes/auth_login.py
+- backend/core/api/app/routes/auth_routes/auth_passkey.py
+- backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
+- frontend/packages/ui/src/services/cryptoService.ts
+- frontend/packages/ui/src/services/cryptoKeyStorage.ts
+- frontend/packages/ui/src/components/Login.svelte
+- frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+claims:
+- id: auth-login-request-requires-lookup-fields
+  type: backend
+  file: backend/tests/test_auth_endpoints.py
+  assertion: auth-login-request-requires-lookup-fields
+  claim: Signup & Login documents behavior that is covered by the linked assertion against current source code.
+  source: &id001
   - backend/core/api/app/routes/auth_routes/auth_login.py
   - backend/core/api/app/routes/auth_routes/auth_passkey.py
   - backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
   - frontend/packages/ui/src/services/cryptoService.ts
   - frontend/packages/ui/src/services/cryptoKeyStorage.ts
-  - frontend/packages/ui/src/components/Login.svelte
-  - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+  test:
+    file: backend/tests/test_auth_endpoints.py
+    command: docker exec api python -m pytest /app/backend/tests/test_auth_endpoints.py
+    assertion: auth-login-request-requires-lookup-fields
+  verified: '2026-06-11'
+- id: auth-login-request-defaults-stay-logged-in-off
+  type: backend
+  file: backend/tests/test_auth_endpoints.py
+  assertion: auth-login-request-defaults-stay-logged-in-off
+  claim: Signup & Login documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
+    file: backend/tests/test_auth_endpoints.py
+    command: docker exec api python -m pytest /app/backend/tests/test_auth_endpoints.py
+    assertion: auth-login-request-defaults-stay-logged-in-off
+  verified: '2026-06-11'
+- id: auth-login-accepts-supported-methods
+  type: backend
+  file: backend/tests/test_auth_endpoints.py
+  assertion: auth-login-accepts-supported-methods
+  claim: Signup & Login documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
+    file: backend/tests/test_auth_endpoints.py
+    command: docker exec api python -m pytest /app/backend/tests/test_auth_endpoints.py
+    assertion: auth-login-accepts-supported-methods
+  verified: '2026-06-11'
+- id: auth-login-routes-use-client-verifier
+  type: backend
+  file: backend/tests/test_auth_endpoints.py
+  assertion: auth-login-routes-use-client-verifier
+  claim: Signup & Login documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
+    file: backend/tests/test_auth_endpoints.py
+    command: docker exec api python -m pytest /app/backend/tests/test_auth_endpoints.py
+    assertion: auth-login-routes-use-client-verifier
+  verified: '2026-06-11'
+- id: auth-session-falls-back-on-cache-miss
+  type: backend
+  file: backend/tests/test_auth_endpoints.py
+  assertion: auth-session-falls-back-on-cache-miss
+  claim: Signup & Login documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
+    file: backend/tests/test_auth_endpoints.py
+    command: docker exec api python -m pytest /app/backend/tests/test_auth_endpoints.py
+    assertion: auth-session-falls-back-on-cache-miss
+  verified: '2026-06-11'
+- id: auth-rest-endpoints-return-errors-not-500
+  type: integration
+  file: backend/tests/test_rest_api_auth.py
+  assertion: auth-rest-endpoints-return-errors-not-500
+  claim: Signup & Login documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
+    file: backend/tests/test_rest_api_auth.py
+    command: python3 -m pytest backend/tests/test_rest_api_auth.py
+    assertion: auth-rest-endpoints-return-errors-not-500
+  verified: '2026-06-11'
+- id: arch-core-signup-and-auth-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-signup-and-auth-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/auth_routes/auth_login.py
 ---
 
 # Signup & Login

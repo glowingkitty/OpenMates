@@ -2,10 +2,47 @@
 status: active
 doc_type: explanation
 audience:
-  - contributors
-  - technical-users
+- contributors
+- technical-users
 last_verified: 2026-06-10
-claims: []
+key_files:
+- apple/OpenMates/Sources/App/OpenMatesApp.swift
+- apple/project.yml
+- frontend/packages/ui/src/tokens/generated/swift/
+claims:
+- id: arch-platforms-apple-behavior
+  type: unit
+  claim: Apple Platform is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
+  - apple/OpenMates/Sources/App/OpenMatesApp.swift
+  - apple/project.yml
+  - frontend/packages/ui/src/tokens/generated/swift/
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-platforms-apple-behavior
+  verified: '2026-06-11'
+- id: arch-platforms-apple-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-platforms-apple-source-1
+  anchors:
+  - type: file_exists
+    path: apple/OpenMates/Sources/App/OpenMatesApp.swift
+- id: arch-platforms-apple-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-platforms-apple-source-2
+  anchors:
+  - type: file_exists
+    path: apple/project.yml
+- id: arch-platforms-apple-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-platforms-apple-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/tokens/generated/swift/
 ---
 
 # Apple Platform

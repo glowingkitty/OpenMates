@@ -2,31 +2,59 @@
 status: active
 doc_type: explanation
 audience:
-  - contributors
+- contributors
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/services/cryptoService.ts
+- frontend/packages/ui/src/services/db.ts
+- backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+- backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+- backend/core/api/app/tasks/persistence_tasks.py
+- backend/core/api/app/utils/encryption.py
+- backend/core/directus/schemas/chats.yml
+- backend/core/directus/schemas/messages.yml
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+  - backend/core/api/app/tasks/persistence_tasks.py
+  - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+claims:
+- id: chat-persistence-rejects-vault-ciphertext
+  type: backend
+  file: backend/tests/test_persistence_tasks.py
+  assertion: chat-persistence-rejects-vault-ciphertext
+  claim: Chat Encryption Implementation documents behavior that is covered by the linked assertion against current source
+    code.
+  source: &id001
   - frontend/packages/ui/src/services/cryptoService.ts
   - frontend/packages/ui/src/services/db.ts
   - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
   - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
   - backend/core/api/app/tasks/persistence_tasks.py
-  - backend/core/api/app/utils/encryption.py
-  - backend/core/directus/schemas/chats.yml
-  - backend/core/directus/schemas/messages.yml
-claims:
-  - id: chat-persistence-rejects-vault-ciphertext
-    type: backend
+  test:
     file: backend/tests/test_persistence_tasks.py
+    command: docker exec api python -m pytest /app/backend/tests/test_persistence_tasks.py
     assertion: chat-persistence-rejects-vault-ciphertext
-  - id: chat-persistence-accepts-client-encrypted-base64
-    type: backend
+  verified: '2026-06-11'
+- id: chat-persistence-accepts-client-encrypted-base64
+  type: backend
+  file: backend/tests/test_persistence_tasks.py
+  assertion: chat-persistence-accepts-client-encrypted-base64
+  claim: Chat Encryption Implementation documents behavior that is covered by the linked assertion against current source
+    code.
+  source: *id001
+  test:
     file: backend/tests/test_persistence_tasks.py
+    command: docker exec api python -m pytest /app/backend/tests/test_persistence_tasks.py
     assertion: chat-persistence-accepts-client-encrypted-base64
-coverage:
-  policy: assertion-backed
-  reviewed_context:
-    - backend/core/api/app/tasks/persistence_tasks.py
-    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+  verified: '2026-06-11'
+- id: arch-core-chat-encryption-implementation-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-chat-encryption-implementation-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
 ---
 
 # Chat Encryption Implementation

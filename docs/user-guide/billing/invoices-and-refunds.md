@@ -4,7 +4,12 @@ doc_type: guide
 audience:
   - users
 last_verified: 2026-06-10
-claims: []
+claims:
+  - id: user-guide-billing-invoices-refunds-source
+    type: unit
+    claim: Invoice and refund behavior is grounded in billing overview and account deletion preview sources.
+    file: scripts/tests/test_user_guide_billing_docs_claims.py
+    assertion: user-guide-billing-invoices-refunds-source
 ---
 
 # Invoices and Refunds

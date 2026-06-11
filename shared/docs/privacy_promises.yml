@@ -297,7 +297,7 @@ promises:
         path: backend/tests/test_privacy_promises.py
         marker: cli-no-credential-prompts
         assertion: "Scans frontend/packages/openmates-cli/src/**/*.ts for forbidden credential-prompt strings and credential-input library imports."
-    architecture_doc: docs/architecture/apps/cli-package.md
+    architecture_doc: docs/architecture/platforms/cli-package.md
     surfaced_in_policy: true
 
   - id: open-source-transparency

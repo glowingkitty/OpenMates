@@ -2,10 +2,47 @@
 status: active
 doc_type: explanation
 audience:
-  - contributors
-  - technical-users
+- contributors
+- technical-users
 last_verified: 2026-06-10
-claims: []
+key_files:
+- frontend/apps/web_app/src/routes/+layout.svelte
+- frontend/apps/web_app/scripts/process-docs.js
+- frontend/packages/ui/src/components/ChatHistory.svelte
+claims:
+- id: arch-platforms-web-app-behavior
+  type: unit
+  claim: Web App Platform is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
+  - frontend/apps/web_app/src/routes/+layout.svelte
+  - frontend/apps/web_app/scripts/process-docs.js
+  - frontend/packages/ui/src/components/ChatHistory.svelte
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-platforms-web-app-behavior
+  verified: '2026-06-11'
+- id: arch-platforms-web-app-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-platforms-web-app-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/src/routes/+layout.svelte
+- id: arch-platforms-web-app-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-platforms-web-app-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/scripts/process-docs.js
+- id: arch-platforms-web-app-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-platforms-web-app-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/ChatHistory.svelte
 ---
 
 # Web App Platform

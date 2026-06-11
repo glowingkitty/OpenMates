@@ -2,14 +2,50 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/apps/web_app/src/routes/dev/media/+page.svelte
+- frontend/apps/web_app/src/routes/dev/media/components/MediaCanvas.svelte
+- frontend/apps/web_app/src/routes/dev/media/components/DeviceIframe.svelte
+- frontend/apps/web_app/src/routes/dev/media/components/DevicePhone.svelte
+- frontend/apps/web_app/src/routes/dev/media/components/DeviceLaptop.svelte
+- frontend/apps/web_app/src/routes/dev/media/components/BrandHeader.svelte
+- frontend/apps/web_app/src/routes/dev/media/components/ThemeScope.svelte
+- frontend/apps/web_app/src/routes/dev/media/scripts/capture.spec.ts
+claims:
+- id: arch-integrations-media-generation-behavior
+  type: unit
+  claim: Media Generation is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/apps/web_app/src/routes/dev/media/+page.svelte
   - frontend/apps/web_app/src/routes/dev/media/components/MediaCanvas.svelte
   - frontend/apps/web_app/src/routes/dev/media/components/DeviceIframe.svelte
   - frontend/apps/web_app/src/routes/dev/media/components/DevicePhone.svelte
   - frontend/apps/web_app/src/routes/dev/media/components/DeviceLaptop.svelte
-  - frontend/apps/web_app/src/routes/dev/media/components/BrandHeader.svelte
-  - frontend/apps/web_app/src/routes/dev/media/components/ThemeScope.svelte
-  - frontend/apps/web_app/src/routes/dev/media/scripts/capture.spec.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-integrations-media-generation-behavior
+  verified: '2026-06-11'
+- id: arch-integrations-media-generation-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-integrations-media-generation-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/src/routes/dev/media/+page.svelte
+- id: arch-integrations-media-generation-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-integrations-media-generation-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/src/routes/dev/media/components/BrandHeader.svelte
+- id: arch-integrations-media-generation-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-integrations-media-generation-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/src/routes/dev/media/components/DeviceIframe.svelte
 ---
 
 # Media Generation

@@ -2,6 +2,40 @@
 status: active
 decided: 2026-04-14
 decision: api.video (PAYG)
+last_verified: '2026-06-11'
+key_files:
+- frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+- frontend/packages/ui/src/components/ChatHeader.svelte
+claims:
+- id: arch-infrastructure-video-hosting-behavior
+  type: unit
+  claim: Video Hosting is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
+  - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+  - frontend/packages/ui/src/components/ChatHeader.svelte
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-infrastructure-video-hosting-behavior
+  verified: '2026-06-11'
+- id: arch-infrastructure-video-hosting-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-video-hosting-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+- id: arch-infrastructure-video-hosting-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-video-hosting-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/ChatHeader.svelte
+- id: arch-infrastructure-video-hosting-manual-3
+  type: manual
+  reason: 'Tiny architecture note: source-file existence claims cover the implemented anchor surface; deeper behavior remains
+    covered by linked canonical docs.'
 ---
 
 # Video Hosting

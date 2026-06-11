@@ -1,6 +1,20 @@
 ---
 status: active
-last_verified: 2026-06-06
+doc_type: index
+audience:
+  - technical-users
+last_verified: 2026-06-11
+claims:
+  - id: self-hosting-readme-links-core-guides
+    type: unit
+    claim: The self-hosting index links to setup, server hardening, and Proton Bridge guides.
+    source:
+      - docs/self-hosting/README.md
+    test:
+      file: scripts/tests/test_self_hosting_docs_claims.py
+      command: python3 -m pytest scripts/tests/test_self_hosting_docs_claims.py
+      assertion: self-hosting-readme-links-core-guides
+    verified: '2026-06-11'
 ---
 
 # Self-Hosting

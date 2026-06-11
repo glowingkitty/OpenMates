@@ -2,12 +2,48 @@
 status: active
 last_verified: 2026-04-02
 key_files:
+- scripts/linear-poller.py
+- scripts/linear-enricher.py
+- scripts/session-cleanup.py
+- scripts/_linear_client.py
+- scripts/_zellij_utils.py
+- scripts/linear-cron-setup.sh
+claims:
+- id: arch-infrastructure-linear-auto-processing-behavior
+  type: unit
+  claim: Linear Auto-Processing Pipeline is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - scripts/linear-poller.py
   - scripts/linear-enricher.py
   - scripts/session-cleanup.py
   - scripts/_linear_client.py
   - scripts/_zellij_utils.py
-  - scripts/linear-cron-setup.sh
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-infrastructure-linear-auto-processing-behavior
+  verified: '2026-06-11'
+- id: arch-infrastructure-linear-auto-processing-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-linear-auto-processing-source-1
+  anchors:
+  - type: file_exists
+    path: scripts/_linear_client.py
+- id: arch-infrastructure-linear-auto-processing-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-linear-auto-processing-source-2
+  anchors:
+  - type: file_exists
+    path: scripts/_zellij_utils.py
+- id: arch-infrastructure-linear-auto-processing-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-linear-auto-processing-source-3
+  anchors:
+  - type: file_exists
+    path: scripts/linear-cron-setup.sh
 ---
 
 # Linear Auto-Processing Pipeline

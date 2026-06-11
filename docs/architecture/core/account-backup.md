@@ -2,10 +2,45 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/services/accountExportService.ts
+- frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte
+- frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+- frontend/packages/ui/src/components/settings/notifications/SettingsBackupReminders.svelte
+claims:
+- id: arch-core-account-backup-behavior
+  type: unit
+  claim: Account Backup & Export is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/services/accountExportService.ts
   - frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte
   - frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
   - frontend/packages/ui/src/components/settings/notifications/SettingsBackupReminders.svelte
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-core-account-backup-behavior
+  verified: '2026-06-11'
+- id: arch-core-account-backup-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-account-backup-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte
+- id: arch-core-account-backup-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-account-backup-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte
+- id: arch-core-account-backup-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-account-backup-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/settings/notifications/SettingsBackupReminders.svelte
 ---
 
 # Account Backup & Export

@@ -2,8 +2,38 @@
 status: active
 last_verified: 2026-06-04
 key_files:
+- frontend/packages/ui/src/tokens/sources/colors.yml
+- frontend/packages/ui/src/tokens/generated/theme.generated.css
+claims:
+- id: arch-colors-behavior
+  type: unit
+  claim: Color Tokens is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/tokens/sources/colors.yml
   - frontend/packages/ui/src/tokens/generated/theme.generated.css
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-colors-behavior
+  verified: '2026-06-11'
+- id: arch-colors-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-colors-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/tokens/generated/theme.generated.css
+- id: arch-colors-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-colors-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/tokens/sources/colors.yml
+- id: arch-colors-manual-3
+  type: manual
+  reason: 'Tiny architecture note: source-file existence claims cover the implemented anchor surface; deeper behavior remains
+    covered by linked canonical docs.'
 ---
 
 # Color Tokens

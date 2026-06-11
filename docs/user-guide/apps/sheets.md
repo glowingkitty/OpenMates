@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - end-users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-apps-sheets-source
+    type: unit
+    claim: The Sheets guide is grounded in sheet embed preview/fullscreen components.
+    file: scripts/tests/test_user_guide_app_docs_claims.py
+    assertion: user-guide-apps-sheets-source
 ---
 
 # Sheets

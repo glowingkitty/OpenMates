@@ -4,7 +4,12 @@ doc_type: guide
 audience:
   - users
 last_verified: 2026-06-10
-claims: []
+claims:
+  - id: user-guide-billing-gift-cards-source
+    type: unit
+    claim: Gift-card redemption is grounded in the implemented redeem form and payment routes.
+    file: scripts/tests/test_user_guide_billing_docs_claims.py
+    assertion: user-guide-billing-gift-cards-source
 ---
 
 # Gift Cards
@@ -15,7 +20,7 @@ Redeem a gift card code to add credits to your account.
 
 ## What It Does
 
-Gift cards are single-use codes that add credits to your account. Each card has a set credit value from 1 to 50,000 credits. Once redeemed, the credits are available immediately.
+Gift cards add their stored credit value to your account. Standard cards are single-use; a narrow reusable-card exception exists for infrastructure and smoke-test cards that may also be restricted to a specific email domain. Once a normal card is redeemed, the credits are available immediately.
 
 ## How to Redeem a Gift Card
 
@@ -29,10 +34,10 @@ If you change your mind, click **Cancel** to return to the credit purchase optio
 
 ## What to Know
 
-- **Single-use**: Each gift card can only be redeemed once. After redemption, the code is permanently removed.
+- **Single-use by default**: Standard cards can only be redeemed once. Server-issued reusable test cards are the exception, not the normal user flow.
 - **Case-insensitive**: You can type the code in uppercase or lowercase -- it does not matter.
-- **Flexible amounts**: Gift cards can have any credit value between 1 and 50,000, unlike standard purchase tiers.
-- **No expiration**: Gift card codes do not expire unless the issuer specifies otherwise.
+- **Stored credit value**: The card's configured credit value is added to your current balance.
+- **Immediate update**: Successful redemption updates your credit balance on signed-in devices.
 
 ## Error Messages
 

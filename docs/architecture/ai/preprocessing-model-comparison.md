@@ -2,9 +2,43 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/apps/ai/app.yml
+- backend/tests/test_model_comparison_mistral_vs_ministral.py
+- backend/providers/mistral.yml
+claims:
+- id: arch-ai-preprocessing-model-comparison-behavior
+  type: unit
+  claim: Preprocessing Model Comparison Report is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/ai/app.yml
   - backend/tests/test_model_comparison_mistral_vs_ministral.py
   - backend/providers/mistral.yml
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-ai-preprocessing-model-comparison-behavior
+  verified: '2026-06-11'
+- id: arch-ai-preprocessing-model-comparison-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-preprocessing-model-comparison-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/app.yml
+- id: arch-ai-preprocessing-model-comparison-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-preprocessing-model-comparison-source-2
+  anchors:
+  - type: file_exists
+    path: backend/providers/mistral.yml
+- id: arch-ai-preprocessing-model-comparison-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-preprocessing-model-comparison-source-3
+  anchors:
+  - type: file_exists
+    path: backend/tests/test_model_comparison_mistral_vs_ministral.py
 ---
 
 # Preprocessing Model Comparison Report

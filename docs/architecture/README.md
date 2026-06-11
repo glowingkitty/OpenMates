@@ -68,8 +68,8 @@ Technical implementation details for the apps system. For user-facing app guides
 - [Focus Modes Implementation](apps/focus-modes-implementation.md) - Focus mode technical details
 - [Action Confirmation](apps/action-confirmation.md) - User confirmation for destructive actions
 - [REST API](apps/rest-api.md) - OpenAI-compatible API endpoints
-- [CLI Package](apps/cli-package.md) - OpenMates CLI package architecture
-- [CLI Feature Parity](apps/cli-feature-parity.md) - Web app versus CLI capability matrix and roadmap
+
+CLI architecture lives under [Platforms](platforms/README.md), not Apps, because the Apps section is reserved for the OpenMates apps model: apps, skills, focus modes, and memory types.
 
 ## Frontend
 

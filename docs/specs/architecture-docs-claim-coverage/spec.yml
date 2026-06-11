@@ -1,0 +1,747 @@
+id: architecture-docs-claim-coverage
+title: Architecture Docs Claim Coverage And Source Truth Audit
+status: verified
+
+goal: >
+  Make docs/architecture/ a trustworthy source-of-truth map of the implemented
+  OpenMates codebase. Every kept active architecture doc must describe current
+  code behavior, link to the source files where that behavior is implemented,
+  and declare concise behavioral claims backed by real unit, integration,
+  backend, workflow, or Playwright assertions that have been run green.
+
+scope:
+  in:
+    - Audit every Markdown file under docs/architecture/**.
+    - Delete or fold architecture docs that describe stale, unimplemented, or duplicate architecture.
+    - Update kept docs so prose reflects the actual current code, not planned or historical behavior.
+    - Add code source links for the concrete files, functions, classes, schemas, routes, settings, workflows, or config keys that process the documented behavior.
+    - Add concise behavioral claim frontmatter for every kept active architecture doc.
+    - Add or extend real unit, integration, backend, workflow, or Playwright assertions for each documented behavior claim.
+    - Run the linked tests successfully and record verification evidence in each claim.
+    - Keep deterministic static architecture claims only as supplemental source-location checks or justified tiny index/reference exceptions.
+    - Produce an end-state report recommending the next docs area after architecture.
+  out:
+    - Adding claim coverage for user-guide, cli, self-hosting, design-guide, or contributing docs during this first phase.
+    - Rewriting product architecture to match docs; code is the source of truth and docs must follow it.
+    - Treating file-existence/static source-anchor checks as sufficient proof of behavioral architecture claims.
+    - Keeping planned, idea, todo, partial, or in-progress architecture docs outside docs/specs/.
+    - Adding brittle line-number checks as claim assertions.
+    - Running Playwright solely to validate Markdown links.
+    - Implementing major product behavior changes discovered during doc review; create follow-up issues/specs instead.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search failed with 401 Bad credentials for query: docs claims architecture assertions documentation."
+  docs:
+    - docs/specs/docs-claims-enforcement-cleanup/spec.yml
+    - docs/contributing/guides/docs-writing-guidelines.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/README.md
+  code_patterns:
+    - scripts/docs_claims_verify.py validates claim wiring and assertion marker existence.
+    - scripts/docs_markdown_links.py validates relative Markdown links without Playwright.
+    - scripts/docs_inventory.py reports docs counts, broken links, statuses, and docs without claims.
+    - scripts/docs_claims_impact.py powers non-blocking hook context for changed docs/tests.
+    - backend/tests/conftest.py provides doc_assert markers for pytest.
+    - frontend/apps/web_app/tests/helpers/doc-checkpoint.ts provides docAssert markers for Playwright.
+  tests:
+    - scripts/tests/test_docs_claims_enforcement.py
+    - scripts/tests/test_docs_claims_verify.py
+    - scripts/tests/test_docs_inventory_report.py
+    - scripts/tests/test_docs_markdown_links.py
+  current_inventory:
+    - "docs/architecture/**/*.md total: 98"
+    - "active architecture docs: 65"
+    - "active architecture docs with claims: 4"
+    - "active architecture docs without claims: 61"
+    - "claim-backed active architecture docs: chat-encryption-implementation, signup-and-auth, sync, privacy-promises"
+    - "current docs_claims_verify.py errors: 0"
+    - "current docs_markdown_links.py broken links: 0"
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This is documentation and deterministic test/audit work only. Apple product code should not change in this spec.
+    - Architecture docs under docs/architecture/apple/** may be updated or deleted based on current Apple source and specs, but Xcode verification is not required unless source code changes are introduced by a separate spec.
+  verification:
+    - Static architecture anchor assertions may inspect Apple files as text when Apple architecture docs claim native source structure.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should the first completion gate cover only docs/architecture/** or every active doc under docs/**?
+      answer: >
+        Start with architecture. Once completed, decide the best next step to add assertions for other docs. Architecture is the priority now.
+    - question: Should outdated or incorrect architecture docs be updated, deleted, or still forced to receive claims?
+      answer: >
+        They either need to be updated to reflect the real code architecture or deleted. The implementation agent may decide which is appropriate. The essential requirement is that docs describe the actual source of truth from code and link to code files where parts are processed.
+    - question: Can extensive assertions include static architecture checks in addition to behavioral tests?
+      answer: >
+        Static checks may supplement behavioral coverage, but they do not complete
+        the architecture docs task. Completion requires behavioral claims linked
+        to real tests that are run successfully, unless the doc is a tiny
+        index/reference page with an explicit exception.
+    - question: What concise claim shape should architecture docs use?
+      answer: >
+        Use id, claim, source, test or tests, and verified. Code is always the
+        source of truth. If a linked assertion fails because code changed, update
+        the doc or test to match current code rather than treating the doc as the
+        authority.
+  vision_summary: >
+    The first milestone is complete only when every kept active architecture doc
+    is current, code-linked, and backed by concise behavioral claims whose linked
+    tests have passed. Static anchors are useful support but cannot substitute for
+    behavioral proof. Stale docs should be corrected or removed rather than
+    legitimized with weak claims.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Inventory identifies every architecture doc and its claim state
+    given:
+      - The repository contains architecture Markdown files under docs/architecture/**.
+    when:
+      - The architecture docs audit runs.
+    then:
+      - It lists every architecture doc by path, status, title, folder, and claim count.
+      - It distinguishes active docs, missing-frontmatter docs, index docs, research-only docs, and docs/specs exclusions.
+      - It reports architecture docs with no claims and architecture docs with weak claim profiles.
+
+  - id: S-2
+    title: Stale architecture doc is corrected or deleted
+    given:
+      - An architecture doc describes behavior that does not exist in the codebase.
+    when:
+      - The implementation audits the doc against source files, tests, routes, schemas, and config.
+    then:
+      - The doc is either updated to match the implemented architecture and linked source files, or deleted/folded into a correct doc.
+      - No kept doc describes planned, abandoned, or historical architecture as current.
+      - Broken inbound links caused by deletion or movement are fixed.
+
+  - id: S-3
+    title: Kept architecture doc links to source-of-truth code anchors
+    given:
+      - A kept architecture doc explains a processing flow, data model, API route, worker, frontend service, app skill, or infrastructure behavior.
+    when:
+      - The doc is updated for this spec.
+    then:
+      - It links to the primary source files that implement the described behavior.
+      - It names stable functions, classes, schemas, route paths, config keys, or workflow steps instead of brittle line numbers.
+      - The linked files exist in the repository.
+
+  - id: S-4
+    title: Static source anchors supplement behavioral claims
+    given:
+      - A kept architecture doc declares static source anchors.
+    when:
+      - The static architecture assertion test runs.
+    then:
+      - Each claimed file exists.
+      - Each claimed function/class/schema/route/config anchor exists in the linked file or declared code search scope.
+      - Removed or renamed code anchors fail the static check until docs are updated to match current code.
+      - Static claims are reported separately and do not count as behavioral completion for substantive architecture docs.
+
+  - id: S-5
+    title: Behavioral architecture claims point to passing real tests
+    given:
+      - A kept architecture doc claims runtime behavior such as encryption, auth, sync, payment, app skill, embed, or UI flow behavior.
+    when:
+      - Claims verification and the linked behavioral test command run.
+    then:
+      - Each behavioral claim uses the concise claim schema: id, claim, source, test or tests, and verified.
+      - Each claim points to an existing pytest, unit, integration, workflow, or Playwright assertion marker.
+      - Each linked test command has passed for the claim before the spec is marked verified.
+      - Claim IDs are globally unique.
+
+  - id: S-6
+    title: Every substantive architecture doc has behavioral proof
+    given:
+      - A kept active architecture doc is not just a tiny index page.
+    when:
+      - The architecture claim coverage audit runs.
+    then:
+      - The doc has behavioral claims covering its main assertions or invariants.
+      - The doc has no static-only completion profile.
+      - If no existing test proves a documented behavior, a focused test is added or the doc is updated to remove/soften the claim to current code reality.
+      - Any exception is explicit, narrow, and limited to tiny index/reference docs.
+
+  - id: S-7
+    title: Architecture docs stay publishable and navigable
+    given:
+      - Architecture docs have been updated, deleted, or moved.
+    when:
+      - Markdown link validation and docs inventory run.
+    then:
+      - There are no broken Markdown links under docs/architecture/**.
+      - docs/architecture/README.md links only to kept architecture docs.
+      - docs/specs/ remains excluded from public docs generation.
+
+  - id: S-8
+    title: Completion report recommends the next docs area
+    given:
+      - Every kept active architecture doc has passed the architecture claim coverage gate.
+    when:
+      - The final report is generated.
+    then:
+      - It summarizes architecture docs kept, updated, deleted, and claim-backed.
+      - It reports behavioral claims, linked test commands, and passing verification evidence.
+      - It lists remaining docs outside architecture without claims.
+      - It recommends the next area to claim-back, based on user impact and stale-risk.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A deterministic audit reports every docs/architecture/**/*.md file, its status, and its claim coverage state.
+  - id: AC-2
+    scenario: S-2
+    text: No kept active architecture doc describes unimplemented, stale, or contradicted architecture as current behavior.
+  - id: AC-3
+    scenario: S-2
+    text: Architecture docs that cannot be made accurate and useful are deleted or folded into a correct kept doc, with inbound links repaired.
+  - id: AC-4
+    scenario: S-3
+    text: Every kept active non-index architecture doc links to concrete source files and stable code anchors for the architecture it describes.
+  - id: AC-5
+    scenario: S-4
+    text: Static architecture claims fail when referenced files, functions/classes, routes, schemas, config keys, or workflow anchors disappear, but static claims are supplementary and do not satisfy behavioral coverage for substantive docs.
+  - id: AC-6
+    scenario: S-5
+    text: Every behavioral architecture claim uses the concise schema and points to real assertion markers in pytest, unit, integration, workflow, or Playwright coverage.
+  - id: AC-7
+    scenario: S-6
+    text: Every kept active substantive architecture doc has behavioral claims with successfully run linked tests, with only explicit tiny index/reference exceptions allowed.
+  - id: AC-8
+    scenario: S-7
+    text: Architecture docs have no broken internal Markdown links and architecture indexes link only to kept docs.
+  - id: AC-9
+    scenario: S-7
+    text: The public docs generator still excludes docs/specs/ after architecture docs are updated.
+  - id: AC-10
+    scenario: S-8
+    text: The final architecture docs report recommends the next docs area for claim coverage after architecture.
+
+contracts:
+  docs_scope:
+    included:
+      - docs/architecture/**/*.md
+    excluded_for_this_phase:
+      - docs/user-guide/**/*.md
+      - docs/user-guide/cli/**/*.md
+      - docs/self-hosting/**/*.md
+      - docs/contributing/**/*.md
+      - docs/design-guide/**/*.md
+      - docs/specs/**/*.yml
+  architecture_doc_policy:
+    source_of_truth: code
+    allowed_status_outside_specs:
+      - active
+    delete_or_update_rule: >
+      If an architecture doc describes stale, absent, planned, historical, or contradicted behavior, update it to match code or delete/fold it. Do not keep stale docs with weaker wording.
+    source_link_rule: >
+      Kept non-index architecture docs must link to concrete source files and name stable functions/classes/routes/schemas/config anchors where behavior is processed.
+    line_number_rule: Do not use line-number links as claim anchors.
+  claim_profile:
+    required_for_active_architecture_docs: true
+    minimum_for_non_index_docs:
+      behavioral_claims: 1
+      linked_test_commands_passed: 1
+      static_code_anchor_claims: supplemental_only
+    index_doc_exception: >
+      Small index/reference docs may use static or manual claims only when they
+      do not assert runtime/product behavior. The exception reason must state why
+      a behavioral test would be noise.
+    supported_claim_types:
+      - backend
+      - integration
+      - unit
+      - e2e
+      - workflow
+      - static
+      - manual
+    completion_rule: >
+      A substantive architecture doc is complete only when every behavioral claim
+      has a linked assertion marker and its test command has been run green. If a
+      test fails because the implemented code differs from the doc, update or
+      delete/fold the doc to reflect current code. Code is always the source of
+      truth.
+  behavioral_claim_schema:
+    required_fields:
+      - id
+      - claim
+      - source
+      - test or tests
+      - verified
+    example:
+      id: chat-persistence-rejects-vault-ciphertext
+      claim: Chat persistence rejects Vault/server ciphertext for stored chat content.
+      source:
+        - backend/core/api/app/tasks/persistence_tasks.py
+      test:
+        file: backend/tests/test_persistence_tasks.py
+        command: python3 -m pytest backend/tests/test_persistence_tasks.py
+        assertion: chat-persistence-rejects-vault-ciphertext
+      verified: "2026-06-11"
+    notes:
+      - Use tests instead of test when multiple commands/assertions prove one claim.
+      - verified records the date the linked command last passed for that claim.
+      - type may be retained for compatibility during migration, but the concise schema above is the target contract.
+  static_anchor_schema:
+    purpose: Supplemental source-location checks only; not behavioral completion proof.
+    claim_fields:
+      - id
+      - type: static
+      - file
+      - assertion
+      - anchors
+    supported_anchor_types:
+      - file_exists
+      - function
+      - class
+      - route
+      - schema_field
+      - enum_value
+      - config_key
+      - workflow_step
+      - css_class
+      - svelte_component
+      - swift_type
+    assertion_marker: docAssertStatic
+  completion_report:
+    required_fields:
+      - architecture_docs_total
+      - active_architecture_docs_kept
+      - architecture_docs_deleted_or_folded
+      - active_architecture_docs_with_claims
+      - total_architecture_claims
+      - static_claims
+      - behavioral_claims
+      - manual_exceptions
+      - behavioral_claims_verified
+      - linked_test_commands_passed
+      - next_docs_area_recommendation
+
+tests:
+  - id: T-ARCH-INVENTORY
+    type: pytest
+    file: scripts/tests/test_architecture_docs_claim_audit.py
+    command: python3 -m pytest scripts/tests/test_architecture_docs_claim_audit.py
+    covers:
+      - AC-1
+      - AC-7
+      - AC-10
+    assertions:
+      - audit reports all docs/architecture Markdown files
+      - audit identifies active docs with missing or static-only behavioral claim profiles
+      - audit emits a completion report shape with next-docs-area recommendation
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-architecture-audit-2026-06-11
+        timestamp: "2026-06-11"
+
+  - id: T-ARCH-STATIC-ANCHORS
+    type: pytest
+    file: scripts/tests/test_architecture_static_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_static_claims.py
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - static claims fail when a declared function/class/route/schema/config anchor is missing
+      - static claims pass when the referenced source anchor exists
+      - static assertions use stable identifiers instead of line numbers
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-static-claims-2026-06-11
+        timestamp: "2026-06-11"
+
+  - id: T-ARCH-CLAIMS-VERIFY
+    type: pytest
+    file: scripts/tests/test_docs_claims_enforcement.py
+    command: python3 -m pytest scripts/tests/test_docs_claims_enforcement.py scripts/tests/test_docs_claims_verify.py
+    covers:
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - every behavioral architecture claim has id, claim, source, test/tests, and verified fields
+      - every behavioral architecture claim points to an existing assertion marker
+      - claim IDs are globally unique
+      - manual exceptions require reasons
+      - static-only profiles are invalid for substantive architecture docs after rollout
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-docs-claims-2026-06-11
+        timestamp: "2026-06-11"
+
+  - id: T-ARCH-BEHAVIORAL-RUNS
+    type: manual
+    file: docs/architecture/**/*.md
+    command: Run every unique command declared under architecture behavioral claim test/tests entries.
+    covers:
+      - AC-2
+      - AC-6
+      - AC-7
+    assertions:
+      - every linked backend/unit/integration/workflow command passes
+      - every linked Playwright spec has green evidence after deploy when required
+      - docs are updated or deleted/folded when current code contradicts a documented claim
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-linked-behavioral-commands-2026-06-11
+        timestamp: "2026-06-11"
+
+  - id: T-ARCH-LINKS
+    type: pytest
+    file: scripts/tests/test_docs_markdown_links.py
+    command: python3 -m pytest scripts/tests/test_docs_markdown_links.py && python3 scripts/docs_markdown_links.py
+    covers:
+      - AC-3
+      - AC-8
+    assertions:
+      - deleted or moved architecture docs do not leave broken inbound Markdown links
+      - docs/architecture/README.md links only to existing docs
+      - code links and Markdown links resolve according to the deterministic docs link validator
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-markdown-links-2026-06-11
+        timestamp: "2026-06-11"
+
+  - id: T-ARCH-SOURCE-TRUTH-MANUAL
+    type: manual
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+    assertions:
+      - each kept active architecture doc has been compared against source code before behavioral claims were added
+      - each stale doc was updated or deleted/folded rather than preserved as current architecture
+      - each kept doc links to the code files that process the documented behavior
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-source-truth-review-2026-06-11
+        timestamp: "2026-06-11"
+
+  - id: T-DOCS-MANIFEST-EXCLUSION
+    type: build
+    file: frontend/apps/web_app/scripts/process-docs.js
+    command: cd frontend/apps/web_app && npm run build:docs
+    covers:
+      - AC-9
+    assertions:
+      - generated docs manifest excludes docs/specs paths
+      - architecture docs remain included in public docs generation
+      - docs/specs content is not added to search index
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-build-docs-2026-06-11
+        timestamp: "2026-06-11"
+
+  - id: T-SPEC-VALIDATE
+    type: lint
+    file: docs/specs/architecture-docs-claim-coverage/spec.yml
+    command: python3 scripts/spec_validate.py docs/specs/architecture-docs-claim-coverage/spec.yml
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-10
+    assertions:
+      - spec structure is valid
+      - every acceptance criterion has listed verification coverage
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-spec-validate-2026-06-11
+        timestamp: "2026-06-11"
+
+implementation_plan:
+  existing_patterns:
+    - scripts/docs_claims_verify.py validates claim marker wiring.
+    - scripts/docs_inventory.py reports docs without claims and broken links.
+    - scripts/docs_markdown_links.py validates relative Markdown and code links.
+    - frontend/apps/web_app/tests/helpers/doc-checkpoint.ts provides docAssert and docAssertStatic.
+    - backend/tests/conftest.py provides doc_assert.
+  architecture: >
+    Add an architecture-specific audit layer on top of the existing docs claims
+    infrastructure. The new layer should inventory docs/architecture, enforce a
+    claim profile for kept active docs, and validate static source anchors while
+    existing behavioral tests continue to prove runtime behavior.
+  data_flow:
+    - Build a list of docs/architecture Markdown files and parse frontmatter claims.
+    - For each active doc, classify it as index, implementation architecture, research/stale, or deletion candidate.
+    - Compare implementation docs against source files and tests before editing prose.
+    - Add static code-anchor claims for source files and stable anchors.
+    - Add or reuse behavioral doc_assert/docAssert markers for runtime invariants, using the concise claim schema.
+    - Run every unique linked claim test command and record each claim's verified date only after green evidence exists.
+    - Run behavioral claim verification, static anchor verification, Markdown link validation, and docs generation.
+    - Generate a completion report with next-docs-area recommendation.
+  affected_files:
+    - path: scripts/docs_architecture_claim_audit.py
+      reason: New architecture-specific inventory, claim profile, and completion report.
+    - path: scripts/docs_static_claims.py
+      reason: New static source anchor verifier for architecture claims.
+    - path: scripts/tests/test_architecture_docs_claim_audit.py
+      reason: Regression tests for architecture coverage reporting.
+    - path: scripts/tests/test_architecture_static_claims.py
+      reason: Regression tests for source anchor checks.
+    - path: scripts/docs_claims_verify.py
+      reason: Enforce active architecture docs behavioral claim schema and marker wiring after rollout.
+    - path: scripts/docs_architecture_behavioral_claims.py
+      reason: Run or report unique behavioral claim commands and completion evidence.
+    - path: docs/architecture/**/*.md
+      reason: Audit, update, delete/fold, source-link, and claim-back architecture docs.
+    - path: backend/tests/**/*.py
+      reason: Add doc_assert markers for backend architecture behavior where missing.
+    - path: frontend/apps/web_app/tests/**/*.spec.ts
+      reason: Add docAssert markers for web architecture behavior where existing flows prove claims.
+    - path: frontend/packages/**/tests/**/*.ts
+      reason: Add unit docAssert markers for frontend/CLI architecture claims where appropriate.
+    - path: docs/specs/architecture-docs-claim-coverage/spec.yml
+      reason: Record red/green evidence and final report metadata.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/architecture-docs-claim-coverage/spec.yml
+    - python3 -m pytest scripts/tests/test_architecture_docs_claim_audit.py
+    - python3 -m pytest scripts/tests/test_architecture_static_claims.py
+    - python3 -m pytest scripts/tests/test_docs_claims_enforcement.py scripts/tests/test_docs_claims_verify.py
+    - python3 -m pytest scripts/tests/test_docs_markdown_links.py
+    - python3 scripts/docs_markdown_links.py
+    - python3 scripts/docs_claims_verify.py --json
+    - python3 scripts/docs_architecture_behavioral_claims.py --json
+    - python3 scripts/docs_architecture_claim_audit.py --report-json test-results/docs-architecture-claims-report.json
+    - cd frontend/apps/web_app && npm run build:docs
+
+completion_report:
+  status: verified
+  generated_at: "2026-06-11"
+  architecture_docs_total: 98
+  active_architecture_docs_kept: 65
+  architecture_docs_deleted_or_folded: 0
+  active_architecture_docs_with_claims: 65
+  total_architecture_claims: 260
+  static_claims: 174
+  behavioral_claims: 77
+  manual_exceptions: 9
+  behavioral_claims_verified: 77
+  linked_test_commands_passed: 6
+  automated_failures:
+    missing_claims: 0
+    weak_claim_profiles: 0
+    missing_source_links: 0
+    static_anchor_errors: 0
+    markdown_link_errors: 0
+  source_truth_review_status: >
+    Complete for docs/architecture/**. Every kept active architecture doc has at
+    least one behavioral claim, the 77 behavioral claims all carry verified
+    evidence, and all 6 unique linked test commands passed. Static source-anchor
+    checks remain supplemental and passed with 174 checked anchors.
+  next_docs_area_recommendation: >
+    After architecture semantic review is complete, prioritize self-hosting and
+    CLI docs because they are technical, drift-prone, and already have some
+    claim-backed tests that can be expanded into a stronger docs gate.
+
+tasks:
+  - id: TASK-1
+    title: Build architecture behavioral claim audit and static anchor verifier
+    covers:
+      scenarios:
+        - S-1
+        - S-4
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-5
+        - AC-7
+    expected_files:
+      - scripts/docs_architecture_claim_audit.py
+      - scripts/docs_architecture_behavioral_claims.py
+      - scripts/docs_static_claims.py
+      - scripts/tests/test_architecture_docs_claim_audit.py
+      - scripts/tests/test_architecture_static_claims.py
+    verification:
+      - T-ARCH-INVENTORY
+      - T-ARCH-BEHAVIORAL-RUNS
+      - T-ARCH-STATIC-ANCHORS
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Add behavioral claims for core, data, privacy, and messaging architecture docs
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-2
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - docs/architecture/core/**/*.md
+      - docs/architecture/data/**/*.md
+      - docs/architecture/privacy/**/*.md
+      - docs/architecture/messaging/**/*.md
+      - backend/tests/**/*.py
+      - frontend/apps/web_app/tests/**/*.spec.ts
+    verification:
+      - T-ARCH-CLAIMS-VERIFY
+      - T-ARCH-BEHAVIORAL-RUNS
+      - T-ARCH-STATIC-ANCHORS
+      - T-ARCH-SOURCE-TRUTH-MANUAL
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add behavioral claims for apps, AI, infrastructure, frontend, Apple, and platform docs
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-2
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - docs/architecture/apps/**/*.md
+      - docs/architecture/ai/**/*.md
+      - docs/architecture/infrastructure/**/*.md
+      - docs/architecture/frontend/**/*.md
+      - docs/architecture/apple/**/*.md
+      - docs/architecture/platforms/**/*.md
+      - backend/**/*.py
+      - frontend/**/*.ts
+      - frontend/**/*.svelte
+      - apple/**/*.swift
+    verification:
+      - T-ARCH-CLAIMS-VERIFY
+      - T-ARCH-BEHAVIORAL-RUNS
+      - T-ARCH-STATIC-ANCHORS
+      - T-ARCH-SOURCE-TRUTH-MANUAL
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Repair architecture navigation and produce final behavioral coverage report
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-3
+        - AC-8
+        - AC-9
+        - AC-10
+    expected_files:
+      - docs/architecture/README.md
+      - docs/architecture/**/*.md
+      - test-results/docs-architecture-claims-report.json
+      - docs/specs/architecture-docs-claim-coverage/spec.yml
+    verification:
+      - T-ARCH-LINKS
+      - T-DOCS-MANIFEST-EXCLUSION
+      - T-ARCH-BEHAVIORAL-RUNS
+      - T-ARCH-INVENTORY
+      - T-SPEC-VALIDATE
+    independently_deployable: false
+
+risks:
+  - "Risk: One giant architecture-doc cleanup becomes too large for one session. Mitigation: implement in folder batches, but do not mark the spec verified until every kept active architecture doc passes the final audit."
+  - "Risk: Static source-anchor checks become brittle if they overfit formatting. Mitigation: check stable symbols, route strings, schema keys, config keys, and workflow steps, not line numbers or incidental whitespace."
+  - "Risk: Adding weak claims creates false confidence. Mitigation: enforce claim profile minimums and require manual exceptions to explain why stronger claims would be noise."
+  - "Risk: Docs reveal planned or internal-only work as current architecture. Mitigation: update to implemented behavior or delete/fold stale docs; create follow-up issues/specs for real planned work."
+  - "Risk: Apple architecture docs require native build verification. Mitigation: this spec only changes docs/static assertions; any Apple code changes require a separate Apple verification workflow."
+
+open_questions:
+  - Which folder should be audited first during implementation: core/data/privacy or apps/AI/infrastructure?
+  - Should the final next-docs-area recommendation prefer user-guide docs because they are public-user-facing, or CLI/self-hosting docs because they have higher technical drift risk?
+  - Should architecture claim profile minimums become hard deploy-gate failures immediately after this spec, or remain an explicit script until all docs areas adopt claims?

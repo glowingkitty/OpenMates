@@ -2,8 +2,38 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/apps/events/providers/luma.py
+- scripts/api_tests/test_luma_api.py
+claims:
+- id: arch-integrations-luma-behavior
+  type: unit
+  claim: Luma Integration is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/events/providers/luma.py
   - scripts/api_tests/test_luma_api.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-integrations-luma-behavior
+  verified: '2026-06-11'
+- id: arch-integrations-luma-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-integrations-luma-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/events/providers/luma.py
+- id: arch-integrations-luma-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-integrations-luma-source-2
+  anchors:
+  - type: file_exists
+    path: scripts/api_tests/test_luma_api.py
+- id: arch-integrations-luma-manual-3
+  type: manual
+  reason: 'Tiny architecture note: source-file existence claims cover the implemented anchor surface; deeper behavior remains
+    covered by linked canonical docs.'
 ---
 
 # Luma Integration

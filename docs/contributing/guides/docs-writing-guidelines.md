@@ -303,7 +303,7 @@ When updating code, check if it appears in `docs/architecture/code-mapping.yml` 
 | `design-guide/` | AI + Developers | UI/UX principles, component guidelines |
 | `user-guide/` | End users | Feature documentation |
 | `user-guide/apps/` | End users | Per-app feature docs |
-| `cli/` | End users | CLI command reference |
+| `user-guide/cli/` | End users | CLI command reference |
 | `self-hosting/` | Self-hosters | Deployment instructions |
 | `images/{mirrors above}/` | All | Screenshots and diagrams |
 

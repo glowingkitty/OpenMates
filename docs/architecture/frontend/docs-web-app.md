@@ -2,17 +2,53 @@
 status: active
 last_verified: 2026-06-03
 key_files:
+- frontend/apps/web_app/scripts/process-docs.js
+- frontend/apps/web_app/scripts/vite-plugin-docs.js
+- frontend/apps/web_app/src/routes/docs/+layout.svelte
+- frontend/apps/web_app/src/routes/docs/+page.ts
+- frontend/apps/web_app/src/routes/docs/[...slug]/+page.svelte
+- frontend/apps/web_app/src/routes/docs/[...slug]/+page.ts
+- frontend/apps/web_app/src/routes/docs/api/+page.svelte
+- frontend/apps/web_app/src/lib/components/docs/DocsSidebar.svelte
+- frontend/apps/web_app/src/lib/components/docs/DocsMessage.svelte
+- frontend/apps/web_app/src/lib/generated/docs-manifest.json
+- frontend/apps/web_app/static/generated/docs/
+claims:
+- id: arch-frontend-docs-web-app-behavior
+  type: unit
+  claim: Docs Web App is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/apps/web_app/scripts/process-docs.js
   - frontend/apps/web_app/scripts/vite-plugin-docs.js
   - frontend/apps/web_app/src/routes/docs/+layout.svelte
   - frontend/apps/web_app/src/routes/docs/+page.ts
   - frontend/apps/web_app/src/routes/docs/[...slug]/+page.svelte
-  - frontend/apps/web_app/src/routes/docs/[...slug]/+page.ts
-  - frontend/apps/web_app/src/routes/docs/api/+page.svelte
-  - frontend/apps/web_app/src/lib/components/docs/DocsSidebar.svelte
-  - frontend/apps/web_app/src/lib/components/docs/DocsMessage.svelte
-  - frontend/apps/web_app/src/lib/generated/docs-manifest.json
-  - frontend/apps/web_app/static/generated/docs/
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-frontend-docs-web-app-behavior
+  verified: '2026-06-11'
+- id: arch-frontend-docs-web-app-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-docs-web-app-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/scripts/process-docs.js
+- id: arch-frontend-docs-web-app-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-docs-web-app-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/scripts/vite-plugin-docs.js
+- id: arch-frontend-docs-web-app-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-docs-web-app-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/apps/web_app/src/lib/components/docs/DocsMessage.svelte
 ---
 
 # Docs Web App

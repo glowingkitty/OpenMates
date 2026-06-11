@@ -20,11 +20,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DOCS_ROOT = REPO_ROOT / "docs"
 USER_GUIDE_ROOT = DOCS_ROOT / "user-guide"
-VALID_CLAIM_TYPES = {"e2e", "unit", "backend", "integration", "static", "manual"}
+VALID_CLAIM_TYPES = {"e2e", "unit", "backend", "integration", "workflow", "static", "manual"}
 INVALID_NON_SPEC_STATUSES = {"planned", "idea", "todo", "in-progress", "partial", "implemented"}
 SUPPORTED_ASSERTION_MARKERS = (
     "docAssert",
@@ -40,6 +42,10 @@ class Claim:
     file: str | None
     assertion: str | None
     reason: str | None
+    claim: str | None = None
+    source: tuple[str, ...] = ()
+    tests: tuple[dict[str, str], ...] = ()
+    verified: str | None = None
 
 
 @dataclass(frozen=True)
@@ -72,6 +78,13 @@ def _extract_frontmatter(markdown: str) -> list[str]:
     return []
 
 
+def _load_frontmatter(frontmatter: list[str]) -> dict[str, Any]:
+    if not frontmatter:
+        return {}
+    data = yaml.safe_load("\n".join(frontmatter))
+    return data if isinstance(data, dict) else {}
+
+
 def _parse_scalar(frontmatter: list[str], key: str) -> str | None:
     prefix = f"{key}:"
     for line in frontmatter:
@@ -101,6 +114,11 @@ def _parse_string_list(frontmatter: list[str], key: str) -> tuple[str, ...]:
 
 
 def _parse_claims(frontmatter: list[str]) -> tuple[Claim, ...]:
+    data = _load_frontmatter(frontmatter)
+    raw_claims = data.get("claims")
+    if isinstance(raw_claims, list):
+        return tuple(_claim_from_mapping(claim) for claim in raw_claims if isinstance(claim, dict))
+
     claims: list[Claim] = []
     current: dict[str, str] | None = None
     in_claims = False
@@ -144,15 +162,59 @@ def _parse_claims(frontmatter: list[str]) -> tuple[Claim, ...]:
     return tuple(claims)
 
 
+def _string_tuple(value: Any) -> tuple[str, ...]:
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, list):
+        return tuple(item for item in value if isinstance(item, str))
+    return ()
+
+
+def _claim_tests(claim: dict[str, Any]) -> tuple[dict[str, str], ...]:
+    raw_tests = claim.get("tests")
+    if isinstance(raw_tests, list):
+        tests = raw_tests
+    elif isinstance(claim.get("test"), dict):
+        tests = [claim["test"]]
+    elif claim.get("file") or claim.get("assertion"):
+        tests = [{"file": claim.get("file"), "assertion": claim.get("assertion")}]
+    else:
+        tests = []
+    normalized: list[dict[str, str]] = []
+    for test in tests:
+        if not isinstance(test, dict):
+            continue
+        normalized.append({key: value for key, value in test.items() if isinstance(key, str) and isinstance(value, str)})
+    return tuple(normalized)
+
+
+def _claim_from_mapping(claim: dict[str, Any]) -> Claim:
+    tests = _claim_tests(claim)
+    first_test = tests[0] if tests else {}
+    claim_type = str(claim.get("type") or "unit")
+    return Claim(
+        id=str(claim.get("id") or ""),
+        type=claim_type,
+        file=claim.get("file") if isinstance(claim.get("file"), str) else first_test.get("file"),
+        assertion=claim.get("assertion") if isinstance(claim.get("assertion"), str) else first_test.get("assertion"),
+        reason=claim.get("reason") if isinstance(claim.get("reason"), str) else None,
+        claim=claim.get("claim") if isinstance(claim.get("claim"), str) else None,
+        source=_string_tuple(claim.get("source")),
+        tests=tests,
+        verified=str(claim.get("verified")) if claim.get("verified") is not None else None,
+    )
+
+
 def parse_doc(path: Path) -> DocClaims:
     markdown = path.read_text(encoding="utf-8")
     frontmatter = _extract_frontmatter(markdown)
+    data = _load_frontmatter(frontmatter)
     return DocClaims(
         path=path,
-        status=_parse_scalar(frontmatter, "status"),
-        doc_type=_parse_scalar(frontmatter, "doc_type"),
-        audience=_parse_string_list(frontmatter, "audience"),
-        last_verified=_parse_scalar(frontmatter, "last_verified"),
+        status=data.get("status") if isinstance(data.get("status"), str) else _parse_scalar(frontmatter, "status"),
+        doc_type=data.get("doc_type") if isinstance(data.get("doc_type"), str) else _parse_scalar(frontmatter, "doc_type"),
+        audience=tuple(data.get("audience") or ()) if isinstance(data.get("audience"), list) else _parse_string_list(frontmatter, "audience"),
+        last_verified=str(data.get("last_verified")) if data.get("last_verified") is not None else _parse_scalar(frontmatter, "last_verified"),
         claims=_parse_claims(frontmatter),
         has_summary=bool(re.search(r"(?m)^##\s+Summary\s*$", markdown)),
         has_remotion_placeholder="remotion-video:" in markdown,
@@ -207,23 +269,31 @@ def validate_doc(doc: DocClaims, *, require_claims: bool) -> tuple[list[str], li
             if not claim.reason:
                 warnings.append(f"{label} is manual but has no reason")
             continue
-        if not claim.file:
-            errors.append(f"{label} is missing file")
-            continue
-        if not claim.assertion:
-            errors.append(f"{label} is missing assertion")
-            continue
-        claim_file = REPO_ROOT / claim.file
-        if not claim_file.exists():
-            errors.append(f"{label} references missing file: {claim.file}")
-            continue
-        text = claim_file.read_text(encoding="utf-8", errors="replace")
-        if not _assertion_marker_exists(text, claim.assertion):
-            errors.append(
-                f"{label} assertion marker not found in {claim.file}: {claim.assertion}"
-            )
+        errors.extend(_validate_claim_tests(label, claim, repo_root=REPO_ROOT))
 
     return errors, warnings
+
+
+def _validate_claim_tests(label: str, claim: Claim, *, repo_root: Path) -> list[str]:
+    errors: list[str] = []
+    tests = claim.tests or ({"file": claim.file or "", "assertion": claim.assertion or ""},)
+    for test in tests:
+        file_path = test.get("file")
+        assertion = test.get("assertion")
+        if not file_path:
+            errors.append(f"{label} is missing file")
+            continue
+        if not assertion:
+            errors.append(f"{label} is missing assertion")
+            continue
+        claim_file = repo_root / file_path
+        if not claim_file.exists():
+            errors.append(f"{label} references missing file: {file_path}")
+            continue
+        text = claim_file.read_text(encoding="utf-8", errors="replace")
+        if not _assertion_marker_exists(text, assertion):
+            errors.append(f"{label} assertion marker not found in {file_path}: {assertion}")
+    return errors
 
 
 def collect_docs(paths: list[str]) -> list[Path]:
@@ -237,16 +307,18 @@ def build_claim_index(docs: list[DocClaims]) -> dict[str, list[dict[str, Any]]]:
     for doc in docs:
         rel_doc = str(doc.path.relative_to(REPO_ROOT))
         for claim in doc.claims:
-            if not claim.file:
-                continue
-            index.setdefault(claim.file, []).append(
-                {
-                    "doc": rel_doc,
-                    "claim_id": claim.id,
-                    "type": claim.type,
-                    "assertion": claim.assertion,
-                }
-            )
+            for test in claim.tests or ({"file": claim.file, "assertion": claim.assertion},):
+                file_path = test.get("file")
+                if not file_path:
+                    continue
+                index.setdefault(file_path, []).append(
+                    {
+                        "doc": rel_doc,
+                        "claim_id": claim.id,
+                        "type": claim.type,
+                        "assertion": test.get("assertion"),
+                    }
+                )
     return index
 
 
@@ -333,19 +405,7 @@ def _validate_doc_with_root(
             if not claim.reason:
                 (errors if enforce_active else warnings).append(f"{label} is manual but has no reason")
             continue
-        if not claim.file:
-            errors.append(f"{label} is missing file")
-            continue
-        if not claim.assertion:
-            errors.append(f"{label} is missing assertion")
-            continue
-        claim_file = repo_root / claim.file
-        if not claim_file.exists():
-            errors.append(f"{label} references missing file: {claim.file}")
-            continue
-        text = claim_file.read_text(encoding="utf-8", errors="replace")
-        if not _assertion_marker_exists(text, claim.assertion):
-            errors.append(f"{label} assertion marker not found in {claim.file}: {claim.assertion}")
+        errors.extend(_validate_claim_tests(label, claim, repo_root=repo_root))
 
     return errors, warnings
 

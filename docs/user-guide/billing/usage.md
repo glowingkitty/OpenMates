@@ -4,7 +4,12 @@ doc_type: guide
 audience:
   - users
 last_verified: 2026-06-10
-claims: []
+claims:
+  - id: user-guide-billing-usage-source
+    type: unit
+    claim: Usage viewing and export guidance is grounded in the settings usage component and backend usage endpoints.
+    file: scripts/tests/test_user_guide_billing_docs_claims.py
+    assertion: user-guide-billing-usage-source
 ---
 
 # Usage & Billing
@@ -37,8 +42,8 @@ You can download your usage history as a file for your own records:
 
 1. Go to **Settings > Usage**.
 2. Click **Export**.
-3. Choose the time period.
-4. Your usage data downloads as a file.
+3. Use the currently loaded time window, or load more months first.
+4. Usage data downloads as a CSV file.
 
 For a complete data export including chats, settings, and invoices, see [Export Account](../export-account.md).
 
@@ -52,7 +57,7 @@ Each usage entry records:
 - **Credits charged**.
 - **Model used** and token counts for input and output.
 
-Sensitive details, like credit amounts and token counts, are encrypted -- only your devices can read them.
+Sensitive usage details like credit amounts, token counts, model, provider, region, and code-run file details are encrypted. App IDs, skill IDs, chat IDs, message IDs, source labels, and API key hashes are stored in cleartext where needed for client-side matching and summaries.
 
 ## Tips
 
