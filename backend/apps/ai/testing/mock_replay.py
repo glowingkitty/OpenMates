@@ -318,6 +318,22 @@ async def replay_fixture(
             full_response = verified_response
             fixture_data["response"] = full_response
 
+    # --- 0b. Ensure frontend processes send_embed_data before chunks ---
+    # The fixture may have recreated embeds above. The send_embed_data WebSocket
+    # event for finished embeds must arrive + be stored by the frontend before the
+    # first ai_message_chunk arrives; otherwise the embed node mounts before the
+    # embed data is available in IndexedDB, and the stale memory cache entry (set
+    # by setInMemoryOnly during streaming row events) shadows the finished entry.
+    # A 30-second window is more than sufficient for the frontend to process the
+    # embed, encrypt it, store it in IndexedDB, and dispatch embedUpdated.
+    is_application_preview = "application_preview" in fixture_id
+    if is_application_preview:
+        logger.info(
+            f"[MOCK] Application preview fixture detected — waiting 30s for "
+            f"frontend to process send_embed_data before streaming begins"
+        )
+        await asyncio.sleep(30)
+
     # Determine streaming speed
     speed_profile = speed_override or fixture_data.get("speed_profile", DEFAULT_SPEED_PROFILE)
     chunk_delay = get_fixture_chunk_delay_seconds(fixture_data, speed_profile)
