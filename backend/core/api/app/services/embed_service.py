@@ -174,7 +174,17 @@ class EmbedService:
             "source",
             "favicon_url",
         )
+        flat_results: List[Dict[str, Any]] = []
         for result in results:
+            nested_results = result.get("results")
+            if isinstance(nested_results, list):
+                flat_results.extend(
+                    item for item in nested_results if isinstance(item, dict)
+                )
+            else:
+                flat_results.append(result)
+
+        for result in flat_results:
             preview_result = {
                 key: result[key]
                 for key in preview_fields

@@ -18,7 +18,6 @@
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
-  import { decodeToonContent, resolveEmbed } from '../../../services/embedResolver';
 
   /**
    * Single image search result (child embed content schema).
@@ -72,7 +71,6 @@
   let localStatus   = $state<'processing' | 'finished' | 'error'>('processing');
   let localResults  = $state<ImageResult[]>([]);
   let localTaskId   = $state<string | undefined>(undefined);
-  let hydrationAttemptedForId = $state('');
 
   $effect(() => {
     localQuery       = queryProp       || '';
@@ -102,18 +100,6 @@
       .filter(r => r.thumbnail_url || r.image_url)
       .slice(0, THUMB_MAX_COUNT)
   );
-
-  $effect(() => {
-    if (
-      status === 'finished' &&
-      previewThumbnails.length === 0 &&
-      id &&
-      hydrationAttemptedForId !== id
-    ) {
-      hydrationAttemptedForId = id;
-      void hydratePreviewFromStoredEmbeds(id);
-    }
-  });
 
   // Extract unique favicons from results (first 3 unique sources, like WebSearchEmbedPreview)
   let faviconResults = $derived(
@@ -158,65 +144,6 @@
       return resultsValue as ImageResult[];
     }
     return parsePreviewResultsJson(fallbackJson);
-  }
-
-  function normalizeEmbedIds(value: unknown): string[] {
-    if (typeof value === 'string') {
-      return value.split('|').map(id => id.trim()).filter(Boolean);
-    }
-    if (Array.isArray(value)) {
-      return value.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
-    }
-    return [];
-  }
-
-  function toPreviewResult(value: unknown): ImageResult | null {
-    if (!value || typeof value !== 'object') return null;
-    const result = value as ImageResult;
-    return result.image_url || result.thumbnail_url ? result : null;
-  }
-
-  async function decodeEmbed(embedId: string): Promise<Record<string, unknown> | null> {
-    const embed = await resolveEmbed(embedId);
-    if (!embed?.content) return null;
-    return await decodeToonContent(embed.content) as Record<string, unknown> | null;
-  }
-
-  async function hydratePreviewFromStoredEmbeds(parentEmbedId: string) {
-    try {
-      const parentEmbed = await resolveEmbed(parentEmbedId);
-      const parentContent = parentEmbed?.content
-        ? await decodeToonContent(parentEmbed.content) as Record<string, unknown> | null
-        : null;
-      const parentResults = normalizePreviewResults(
-        parentContent?.results || parentContent?.preview_results || parentContent?.preview_thumbnails,
-        parentContent?.preview_results_json
-      );
-      if (parentResults.length > 0) {
-        localResults = parentResults;
-        return;
-      }
-
-      const childEmbedIds = normalizeEmbedIds(parentContent?.embed_ids || parentEmbed?.embed_ids);
-      if (childEmbedIds.length === 0) return;
-
-      const childResults = await Promise.all(
-        childEmbedIds.slice(0, THUMB_MAX_COUNT).map(async childEmbedId => {
-          try {
-            return toPreviewResult(await decodeEmbed(childEmbedId));
-          } catch (error) {
-            console.debug('[ImagesSearchEmbedPreview] Failed to hydrate child preview:', childEmbedId, error);
-            return null;
-          }
-        })
-      );
-      const hydratedResults = childResults.filter((result): result is ImageResult => result !== null);
-      if (hydratedResults.length > 0 && localResults.length === 0) {
-        localResults = hydratedResults;
-      }
-    } catch (error) {
-      console.debug('[ImagesSearchEmbedPreview] Failed to hydrate parent preview:', parentEmbedId, error);
-    }
   }
 
   /**

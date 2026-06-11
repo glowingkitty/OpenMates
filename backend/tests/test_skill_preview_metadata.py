@@ -206,6 +206,33 @@ def test_images_search_parent_preview_metadata_filters_empty_and_caps_results() 
     }
 
 
+def test_images_search_parent_preview_metadata_flattens_grouped_results() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._build_parent_preview_metadata(
+        "images",
+        "search",
+        [
+            {
+                "id": 1,
+                "results": [
+                    {
+                        "title": "Grouped image",
+                        "image_url": "https://example.com/image.jpg",
+                    }
+                ],
+            }
+        ],
+    )
+
+    assert metadata["preview_results"] == [
+        {
+            "title": "Grouped image",
+            "image_url": "https://example.com/image.jpg",
+        }
+    ]
+
+
 def test_non_image_search_parent_preview_metadata_is_empty() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
