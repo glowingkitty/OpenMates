@@ -158,7 +158,7 @@
         }
         dispatch('chatSelected', { chat });
         window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
-        // Wide viewports keep settings open so users can inspect the app while the chat loads beside it.
+        // Wide viewports keep settings open so users can inspect the app while the chat loads beside or behind it.
         if (shouldCloseSettings) {
             dispatch('closeSettings');
         }
