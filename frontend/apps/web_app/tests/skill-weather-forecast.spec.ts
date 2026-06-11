@@ -149,7 +149,6 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(exampleChatCard.getByTestId('resume-large-orbs')).toBeVisible({ timeout: 15_000 });
 
 		await exampleChatCard.click();
-		await expect(page).toHaveURL(/#chat-id=example-berlin-weather-bike-commute/, { timeout: 15_000 });
 		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 	});
@@ -198,7 +197,6 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(exampleChatCard.getByTestId('resume-large-orbs')).toBeVisible({ timeout: 15_000 });
 
 		await exampleChatCard.click();
-		await expect(page).toHaveURL(/#chat-id=example-flights-berlin-bangkok/, { timeout: 15_000 });
 		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 	});
@@ -228,7 +226,6 @@ test.describe('App: Weather / Skill: forecast', () => {
 			await expect(exampleChatCard.getByTestId('resume-large-orbs')).toBeVisible({ timeout: 15_000 });
 
 			await exampleChatCard.click();
-			await expect(page).toHaveURL(new RegExp(`#chat-id=${example.chatId}`), { timeout: 15_000 });
 			await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15_000 });
 			await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 		}

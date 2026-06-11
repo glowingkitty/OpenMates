@@ -150,11 +150,16 @@
     }
 
     function openExampleChat(chat: Chat) {
-        activeChatStore.setActiveChat(chat.chat_id);
+        const shouldCloseSettings = get(isMobileView);
+        if (shouldCloseSettings) {
+            activeChatStore.setActiveChat(chat.chat_id);
+        } else {
+            activeChatStore.setWithoutHashUpdate(chat.chat_id);
+        }
         dispatch('chatSelected', { chat });
         window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
         // Wide viewports keep settings open so users can inspect the app while the chat loads beside it.
-        if (get(isMobileView)) {
+        if (shouldCloseSettings) {
             dispatch('closeSettings');
         }
     }
