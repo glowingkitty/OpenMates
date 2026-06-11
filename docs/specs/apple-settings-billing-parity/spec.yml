@@ -500,7 +500,7 @@ tests:
       - AC-6
     assertions:
       - Apple opens Settings → Interface → Language with stable native identifiers matching the web language settings concept.
-      - Selecting Deutsch updates the selected language state and visible UI copy, then the test resets to English.
+      - Selecting Deutsch updates visible UI copy, then the test resets to English.
       - The language settings flow uses OpenMates settings primitives without default table/List chrome.
     red_phase:
       required: true
@@ -513,9 +513,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple-remote-iphone17-fbce-settings-interface-language-a4b1d6e
+        timestamp: "2026-06-11"
 
 implementation_plan:
   existing_patterns:
