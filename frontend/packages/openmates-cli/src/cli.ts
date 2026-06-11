@@ -44,7 +44,7 @@ import { processFiles, formatEmbedsForMessage } from "./fileEmbed.js";
 import type { PreparedEmbed } from "./embedCreator.js";
 import type { ShareDuration } from "./shareEncryption.js";
 import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
-import { createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
+import { createEmbedRef, createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
 import { handleServer, printServerHelp } from "./server.js";
@@ -3445,6 +3445,9 @@ async function sendMessageStreaming(
                       { chatId: params.chatId, requestId: uploadResult.embed_id },
                     )
                   : null;
+              const embedRef = fe.embed.embedRef ?? createEmbedRef(embedType, uploadResult.embed_id);
+              fe.embed.embedRef = embedRef;
+
               const uploadedContent =
                 embedType === "audio-recording"
                   ? {
@@ -3453,6 +3456,7 @@ async function sendMessageStreaming(
                       type: "audio-recording",
                       status: "finished",
                       filename: fe.displayName,
+                      embed_ref: embedRef,
                       mime_type: uploadResult.content_type,
                       transcript: audioTranscription?.transcript ?? null,
                       transcript_original: audioTranscription?.transcript_original ?? null,
@@ -3471,6 +3475,7 @@ async function sendMessageStreaming(
                         type: "pdf",
                         status: "processing",
                         filename: fe.displayName,
+                        embed_ref: embedRef,
                         page_count: uploadResult.page_count ?? null,
                         content_hash: uploadResult.content_hash,
                         s3_base_url: uploadResult.s3_base_url,
@@ -3485,6 +3490,7 @@ async function sendMessageStreaming(
                         skill_id: "upload",
                         status: "finished",
                         filename: fe.displayName,
+                        embed_ref: embedRef,
                         content_hash: uploadResult.content_hash,
                         s3_base_url: uploadResult.s3_base_url,
                         files: uploadResult.files,
@@ -3501,10 +3507,7 @@ async function sendMessageStreaming(
 
               // Use the server-assigned embed_id
               fe.embed.embedId = uploadResult.embed_id;
-              fe.referenceBlock = createEmbedReferenceBlock(
-                embedType,
-                uploadResult.embed_id,
-              );
+              fe.referenceBlock = createEmbedReferenceBlock(embedRef);
 
               if (!params.json) {
                 process.stderr.write(

@@ -57,6 +57,7 @@ const {
   MEMORY_TYPE_REGISTRY,
   buildSubChatConfirmationPayload,
   buildSubChatEncryptedMetadataPayloads,
+  getClientMessagesVersionForSync,
 } = await import("../src/client.ts");
 const { decryptWithAesGcmCombined } = await import("../src/crypto.ts");
 
@@ -230,6 +231,28 @@ describe("sub-chat encryption helpers", () => {
         action: "cancel",
         approve_count: null,
       },
+    );
+  });
+});
+
+describe("sync delta request helpers", () => {
+  it("forces a message refresh when cached metadata has no local messages", () => {
+    assert.equal(
+      getClientMessagesVersionForSync({
+        details: { id: "child-chat-id", messages_v: 2 },
+        messages: [],
+      }),
+      0,
+    );
+  });
+
+  it("keeps the cached messages version when local messages are present", () => {
+    assert.equal(
+      getClientMessagesVersionForSync({
+        details: { id: "child-chat-id", messages_v: 2 },
+        messages: ['{"id":"message-id"}'],
+      }),
+      2,
     );
   });
 });

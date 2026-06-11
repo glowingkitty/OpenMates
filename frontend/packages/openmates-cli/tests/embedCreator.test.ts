@@ -13,6 +13,7 @@ import {
   computeSHA256,
   toonEncodeContent,
   generateEmbedId,
+  createEmbedRef,
   createEmbedReferenceBlock,
   encryptEmbed,
 } from "../src/embedCreator.ts";
@@ -121,12 +122,13 @@ describe("embedCreator", () => {
   });
 
   describe("createEmbedReferenceBlock", () => {
-    it("creates a fenced JSON block", () => {
-      const block = createEmbedReferenceBlock("code", "test-id-123");
-      assert.ok(block.startsWith("```json\n"));
-      assert.ok(block.endsWith("\n```"));
-      assert.ok(block.includes('"type": "code"'));
-      assert.ok(block.includes('"embed_id": "test-id-123"'));
+    it("creates a markdown embed reference", () => {
+      const ref = createEmbedRef("code", "test-id-123");
+      const block = createEmbedReferenceBlock(ref);
+
+      assert.match(ref, /^test-id-123-[0-9a-f]{6}$/);
+      assert.equal(block, `[!](embed:${ref})`);
+      assert.doesNotMatch(block, /```json/);
     });
   });
 

@@ -34,6 +34,7 @@ import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import type { OutputRedactor } from "./outputRedactor.js";
 import {
+  createEmbedRef,
   generateEmbedId,
   toonEncodeContent,
   createEmbedReferenceBlock,
@@ -364,22 +365,26 @@ function processCodeFile(
     const language = detectLanguage(filename);
     const lineCount = content.split("\n").length;
 
+    const embedId = generateEmbedId();
+    const embedRef = createEmbedRef("code", `${filename}:${embedId}`);
+
     // Build TOON content (mirrors codeEmbedService.ts)
     const embedContent = toonEncodeContent({
       type: "code",
       language,
       code: content,
       filename,
+      embed_ref: embedRef,
       status: "finished",
       line_count: lineCount,
     });
 
-    const embedId = generateEmbedId();
     const textPreview = `${filename} (${language}, ${lineCount} lines)`;
     const contentHash = createHash("sha256").update(content).digest("hex");
 
     const embed: PreparedEmbed = {
       embedId,
+      embedRef,
       type: "code-code",
       content: embedContent,
       textPreview,
@@ -391,7 +396,7 @@ function processCodeFile(
 
     return {
       embed,
-      referenceBlock: createEmbedReferenceBlock("code", embedId),
+      referenceBlock: createEmbedReferenceBlock(embedRef),
       displayName: filename,
       secretsRedacted,
       zeroKnowledge,
@@ -417,6 +422,7 @@ function processImageFile(
 ): ProcessedFileEmbed | null {
   try {
     const embedId = generateEmbedId();
+    const embedRef = createEmbedRef("image", `${filename}:${embedId}`);
 
     // Create a placeholder embed — real content comes from upload response
     const embedContent = toonEncodeContent({
@@ -425,10 +431,12 @@ function processImageFile(
       skill_id: "upload",
       status: "uploading",
       filename,
+      embed_ref: embedRef,
     });
 
     const embed: PreparedEmbed = {
       embedId,
+      embedRef,
       type: "image",
       content: embedContent,
       textPreview: filename,
@@ -437,7 +445,7 @@ function processImageFile(
 
     return {
       embed,
-      referenceBlock: createEmbedReferenceBlock("image", embedId),
+      referenceBlock: createEmbedReferenceBlock(embedRef),
       displayName: filename,
       secretsRedacted: false,
       zeroKnowledge: false,
@@ -463,15 +471,18 @@ function processPDFFile(
 ): ProcessedFileEmbed | null {
   try {
     const embedId = generateEmbedId();
+    const embedRef = createEmbedRef("pdf", `${filename}:${embedId}`);
 
     const embedContent = toonEncodeContent({
       type: "pdf",
       status: "uploading",
       filename,
+      embed_ref: embedRef,
     });
 
     const embed: PreparedEmbed = {
       embedId,
+      embedRef,
       type: "pdf",
       content: embedContent,
       textPreview: filename,
@@ -480,7 +491,7 @@ function processPDFFile(
 
     return {
       embed,
-      referenceBlock: createEmbedReferenceBlock("pdf", embedId),
+      referenceBlock: createEmbedReferenceBlock(embedRef),
       displayName: filename,
       secretsRedacted: false,
       zeroKnowledge: false,
@@ -505,6 +516,7 @@ function processAudioFile(
 ): ProcessedFileEmbed | null {
   try {
     const embedId = generateEmbedId();
+    const embedRef = createEmbedRef("audio-recording", `${filename}:${embedId}`);
 
     const embedContent = toonEncodeContent({
       app_id: "audio",
@@ -512,10 +524,12 @@ function processAudioFile(
       type: "audio-recording",
       status: "uploading",
       filename,
+      embed_ref: embedRef,
     });
 
     const embed: PreparedEmbed = {
       embedId,
+      embedRef,
       type: "audio-recording",
       content: embedContent,
       textPreview: filename,
@@ -524,7 +538,7 @@ function processAudioFile(
 
     return {
       embed,
-      referenceBlock: createEmbedReferenceBlock("audio-recording", embedId),
+      referenceBlock: createEmbedReferenceBlock(embedRef),
       displayName: filename,
       secretsRedacted: false,
       zeroKnowledge: false,
@@ -541,7 +555,7 @@ function processAudioFile(
 
 /**
  * Format embed reference blocks for message content.
- * Returns text to append to the message (embed JSON references).
+ * Returns text to append to the message (markdown embed references).
  */
 export function formatEmbedsForMessage(embeds: ProcessedFileEmbed[]): string {
   if (embeds.length === 0) return "";

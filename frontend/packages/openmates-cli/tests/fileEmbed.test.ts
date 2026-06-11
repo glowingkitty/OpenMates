@@ -39,8 +39,9 @@ describe("fileEmbed", () => {
       assert.equal(embed.embed.status, "finished");
       assert.equal(embed.requiresUpload, false);
       assert.ok(embed.embed.content.length > 0);
-      assert.ok(embed.referenceBlock.includes('"type": "code"'));
-      assert.ok(embed.referenceBlock.includes(embed.embed.embedId));
+      assert.ok(embed.embed.content.includes("embed_ref:"));
+      assert.match(embed.referenceBlock, /^\[!\]\(embed:[^)]+\)$/);
+      assert.doesNotMatch(embed.referenceBlock, /```json/);
     });
 
     it("detects language from extension", () => {
@@ -147,7 +148,8 @@ describe("fileEmbed", () => {
       assert.equal(result.embeds[0].embed.type, "audio-recording");
       assert.equal(result.embeds[0].embed.status, "processing");
       assert.equal(result.embeds[0].requiresUpload, true);
-      assert.ok(result.embeds[0].referenceBlock.includes('"type": "audio-recording"'));
+      assert.ok(result.embeds[0].embed.content.includes("embed_ref:"));
+      assert.match(result.embeds[0].referenceBlock, /^\[!\]\(embed:[^)]+\)$/);
     });
   });
 
@@ -194,7 +196,7 @@ describe("fileEmbed", () => {
   });
 
   describe("formatEmbedsForMessage", () => {
-    it("formats embed references as JSON blocks", () => {
+    it("formats embed references as markdown blocks", () => {
       const formatted = formatEmbedsForMessage([
         {
           embed: {
@@ -204,7 +206,7 @@ describe("fileEmbed", () => {
             textPreview: "app.ts",
             status: "finished",
           },
-          referenceBlock: '```json\n{\n  "type": "code",\n  "embed_id": "test-uuid-123"\n}\n```',
+          referenceBlock: "[!](embed:test-ref)",
           displayName: "app.ts",
           secretsRedacted: false,
           zeroKnowledge: false,
@@ -212,8 +214,8 @@ describe("fileEmbed", () => {
         },
       ]);
 
-      assert.ok(formatted.includes("```json"));
-      assert.ok(formatted.includes("test-uuid-123"));
+      assert.ok(formatted.includes("[!](embed:test-ref)"));
+      assert.doesNotMatch(formatted, /```json/);
     });
 
     it("returns empty string for no embeds", () => {

@@ -4,12 +4,13 @@
  *
  * Purpose: mirror browser message sending for plain URLs typed in user messages.
  * Architecture: converts standalone URLs into prepared web-website embeds and
- * JSON embed references before the message is sent over WebSocket.
+ * markdown embed references before the message is sent over WebSocket.
  * Privacy: metadata is not fetched from third-party URLs in the CLI path; the
  * original URL is stored as encrypted embed content and reference fallback only.
  */
 
 import {
+  createEmbedRef,
   createEmbedReferenceBlock,
   generateEmbedId,
   toonEncodeContent,
@@ -48,8 +49,10 @@ function trimTrailingUrlPunctuation(rawUrl: string): { url: string; suffix: stri
 
 function createWebsiteEmbed(url: string): PreparedEmbed {
   const embedId = generateEmbedId();
+  const embedRef = createEmbedRef("website", `${url}:${embedId}`);
   const content = toonEncodeContent({
     url,
+    embed_ref: embedRef,
     title: null,
     description: null,
     favicon: null,
@@ -60,6 +63,7 @@ function createWebsiteEmbed(url: string): PreparedEmbed {
 
   return {
     embedId,
+    embedRef,
     type: "web-website",
     content,
     textPreview: url,
@@ -81,7 +85,7 @@ function replaceUrlsInText(text: string, embeds: PreparedEmbed[]): string {
 
     const embed = createWebsiteEmbed(url);
     embeds.push(embed);
-    return `${createEmbedReferenceBlock("website", embed.embedId, url)}${suffix}`;
+    return `${createEmbedReferenceBlock(embed.embedRef ?? embed.embedId)}${suffix}`;
   });
 }
 

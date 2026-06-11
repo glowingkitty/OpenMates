@@ -266,14 +266,17 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
           JSON.stringify({
             type: "spawn_sub_chats",
             payload: {
-              chat_id: chatId,
-              sub_chats: [
-                {
-                  id: "child-chat-1",
-                  user_message_id: "child-user-message-1",
-                  prompt: "Research the surface explanation.",
-                },
-              ],
+              type: "spawn_sub_chats",
+              payload: {
+                chat_id: chatId,
+                sub_chats: [
+                  {
+                    id: "child-chat-1",
+                    user_message_id: "child-user-message-1",
+                    prompt: "Research the surface explanation.",
+                  },
+                ],
+              },
             },
           }),
         );
@@ -330,7 +333,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
               chat_id: chatId,
               is_final_chunk: true,
               full_content_so_far:
-                "I've started the sub-chats and will continue once they finish.",
+                "I've started the sub-chats and will continue once they finish.\n---\n*Warning: child findings are still running.*",
             },
           }),
         );
@@ -391,6 +394,10 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
         ],
       );
       assert.equal(receivedEvents[0]?.payload.chat_id, chatId);
+      assert.equal(
+        (receivedEvents[0]?.payload.sub_chats as Array<unknown> | undefined)?.length,
+        1,
+      );
     } finally {
       client.close();
     }

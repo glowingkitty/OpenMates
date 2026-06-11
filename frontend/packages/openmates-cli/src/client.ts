@@ -69,6 +69,11 @@ function normalizeUnixSeconds(value: unknown, fallback: number): number {
   return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
 }
 
+export function getClientMessagesVersionForSync(cached: CachedChat): number {
+  if (cached.messages.length === 0) return 0;
+  return typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
+}
+
 export interface CliSubChatRequest {
   id?: string;
   chat_id?: string;
@@ -4100,10 +4105,7 @@ export class OpenMatesClient {
         if (!id) continue;
         clientChatIds.push(id);
         clientChatVersions[id] = {
-          messages_v:
-            typeof chat.details.messages_v === "number"
-              ? chat.details.messages_v
-              : 0,
+          messages_v: getClientMessagesVersionForSync(chat),
           title_v:
             typeof chat.details.title_v === "number"
               ? chat.details.title_v

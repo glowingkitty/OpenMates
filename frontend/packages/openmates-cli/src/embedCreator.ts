@@ -89,6 +89,7 @@ async function wrapKey(
 /** A prepared embed ready for encryption and sending */
 export interface PreparedEmbed {
   embedId: string;
+  embedRef?: string;
   type: string;
   content: string;
   textPreview: string;
@@ -164,18 +165,24 @@ export function generateEmbedId(): string {
 }
 
 /**
- * Create an embed reference block for insertion into message content.
- * Mirrors: urlMetadataService.ts createEmbedReferenceBlock()
+ * Create a stable embed reference slug for markdown message content.
  */
-export function createEmbedReferenceBlock(
-  type: string,
-  embedId: string,
-  url?: string,
-): string {
-  const data: Record<string, string> = { type, embed_id: embedId };
-  if (url) data.url = url;
-  const ref = JSON.stringify(data, null, 2);
-  return "```json\n" + ref + "\n```";
+export function createEmbedRef(type: string, source: string): string {
+  const prefix = source
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || type;
+  return `${prefix}-${computeSHA256(`${type}:${source}`).slice(0, 6)}`;
+}
+
+/**
+ * Create an embed reference block for insertion into message content.
+ * The web parser resolves these refs against `embed_ref` in encrypted content.
+ */
+export function createEmbedReferenceBlock(embedRef: string): string {
+  return `[!](embed:${embedRef})`;
 }
 
 /**

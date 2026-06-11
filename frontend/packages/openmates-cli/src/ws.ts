@@ -415,15 +415,19 @@ export class OpenMatesWsClient {
       };
 
       const handleSubChatEvent = (type: string, p: Record<string, unknown>) => {
+        const eventPayload =
+          p.payload && typeof p.payload === "object" && !Array.isArray(p.payload)
+            ? (p.payload as Record<string, unknown>)
+            : p;
         const eventChatId =
-          typeof p.chat_id === "string"
-            ? p.chat_id
-            : typeof p.parent_id === "string"
-              ? p.parent_id
+          typeof eventPayload.chat_id === "string"
+            ? eventPayload.chat_id
+            : typeof eventPayload.parent_id === "string"
+              ? eventPayload.parent_id
               : null;
         if (eventChatId && eventChatId !== chatId) return;
 
-        const event = { type: type as SubChatEventType, payload: p };
+        const event = { type: type as SubChatEventType, payload: eventPayload };
         subChatEvents.push(event);
         if (type === "awaiting_sub_chats_completion") {
           awaitingSubChatsCompletion = true;
