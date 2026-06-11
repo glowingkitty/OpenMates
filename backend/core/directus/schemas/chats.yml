@@ -155,6 +155,11 @@ chats:
       nullable: true
       note: "[Vault-Encrypted] Follow-up suggestions for shared chat, encrypted with shared vault key (shared-content-metadata). Stored as JSON string. Only populated when is_private = false. Server can decrypt for discovery/previews without user context."
 
+    shared_encrypted_image_bubbles:
+      type: text
+      nullable: true
+      note: "[Vault-Encrypted] JSON array of up to two safe proxied image-bubble URLs for shared chat OG image rendering. Encrypted with shared vault key (shared-content-metadata). Only populated when is_private = false."
+
     shared_encrypted_chat_key:
       type: text
       nullable: true

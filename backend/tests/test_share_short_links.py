@@ -86,6 +86,7 @@ class FakeChatMethods:
             "shared_encrypted_summary": "enc-summary",
             "shared_encrypted_category": "enc-category",
             "shared_encrypted_icon": "enc-icon",
+            "shared_encrypted_image_bubbles": "enc-image-bubbles",
         }
 
 
@@ -168,6 +169,7 @@ class FakeEncryptionService:
             "enc-summary": "A concise itinerary for a weekend in Paris.",
             "enc-category": "general_knowledge",
             "enc-icon": "map",
+            "enc-image-bubbles": '[{"imageUrl":"https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Fone.jpg","title":"One"}]',
         }[value]
 
 
@@ -281,6 +283,12 @@ async def test_short_url_metadata_uses_shared_chat_title_and_summary():
     assert response["description"] == "A concise itinerary for a weekend in Paris."
     assert response["image"] == "/v1/share/short-url/Abc123XY/og-image.png"
     assert response["password_protected"] is False
+    assert response["image_bubbles"] == [
+        {
+            "imageUrl": "https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Fone.jpg",
+            "title": "One",
+        }
+    ]
 
 
 @pytest.mark.asyncio
@@ -319,11 +327,42 @@ async def test_short_url_og_image_generates_png_for_shared_chat_metadata():
     assert image.size == (share_routes.OG_IMAGE_WIDTH, share_routes.OG_IMAGE_HEIGHT)
 
 
-def test_chat_metadata_field_list_includes_shared_preview_category_icon_and_stored_url():
+def test_short_url_og_image_renders_safe_header_image_bubbles(monkeypatch):
+    from PIL import Image
+
+    bubble_colors = iter([(220, 40, 40, 255), (40, 80, 220, 255)])
+
+    def fake_load_safe_bubble(_url: str):
+        return Image.new("RGBA", (64, 64), next(bubble_colors))
+
+    monkeypatch.setattr(share_routes, "_load_safe_og_bubble_image", fake_load_safe_bubble)
+
+    png = share_routes._render_short_url_og_png(
+        {
+            "title": "Midi-chlorians and the Force in Star Wars",
+            "description": "User asked about midi-chlorians in Star Wars; assistant explained their role in the Force and compared them to mitochondria.",
+            "category": "movies_tv",
+            "icon": "film",
+            "image_bubbles": [
+                {"imageUrl": "https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Fone.jpg"},
+                {"imageUrl": "https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Ftwo.jpg"},
+            ],
+        }
+    )
+
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    left_pixel = image.getpixel((260, share_routes.OG_IMAGE_HEIGHT - 58))
+    right_pixel = image.getpixel((share_routes.OG_IMAGE_WIDTH - 260, share_routes.OG_IMAGE_HEIGHT - 58))
+    assert left_pixel[0] > left_pixel[2]
+    assert right_pixel[2] > right_pixel[0]
+
+
+def test_chat_metadata_field_list_includes_shared_preview_fields_and_stored_url():
     chat_methods_source = Path("backend/core/api/app/services/directus/chat_methods.py").read_text()
 
     assert "shared_encrypted_category" in chat_methods_source
     assert "shared_encrypted_icon" in chat_methods_source
+    assert "shared_encrypted_image_bubbles" in chat_methods_source
     assert "encrypted_shared_short_url" in chat_methods_source
 
 
@@ -352,6 +391,41 @@ async def test_share_metadata_update_can_clear_encrypted_shared_short_url():
     assert response == {"success": True, "chat_id": "chat-1"}
     assert directus.updated_items[0][0:2] == ("chats", "chat-1")
     assert directus.updated_items[0][2]["encrypted_shared_short_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_share_metadata_update_encrypts_image_bubbles_for_og_header():
+    directus = FakeDirectusService()
+    update_metadata = getattr(
+        share_routes.update_share_metadata,
+        "__wrapped__",
+        share_routes.update_share_metadata,
+    )
+    payload = share_routes.ShareChatMetadataUpdate(
+        chat_id="chat-1",
+        image_bubbles=[
+            {
+                "imageUrl": "https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Fone.jpg",
+                "title": "One",
+                "ignored": "not stored",
+            },
+            {"imageUrl": "", "title": "Ignored"},
+        ],
+    )
+
+    response = await update_metadata(
+        request=None,
+        payload=payload,
+        current_user=FakeUser(),
+        directus_service=directus,
+        encryption_service=FakeEncryptionService(),
+    )
+
+    assert response == {"success": True, "chat_id": "chat-1"}
+    encrypted_payload = directus.updated_items[0][2]["shared_encrypted_image_bubbles"]
+    assert encrypted_payload.startswith("enc:")
+    assert "ignored" not in encrypted_payload
+    assert "https://preview.openmates.org/api/v1/image" in encrypted_payload
 
 
 @pytest.mark.asyncio
@@ -387,6 +461,7 @@ async def test_unshare_chat_clears_metadata_and_revokes_short_links():
     assert chat_update["shared_encrypted_summary"] is None
     assert chat_update["shared_encrypted_category"] is None
     assert chat_update["shared_encrypted_icon"] is None
+    assert chat_update["shared_encrypted_image_bubbles"] is None
     assert chat_update["encrypted_shared_short_url"] is None
     short_link_update = directus.updated_items[1]
     assert short_link_update[0:2] == (share_routes.SHORT_URL_COLLECTION, "short-1")

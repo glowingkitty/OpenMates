@@ -5,10 +5,13 @@
 
 import logging
 import hashlib
+import json
 import re
 import time
 import os
 from typing import Dict, Any, Optional, List, Literal
+from urllib.parse import urlparse
+from urllib.request import Request as UrlRequest, urlopen
 from fastapi import APIRouter, HTTPException, Request, Depends, Query, Response
 from pydantic import BaseModel, Field
 
@@ -57,6 +60,7 @@ class ShareChatMetadataUpdate(BaseModel):
     category: Optional[str] = None
     icon: Optional[str] = None
     follow_up_suggestions: Optional[List[str]] = None
+    image_bubbles: Optional[List[Dict[str, Optional[str]]]] = None
     is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
     share_pii: Optional[bool] = None  # Whether shared chat viewers may receive encrypted PII mappings
     share_highlights: Optional[bool] = None  # Whether shared chat viewers may receive encrypted highlights/comments
@@ -633,12 +637,28 @@ async def update_share_metadata(
             updates["shared_encrypted_icon"] = encrypted_icon
 
         if payload.follow_up_suggestions is not None:
-            import json
             encrypted_follow_ups, _ = await encryption_service.encrypt(
                 json.dumps(payload.follow_up_suggestions),
                 key_name=shared_vault_key
             )
             updates["shared_encrypted_follow_up_suggestions"] = encrypted_follow_ups
+
+        if payload.image_bubbles is not None:
+            sanitized_bubbles = []
+            for bubble in payload.image_bubbles[:2]:
+                image_url = bubble.get("imageUrl") if isinstance(bubble, dict) else None
+                if not isinstance(image_url, str) or not image_url.strip():
+                    continue
+                title = bubble.get("title") if isinstance(bubble, dict) else None
+                sanitized_bubbles.append({
+                    "imageUrl": image_url.strip(),
+                    "title": title.strip() if isinstance(title, str) and title.strip() else None,
+                })
+            encrypted_image_bubbles, _ = await encryption_service.encrypt(
+                json.dumps(sanitized_bubbles),
+                key_name=shared_vault_key,
+            )
+            updates["shared_encrypted_image_bubbles"] = encrypted_image_bubbles
 
         payload_fields_set = getattr(payload, "model_fields_set", None)
         if payload_fields_set is None:
@@ -674,7 +694,7 @@ async def update_share_metadata(
             # Request the updated fields in the response to verify they were saved
             # Directus will return the updated item with these fields if the update succeeds
             params = {
-                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights'
+                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,shared_encrypted_image_bubbles,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights'
             }
             updated_item = await directus_service.update_item(
                 "chats",
@@ -837,6 +857,7 @@ async def unshare_chat(
             "shared_encrypted_category": None,
             "shared_encrypted_icon": None,
             "shared_encrypted_follow_up_suggestions": None,
+            "shared_encrypted_image_bubbles": None,
             "encrypted_shared_short_url": None,
         }
         
@@ -1230,6 +1251,7 @@ DEFAULT_EMBED_DESCRIPTION = "View this shared content on OpenMates"
 
 OG_IMAGE_WIDTH = 1200
 OG_IMAGE_HEIGHT = 630
+OG_SAFE_IMAGE_HOSTS = {"preview.openmates.org"}
 
 OG_CATEGORY_GRADIENTS: Dict[str, tuple[str, str]] = {
     "software_development": ("#155D91", "#42ABF4"),
@@ -1371,6 +1393,22 @@ async def _decrypt_shared_metadata(
         return fallback
 
 
+async def _decrypt_shared_json_metadata(
+    encrypted_value: Optional[str],
+    encryption_service: EncryptionService,
+) -> Any:
+    if not encrypted_value:
+        return None
+    try:
+        value = await encryption_service.decrypt(encrypted_value, key_name="shared-content-metadata")
+        if not isinstance(value, str) or not value.strip():
+            return None
+        return json.loads(value)
+    except Exception as exc:
+        logger.warning("Failed to decrypt shared JSON metadata for short URL preview: %s", exc)
+        return None
+
+
 async def _build_short_url_metadata(
     token: str,
     directus_service: DirectusService,
@@ -1384,6 +1422,7 @@ async def _build_short_url_metadata(
         "password_protected": False,
         "category": None,
         "icon": None,
+        "image_bubbles": [],
     }
     if not SHORT_URL_TOKEN_PATTERN.match(token):
         return fallback
@@ -1403,6 +1442,7 @@ async def _build_short_url_metadata(
             "password_protected": True,
             "category": "openmates_official",
             "icon": "lock",
+            "image_bubbles": [],
         }
 
     if content_type == "embed":
@@ -1414,6 +1454,7 @@ async def _build_short_url_metadata(
             "password_protected": password_protected,
             "category": None,
             "icon": None,
+            "image_bubbles": [],
         }
 
     chat = await directus_service.chat.get_chat_metadata(record.get("content_id"), admin_required=True)
@@ -1424,6 +1465,9 @@ async def _build_short_url_metadata(
     summary = await _decrypt_shared_metadata(chat.get("shared_encrypted_summary"), DEFAULT_CHAT_DESCRIPTION, encryption_service)
     category = await _decrypt_shared_metadata(chat.get("shared_encrypted_category"), "general_knowledge", encryption_service)
     icon = await _decrypt_shared_metadata(chat.get("shared_encrypted_icon"), "chat", encryption_service)
+    image_bubbles = await _decrypt_shared_json_metadata(chat.get("shared_encrypted_image_bubbles"), encryption_service)
+    if not isinstance(image_bubbles, list):
+        image_bubbles = []
     return {
         "title": title,
         "description": summary,
@@ -1432,6 +1476,7 @@ async def _build_short_url_metadata(
         "password_protected": False,
         "category": category,
         "icon": icon,
+        "image_bubbles": image_bubbles[:2],
     }
 
 
@@ -1515,11 +1560,97 @@ def _draw_chat_icon(draw: Any, center_x: int, center_y: int, size: int, color: t
     draw.line(tail, fill=color, width=stroke, joint="curve")
 
 
+def _draw_film_icon(draw: Any, center_x: int, center_y: int, size: int, color: tuple[int, ...]) -> None:
+    width = int(size * 0.82)
+    height = int(size * 0.96)
+    left = center_x - width // 2
+    top = center_y - height // 2
+    right = center_x + width // 2
+    bottom = center_y + height // 2
+    radius = max(7, size // 11)
+    stroke = max(5, size // 13)
+    draw.rounded_rectangle((left, top, right, bottom), radius=radius, outline=color, width=stroke)
+
+    perforation_width = max(7, size // 9)
+    perforation_height = max(8, size // 8)
+    gap = max(7, size // 12)
+    y = top + stroke + gap // 2
+    while y + perforation_height <= bottom - stroke:
+        draw.rounded_rectangle(
+            (left + stroke, y, left + stroke + perforation_width, y + perforation_height),
+            radius=2,
+            fill=color,
+        )
+        draw.rounded_rectangle(
+            (right - stroke - perforation_width, y, right - stroke, y + perforation_height),
+            radius=2,
+            fill=color,
+        )
+        y += perforation_height + gap
+
+    mid_y = center_y
+    draw.line((left + int(size * 0.23), mid_y, right - int(size * 0.23), mid_y), fill=color, width=stroke)
+
+
 def _draw_og_icon(draw: Any, center_x: int, center_y: int, size: int, metadata: Dict[str, Any], color: tuple[int, ...]) -> None:
     if metadata.get("password_protected"):
         _draw_lock_icon(draw, center_x, center_y, size, color)
         return
+    icon = str(metadata.get("icon") or "").strip().lower()
+    if icon in {"film", "clapperboard", "movie", "movies", "tv"}:
+        _draw_film_icon(draw, center_x, center_y, size, color)
+        return
     _draw_chat_icon(draw, center_x, center_y, size, color)
+
+
+def _is_safe_og_bubble_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return parsed.scheme == "https" and parsed.netloc in OG_SAFE_IMAGE_HOSTS and parsed.path == "/api/v1/image"
+
+
+def _load_safe_og_bubble_image(url: str) -> Optional[Any]:
+    if not _is_safe_og_bubble_url(url):
+        return None
+    try:
+        import io
+        from PIL import Image
+
+        request = UrlRequest(url, headers={"User-Agent": "OpenMates-OG-Image/1.0"})
+        with urlopen(request, timeout=2) as response:
+            content_type = response.headers.get("content-type", "")
+            if not content_type.startswith("image/"):
+                return None
+            data = response.read(2_000_000)
+        image = Image.open(io.BytesIO(data)).convert("RGBA")
+        image.thumbnail((420, 420))
+        return image
+    except Exception as exc:
+        logger.info("Skipping OG image bubble fetch for safe URL after fetch/decode failure: %s", exc)
+        return None
+
+
+def _draw_image_bubble(canvas: Any, bubble_image: Any, center_x: int, center_y: int, size: int, rotation_degrees: float = 0) -> None:
+    from PIL import Image, ImageDraw, ImageOps
+
+    bubble = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    cover = ImageOps.fit(bubble_image, (size, size), method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+    mask = Image.new("L", (size, size), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.ellipse((0, 0, size - 1, size - 1), fill=255)
+    bubble.alpha_composite(cover)
+    bubble.putalpha(mask)
+
+    bubble_overlay = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    bubble_overlay_draw = ImageDraw.Draw(bubble_overlay)
+    bubble_overlay_draw.ellipse((4, 4, size - 5, size - 5), outline=(255, 255, 255, 110), width=5)
+    bubble_overlay_draw.ellipse((18, 14, size // 2, size // 3), fill=(255, 255, 255, 38))
+    bubble_overlay_draw.ellipse((0, 0, size - 1, size - 1), outline=(255, 255, 255, 65), width=2)
+    bubble.alpha_composite(bubble_overlay)
+    bubble.putalpha(mask)
+
+    if rotation_degrees:
+        bubble = bubble.rotate(rotation_degrees, expand=True, resample=Image.Resampling.BICUBIC)
+    canvas.alpha_composite(bubble, (center_x - bubble.width // 2, center_y - bubble.height // 2))
 
 
 def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
@@ -1543,44 +1674,54 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
     overlay = Image.new("RGBA", (OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     white = (255, 255, 255, 255)
-    soft_white = (255, 255, 255, 220)
+    soft_white = (255, 255, 255, 238)
     muted_white = (255, 255, 255, 92)
-    title_font = _load_og_font(78, bold=True)
-    summary_font = _load_og_font(36)
-    brand_font = _load_og_font(28, bold=True)
+    title_font = _load_og_font(58, bold=True)
+    summary_font = _load_og_font(37, bold=True)
 
     icon_center_x = OG_IMAGE_WIDTH // 2
-    icon_center_y = 128
+    icon_center_y = 170
 
-    # ChatHeader.svelte uses large decorative side icons when no image bubbles
-    # are available. Keep this path server-side only; do not fetch arbitrary
-    # external image URLs from crawler-triggered requests.
-    _draw_og_icon(draw, 145, 332, 190, metadata, muted_white)
-    _draw_og_icon(draw, OG_IMAGE_WIDTH - 145, 332, 190, metadata, muted_white)
+    image_bubbles = metadata.get("image_bubbles") if isinstance(metadata.get("image_bubbles"), list) else []
+    loaded_bubbles = []
+    for bubble in image_bubbles[:2]:
+        if not isinstance(bubble, dict):
+            continue
+        image_url = bubble.get("imageUrl")
+        if not isinstance(image_url, str):
+            continue
+        bubble_image = _load_safe_og_bubble_image(image_url)
+        if bubble_image is not None:
+            loaded_bubbles.append(bubble_image)
 
-    draw.ellipse(
-        (icon_center_x - 60, icon_center_y - 60, icon_center_x + 60, icon_center_y + 60),
-        fill=(255, 255, 255, 38),
-        outline=(255, 255, 255, 105),
-        width=3,
-    )
-    _draw_og_icon(draw, icon_center_x, icon_center_y, 82, metadata, white)
+    if loaded_bubbles:
+        if len(loaded_bubbles) == 1:
+            loaded_bubbles.append(loaded_bubbles[0])
+        _draw_image_bubble(overlay, loaded_bubbles[0], 260, OG_IMAGE_HEIGHT - 58, 250, -15)
+        _draw_image_bubble(overlay, loaded_bubbles[1], OG_IMAGE_WIDTH - 260, OG_IMAGE_HEIGHT - 58, 250, 15)
+    else:
+        # ChatHeader.svelte falls back to large low-opacity category icons when
+        # image bubbles are unavailable. Do the same rather than drawing a generic
+        # chat bubble for every category.
+        _draw_og_icon(draw, 250, OG_IMAGE_HEIGHT - 118, 190, metadata, muted_white)
+        _draw_og_icon(draw, OG_IMAGE_WIDTH - 250, OG_IMAGE_HEIGHT - 118, 190, metadata, muted_white)
+
+    _draw_og_icon(draw, icon_center_x, icon_center_y, 76, metadata, white)
 
     title_lines = _wrap_text(draw, str(metadata.get("title") or DEFAULT_CHAT_TITLE), title_font, 900, 2)
-    y = 220
+    y = 250
     for line in title_lines:
         bbox = draw.textbbox((0, 0), line, font=title_font)
         draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=white, font=title_font)
-        y += 88
+        y += 72
 
-    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 820, 3)
+    summary_lines = _wrap_text(draw, str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION), summary_font, 900, 3)
     y += 18
     for line in summary_lines:
         bbox = draw.textbbox((0, 0), line, font=summary_font)
         draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=soft_white, font=summary_font)
-        y += 48
+        y += 50
 
-    draw.text((54, OG_IMAGE_HEIGHT - 68), "OpenMates", fill=white, font=brand_font)
     image = Image.alpha_composite(image, overlay)
     buffer = io.BytesIO()
     image.convert("RGB").save(buffer, format="PNG")

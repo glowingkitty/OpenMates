@@ -1190,6 +1190,13 @@
                     }
                 }
             }
+
+            const imageBubbles = Array.isArray(chat.resume_card_image_bubbles)
+                ? chat.resume_card_image_bubbles
+                    .slice(0, 2)
+                    .filter((bubble) => typeof bubble.imageUrl === 'string' && bubble.imageUrl.length > 0)
+                    .map((bubble) => ({ imageUrl: bubble.imageUrl, title: bubble.title ?? null }))
+                : null;
             
             // If sharing with community, decrypt all messages and embeds locally
             // and send plaintext to server (zero-knowledge architecture)
@@ -1212,6 +1219,7 @@
                         category: category || null,
                         icon: icon || null,
                         follow_up_suggestions: followUpSuggestions || null,
+                        image_bubbles: imageBubbles,
                         ...(syncShareStatus ? { is_shared: true } : {}),
                         ...(syncStoredShortUrl ? { encrypted_shared_short_url: chat.encrypted_shared_short_url || null } : {}),
                         ...(syncShareSettings ? {
