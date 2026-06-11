@@ -848,7 +848,6 @@ struct SettingsLanguageView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("settings-language-option-\(language.code)")
-                    .accessibilityAddTraits(locManager.currentLanguage == language ? .isSelected : [])
                 }
             }
         }
