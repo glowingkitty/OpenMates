@@ -5493,13 +5493,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug('[ActiveChat] Incognito message already has synced status, skipping save');
                         }
                     } else {
-                        // Save to IndexedDB
-                        // Only save if the status actually changed to prevent unnecessary saves
+                        // Save to IndexedDB. The aiTaskEnded fallback can mark a streaming
+                        // message as synced before the final chunk arrives, so status alone
+                        // is not enough to decide whether the final content was persisted.
                         const existingMessage = await chatDB.getMessage(updatedFinalMessage.message_id);
-                        if (!existingMessage || existingMessage.status !== 'synced') {
+                        const shouldSaveFinalMessage =
+                            !existingMessage ||
+                            existingMessage.status !== updatedFinalMessage.status ||
+                            existingMessage.content !== updatedFinalMessage.content ||
+                            existingMessage.model_name !== updatedFinalMessage.model_name ||
+                            existingMessage.thinking_content !== updatedFinalMessage.thinking_content ||
+                            existingMessage.thinking_signature !== updatedFinalMessage.thinking_signature ||
+                            existingMessage.thinking_token_count !== updatedFinalMessage.thinking_token_count ||
+                            existingMessage.has_thinking !== updatedFinalMessage.has_thinking;
+                        if (shouldSaveFinalMessage) {
                             await chatDB.saveMessage(updatedFinalMessage);
                         } else {
-                            console.debug('[ActiveChat] Message already has synced status, skipping save');
+                            console.debug('[ActiveChat] Final AI message already persisted, skipping save');
                         }
                     }
                 } catch (error) {
