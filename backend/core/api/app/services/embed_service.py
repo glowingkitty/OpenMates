@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS = {"package.json"}
 IMAGE_SEARCH_PREVIEW_RESULT_LIMIT = 10
+WEB_SEARCH_PREVIEW_RESULT_LIMIT = 6
 APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
     ".svelte",
     ".vue",
@@ -162,7 +163,39 @@ class EmbedService:
         results: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Return lightweight parent-only preview metadata for composite embeds."""
-        if app_id != "images" or skill_id != "search":
+        if skill_id != "search":
+            return {}
+
+        if app_id == "web":
+            preview_results: List[Dict[str, Any]] = []
+            preview_fields = (
+                "title",
+                "url",
+                "favicon",
+                "favicon_url",
+                "meta_url",
+                "preview_image_url",
+                "snippet",
+                "description",
+            )
+            flat_results = EmbedService._flatten_grouped_preview_results(results)
+            for result in flat_results:
+                preview_result = {
+                    key: result[key]
+                    for key in preview_fields
+                    if result.get(key)
+                }
+                if not preview_result.get("url"):
+                    continue
+                preview_results.append(preview_result)
+                if len(preview_results) >= WEB_SEARCH_PREVIEW_RESULT_LIMIT:
+                    break
+
+            if not preview_results:
+                return {}
+            return {"preview_results": preview_results}
+
+        if app_id != "images":
             return {}
 
         preview_results: List[Dict[str, Any]] = []
@@ -174,15 +207,7 @@ class EmbedService:
             "source",
             "favicon_url",
         )
-        flat_results: List[Dict[str, Any]] = []
-        for result in results:
-            nested_results = result.get("results")
-            if isinstance(nested_results, list):
-                flat_results.extend(
-                    item for item in nested_results if isinstance(item, dict)
-                )
-            else:
-                flat_results.append(result)
+        flat_results = EmbedService._flatten_grouped_preview_results(results)
 
         for result in flat_results:
             preview_result = {
@@ -202,6 +227,20 @@ class EmbedService:
             "preview_results": preview_results,
             "preview_results_json": json.dumps(preview_results, separators=(",", ":")),
         }
+
+    @staticmethod
+    def _flatten_grouped_preview_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Flatten grouped skill results without pulling child embeds into previews."""
+        flat_results: List[Dict[str, Any]] = []
+        for result in results:
+            nested_results = result.get("results")
+            if isinstance(nested_results, list):
+                flat_results.extend(
+                    item for item in nested_results if isinstance(item, dict)
+                )
+            else:
+                flat_results.append(result)
+        return flat_results
 
     @staticmethod
     def _slugify_direct_ref_base(value: Any, fallback: str) -> str:

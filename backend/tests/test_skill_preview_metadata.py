@@ -233,13 +233,101 @@ def test_images_search_parent_preview_metadata_flattens_grouped_results() -> Non
     ]
 
 
-def test_non_image_search_parent_preview_metadata_is_empty() -> None:
+def test_web_search_parent_preview_metadata_contains_lightweight_results() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
     metadata = EmbedService._build_parent_preview_metadata(
         "web",
         "search",
-        [{"title": "Result", "thumbnail_url": "https://example.com/thumb.jpg"}],
+        [
+            {
+                "title": "OpenMates",
+                "url": "https://openmates.org",
+                "description": "Private AI assistants",
+                "favicon": "https://openmates.org/favicon.svg",
+                "meta_url": {"favicon": "https://openmates.org/favicon.svg"},
+                "extra_snippets": ["Large text not needed in parent preview"],
+            }
+        ],
+    )
+
+    assert metadata == {
+        "preview_results": [
+            {
+                "title": "OpenMates",
+                "url": "https://openmates.org",
+                "favicon": "https://openmates.org/favicon.svg",
+                "meta_url": {"favicon": "https://openmates.org/favicon.svg"},
+                "description": "Private AI assistants",
+            }
+        ]
+    }
+
+
+def test_web_search_parent_preview_metadata_filters_empty_and_caps_results() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    results = [
+        {"title": "No URL"},
+        *[
+            {
+                "title": f"Result {index}",
+                "url": f"https://example.com/{index}",
+                "favicon_url": f"https://example.com/favicon-{index}.ico",
+            }
+            for index in range(8)
+        ],
+    ]
+
+    metadata = EmbedService._build_parent_preview_metadata("web", "search", results)
+
+    assert len(metadata["preview_results"]) == 6
+    assert metadata["preview_results"][0] == {
+        "title": "Result 0",
+        "url": "https://example.com/0",
+        "favicon_url": "https://example.com/favicon-0.ico",
+    }
+    assert metadata["preview_results"][-1] == {
+        "title": "Result 5",
+        "url": "https://example.com/5",
+        "favicon_url": "https://example.com/favicon-5.ico",
+    }
+
+
+def test_web_search_parent_preview_metadata_flattens_grouped_results() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._build_parent_preview_metadata(
+        "web",
+        "search",
+        [
+            {
+                "id": 1,
+                "results": [
+                    {
+                        "title": "Grouped result",
+                        "url": "https://example.com/grouped",
+                    }
+                ],
+            }
+        ],
+    )
+
+    assert metadata["preview_results"] == [
+        {
+            "title": "Grouped result",
+            "url": "https://example.com/grouped",
+        }
+    ]
+
+
+def test_non_search_parent_preview_metadata_is_empty() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._build_parent_preview_metadata(
+        "web",
+        "read",
+        [{"title": "Result", "url": "https://example.com"}],
     )
 
     assert metadata == {}
@@ -248,6 +336,22 @@ def test_non_image_search_parent_preview_metadata_is_empty() -> None:
 def test_images_search_preview_component_stays_parent_metadata_only() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     component_path = repo_root / "frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte"
+    component_source = component_path.read_text(encoding="utf-8")
+
+    forbidden_child_hydration_tokens = [
+        "embedResolver",
+        "loadEmbedsWithRetry",
+        "decodeToonContent",
+        "loadChildEmbedsForPreview",
+    ]
+
+    for token in forbidden_child_hydration_tokens:
+        assert token not in component_source
+
+
+def test_web_search_preview_component_stays_parent_metadata_only() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    component_path = repo_root / "frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte"
     component_source = component_path.read_text(encoding="utf-8")
 
     forbidden_child_hydration_tokens = [
