@@ -76,109 +76,108 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Code Projects. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  de: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  zh: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  es: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  fr: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  pt: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  ru: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  ja: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  ko: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  it: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  tr: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  vi: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  id: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  pl: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  nl: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  ar: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  hi: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  th: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  cs: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  sv: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  he: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
-    
-    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
-    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
-  verified_by_human: []
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
 
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  de: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  zh: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  es: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  fr: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  pt: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  ru: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  ja: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  ko: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  it: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  tr: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  vi: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  id: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  pl: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  nl: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  ar: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  hi: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  th: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  cs: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  sv: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  he: |
+    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
+
+    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
+    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+  verified_by_human: []

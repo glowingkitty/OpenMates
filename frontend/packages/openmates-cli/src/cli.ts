@@ -5451,7 +5451,8 @@ Options for 'send':
 Options for 'new', 'send', and 'incognito':
   --auto-approve           Automatically approve server-requested sub-chat batches.
                            Without this, the CLI prompts in the terminal like the web app.
-  --auto-approve-memories  Automatically approve server-requested memory categories.
+  --auto-approve-memories  Explicitly approve server-requested memory categories.
+                           Memories are never approved by default.
                            Use only for trusted non-interactive runs.
 
 Options for 'download':

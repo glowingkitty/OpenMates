@@ -96,7 +96,7 @@ Creates a new chat and streams the AI response to your terminal. Supports @menti
 | Option | Description |
 |--------|-------------|
 | `--auto-approve` | Automatically approve server-requested sub-chat batches for trusted non-interactive runs |
-| `--auto-approve-memories` | Automatically approve server-requested memory categories for trusted non-interactive runs |
+| `--auto-approve-memories` | Explicitly approve server-requested memory categories for trusted non-interactive runs. Memories are never approved by default. |
 
 ## Sending a Message to an Existing Chat
 
@@ -113,7 +113,9 @@ openmates chats send --chat d262cb68 "continue" --auto-approve-memories
 | `--followup <n>` | Send the nth AI-generated follow-up suggestion instead of typing a message (requires `--chat`) |
 | `--incognito` | Send without saving to chat history |
 | `--auto-approve` | Automatically approve server-requested sub-chat batches for trusted non-interactive runs |
-| `--auto-approve-memories` | Automatically approve server-requested memory categories for trusted non-interactive runs |
+| `--auto-approve-memories` | Explicitly approve server-requested memory categories for trusted non-interactive runs. Memories are never approved by default. |
+
+Without `--auto-approve-memories`, memory requests are recorded in chat history and the CLI stops. Continue the chat in the web app to explicitly approve or reject the memory request.
 
 ## Opening a Chat in the Browser
 

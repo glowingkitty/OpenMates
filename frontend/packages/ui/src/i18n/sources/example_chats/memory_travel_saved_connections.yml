@@ -76,172 +76,192 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Travel Saved Connections. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  de: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  zh: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  es: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  fr: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  pt: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  ru: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  ja: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  ko: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  it: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  tr: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  vi: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  id: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  pl: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  nl: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  ar: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  hi: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  th: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  cs: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  sv: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  he: |
-    Based on your saved memory for the [EuroCity](wiki:EuroCity) train from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) on July 4, 2026, here is what you should prepare for your trip:
-    
-    *   **Seat Reservations:** Since you are traveling in July, your notes mention checking mandatory summer seat reservation rules. Ensure you have a confirmed seat, as these trains can be very crowded during the peak summer season.
-    *   **Window Seat:** You specifically noted wanting to book a window seat to enjoy the views of the [Elbe](wiki:Elbe) river valley during the journey.
-    *   **Food and Drink:** You reminded yourself to bring lunch. While [EuroCity](wiki:EuroCity) trains usually have a dining car, bringing your own meal is a great way to ensure you have what you like.
-    *   **Travel Documents:** As this is a cross-border journey between [Germany](wiki:Germany) and the [Czech Republic](wiki:Czech_Republic), remember to carry a valid passport or ID card for potential border checks.
-    *   **Booking Confirmation:** Double-check your booking through the [Deutsche Bahn](wiki:Deutsche_Bahn) link in your records to ensure your ticket is easily accessible on your phone or printed out.
-  verified_by_human: []
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
 
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  de: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  zh: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  es: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  fr: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  pt: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  ru: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  ja: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  ko: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  it: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  tr: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  vi: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  id: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  pl: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  nl: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  ar: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  hi: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  th: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  cs: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  sv: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  he: |
+    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
+
+    Here is what you should prepare based on the specific notes you've saved:
+
+    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
+    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
+    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
+    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+  verified_by_human: []

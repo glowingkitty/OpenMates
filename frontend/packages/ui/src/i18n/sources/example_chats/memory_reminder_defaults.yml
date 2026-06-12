@@ -76,193 +76,192 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Reminder Defaults. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   de: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   zh: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   es: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   fr: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   pt: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ru: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ja: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ko: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   it: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   tr: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   vi: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   id: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   pl: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   nl: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ar: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   hi: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   th: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   cs: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   sv: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   he: |
-    Based on your [saved reminder defaults](/#settings/apps/reminder), you will be nudged for any saved event next week at two distinct times prior to the start of the event:
-    
-    *   **One day before** (based on the 1440-minute offset)
-    *   **One hour before** (based on the 60-minute offset)
-    
-    These settings, which you added to your memories on June 12, 2026, ensure you have both a 24-hour window to finalize your plans and a final reminder right before the event begins.
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   verified_by_human: []
-

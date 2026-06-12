@@ -76,298 +76,297 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Books Currently Reading. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  de: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  zh: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  es: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  fr: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  pt: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  ru: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  ja: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  ko: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  it: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  tr: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  vi: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  id: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  pl: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  nl: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  ar: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  hi: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  th: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  cs: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  sv: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  he: |
-    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
-    
-    **One-Week Reading Schedule:**
-    
-    *   **Night 1:** Read pages 250–275
-    *   **Night 2:** Read pages 275–300
-    *   **Night 3:** Read pages 300–325
-    *   **Night 4:** Read pages 325–350
-    *   **Night 5:** Read pages 350–375
-    *   **Night 6:** Read pages 375–400
-    *   **Night 7:** Read pages 400–425
-    
-    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
-  verified_by_human: []
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
 
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  de: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  zh: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  es: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  fr: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  pt: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  ru: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  ja: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  ko: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  it: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  tr: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  vi: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  id: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  pl: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  nl: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  ar: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  hi: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  th: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  cs: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  sv: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  he: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  verified_by_human: []

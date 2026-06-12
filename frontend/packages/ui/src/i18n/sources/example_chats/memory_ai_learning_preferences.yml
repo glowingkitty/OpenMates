@@ -76,529 +76,465 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Ai Learning Preferences. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  de: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  zh: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  es: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  fr: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  pt: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  ru: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  ja: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  ko: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  it: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  tr: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  vi: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  id: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  pl: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  nl: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  ar: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  hi: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  th: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  cs: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  sv: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  he: |
-    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
-    
-    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
-    
-    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
-    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
-    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
-    
-    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
-    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
-    Goal: Practice the Promise constructor syntax and the resolve callback.
-    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
-    
-    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
-    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
-    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
-    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
-    
-    SECTION 4: FINAL REVIEW (5 MINUTES)
-    Reflect on the three states of a promise:
-    1. Pending: Initial state, neither fulfilled nor rejected.
-    2. Fulfilled: The operation completed successfully.
-    3. Rejected: The operation failed.
-    Understanding these states helps you debug why a piece of code might be stuck or failing.
-  verified_by_human: []
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
 
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  de: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  zh: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  es: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  fr: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  pt: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  ru: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  ja: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  ko: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  it: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  tr: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  vi: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  id: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  pl: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  nl: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  ar: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  hi: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  th: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  cs: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  sv: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  he: |
+    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
+
+    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
+
+    00:00 - 05:00 PHASE 1: THE TINY START
+    A Promise is an object representing the eventual completion of an asynchronous operation.
+    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
+
+    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
+    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
+    Objective: Understand how Promises wait for tasks to finish.
+
+    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
+    - Initialize using: new Promise((resolve, reject) => { ... })
+    - Success path: call resolve(data) to trigger .then()
+    - Error path: call reject(error) to trigger .catch()
+    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
+
+    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
+    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
+    Objective: Practice handling different Promise states and error flows.
+  verified_by_human: []

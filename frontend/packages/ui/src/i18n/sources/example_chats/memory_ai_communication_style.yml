@@ -76,466 +76,423 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Ai Communication Style. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   de: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   zh: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   es: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   fr: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   pt: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ru: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ja: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ko: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   it: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   tr: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   vi: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   id: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   pl: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   nl: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ar: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   hi: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   th: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   cs: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   sv: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   he: |
-    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
-    
-    **08:00 – 08:30 | Strategic Triage**
-    *   Review repository updates and urgent communications.
-    *   Define three high-impact objectives for the day.
-    *   Close all non-essential browser tabs and notifications.
-    
-    **08:30 – 10:30 | Deep Work: Technical Execution**
-    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
-    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
-    
-    **10:30 – 10:45 | Physiological Reset**
-    *   Step away from all screens.
-    *   Hydrate and perform light stretching to mitigate physical fatigue.
-    
-    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
-    *   Address code reviews or smaller technical debt.
-    *   Engage in necessary team coordination.
-    *   Finalize documentation for the morning's progress.
+    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
+
+    ### Monday Deep Work Block
+
+    **09:00 – 09:30 | Technical Triage**
+    *   Review logs, PR comments, and urgent tickets.
+    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
+
+    **09:30 – 11:30 | Core Execution (Deep Work)**
+    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
+    *   Minimize context switching; stay within the IDE or primary terminal.
+
+    **11:30 – 12:00 | Documentation & Sync**
+    *   Commit code with concise, descriptive messages.
+    *   Update relevant documentation or brief the team on progress/blockers.
+
+    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   verified_by_human: []
-

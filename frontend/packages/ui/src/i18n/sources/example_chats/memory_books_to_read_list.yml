@@ -76,88 +76,87 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Books To Read List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  de: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  zh: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  es: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  fr: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  pt: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  ru: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  ja: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  ko: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  it: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  tr: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  vi: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  id: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  pl: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  nl: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  ar: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  hi: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  th: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  cs: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  sv: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  he: |
-    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
-    
-    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
-  verified_by_human: []
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
 
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  de: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  zh: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  es: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  fr: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  pt: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  ru: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  ja: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  ko: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  it: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  tr: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  vi: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  id: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  pl: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  nl: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  ar: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  hi: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  th: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  cs: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  sv: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  he: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  verified_by_human: []

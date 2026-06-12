@@ -76,88 +76,171 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Travel Preferred Airlines. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  de: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  zh: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  es: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  fr: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  pt: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  ru: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  ja: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  ko: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  it: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  tr: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  vi: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  id: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  pl: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  nl: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  ar: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  hi: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  th: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  cs: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  sv: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  he: |
-    Based on your travel preferences, you have [Lufthansa](wiki:Lufthansa) saved as your preferred airline. For your upcoming work trip, you should prioritize comparing [Lufthansa](wiki:Lufthansa) flight options first. 
-    
-    Focusing on your preferred carrier is often the most efficient strategy for professional travel because it allows you to maximize benefits within the [Miles & More](wiki:Miles_%26_More) loyalty program, potentially utilize lounge access for a more productive pre-flight environment, and rely on a consistent standard of service that you are already comfortable with. You should look at their direct routes to your destination and check for schedules that align best with your meeting times before considering other carriers.
-  verified_by_human: []
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
 
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  de: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  zh: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  es: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  fr: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  pt: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  ru: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  ja: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  ko: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  it: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  tr: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  vi: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  id: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  pl: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  nl: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  ar: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  hi: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  th: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  cs: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  sv: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  he: |
+    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
+
+    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
+    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
+    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
+
+    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+  verified_by_human: []

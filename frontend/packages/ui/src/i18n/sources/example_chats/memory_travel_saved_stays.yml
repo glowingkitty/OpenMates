@@ -76,109 +76,129 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Travel Saved Stays. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  de: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  zh: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  es: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  fr: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  pt: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  ru: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  ja: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  ko: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  it: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  tr: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  vi: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  id: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  pl: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  nl: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  ar: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  hi: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  th: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  cs: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  sv: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  he: |
-    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
-    
-    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
-    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
-  verified_by_human: []
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
 
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  de: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  zh: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  es: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  fr: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  pt: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  ru: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  ja: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  ko: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  it: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  tr: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  vi: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  id: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  pl: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  nl: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  ar: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  hi: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  th: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  cs: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  sv: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  he: |
+    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
+
+    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
+    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
+    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+  verified_by_human: []

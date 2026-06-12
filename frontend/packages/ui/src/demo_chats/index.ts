@@ -36,6 +36,7 @@ export {
   getExampleChatMessages,
   getExampleChatEmbeds,
   getExampleChatEmbed,
+  resolveExampleFullscreenTarget,
   getExampleSubChats,
   getAllExampleChats,
   getRecentExampleChats,

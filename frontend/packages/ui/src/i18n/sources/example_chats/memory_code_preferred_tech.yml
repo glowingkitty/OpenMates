@@ -76,235 +76,213 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Code Preferred Tech. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  de: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  zh: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  es: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  fr: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  pt: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  ru: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  ja: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  ko: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  it: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  tr: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  vi: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  id: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  pl: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  nl: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  ar: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  hi: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  th: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  cs: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  sv: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  he: |
-    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
-    
-    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
-    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
-    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
-    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
-    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
-    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
-    
-    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
-  verified_by_human: []
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
 
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  de: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  zh: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  es: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  fr: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  pt: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  ru: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  ja: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  ko: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  it: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  tr: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  vi: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  id: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  pl: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  nl: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  ar: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  hi: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  th: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  cs: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  sv: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  he: |
+    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
+
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
+    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
+
+    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+  verified_by_human: []

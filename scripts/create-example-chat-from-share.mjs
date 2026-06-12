@@ -443,16 +443,27 @@ function normalizeCategory(value) {
   );
 }
 
+function isDirectSystemContent(message) {
+  return message.role === 'system' && typeof message.content === 'string' && message.content.trimStart().startsWith('{');
+}
+
 function formatMessages(messages, metadata, keyPrefix) {
-  return messages.map((message, index) => ({
-    id: message.message_id || message.id || `${metadata.chatId}-${keyPrefix}-${index + 1}`,
-    role: message.role,
-    content: `example_chats.${metadata.snake}.${keyPrefix === 'message' ? `message_${index + 1}` : `${keyPrefix}_message_${index + 1}`}`,
-    created_at: normalizeTimestamp(message.created_at),
-    category: message.category || undefined,
-    model_name: message.model_name || undefined,
-    pii_mappings: message.pii_mappings || undefined,
-  }));
+  let translatedIndex = 0;
+  return messages.map((message, index) => {
+    const directSystemContent = isDirectSystemContent(message);
+    if (!directSystemContent) translatedIndex += 1;
+    return {
+      id: message.message_id || message.id || `${metadata.chatId}-${keyPrefix}-${index + 1}`,
+      role: message.role,
+      content: directSystemContent
+        ? message.content
+        : `example_chats.${metadata.snake}.${keyPrefix === 'message' ? `message_${translatedIndex}` : `${keyPrefix}_message_${translatedIndex}`}`,
+      created_at: normalizeTimestamp(message.created_at),
+      category: message.category || undefined,
+      model_name: message.model_name || undefined,
+      pii_mappings: message.pii_mappings || undefined,
+    };
+  });
 }
 
 function formatEmbeds(embeds) {
@@ -558,11 +569,14 @@ function formatYaml(chat, metadata) {
   const entries = [];
   entries.push(yamlEntry('title', `Title of example chat: ${metadata.title}`, metadata.title));
   entries.push(yamlEntry('summary', `Summary of example chat: ${metadata.title}`, metadata.summary));
-  chat.messages.forEach((message, index) => {
+  let rootMessageIndex = 0;
+  chat.messages.forEach((message) => {
+    if (isDirectSystemContent(message)) return;
+    rootMessageIndex += 1;
     entries.push(
       yamlEntry(
-        `message_${index + 1}`,
-        `${message.role} message ${index + 1} in example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
+        `message_${rootMessageIndex}`,
+        `${message.role} message ${rootMessageIndex} in example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
         message.content || '',
       ),
     );

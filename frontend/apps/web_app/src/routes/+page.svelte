@@ -872,12 +872,25 @@
 	async function handleEmbedDeepLink(embedId: string, hasChatContext = false) {
 		console.debug(`[+page.svelte] Handling embed deep link for: ${embedId}`);
 
+		let targetEmbedId = embedId;
+		let focusChildEmbedId: string | undefined;
+		try {
+			const { resolveExampleFullscreenTarget } = await import('@repo/ui');
+			const exampleTarget = resolveExampleFullscreenTarget(embedId);
+			if (exampleTarget) {
+				targetEmbedId = exampleTarget.targetEmbedId;
+				focusChildEmbedId = exampleTarget.focusChildEmbedId;
+			}
+		} catch (error) {
+			console.debug('[+page.svelte] Example fullscreen target resolution skipped:', error);
+		}
+
 		// Mark that a deep link was processed
 		deepLinkProcessed = true;
 
 		// Update the activeEmbedStore so the URL hash is set
 		// NOTE: This is a programmatic change; hashchange handler must ignore embed hash updates.
-		activeEmbedStore.setActiveEmbed(embedId);
+		activeEmbedStore.setActiveEmbed(targetEmbedId, hasChatContext ? $activeChatStore : null);
 
 		// Wait a bit for ActiveChat component to be ready and register event listeners
 		// This ensures the embedfullscreen event listener is registered
@@ -909,8 +922,9 @@
 		// This reuses the same system that opens embeds when clicking on embed previews
 		const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
 			detail: {
-				embedId: embedId,
+				embedId: targetEmbedId,
 				hasChatContext,
+				focusChildEmbedId,
 				// Let handleEmbedFullscreen load and decode the embed content
 				embedData: null,
 				decodedContent: null,
@@ -923,7 +937,7 @@
 
 		console.debug(
 			'[+page.svelte] Dispatching embedfullscreen event for deep-linked embed:',
-			embedId
+			targetEmbedId
 		);
 		document.dispatchEvent(embedFullscreenEvent);
 	}

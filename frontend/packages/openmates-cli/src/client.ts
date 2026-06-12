@@ -110,6 +110,20 @@ export interface SubChatApprovalRequest {
   remainingSubChats: number | null;
 }
 
+export interface AppSettingsMemorySystemMessage {
+  message_id: string;
+  role: "system";
+  content: string;
+  created_at: number;
+  user_message_id: string;
+}
+
+type AppSettingsMemoryResponseCategory = {
+  appId: string;
+  itemType: string;
+  entryCount: number;
+};
+
 export function buildSubChatConfirmationPayload(params: {
   chatId: string;
   taskId: string;
@@ -126,6 +140,70 @@ export function buildSubChatConfirmationPayload(params: {
     task_id: params.taskId,
     action: params.approved ? "approve" : "cancel",
     approve_count: params.approved ? params.approveCount ?? null : null,
+  };
+}
+
+function categoryFromMemoryKey(key: string): { appId: string; itemType: string } | null {
+  const separator = key.indexOf("-");
+  if (separator <= 0 || separator === key.length - 1) return null;
+  return {
+    appId: key.slice(0, separator),
+    itemType: key.slice(separator + 1),
+  };
+}
+
+export function buildAppSettingsMemoryRequestSystemMessage(params: {
+  userMessageId: string;
+  requestId: string;
+  requestedKeys: string[];
+  createdAt: number;
+}): AppSettingsMemorySystemMessage {
+  const seen = new Set<string>();
+  const categories: Array<{ appId: string; itemType: string; entryCount: number }> = [];
+  for (const key of params.requestedKeys) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const parsed = categoryFromMemoryKey(key);
+    if (!parsed) continue;
+    categories.push({
+      ...parsed,
+      entryCount: 0,
+    });
+  }
+
+  return {
+    message_id: params.requestId,
+    role: "system",
+    content: JSON.stringify({
+      type: "app_settings_memories_request",
+      user_message_id: params.userMessageId,
+      request_id: params.requestId,
+      requested_keys: params.requestedKeys,
+      categories,
+    }),
+    created_at: params.createdAt,
+    user_message_id: params.userMessageId,
+  };
+}
+
+export function buildAppSettingsMemoryResponseSystemMessage(params: {
+  userMessageId: string;
+  messageId: string;
+  action: "included" | "rejected";
+  categories?: AppSettingsMemoryResponseCategory[];
+  createdAt: number;
+}): AppSettingsMemorySystemMessage {
+  return {
+    message_id: params.messageId,
+    role: "system",
+    content: JSON.stringify({
+      type: "app_settings_memories_response",
+      user_message_id: params.userMessageId,
+      action: params.action,
+      categories: params.action === "included" ? params.categories : undefined,
+    }),
+    created_at: params.createdAt,
+    user_message_id: params.userMessageId,
   };
 }
 
@@ -2247,49 +2325,123 @@ export class OpenMatesClient {
       );
     };
 
+    const persistSystemMessage = async (systemMessage: AppSettingsMemorySystemMessage) => {
+      if (!chatKeyBytes) return;
+      await ws.sendAsync("chat_system_message_added", {
+        chat_id: chatId,
+        message: {
+          message_id: systemMessage.message_id,
+          role: "system",
+          encrypted_content: await encryptWithAesGcmCombined(
+            systemMessage.content,
+            chatKeyBytes,
+          ),
+          created_at: systemMessage.created_at,
+          user_message_id: systemMessage.user_message_id,
+        },
+      });
+      await ws.waitForMessage(
+        "system_message_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.message_id === systemMessage.message_id;
+        },
+        20_000,
+      );
+    };
+
+    const persistMemoryRequestSystemMessage = async (
+      event: AppSettingsMemoriesRequestEvent,
+    ) => {
+      const requestId = event.requestId ?? `${messageId}-memory-request`;
+      await persistSystemMessage(buildAppSettingsMemoryRequestSystemMessage({
+        userMessageId: messageId,
+        requestId,
+        requestedKeys: event.requestedKeys,
+        createdAt: Math.floor(Date.now() / 1000),
+      }));
+    };
+
+    const responseCategoriesFromMemories = (
+      approvedMemories: Array<{ app_id: string; item_key: string }>,
+    ): AppSettingsMemoryResponseCategory[] => {
+      const counts = new Map<string, AppSettingsMemoryResponseCategory>();
+      for (const memory of approvedMemories) {
+        const key = `${memory.app_id}-${memory.item_key}`;
+        const existing = counts.get(key);
+        if (existing) {
+          existing.entryCount += 1;
+        } else {
+          counts.set(key, {
+            appId: memory.app_id,
+            itemType: memory.item_key,
+            entryCount: 1,
+          });
+        }
+      }
+      return [...counts.values()];
+    };
+
     const handleAppSettingsMemoriesRequest = async (
       event: AppSettingsMemoriesRequestEvent,
     ) => {
-      if (!params.autoApproveMemories) {
-        throw new Error(
-          `The assistant requested memories (${event.requestedKeys.join(", ")}). ` +
-            "Rerun with --auto-approve-memories to approve requested memory categories from the CLI, " +
-            "or continue this chat in the web app.",
-        );
-      }
+      await persistMemoryRequestSystemMessage(event);
 
-      const requested = new Set(event.requestedKeys);
-      const unadvertisedKeys = event.requestedKeys.filter(
-        (key) => !memoryMetadataKeys.includes(key),
-      );
-      if (unadvertisedKeys.length > 0) {
-        throw new Error(
-          `Refusing to auto-approve unadvertised memory categories: ${unadvertisedKeys.join(", ")}`,
+      if (params.autoApproveMemories) {
+        const requested = new Set(event.requestedKeys);
+        const unadvertisedKeys = event.requestedKeys.filter(
+          (key) => !memoryMetadataKeys.includes(key),
         );
-      }
+        if (unadvertisedKeys.length > 0) {
+          throw new Error(
+            `Refusing to auto-approve unadvertised memory categories: ${unadvertisedKeys.join(", ")}`,
+          );
+        }
 
-      const approvedMemories = availableMemories
-        .filter((memory) => requested.has(`${memory.app_id}-${memory.item_type}`))
-        .map((memory) => ({
-          app_id: memory.app_id,
-          item_key: memory.item_type,
-          content: memory.data,
+        const approvedMemories = availableMemories
+          .filter((memory) => requested.has(`${memory.app_id}-${memory.item_type}`))
+          .map((memory) => ({
+            app_id: memory.app_id,
+            item_key: memory.item_type,
+            content: memory.data,
+          }));
+        const approvedKeys = [
+          ...new Set(approvedMemories.map((memory) => `${memory.app_id}-${memory.item_key}`)),
+        ];
+        const categories = responseCategoriesFromMemories(approvedMemories);
+
+        appSettingsMemoryRequests.push({
+          requestId: event.requestId,
+          requestedKeys: event.requestedKeys,
+          approvedKeys,
+          entryCount: approvedMemories.length,
+        });
+
+        await ws.sendAsync("app_settings_memories_confirmed", {
+          chat_id: event.chatId,
+          app_settings_memories: approvedMemories,
+        });
+        await persistSystemMessage(buildAppSettingsMemoryResponseSystemMessage({
+          userMessageId: messageId,
+          messageId: `${messageId}-memory-response`,
+          action: "included",
+          categories,
+          createdAt: Math.floor(Date.now() / 1000),
         }));
-      const approvedKeys = [
-        ...new Set(approvedMemories.map((memory) => `${memory.app_id}-${memory.item_key}`)),
-      ];
+        return;
+      }
 
       appSettingsMemoryRequests.push({
         requestId: event.requestId,
         requestedKeys: event.requestedKeys,
-        approvedKeys,
-        entryCount: approvedMemories.length,
+        approvedKeys: [],
+        entryCount: 0,
       });
-
-      await ws.sendAsync("app_settings_memories_confirmed", {
-        chat_id: event.chatId,
-        app_settings_memories: approvedMemories,
-      });
+      throw new Error(
+        `The assistant requested memories (${event.requestedKeys.join(", ")}). ` +
+          "Rerun with --auto-approve-memories to explicitly approve requested memory categories from the CLI, " +
+          "or continue this chat in the web app to approve or reject the request.",
+      );
     };
 
     const streamOpts = {

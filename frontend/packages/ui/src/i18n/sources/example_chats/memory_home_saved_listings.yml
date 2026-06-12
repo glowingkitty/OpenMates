@@ -76,193 +76,381 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Home Saved Listings. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  de: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  zh: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  es: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  fr: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  pt: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  ru: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  ja: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  ko: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  it: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  tr: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  vi: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  id: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  pl: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  nl: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  ar: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  hi: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  th: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  cs: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  sv: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  he: |
-    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
-    
-    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
-    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
-    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
-    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
-    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
-    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
-  verified_by_human: []
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
 
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  de: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  zh: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  es: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  fr: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  pt: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  ru: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  ja: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  ko: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  it: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  tr: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  vi: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  id: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  pl: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  nl: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  ar: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  hi: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  th: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  cs: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  sv: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  he: |
+    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
+
+    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
+    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
+    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
+
+    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
+    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
+    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
+    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
+    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
+
+    ### General Questions for Both Listings
+    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
+    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
+    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+  verified_by_human: []

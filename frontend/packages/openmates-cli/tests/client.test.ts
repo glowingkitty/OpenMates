@@ -56,6 +56,8 @@ writeLegacySession();
 const {
   OpenMatesClient,
   MEMORY_TYPE_REGISTRY,
+  buildAppSettingsMemoryRequestSystemMessage,
+  buildAppSettingsMemoryResponseSystemMessage,
   buildSubChatConfirmationPayload,
   buildSubChatEncryptedMetadataPayloads,
   getClientMessagesVersionForSync,
@@ -174,6 +176,56 @@ describe("memory type registry", () => {
       "videos/to_watch_list",
       "web/bookmarks",
       "web/read_later",
+    ]);
+  });
+});
+
+describe("memory request system messages", () => {
+  it("builds the request artifact without approving memory content", () => {
+    const message = buildAppSettingsMemoryRequestSystemMessage({
+      userMessageId: "user-message-id",
+      requestId: "request-id",
+      requestedKeys: ["books-currently_reading"],
+      createdAt: 1780000000,
+    });
+
+    assert.equal(message.message_id, "request-id");
+    assert.equal(message.role, "system");
+    assert.equal(message.created_at, 1780000000);
+    assert.equal(message.user_message_id, "user-message-id");
+
+    const payload = JSON.parse(message.content);
+    assert.equal(payload.type, "app_settings_memories_request");
+    assert.equal(payload.user_message_id, "user-message-id");
+    assert.equal(payload.request_id, "request-id");
+    assert.deepEqual(payload.requested_keys, ["books-currently_reading"]);
+    assert.deepEqual(payload.categories, [
+      { appId: "books", itemType: "currently_reading", entryCount: 0 },
+    ]);
+    assert.notEqual(payload.type, "app_settings_memories_response");
+    assert.equal(payload.action, undefined);
+  });
+
+  it("builds an included response artifact only for explicit approval", () => {
+    const message = buildAppSettingsMemoryResponseSystemMessage({
+      userMessageId: "user-message-id",
+      messageId: "response-id",
+      action: "included",
+      categories: [{ appId: "books", itemType: "currently_reading", entryCount: 2 }],
+      createdAt: 1780000001,
+    });
+
+    assert.equal(message.message_id, "response-id");
+    assert.equal(message.role, "system");
+    assert.equal(message.created_at, 1780000001);
+    assert.equal(message.user_message_id, "user-message-id");
+
+    const payload = JSON.parse(message.content);
+    assert.equal(payload.type, "app_settings_memories_response");
+    assert.equal(payload.user_message_id, "user-message-id");
+    assert.equal(payload.action, "included");
+    assert.deepEqual(payload.categories, [
+      { appId: "books", itemType: "currently_reading", entryCount: 2 },
     ]);
   });
 });

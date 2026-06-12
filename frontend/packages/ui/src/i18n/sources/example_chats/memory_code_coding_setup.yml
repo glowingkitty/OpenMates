@@ -76,529 +76,213 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Code Coding Setup. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  de: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  zh: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  es: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  fr: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  pt: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  ru: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  ja: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  ko: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  it: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  tr: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  vi: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  id: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  pl: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  nl: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  ar: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  hi: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  th: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  cs: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  sv: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  he: |
-    Based on your saved coding setup, which prioritizes a **terminal-based workspace**, **low AI automation**, and a **keyboard-first** manual workflow, here is a suggested structure for your debugging session tonight.
-    
-    ### 1. Preparation: Terminal Environment
-    Since you prefer explicit commands and keyboard-first work, start by setting up your [Tmux](wiki:Tmux) or terminal panes to keep your context visible without switching windows:
-    *   **Pane A:** The active editor ([Vim](wiki:Vim) or [Nano](wiki:GNU_Nano)) for code inspection.
-    *   **Pane B:** A continuous log tail or test runner (e.g., `tail -f logs/debug.log` or a file watcher).
-    *   **Pane C:** The active debugger or shell for manual command execution.
-    
-    ### 2. Isolation: Small Diffs & Manual Reproduction
-    In line with your preference for small diffs and manual review, avoid broad changes. Focus on creating a minimal reproduction script:
-    *   Create a temporary test case that isolates the failure.
-    *   Use explicit `diff` commands between your current state and a known-good commit to verify exactly what has changed in the environment.
-    
-    ### 3. Investigation: Explicit Debugging Commands
-    Because you prefer low AI intervention and manual review, use high-granularity tools rather than automated "fix-it" scripts:
-    *   **Tracepoints:** Manually insert logging at specific execution boundaries.
-    *   **Step-through:** Use CLI debuggers (like `gdb`, `pdb`, or `node inspect`) to manually step through the logic. 
-    *   **Manual Review:** Before applying any fix, use `git diff` to review the change line-by-line, ensuring no unintended side effects are introduced by the correction.
-    
-    ### 4. Resolution: Incremental Validation
-    Once a potential fix is identified, apply it as a single, focused change:
-    *   Run your isolation script from Phase 2.
-    *   Verify the fix via explicit CLI commands rather than a full CI/CD suite until you are satisfied with the manual review.
-    *   Commit with a detailed message describing the manual verification steps taken, honoring your preference for explicit control over the development cycle.
-  verified_by_human: []
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
 
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  de: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  zh: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  es: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  fr: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  pt: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  ru: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  ja: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  ko: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  it: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  tr: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  vi: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  id: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  pl: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  nl: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  ar: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  hi: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  th: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  cs: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  sv: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  he: |
+    Based on your saved coding setup memories, you strongly prefer a terminal-based, keyboard-first workflow that emphasizes strict control, manual review, and minimal changes over heavy AI automation.
+
+    Here is how you should structure your debugging session tonight to align perfectly with your preferences:
+
+    1. **Set Up a Split Terminal Workspace:** Since you thrive in a keyboard-first terminal environment, start by configuring your workspace (using tmux, Zellij, or your terminal emulator's native splits). Keep your editor in one pane and reserve an adjacent pane strictly for execution and logs.
+    2. **Establish an Explicit Verification Command:** Before making any code changes, isolate the bug and define a single, explicit terminal command to reproduce it (such as a specific unit test, a script execution, or a curl request). This gives you a clear, binary pass/fail condition.
+    3. **Make Small, Targeted Diffs:** As you track down the issue, implement the smallest possible modifications to test your hypotheses. Stick strictly to fixing the bug and actively avoid any broad rewrites or unrelated refactoring.
+    4. **Enforce Manual Review:** Whenever you or an AI assistant proposes a fix, manually review the diff before applying it. Since you prefer low AI automation for actual execution, treat any generated code as a suggestion to be typed or meticulously pasted and reviewed.
+    5. **Iterate Incrementally:** Run your explicit verification command after every single minimal change. If the test fails, revert the small diff and try the next targeted approach. This ensures you always understand exactly which line of code fixed the issue.
+  verified_by_human: []

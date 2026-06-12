@@ -76,172 +76,150 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Health Medical History. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   de: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   zh: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   es: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   fr: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   pt: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ru: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ja: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ko: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   it: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   tr: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   vi: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   id: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   pl: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   nl: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ar: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   hi: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   th: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   cs: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   sv: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   he: |
-    Based on your saved health records, here is what you should remember to tell a new doctor:
-    
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted since June 2020). 
-    *   **Symptoms:** Exposure causes [hives](wiki:Hives).
-    *   **Precaution:** You should mention this specifically before receiving any new antibiotic prescriptions or medications.
+    Based on your saved medical history, here are the key details you should share with a new doctor:
+
+    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
+    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   verified_by_human: []
-

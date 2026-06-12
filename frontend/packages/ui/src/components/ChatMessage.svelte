@@ -3342,7 +3342,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     <!-- This data comes from system messages stored in chat history and synced across devices -->
     <!-- Display name and icon are loaded client-side from app metadata (not stored in message) -->
     {#if role === 'user' && appSettingsMemoriesResponse}
-      <div class="app-settings-memories-summary">
+      <div class="app-settings-memories-summary" data-testid="app-settings-memories-summary">
         {#if appSettingsMemoriesResponse.action === 'included' && appSettingsMemoriesResponse.categories}
           <span class="summary-label">{$text('chat.permissions.included_summary')}:</span>
           <div class="summary-categories">
@@ -3350,6 +3350,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               <button 
                 type="button"
                 class="category-badge"
+                data-testid="app-settings-memory-category-badge"
                 onclick={() => {
                   // Navigate to app settings/memories category via deep link
                   const path = `app_store/${cat.appId}/settings_memories/${cat.itemType}`;

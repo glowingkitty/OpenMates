@@ -46,6 +46,7 @@ FOCUS_MODES_REQUIRING_SUB_CHATS = {"web-research"}
 FOCUS_MENTION_RE = re.compile(r"(^|\s)@focus:[a-z0-9_-]+:[a-z0-9_-]+\b")
 FOCUS_ACTIVATION_MARKERS = ("focus_mode_activation", "focus-mode-activation")
 FOCUS_ACTIVATION_TYPE = "focus-mode-activation"
+RECIPE_EMBED_TYPES = {"recipe", "nutrition-recipe"}
 PUBLIC_SAFETY_PATTERNS = [
     ("vault_wrapped_aes_key", "contains a vault-wrapped encryption key"),
     ("vault:v1:", "contains a vault key reference"),
@@ -428,6 +429,42 @@ def has_visible_mail_memory_draft(source: str) -> bool:
     return False
 
 
+def has_memory_system_artifacts(source: str) -> bool:
+    has_request = False
+    has_accepted_response = False
+    for message in parse_messages(source):
+        if message.role != "system":
+            continue
+        resolved, _ = resolve_message_content(message.content)
+        try:
+            payload = json.loads(resolved)
+        except json.JSONDecodeError:
+            continue
+        if payload.get("type") == "app_settings_memories_request":
+            has_request = True
+        if (
+            payload.get("type") == "app_settings_memories_response"
+            and payload.get("action") == "included"
+        ):
+            has_accepted_response = True
+    return has_request and has_accepted_response
+
+
+def has_non_empty_toon_field(content: str, key: str) -> bool:
+    value = toon_value(content, key)
+    return bool(value and value.strip() and value.strip().lower() not in {"null", "none", "[]"})
+
+
+def audit_recipe_embed(chat_id: str, block: str, content: str) -> list[str]:
+    embed_id = parse_ts_string_field(block, "embed_id") or "<unknown>"
+    issues: list[str] = []
+    if not has_non_empty_toon_field(content, "image_url"):
+        issues.append(f"{chat_id}: recipe embed {embed_id} is missing a public image_url")
+    if not has_non_empty_toon_field(content, "instructions"):
+        issues.append(f"{chat_id}: recipe embed {embed_id} is missing renderable instructions")
+    return issues
+
+
 def audit() -> list[str]:
     issues: list[str] = []
     valid_categories = load_canonical_categories()
@@ -474,6 +511,11 @@ def audit() -> list[str]:
                 f"{chat_id}: focus-mode example {focus_examples or [active_focus_id]} has sub_chats without assistant messages"
             )
 
+        if settings_memory_examples and not has_memory_system_artifacts(source):
+            issues.append(
+                f"{chat_id}: memory example {settings_memory_examples} is missing memory request/accepted system messages"
+            )
+
         for index, message in enumerate(parse_messages(source), start=1):
             resolved, missing_key = resolve_message_content(message.content)
             if missing_key:
@@ -506,6 +548,9 @@ def audit() -> list[str]:
             if embed_type in {"document", "docs-doc"} and not has_renderable_document_content(content):
                 embed_id = parse_ts_string_field(block, "embed_id") or "<unknown>"
                 issues.append(f"{chat_id}: document embed {embed_id} has no renderable html/code/docx_model content")
+            content_type = toon_value(content, "type")
+            if embed_type in RECIPE_EMBED_TYPES or content_type in RECIPE_EMBED_TYPES:
+                issues.extend(audit_recipe_embed(chat_id, block, content))
             if embed_type != "app_skill_use":
                 continue
             app_id = toon_value(content, "app_id")
@@ -523,8 +568,6 @@ def audit() -> list[str]:
             visible_mail_memory_draft = has_visible_mail_memory_draft(source)
             if not visible_mail_memory_draft and not has_embed_type(source, {"mail-email"}):
                 issues.append(f"{chat_id}: mail writing memory example is missing a mail-email embed")
-            if not visible_mail_memory_draft and not any(message.role == "system" for message in parse_messages(source)):
-                issues.append(f"{chat_id}: mail writing memory example is missing app settings/memory system messages")
 
     for content_key, count in sorted(content_example_counts.items()):
         if count == 0:

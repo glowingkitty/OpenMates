@@ -155,7 +155,7 @@ scenarios:
     when:
       - An unauthenticated visitor opens the hash route or the SSR `/example/<slug>` route.
     then:
-      - The chat shows the focus-mode activation embed/card in the transcript.
+      - The chat shows the focus-mode activation embed/card at the beginning of the transcript before sub-chat cards render.
       - The active focus state is visible where the normal chat UI exposes it.
       - Sub-chat cards include summaries and open complete child transcripts when relevant.
       - No raw focus activation JSON or @focus directive is visible.
@@ -178,6 +178,7 @@ scenarios:
     when:
       - An unauthenticated visitor opens the deployed example page.
     then:
+      - The conversation includes the real system message artifacts that show which memory types were requested and accepted before the assistant uses saved context.
       - The conversation clearly shows saved context being used or updated.
       - Interactive questions render as valid UI or are rewritten as plain conversation; they never show `[Interactive Question - Invalid JSON]`.
       - The answer avoids irrelevant disclaimers and unsafe commands such as destructive git cleanup instructions unless the prompt explicitly asks for them and includes appropriate warnings.
@@ -200,7 +201,8 @@ scenarios:
     when:
       - The example chat is loaded from the hash route.
     then:
-      - App-settings/memory request and response system artifacts are either preserved as system messages or represented by equivalent visible transcript context.
+      - App-settings/memory request and response artifacts are preserved as `role: system` messages from the real chat capture.
+      - The preserved system messages identify the requested memory types and which memory types were accepted for use.
       - Mail draft examples render a `mail-email` embed when the transcript says an email draft was created.
       - Document examples render a non-empty `docs-doc` preview when the transcript references a created document.
       - Interactive-question fences are balanced and parseable before any following embed reference.
@@ -238,7 +240,7 @@ acceptance_criteria:
     text: Media and document examples use stable public fixture assets and render without private S3, presigned URL, transcript, vault-key, or missing-file errors.
   - id: AC-7
     scenario: S-5
-    text: Memory examples render valid saved-context behavior and never expose invalid interactive-question placeholders or irrelevant unsafe boilerplate.
+    text: Memory examples preserve real memory request/accepted system messages, render valid saved-context behavior, and never expose invalid interactive-question placeholders or irrelevant unsafe boilerplate.
   - id: AC-8
     scenario: S-6
     text: Deployed affected examples pass Firecrawl verification for specific page content, missing/broken embed absence, focus activation presence where applicable, and removed-slug 404 behavior.
@@ -247,7 +249,7 @@ acceptance_criteria:
     text: Clicking linked example chat cards from settings updates the reloadable `#chat-id` URL on every viewport.
   - id: AC-10
     scenario: S-8
-    text: Memory examples preserve system-message semantics or equivalent visible context and render expected mail/document embeds without blank previews.
+    text: Memory examples preserve system-message memory request/accepted artifacts and render expected mail/document embeds without blank previews.
   - id: AC-11
     scenario: S-9
     text: Every example currently listed in `ALL_EXAMPLE_CHATS` is replaced by a fresh reviewed real-chat example or has an explicit removal/exclusion decision recorded; `INTERNAL_EXAMPLE_CHATS` fixtures are excluded from this real-chat requirement.
@@ -260,12 +262,16 @@ contracts:
     - "User-facing example prompts and transcript text must not contain directive syntax such as `@mate:`, `@skill:`, `@app:`, or `@focus:`."
     - "No checked-in example chat data may contain `vault_wrapped_aes_key`, `vault:v1:`, presigned S3 URLs, private bucket names, account IDs, or other private source identifiers."
     - "Media/document examples must point to public fixture assets whose URLs are stable for unauthenticated visitors."
-    - "Focus-mode examples with `active_focus_id` must include a renderable focus activation artifact and must not contain @focus directives in user prompts."
+    - "Focus-mode examples with `active_focus_id` must include a renderable focus activation artifact before the first sub-chat/result affordance and must not contain @focus directives in user prompts."
+    - "Memory examples must preserve real `role: system` memory-request and memory-accepted artifacts; visible assistant prose alone is not an acceptable substitute."
     - "Memory examples must not contain malformed interactive question JSON; if interactive UI cannot be represented safely, the transcript must use plain conversation instead."
     - "Search/result-list parent embeds must include parent-level preview metadata needed by the preview card, including result counts and provider/source summaries where applicable, without requiring child embed hydration."
     - "Example chat messages may use `role: system` when preserving app-settings/memory permission request/response artifacts from real chats."
     - "Document examples using a direct document embed must store renderable `docs-doc` content (`html` or `code`) or be rejected by deterministic audit."
     - "Mail examples whose transcript says an email draft was prepared must include at least one renderable `mail-email` embed."
+    - "Recipe examples must include renderable instructions and a public recipe image URL for every recipe result shown in a public example."
+    - "Child-result `embed-id` deep links in example chats must resolve to the parent fullscreen with the child result focused."
+    - "Event-search previews must render attribution as `via` plus deduplicated round provider icon chips only; provider names must not be repeated as visible text."
   ui_states:
     - "Public `/example/<slug>` pages render crawlable SEO transcript HTML with `User:` and `OpenMates:` turns."
     - "Hash-route example chats render the normal chat transcript, embeds, sub-chat cards, focus activation cards, and parent navigation where applicable."
@@ -298,7 +304,7 @@ tests:
     assertions:
       - Audit inventories in-scope examples and reports capability-linked failures with chat IDs.
       - Audit fails on vault keys, presigned/private media errors, raw fenced embed JSON, invalid interactive-question placeholders, forbidden @mate/@skill/@app/@focus directives, missing activation artifacts, and incomplete sub-chat transcripts.
-      - Audit fails on unbalanced `interactive_question` fences, blank document embed payloads, missing expected mail embeds, and memory examples with neither system artifacts nor equivalent visible context.
+      - Audit fails on unbalanced `interactive_question` fences, blank document embed payloads, missing expected mail embeds, memory examples without request/accepted system artifacts, recipe results without image URLs, and recipe results without renderable instructions.
       - Audit fails when a public example lacks a replacement/removal decision in the current-coverage manifest.
       - Audit passes after replacement examples and fixtures satisfy the contract.
     red_phase:
@@ -336,7 +342,7 @@ tests:
       - Media, PDF, memory, and app-skill examples selected by this spec do not expose broken embed text in the browser.
       - Clicking a memory example card updates `window.location.hash` and reload restores that example chat.
       - Reported memory examples render valid interactive questions and non-empty mail/document embed previews.
-      - Representative replacement examples cover child-result fullscreen links, parent preview result counts, event provider labels/icons, and recipe result content without stale or empty data.
+      - Representative replacement examples cover child-result fullscreen links, parent preview result counts, event provider icon-only attribution, and recipe result content without stale or empty data.
     red_phase:
       required: false
       expected: not_applicable

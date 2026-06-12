@@ -76,298 +76,297 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Mail Writing Styles. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   de: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   zh: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   es: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   fr: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   pt: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   ru: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   ja: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   ko: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   it: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   tr: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   vi: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   id: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   pl: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   nl: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   ar: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   hi: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   th: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   cs: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   sv: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   he: |
-    Subject: Weekly Update - [Project Name]
-    
+    Subject: Friday Update - [Project Name]
+
     Hi [Client Name],
-    
-    I hope you’ve had a productive week. Here is a concise update on the progress we've made:
-    
-    *   Completed the final review of the [Specific Component] documentation.
-    *   Resolved the [Specific Issue] encountered during the mid-week testing phase.
-    *   Started the initial draft for next month’s [Specific Deliverable].
-    
-    I'll be starting on [Next Task] first thing Monday morning. Have a wonderful weekend.
-    
+
+    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
+
+    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
+    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
+    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
+
+    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
+
     Best, Alex
   verified_by_human: []
-

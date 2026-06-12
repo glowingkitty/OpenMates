@@ -178,9 +178,22 @@ function toReadableMessageContent(role: string, content: string): string {
 	return removeEmbedRefs(displayContent);
 }
 
+function isHiddenSystemMessage(msg: ExampleChat['messages'][number]): boolean {
+	if (msg.role !== 'system' || !msg.content.trimStart().startsWith('{')) return false;
+	try {
+		const payload = JSON.parse(msg.content) as { type?: string };
+		return (
+			payload.type === 'app_settings_memories_request' ||
+			payload.type === 'app_settings_memories_response'
+		);
+	} catch {
+		return false;
+	}
+}
+
 function buildVisibleMessages(chat: ExampleChat): SeoMessage[] {
 	const embedRefMap = buildEmbedRefMap(chat);
-	return chat.messages.map((msg) => {
+	return chat.messages.filter((msg) => !isHiddenSystemMessage(msg)).map((msg) => {
 		const translatedContent = t(msg.content);
 		return {
 			role: msg.role,

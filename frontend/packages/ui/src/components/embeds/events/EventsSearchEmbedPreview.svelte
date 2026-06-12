@@ -217,31 +217,27 @@
   // The app-level icon is "event" (calendar), but the search *skill* uses "search".
   const skillIconName = 'search';
 
-  // "via {provider}" subtitle — use providers list when available for multi-source display
-  let viaProvider = $derived.by(() => {
-    const via = $text('embeds.via');
-    // Prefer the providers list (actual contributing providers) over the single provider field
-    if (providers.length > 0) {
-      const labels = providers.map(getProviderLabel);
-      if (labels.length <= 2) {
-        return `${via} ${labels.join(', ')}`;
-      }
-      return `${via} ${labels[0]}, ${labels[1]} +${labels.length - 2}`;
-    }
-    // Fallback to legacy single provider (backwards compatibility with existing embeds)
-    if (provider && provider !== 'auto' && provider !== 'none') {
-      return `${via} ${getProviderLabel(provider)}`;
-    }
-    return '';
-  });
+  let viaProvider = $derived($text('embeds.via'));
 
   // Event count for finished state: the total number of results
   let eventCount = $derived(localResultCount || results?.length || 0);
 
-  let providerBadges = $derived(providers.map((providerSlug) => ({
-    slug: normalizeProviderSlug(providerSlug),
-    label: getProviderLabel(providerSlug)
-  })).filter((provider) => provider.label.length > 0));
+  let providerBadges = $derived.by(() => {
+    const providerSources = providers.length > 0 ? providers : [provider];
+    const seen = new Set<string>();
+    return providerSources
+      .map((providerSlug) => ({
+        slug: normalizeProviderSlug(providerSlug),
+        label: getProviderLabel(providerSlug)
+      }))
+      .filter((provider) => {
+        if (!provider.slug || provider.slug === 'none' || provider.slug === 'auto' || seen.has(provider.slug)) {
+          return false;
+        }
+        seen.add(provider.slug);
+        return provider.label.length > 0;
+      });
+  });
 
   /**
    * Handle stop button — cancels this specific skill or the entire AI task as fallback.
@@ -288,19 +284,19 @@
       <!-- Query text -->
       <div class="ds-search-query">{query}</div>
 
-      <!-- Provider subtitle -->
-      <div class="ds-search-provider">{viaProvider}</div>
-
-      {#if providerBadges.length > 0}
-        <div class="provider-badges" aria-label={viaProvider}>
+      <!-- Provider attribution: text "via" plus icon chips, matching web search previews. -->
+      <div class="provider-attribution" aria-label={providerBadges.map((provider) => provider.label).join(', ')}>
+        <span class="ds-search-provider">{viaProvider}</span>
+        {#if providerBadges.length > 0}
+          <span class="provider-badges">
           {#each providerBadges as provider}
             <span class={`provider-badge provider-badge-${provider.slug}`} title={provider.label}>
               <span class="provider-badge-icon" aria-hidden="true"></span>
-              <span class="provider-badge-label">{provider.label}</span>
             </span>
           {/each}
-        </div>
-      {/if}
+          </span>
+        {/if}
+      </div>
 
       <!-- Finished state: show event count or loading -->
       {#if status === 'finished'}
@@ -352,26 +348,40 @@
     font-size: var(--font-size-xxs);
   }
 
+  .provider-attribution {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    min-width: 0;
+  }
+
   .provider-badges {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-1);
+    flex-wrap: nowrap;
     align-items: center;
   }
 
   .provider-badge {
     display: inline-flex;
     align-items: center;
-    gap: var(--spacing-1);
-    max-width: 100%;
+    justify-content: center;
+    width: 19px;
+    height: 19px;
+    margin-left: -6px;
+    border: 1px solid var(--color-grey-0);
+    border-radius: 50%;
+    background: var(--color-grey-0);
     color: var(--color-grey-70);
-    font-size: var(--font-size-xxs);
-    line-height: 1.2;
+    box-sizing: border-box;
+  }
+
+  .provider-badge:first-child {
+    margin-left: 0;
   }
 
   .provider-badge-icon {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
     flex: 0 0 auto;
     background-color: currentColor;
     -webkit-mask-position: center;
@@ -380,12 +390,6 @@
     mask-repeat: no-repeat;
     -webkit-mask-size: contain;
     mask-size: contain;
-  }
-
-  .provider-badge-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .provider-badge-meetup .provider-badge-icon {

@@ -76,172 +76,150 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Docs Writing Style. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  de: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  zh: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  es: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  fr: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  pt: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  ru: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  ja: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  ko: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  it: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  tr: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  vi: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  id: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  pl: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  nl: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  ar: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  hi: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  th: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  cs: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  sv: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  he: |
-    ### Data Import
-    Bring your existing data into the platform with the new import tool.
-    
-    *   **File Support:** Upload CSV and Excel files directly.
-    *   **Column Mapping:** Match your spreadsheet columns to platform fields.
-    *   **Instant Validation:** Identify and fix formatting errors before finalizing.
-    *   **Efficiency:** Eliminates manual entry and reduces data transfer errors.
-  verified_by_human: []
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
 
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  de: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  zh: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  es: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  fr: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  pt: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  ru: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  ja: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  ko: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  it: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  tr: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  vi: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  id: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  pl: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  nl: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  ar: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  hi: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  th: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  cs: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  sv: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  he: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  verified_by_human: []

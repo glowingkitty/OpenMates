@@ -76,319 +76,234 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Memory Health Appointments. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   de: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   zh: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   es: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   fr: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   pt: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ru: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ja: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ko: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   it: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   tr: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   vi: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   id: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   pl: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   nl: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ar: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   hi: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   th: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   cs: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   sv: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   he: |
-    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
-    
-    **Appointment Details**
-    *   **Type:** Dermatology Follow-up (Specialist)
-    *   **Location:** Mitte Skin Clinic
-    *   **Date:** June 20, 2026
-    
-    **Preparation Checklist**
-    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
-    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
-    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
-    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
+    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
+
+    Here is a simple preparation checklist based on your notes:
+
+    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
+    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
+    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
+    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   verified_by_human: []
-

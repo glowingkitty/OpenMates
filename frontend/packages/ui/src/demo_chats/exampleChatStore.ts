@@ -195,6 +195,20 @@ for (const example of LOOKUP_EXAMPLE_CHATS) {
 /** Regex to extract embed_ref from TOON content */
 const EMBED_REF_RE = /^embed_ref:\s*"?([^\n"]+)"?\s*$/m;
 const APP_ID_RE = /^app_id:\s*"?([^\n"]+)"?\s*$/m;
+const EMBED_IDS_RE = /^embed_ids:\s*"?([^\n"]+)"?\s*$/m;
+
+function normalizeEmbedId(embedId: string): string {
+  return embedId.startsWith("embed:") ? embedId.slice("embed:".length) : embedId;
+}
+
+function extractChildEmbedIds(content: string): string[] {
+  const match = content.match(EMBED_IDS_RE);
+  if (!match) return [];
+  return match[1]
+    .split("|")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
 
 /**
  * Register all example chat embed_ref → embed_id mappings in the embedStore.
@@ -269,7 +283,33 @@ export function getExampleSubChats(parentChatId: string): Chat[] {
 
 /** Get a specific embed by ID from any example chat */
 export function getExampleChatEmbed(embedId: string): ExampleChatEmbed | null {
-  return embedById.get(embedId)?.embed ?? null;
+  return embedById.get(normalizeEmbedId(embedId))?.embed ?? null;
+}
+
+/** Resolve a child result embed to its parent search embed for fullscreen deep links. */
+export function resolveExampleFullscreenTarget(embedId: string): {
+  targetEmbedId: string;
+  focusChildEmbedId?: string;
+} | null {
+  const normalizedEmbedId = normalizeEmbedId(embedId);
+  if (!embedById.has(normalizedEmbedId)) return null;
+
+  for (const example of LOOKUP_EXAMPLE_CHATS) {
+    const records = [example, ...(example.sub_chats ?? [])];
+    for (const record of records) {
+      for (const embed of record.embeds) {
+        if (!embed.content || embed.embed_id === normalizedEmbedId) continue;
+        if (extractChildEmbedIds(embed.content).includes(normalizedEmbedId)) {
+          return {
+            targetEmbedId: embed.embed_id,
+            focusChildEmbedId: normalizedEmbedId,
+          };
+        }
+      }
+    }
+  }
+
+  return { targetEmbedId: normalizedEmbedId };
 }
 
 /** Get all example chats as Chat objects (for sidebar listing) */
