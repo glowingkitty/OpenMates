@@ -1,0 +1,570 @@
+version: 1
+actors:
+  - unauthenticated
+  - authenticated_owner
+  - shared_link_recipient
+  - api_key
+  - admin
+  - internal_service
+  - e2e_test_actor
+access_modes:
+  - public_read
+  - share_read
+  - owner_read
+  - owner_write
+  - api_key_read
+  - api_key_write
+  - admin_read
+  - admin_write
+  - internal_read
+  - internal_write
+  - test_write
+  - system_write
+rest_modules:
+  - path: backend/core/api/app/routes/admin.py
+    expected_routes: 10
+    actors: [admin]
+    access: [admin_read, admin_write]
+    data_domains: [admin, users, billing, credits, diagnostics]
+    rationale: Admin-only operational actions and inspection endpoints.
+  - path: backend/core/api/app/routes/admin_client_logs.py
+    expected_routes: 1
+    actors: [admin, e2e_test_actor]
+    access: [admin_write, test_write]
+    data_domains: [diagnostics]
+    rationale: Client log ingestion for debug/test tooling.
+  - path: backend/core/api/app/routes/admin_debug.py
+    expected_routes: 20
+    actors: [admin]
+    access: [admin_read, admin_write]
+    data_domains: [diagnostics, users, chats, embeds, logs]
+    rationale: Admin debug and inspection endpoints must remain admin-gated.
+  - path: backend/core/api/app/routes/admin_newsletter_campaigns.py
+    expected_routes: 7
+    actors: [admin]
+    access: [admin_read, admin_write]
+    data_domains: [newsletter]
+    rationale: Newsletter campaign management is admin-only.
+  - path: backend/core/api/app/routes/analytics_beacon.py
+    expected_routes: 1
+    actors: [unauthenticated]
+    access: [public_read]
+    data_domains: [analytics]
+    rationale: Public analytics beacon accepts minimal event telemetry.
+  - path: backend/core/api/app/routes/application_preview.py
+    expected_routes: 4
+    actors: [authenticated_owner, shared_link_recipient]
+    access: [owner_read, owner_write, share_read]
+    data_domains: [embeds, generated_assets]
+    rationale: Application preview sessions are owner-started or share-context-authorized.
+  - path: backend/core/api/app/routes/application_preview_gateway.py
+    expected_routes: 2
+    actors: [authenticated_owner, shared_link_recipient]
+    access: [owner_read, owner_write, share_read]
+    data_domains: [embeds, generated_assets, application_preview]
+    rationale: Preview gateway traffic is authorized by a short-lived sandbox token issued from an owner or shared preview session.
+  - path: backend/core/api/app/routes/apps.py
+    expected_routes: 3
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read]
+    data_domains: [apps]
+    rationale: App metadata is public product content.
+  - path: backend/core/api/app/routes/apps_api.py
+    expected_routes: 1
+    actors: [authenticated_owner, api_key]
+    access: [owner_read, api_key_read]
+    data_domains: [apps]
+    rationale: API-facing app list requires authenticated API access.
+  - path: backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
+    expected_routes: 6
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [auth, user_security]
+    rationale: 2FA setup and backup-code actions mutate authenticated user security state.
+  - path: backend/core/api/app/routes/auth_routes/auth_2fa_verify.py
+    expected_routes: 1
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [auth, user_security]
+    rationale: Device 2FA verification is tied to the current login session.
+  - path: backend/core/api/app/routes/auth_routes/auth_email.py
+    expected_routes: 3
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read, owner_write]
+    data_domains: [auth, profile]
+    rationale: Signup/login email confirmation and username validation flows.
+  - path: backend/core/api/app/routes/auth_routes/auth_gift.py
+    expected_routes: 2
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read, owner_write]
+    data_domains: [billing, gifts]
+    rationale: Gift token validation and acceptance occur around auth/signup.
+  - path: backend/core/api/app/routes/auth_routes/auth_invite.py
+    expected_routes: 1
+    actors: [unauthenticated]
+    access: [public_read]
+    data_domains: [auth]
+    rationale: Invite token validity is checked before account creation.
+  - path: backend/core/api/app/routes/auth_routes/auth_login.py
+    expected_routes: 2
+    actors: [unauthenticated]
+    access: [public_read]
+    data_domains: [auth]
+    rationale: Login and lookup are unauthenticated auth entrypoints with origin/client checks.
+  - path: backend/core/api/app/routes/auth_routes/auth_logout.py
+    expected_routes: 3
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [auth, sessions]
+    rationale: Logout revokes current or all authenticated sessions.
+  - path: backend/core/api/app/routes/auth_routes/auth_pair.py
+    expected_routes: 7
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read, owner_write]
+    data_domains: [auth, sessions]
+    rationale: Pair-auth bridges unauthenticated polling with authenticated approval.
+  - path: backend/core/api/app/routes/auth_routes/auth_passkey.py
+    expected_routes: 8
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read, owner_read, owner_write]
+    data_domains: [auth, passkeys, user_security]
+    rationale: Passkey registration/assertion includes public challenges and authenticated passkey management.
+  - path: backend/core/api/app/routes/auth_routes/auth_password.py
+    expected_routes: 1
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [auth, user_security]
+    rationale: Password setup mutates authenticated account security state.
+  - path: backend/core/api/app/routes/auth_routes/auth_recovery.py
+    expected_routes: 4
+    actors: [unauthenticated]
+    access: [public_read]
+    data_domains: [auth, recovery]
+    rationale: Recovery is an unauthenticated flow protected by codes and device checks.
+  - path: backend/core/api/app/routes/auth_routes/auth_recoverykey.py
+    expected_routes: 2
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [auth, recovery]
+    rationale: Recovery-key management mutates authenticated account state.
+  - path: backend/core/api/app/routes/auth_routes/auth_session.py
+    expected_routes: 1
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [auth, sessions]
+    rationale: Session check returns current authenticated session state.
+  - path: backend/core/api/app/routes/auth_routes/auth_sessions.py
+    expected_routes: 5
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [auth, sessions]
+    rationale: Device/session list, metadata registration, and revocation are owner-only.
+  - path: backend/core/api/app/routes/client_logs_ephemeral.py
+    expected_routes: 1
+    actors: [unauthenticated, authenticated_owner, e2e_test_actor]
+    access: [public_read, test_write]
+    data_domains: [diagnostics]
+    rationale: Ephemeral client logs are debug telemetry and must stay bounded/redacted.
+  - path: backend/core/api/app/routes/code_execution.py
+    expected_routes: 4
+    actors: [authenticated_owner, api_key]
+    access: [owner_read, owner_write, api_key_read, api_key_write]
+    data_domains: [chats, messages, embeds, code_runs]
+    rationale: Code execution status and control require owner/API-key authorization against the run/embed.
+  - path: backend/core/api/app/routes/creators.py
+    expected_routes: 1
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [billing, creators]
+    rationale: Creator tipping spends user credits.
+  - path: backend/core/api/app/routes/credit_note.py
+    expected_routes: 2
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [billing, invoices]
+    rationale: Credit-note generation and preview are owner billing actions.
+  - path: backend/core/api/app/routes/daily_inspirations_api.py
+    expected_routes: 3
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [inspirations]
+    rationale: Daily inspiration sync/read/opened state is per-user.
+  - path: backend/core/api/app/routes/debug_sync.py
+    expected_routes: 1
+    actors: [authenticated_owner, e2e_test_actor]
+    access: [owner_read, test_write]
+    data_domains: [diagnostics, sync]
+    rationale: Sync debug endpoint exposes current user sync status.
+  - path: backend/core/api/app/routes/default_inspirations.py
+    expected_routes: 1
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read]
+    data_domains: [inspirations]
+    rationale: Default inspirations are public content.
+  - path: backend/core/api/app/routes/docs_routes.py
+    expected_routes: 3
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read]
+    data_domains: [docs]
+    rationale: Product docs are public.
+  - path: backend/core/api/app/routes/e2e_api.py
+    expected_routes: 1
+    actors: [e2e_test_actor]
+    access: [test_write]
+    data_domains: [diagnostics]
+    rationale: E2E log ingestion is restricted by E2E token flow.
+  - path: backend/core/api/app/routes/email.py
+    expected_routes: 11
+    actors: [admin, internal_service]
+    access: [admin_read, internal_read]
+    data_domains: [email, billing, auth]
+    rationale: Email preview/dev endpoints must not expose user data to normal users.
+  - path: backend/core/api/app/routes/email_block.py
+    expected_routes: 1
+    actors: [unauthenticated]
+    access: [public_read]
+    data_domains: [email]
+    rationale: One-click email block endpoint is tokenized by email link.
+  - path: backend/core/api/app/routes/embeds_api.py
+    expected_routes: 3
+    actors: [authenticated_owner, api_key]
+    access: [owner_read, api_key_read]
+    data_domains: [embeds, files]
+    rationale: Embed file/content access must validate owner/API-key access.
+  - path: backend/core/api/app/routes/generated_assets_api.py
+    expected_routes: 1
+    actors: [authenticated_owner, shared_link_recipient]
+    access: [owner_read, share_read]
+    data_domains: [generated_assets, embeds]
+    rationale: Generated asset downloads require owner or authorized shared context.
+  - path: backend/core/api/app/routes/geocode.py
+    expected_routes: 2
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [location]
+    rationale: Geocode proxy serves authenticated product features.
+  - path: backend/core/api/app/routes/internal_api.py
+    expected_routes: 31
+    actors: [internal_service]
+    access: [internal_read, internal_write]
+    data_domains: [users, chats, messages, embeds, billing, email, generated_assets]
+    rationale: Internal service API requires internal service token.
+  - path: backend/core/api/app/routes/invoice.py
+    expected_routes: 2
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [billing, invoices]
+    rationale: Invoice generation/preview are owner billing actions.
+  - path: backend/core/api/app/routes/newsletter.py
+    expected_routes: 5
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read, owner_write]
+    data_domains: [newsletter, email]
+    rationale: Newsletter subscribe/confirm/unsubscribe flows are tokenized/public.
+  - path: backend/core/api/app/routes/notifications.py
+    expected_routes: 2
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [notifications]
+    rationale: Notifications are per-user.
+  - path: backend/core/api/app/routes/payments.py
+    expected_routes: 29
+    actors: [authenticated_owner, internal_service]
+    access: [owner_read, owner_write, internal_write]
+    data_domains: [billing, invoices, credits, gifts]
+    rationale: Payment APIs mutate owner billing state; webhooks/internal flows are service-authenticated.
+  - path: backend/core/api/app/routes/profile_api.py
+    expected_routes: 1
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read]
+    data_domains: [profile]
+    rationale: Profile image route serves public/profile-safe image data.
+  - path: backend/core/api/app/routes/projects.py
+    expected_routes: 10
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [projects, embeds]
+    rationale: Project records and embed references are owner-scoped.
+  - path: backend/core/api/app/routes/push.py
+    expected_routes: 4
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [notifications, devices]
+    rationale: Push subscription state is owner device data.
+  - path: backend/core/api/app/routes/referrals.py
+    expected_routes: 2
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read, owner_write]
+    data_domains: [referrals]
+    rationale: Referral capture may occur before auth; status is user-scoped.
+  - path: backend/core/api/app/routes/settings.py
+    expected_routes: 59
+    actors: [authenticated_owner, api_key]
+    access: [owner_read, owner_write, api_key_read, api_key_write]
+    data_domains: [settings, memories, billing, invoices, profile, usage, account_export, api_keys]
+    rationale: Settings contains many owner-scoped account, memory, billing, and export operations.
+  - path: backend/core/api/app/routes/settings_software_update.py
+    expected_routes: 6
+    actors: [admin, internal_service]
+    access: [admin_read, admin_write, internal_write]
+    data_domains: [self_host, software_update]
+    rationale: Software update routes affect deployment/runtime state.
+  - path: backend/core/api/app/routes/share.py
+    expected_routes: 15
+    actors: [unauthenticated, authenticated_owner, shared_link_recipient]
+    access: [public_read, owner_write, share_read]
+    data_domains: [chats, messages, embeds, highlights, shares]
+    rationale: Share routes combine owner share management with public encrypted shared-chat reads.
+  - path: backend/core/api/app/routes/status_routes.py
+    expected_routes: 3
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read]
+    data_domains: [status]
+    rationale: Public status/test overview routes expose product health, not private user data.
+  - path: backend/core/api/app/routes/sync_api.py
+    expected_routes: 1
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [sync, chats, messages, embeds]
+    rationale: Offline prefetch is owner-scoped sync data.
+  - path: backend/core/api/app/routes/tasks_api.py
+    expected_routes: 1
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [tasks]
+    rationale: Task status must be scoped to the owner/requesting session.
+  - path: backend/core/api/app/routes/telemetry.py
+    expected_routes: 1
+    actors: [authenticated_owner, e2e_test_actor]
+    access: [owner_write, test_write]
+    data_domains: [diagnostics, telemetry]
+    rationale: Telemetry proxy accepts bounded client trace data.
+  - path: backend/core/api/app/routes/test_recordings.py
+    expected_routes: 2
+    actors: [admin, e2e_test_actor]
+    access: [admin_read, test_write]
+    data_domains: [diagnostics, tests]
+    rationale: Test recordings are test/debug artifacts.
+  - path: backend/core/api/app/routes/video_remotion.py
+    expected_routes: 4
+    actors: [authenticated_owner, shared_link_recipient]
+    access: [owner_read, owner_write, share_read]
+    data_domains: [embeds, generated_assets]
+    rationale: Remotion render/read operations require owner or authorized shared context.
+  - path: backend/core/api/app/routes/wikipedia_proxy.py
+    expected_routes: 2
+    actors: [unauthenticated, authenticated_owner]
+    access: [public_read]
+    data_domains: [public_content]
+    rationale: Wikipedia proxy returns public external content.
+websocket_handlers:
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
+    actors: [internal_service, authenticated_owner]
+    access: [system_write, owner_write]
+    data_domains: [chats, messages]
+    rationale: Final AI response persistence must be tied to active authenticated chat/task context.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/app_settings_memories_confirmed_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [settings, memories]
+    rationale: Memory/app-settings confirmation mutates owner encrypted memory state.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [tasks, chats]
+    rationale: Cancels active owner AI tasks.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/cancel_pdf_processing_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [tasks, embeds]
+    rationale: Cancels owner PDF processing.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/cancel_skill_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [tasks, embeds]
+    rationale: Cancels owner skill task.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [chats, messages]
+    rationale: Compression checkpoints are owner chat metadata.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/chat_content_batch_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [chats, messages, embeds]
+    rationale: Batch content sync returns owner encrypted chat content.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [code_runs, embeds]
+    rationale: Code run output sync is owner-scoped.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/delete_app_settings_memories_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [settings, memories]
+    rationale: Deletes owner app settings/memories.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [chats, messages, embeds]
+    rationale: Deletes owner chat data.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/delete_draft_embed_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [drafts, embeds]
+    rationale: Deletes owner draft embed.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/delete_draft_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [drafts]
+    rationale: Deletes owner draft.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/delete_message_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [messages, embeds]
+    rationale: Deletes owner chat message and related embeds.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/delete_new_chat_suggestion_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [suggestions]
+    rationale: Deletes owner new-chat suggestion.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/draft_update_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [drafts]
+    rationale: Updates owner encrypted draft.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/email_notification_settings_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [settings, notifications]
+    rationale: Updates owner email notification settings.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [chats]
+    rationale: Updates owner encrypted chat metadata.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_deactivate_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [focus_modes, chats]
+    rationale: Deactivates owner focus mode state.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [focus_modes, chats]
+    rationale: Records owner focus mode rejection state.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/get_chat_messages_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [chats, messages]
+    rationale: Reads owner encrypted chat messages.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/get_draft_versions_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [drafts]
+    rationale: Reads owner draft versions.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/initial_sync_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [sync, chats, messages, embeds, settings, memories]
+    rationale: Initial sync returns owner encrypted account data.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/inspiration_received_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [inspirations]
+    rationale: Records owner inspiration receipt state.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/inspiration_viewed_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [inspirations]
+    rationale: Records owner inspiration viewed state.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/key_received_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [auth, encryption_keys]
+    rationale: Stores/updates owner encrypted key material.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [chats]
+    rationale: Loads more owner chat metadata.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/message_highlight_handlers.py
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [messages, highlights]
+    rationale: Highlight records are scoped to owner or authorized shared settings.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [chats, messages, embeds]
+    rationale: Sends owner encrypted chat messages and associated embed metadata.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/offline_sync_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
+    data_domains: [sync, chats, messages, drafts]
+    rationale: Replays owner offline changes and reads sync result.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [sync, chats, messages, embeds, settings, memories]
+    rationale: Phased sync returns owner encrypted account data.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/post_processing_metadata_handler.py
+    actors: [authenticated_owner, internal_service]
+    access: [owner_write, system_write]
+    data_domains: [messages, metadata]
+    rationale: Stores post-processing metadata for owner AI responses.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/request_embed_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [embeds]
+    rationale: Requests owner encrypted embed payloads.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/store_app_settings_memories_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [settings, memories]
+    rationale: Stores owner encrypted app settings/memories.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [embeds]
+    rationale: Stores owner encrypted embeds; backend enforces stored owner hash.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/store_embed_keys_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [embeds, encryption_keys]
+    rationale: Stores owner embed key wrappers.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/sub_chat_confirmation_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [chats, tasks]
+    rationale: Confirms/cancels owner sub-chat work.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/sub_chat_stop_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [chats, tasks]
+    rationale: Stops owner sub-chat task.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/sync_inspiration_chat_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [inspirations, chats]
+    rationale: Syncs owner inspiration chat state.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/sync_metadata_chats_handler.py
+    actors: [authenticated_owner]
+    access: [owner_read]
+    data_domains: [sync, chats]
+    rationale: Syncs owner chat metadata.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    actors: [authenticated_owner, internal_service]
+    access: [owner_write, system_write]
+    data_domains: [messages, chats]
+    rationale: System messages are created in owner chat context.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/title_update_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [chats]
+    rationale: Updates owner encrypted chat title.
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/update_chat_pinned_handler.py
+    actors: [authenticated_owner]
+    access: [owner_write]
+    data_domains: [chats]
+    rationale: Updates owner chat pinned state.
