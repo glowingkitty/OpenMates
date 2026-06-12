@@ -1091,6 +1091,7 @@
                     <div class="provider-switch-container">
                         <button
                             class="provider-switch-btn"
+                            data-testid="switch-to-non-eu"
                             onclick={() => switchPaymentMode('managed')}
                             disabled={isLoading}
                         >
@@ -1147,6 +1148,7 @@
                 <div class="provider-switch-container">
                     <button
                         class="provider-switch-btn"
+                        data-testid="switch-to-non-eu"
                         onclick={() => switchPaymentMode('managed')}
                         disabled={isLoading}
                     >

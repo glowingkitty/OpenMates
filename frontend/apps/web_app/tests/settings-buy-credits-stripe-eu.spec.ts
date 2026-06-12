@@ -188,7 +188,7 @@ test('settings buy credits: completes full Stripe (EU card) purchase flow', asyn
 		log('No saved cards — payment form shown directly.');
 	}
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	if (await consentToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
+	if (await consentToggle.waitFor({ state: 'attached', timeout: 5000 }).then(() => true).catch(() => false)) {
 		await setToggleChecked(consentToggle, true);
 		log('Accepted limited refund consent.');
 	}
