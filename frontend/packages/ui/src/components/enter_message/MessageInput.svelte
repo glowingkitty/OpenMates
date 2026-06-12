@@ -467,6 +467,7 @@
     }
 
     let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
+    let pendingDefaultPasteTextForRecovery: string | null = null;
 
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
@@ -646,6 +647,29 @@
         if (!match) {
             autoConvertedPasteCandidate = null;
             return;
+        }
+    }
+
+    function updateDefaultPasteRecoveryCandidate(editor: Editor, pastedText: string | null) {
+        if (!pastedText || autoConvertedPasteCandidate) return;
+
+        let embedId: string | null = null;
+        editor.state.doc.descendants((node) => {
+            const attrs = node.attrs ?? {};
+            const embedType = typeof attrs.type === 'string' ? attrs.type : '';
+            if (
+                embedType.startsWith('code') ||
+                embedType.startsWith('docs') ||
+                embedType.startsWith('sheets')
+            ) {
+                embedId = (attrs.id as string | undefined) || null;
+                return false;
+            }
+            return true;
+        });
+
+        if (embedId) {
+            autoConvertedPasteCandidate = { embedId, text: pastedText };
         }
     }
 
@@ -1868,18 +1892,20 @@
                     }
 
                     // No special handling needed - allow default paste.
-                    // Flag for immediate PII detection on the next editor update,
-                    // since pasted text may contain complete PII patterns.
-                    piiPasteDetectionPending = true;
+                        // Flag for immediate PII detection on the next editor update,
+                        // since pasted text may contain complete PII patterns.
+                        piiPasteDetectionPending = true;
+                        pendingDefaultPasteTextForRecovery = text.replace(/\r\n?/g, '\n');
 
-                    // If sanitization removed invisible characters, prevent default
-                    // paste and insert the cleaned text manually so TipTap doesn't
-                    // re-read the raw (unsanitized) clipboard data.
-                    if (rawPasteText && text !== rawPasteText) {
-                        event.preventDefault();
-                        editor.commands.insertContent(text);
-                        return true;
-                    }
+                        // If sanitization removed invisible characters, prevent default
+                        // paste and insert the cleaned text manually so TipTap doesn't
+                        // re-read the raw (unsanitized) clipboard data.
+                        if (rawPasteText && text !== rawPasteText) {
+                            event.preventDefault();
+                            pendingDefaultPasteTextForRecovery = null;
+                            editor.commands.insertContent(text);
+                            return true;
+                        }
 
                     return false;
                 },
@@ -2594,6 +2620,10 @@
         // timer for regular characters. Must run BEFORE PII detection on paste so that
         // any content modifications (URL → embed conversion) complete first.
         scheduleHeavyParsing(editor, currentText, wasPaste);
+        if (wasPaste) {
+            updateDefaultPasteRecoveryCandidate(editor, pendingDefaultPasteTextForRecovery);
+            pendingDefaultPasteTextForRecovery = null;
+        }
 
         // PII Detection: immediate only on paste events; delimiter-triggered detection
         // uses the debounce fallback to avoid stacking with heavy parsing.
