@@ -91,7 +91,7 @@ test.describe('Source quote verification', () => {
 		const overlay = page.getByTestId('embed-fullscreen-overlay').last();
 		await expect(overlay).toBeVisible({ timeout: 30_000 });
 
-		const highlight = overlay.getByTestId('embed-source-text-highlight');
+		const highlight = overlay.getByTestId('embed-source-text-highlight').first();
 		await expect(highlight).toBeVisible({ timeout: 10_000 });
 		await expect(highlight).toContainText('xHain is a hack+makespace in the heart of Berlin');
 
