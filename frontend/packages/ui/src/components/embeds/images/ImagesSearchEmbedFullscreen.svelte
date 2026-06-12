@@ -172,8 +172,12 @@
     if (!embedId || results.length === 0) return;
 
     const fields = buildImageSearchPreviewMetadata(results);
-    const updated = await embedStore.mergeDecodedContentInMemory(`embed:${embedId}`, fields);
-    if (!updated) return;
+    const result = await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, fields);
+    if (!result.updated) return;
+
+    if (result.storePayload) {
+      await chatSyncService.sendStoreEmbed(result.storePayload);
+    }
 
     chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
       detail: {

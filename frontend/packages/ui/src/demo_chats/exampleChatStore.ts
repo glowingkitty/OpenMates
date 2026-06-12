@@ -12,7 +12,7 @@ import type { ExampleChat, ExampleChatEmbed, ExampleSubChat } from "./types";
 import { get } from "svelte/store";
 import { text } from "../i18n/translations";
 import { embedStore } from "../services/embedStore";
-import { ALL_EXAMPLE_CHATS } from "./exampleChatData";
+import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from "./exampleChatData";
 
 const FOCUS_ACTIVATION_EMBED_TYPE = "focus-mode-activation";
 
@@ -171,7 +171,9 @@ const embedById = new Map<
   { embed: ExampleChatEmbed; chatId: string }
 >();
 
-for (const example of ALL_EXAMPLE_CHATS) {
+const LOOKUP_EXAMPLE_CHATS = [...ALL_EXAMPLE_CHATS, ...INTERNAL_EXAMPLE_CHATS];
+
+for (const example of LOOKUP_EXAMPLE_CHATS) {
   chatById.set(example.chat_id, example);
   chatBySlug.set(example.slug, example);
   chatRecordById.set(example.chat_id, { example, rootOrder: example.metadata.order });
@@ -201,7 +203,7 @@ const APP_ID_RE = /^app_id:\s*"?([^\n"]+)"?\s*$/m;
  */
 export function registerExampleChatEmbedRefs(): void {
   let registered = 0;
-  for (const example of ALL_EXAMPLE_CHATS) {
+  for (const example of LOOKUP_EXAMPLE_CHATS) {
     const embeds = [
       ...example.embeds,
       ...(example.sub_chats ?? []).flatMap((subChat) => subChat.embeds),

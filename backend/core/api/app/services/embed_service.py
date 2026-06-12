@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS = {"package.json"}
 IMAGE_SEARCH_PREVIEW_RESULT_LIMIT = 10
 WEB_SEARCH_PREVIEW_RESULT_LIMIT = 6
+GENERIC_RESULT_LIST_PREVIEW_RESULT_LIMIT = 6
 APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
     ".svelte",
     ".vue",
@@ -163,20 +164,15 @@ class EmbedService:
         results: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Return lightweight parent-only preview metadata for composite embeds."""
-        if skill_id != "search":
-            return {}
-
-        if app_id == "web":
+        if app_id == "images" and skill_id == "search":
             preview_results: List[Dict[str, Any]] = []
             preview_fields = (
                 "title",
-                "url",
-                "favicon",
+                "source_page_url",
+                "image_url",
+                "thumbnail_url",
+                "source",
                 "favicon_url",
-                "meta_url",
-                "preview_image_url",
-                "snippet",
-                "description",
             )
             flat_results = EmbedService._flatten_grouped_preview_results(results)
             for result in flat_results:
@@ -185,48 +181,80 @@ class EmbedService:
                     for key in preview_fields
                     if result.get(key)
                 }
-                if not preview_result.get("url"):
+                if not (preview_result.get("thumbnail_url") or preview_result.get("image_url")):
                     continue
                 preview_results.append(preview_result)
-                if len(preview_results) >= WEB_SEARCH_PREVIEW_RESULT_LIMIT:
+                if len(preview_results) >= IMAGE_SEARCH_PREVIEW_RESULT_LIMIT:
                     break
 
             if not preview_results:
                 return {}
-            return {"preview_results": preview_results}
-
-        if app_id != "images":
-            return {}
+            return {
+                "preview_results": preview_results,
+                "preview_results_json": json.dumps(preview_results, separators=(",", ":")),
+            }
 
         preview_results: List[Dict[str, Any]] = []
-        preview_fields = (
-            "title",
-            "source_page_url",
-            "image_url",
-            "thumbnail_url",
-            "source",
-            "favicon_url",
-        )
+        preview_fields = EmbedService._parent_preview_fields_for(app_id, skill_id)
         flat_results = EmbedService._flatten_grouped_preview_results(results)
 
+        limit = WEB_SEARCH_PREVIEW_RESULT_LIMIT if app_id == "web" and skill_id == "search" else GENERIC_RESULT_LIST_PREVIEW_RESULT_LIMIT
         for result in flat_results:
             preview_result = {
                 key: result[key]
                 for key in preview_fields
                 if result.get(key)
             }
-            if not (preview_result.get("thumbnail_url") or preview_result.get("image_url")):
+            if app_id == "web" and skill_id == "search" and not preview_result.get("url"):
+                continue
+            if not preview_result:
                 continue
             preview_results.append(preview_result)
-            if len(preview_results) >= IMAGE_SEARCH_PREVIEW_RESULT_LIMIT:
+            if len(preview_results) >= limit:
                 break
 
         if not preview_results:
             return {}
-        return {
-            "preview_results": preview_results,
-            "preview_results_json": json.dumps(preview_results, separators=(",", ":")),
-        }
+        return {"preview_results": preview_results}
+
+    @staticmethod
+    def _parent_preview_fields_for(app_id: str, skill_id: str) -> Tuple[str, ...]:
+        """Return shallow fields safe for parent result-list preview cards."""
+        common_fields = (
+            "title",
+            "name",
+            "summary",
+            "url",
+            "html_url",
+            "source_url",
+            "source_page_url",
+            "website",
+            "domain",
+            "source",
+            "favicon",
+            "favicon_url",
+            "meta_url",
+            "thumbnail_url",
+            "image_url",
+            "preview_image_url",
+            "date",
+            "start_date",
+            "end_date",
+            "time",
+            "location",
+            "address",
+            "price",
+            "price_text",
+            "rating",
+            "provider",
+            "full_name",
+            "owner_avatar_url",
+            "stars",
+            "primary_language",
+        )
+        if app_id == "web" and skill_id == "search":
+            return (*common_fields, "snippet", "description")
+        return common_fields
 
     @staticmethod
     def _flatten_grouped_preview_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

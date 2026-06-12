@@ -321,13 +321,62 @@ def test_web_search_parent_preview_metadata_flattens_grouped_results() -> None:
     ]
 
 
+def test_generic_result_list_parent_preview_metadata_contains_shallow_fields() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._build_parent_preview_metadata(
+        "events",
+        "search",
+        [
+            {
+                "title": "Berlin AI Meetup",
+                "url": "https://example.com/events/berlin-ai",
+                "start_date": "2026-06-20",
+                "location": "Berlin",
+                "description": "Long child-only details should not be copied into the generic parent preview.",
+                "raw_provider_payload": {"large": "blob"},
+            }
+        ],
+    )
+
+    assert metadata == {
+        "preview_results": [
+            {
+                "title": "Berlin AI Meetup",
+                "url": "https://example.com/events/berlin-ai",
+                "start_date": "2026-06-20",
+                "location": "Berlin",
+            }
+        ]
+    }
+
+
+def test_generic_result_list_parent_preview_metadata_caps_results() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    results = [
+        {
+            "title": f"Recipe {index}",
+            "url": f"https://example.com/recipes/{index}",
+            "thumbnail_url": f"https://example.com/thumb-{index}.jpg",
+        }
+        for index in range(8)
+    ]
+
+    metadata = EmbedService._build_parent_preview_metadata("nutrition", "search_recipes", results)
+
+    assert len(metadata["preview_results"]) == 6
+    assert metadata["preview_results"][0]["title"] == "Recipe 0"
+    assert metadata["preview_results"][-1]["title"] == "Recipe 5"
+
+
 def test_non_search_parent_preview_metadata_is_empty() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
     metadata = EmbedService._build_parent_preview_metadata(
         "web",
         "read",
-        [{"title": "Result", "url": "https://example.com"}],
+        [{"large_text": "No shallow preview fields"}],
     )
 
     assert metadata == {}

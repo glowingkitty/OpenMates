@@ -89,6 +89,7 @@ import { productTeaserRemotionVideoChat } from "./data/example_chats/product-tea
 import { dampedSineWavePlotChat } from "./data/example_chats/damped-sine-wave-plot";
 import { berlinCentralStationMapLocationChat } from "./data/example_chats/berlin-central-station-map-location";
 import { launchReadinessChecklistDocChat } from "./data/example_chats/launch-readiness-checklist-doc";
+import { searchParentPreviewStressTestChat } from "./data/example_chats/search-parent-preview-stress-test";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -174,3 +175,9 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   berlinCentralStationMapLocationChat,
   launchReadinessChecklistDocChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
+
+// Internal deterministic fixtures used by tests and direct hash navigation only.
+// Keep these out of normal example listings and SEO pages.
+export const INTERNAL_EXAMPLE_CHATS: ExampleChat[] = [
+  searchParentPreviewStressTestChat,
+];

@@ -39,4 +39,11 @@ if ! OUTPUT=$(python3 scripts/audit_skill_embed_registry.py "$TARGET_FILE" 2>&1)
   exit 2
 fi
 
+if ! OUTPUT=$(python3 scripts/audit_search_parent_preview_metadata.py "$TARGET_FILE" 2>&1); then
+  echo "BLOCKED: search parent preview metadata contract failed." >&2
+  echo "$OUTPUT" >&2
+  echo "Add parent-level preview metadata coverage for child/result-list embeds, or document a justified exemption in scripts/audit_search_parent_preview_metadata.py." >&2
+  exit 2
+fi
+
 exit 0

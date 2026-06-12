@@ -20,8 +20,11 @@ import {
   decryptWithMasterKey,
   unwrapEmbedKeyWithMasterKey,
   unwrapEmbedKeyWithChatKey,
+  encryptWithEmbedKey,
   decryptWithEmbedKey,
 } from "./cryptoService";
+import type { StoreEmbedPayload } from "../types/chat";
+import { canPersistPreviewBackfill } from "./embedPreviewBackfill";
 // Embed store name for IndexedDB
 const EMBEDS_STORE_NAME = "embeds";
 
@@ -68,6 +71,11 @@ const FILE_LIKE_EMBED_TYPES = new Set([
   "audio",
   "recording",
 ]);
+
+export interface PreviewBackfillMergeResult {
+  updated: boolean;
+  storePayload?: StoreEmbedPayload;
+}
 
 export interface UploadedFileSearchResult {
   embedId: string;
@@ -1884,6 +1892,135 @@ export class EmbedStore {
       updatedAt: Date.now(),
     });
     return true;
+  }
+
+  /**
+   * Merge lightweight preview metadata into a parent embed and prepare a durable
+   * store_embed payload when this is a writable owner copy.
+   *
+   * Shared/read-only copies intentionally stop after the local merge so shared
+   * chat recipients never rewrite encrypted parent state on the server.
+   */
+  async mergeDecodedContentForPreviewBackfill(
+    contentRef: string,
+    fields: Record<string, unknown>,
+  ): Promise<PreviewBackfillMergeResult> {
+    const existing = await this.get(contentRef);
+    if (!existing || typeof existing !== "object") {
+      return { updated: false };
+    }
+
+    const rawEntry = embedCache.get(contentRef);
+    const rawContent = existing.content;
+    let decodedContent: Record<string, unknown> = {};
+    if (rawContent && typeof rawContent === "string") {
+      const decoded = await decodeToonContentLocal(rawContent);
+      if (decoded && typeof decoded === "object") {
+        decodedContent = decoded as Record<string, unknown>;
+      }
+    }
+
+    const changed = Object.entries(fields).some(
+      ([key, value]) => JSON.stringify(decodedContent[key]) !== JSON.stringify(value),
+    );
+    if (!changed) {
+      return { updated: false };
+    }
+
+    const mergedContent = { ...decodedContent, ...fields };
+    const mergedContentString = JSON.stringify(mergedContent);
+    const nowMs = Date.now();
+
+    this.setInMemoryOnly(contentRef, {
+      ...existing,
+      ...fields,
+      content: mergedContentString,
+      status: existing.status || fields.status || "finished",
+      updatedAt: nowMs,
+    });
+
+    if (!canPersistPreviewBackfill(rawEntry)) {
+      return { updated: true };
+    }
+
+    const embedId = rawEntry.embed_id || contentRef.replace("embed:", "");
+    const embedKey = await this.getEmbedKey(embedId, rawEntry.hashed_chat_id);
+    if (!embedKey) {
+      return { updated: true };
+    }
+
+    const encryptedContent = await encryptWithEmbedKey(
+      mergedContentString,
+      embedKey,
+    );
+    if (!encryptedContent) {
+      return { updated: true };
+    }
+
+    const updatedAtSeconds = Math.floor(nowMs / 1000);
+    const createdAt = rawEntry.createdAt || nowMs;
+    const createdAtSeconds =
+      createdAt > 10_000_000_000 ? Math.floor(createdAt / 1000) : createdAt;
+
+    const encryptedData = {
+      embed_id: embedId,
+      encrypted_type: rawEntry.encrypted_type,
+      encrypted_content: encryptedContent,
+      encrypted_text_preview: rawEntry.encrypted_text_preview,
+      status: rawEntry.status || "finished",
+      hashed_chat_id: rawEntry.hashed_chat_id,
+      hashed_message_id: rawEntry.hashed_message_id,
+      hashed_task_id: rawEntry.hashed_task_id,
+      hashed_user_id: rawEntry.hashed_user_id,
+      embed_ids: rawEntry.embed_ids,
+      parent_embed_id: rawEntry.parent_embed_id,
+      version_number: rawEntry.version_number,
+      file_path: rawEntry.file_path,
+      content_hash: rawEntry.content_hash,
+      text_length_chars: rawEntry.text_length_chars,
+      is_private: rawEntry.is_private ?? false,
+      is_shared: rawEntry.is_shared ?? false,
+      createdAt: rawEntry.createdAt,
+      updatedAt: nowMs,
+    };
+
+    await this.putEncrypted(
+      contentRef,
+      encryptedData,
+      rawEntry.type,
+      mergedContentString,
+      {
+        app_id: rawEntry.app_id,
+        skill_id: rawEntry.skill_id,
+        encryption_mode: rawEntry.encryption_mode,
+        vault_key_id: rawEntry.vault_key_id,
+      },
+    );
+
+    return {
+      updated: true,
+      storePayload: {
+        embed_id: embedId,
+        encrypted_type: rawEntry.encrypted_type,
+        encrypted_content: encryptedContent,
+        encrypted_text_preview: rawEntry.encrypted_text_preview,
+        status: rawEntry.status || "finished",
+        hashed_chat_id: rawEntry.hashed_chat_id,
+        hashed_message_id: rawEntry.hashed_message_id,
+        hashed_task_id: rawEntry.hashed_task_id,
+        hashed_user_id: rawEntry.hashed_user_id,
+        embed_ids: rawEntry.embed_ids,
+        parent_embed_id: rawEntry.parent_embed_id,
+        version_number: rawEntry.version_number,
+        file_path: rawEntry.file_path,
+        content_hash: rawEntry.content_hash,
+        text_length_chars: rawEntry.text_length_chars,
+        is_private: rawEntry.is_private ?? false,
+        is_shared: rawEntry.is_shared ?? false,
+        created_at: createdAtSeconds,
+        updated_at: updatedAtSeconds,
+      },
+    };
   }
 
   /**

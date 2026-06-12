@@ -6,6 +6,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  buildImageSearchPreviewMetadata,
+  buildWebSearchPreviewMetadata,
   getParentPreviewResultState,
   shouldHydrateCarouselSlide,
 } from '../embedPreviewHydration';
@@ -43,5 +45,58 @@ describe('embed preview hydration bounds', () => {
 
   it('only reports known zero results when the parent explicitly stores result_count zero', () => {
     expect(getParentPreviewResultState({ status: 'finished', previewResultCount: 0, resultCount: 0 })).toBe('known_zero_results');
+  });
+
+  it('builds allowlisted web search parent preview metadata only', () => {
+    const metadata = buildWebSearchPreviewMetadata([
+      {
+        title: 'Result',
+        url: 'https://example.com',
+        favicon_url: 'https://example.com/favicon.ico',
+        preview_image_url: 'https://example.com/preview.jpg',
+        snippet: 'Short summary',
+        description: 'full child description',
+        extra_snippets: ['raw child snippet'],
+      } as Parameters<typeof buildWebSearchPreviewMetadata>[0][number] & {
+        description: string;
+        extra_snippets: string[];
+      },
+    ]);
+
+    expect(metadata).toEqual({
+      result_count: 1,
+      preview_results: [
+        {
+          title: 'Result',
+          url: 'https://example.com',
+          favicon: undefined,
+          favicon_url: 'https://example.com/favicon.ico',
+          meta_url: undefined,
+          preview_image_url: 'https://example.com/preview.jpg',
+          snippet: 'Short summary',
+        },
+      ],
+    });
+    expect(JSON.stringify(metadata)).not.toContain('full child description');
+    expect(JSON.stringify(metadata)).not.toContain('raw child snippet');
+  });
+
+  it('limits image parent preview metadata and mirrors JSON payload', () => {
+    const results = Array.from({ length: 8 }, (_, index) => ({
+      title: `Image ${index}`,
+      source_page_url: `https://example.com/${index}`,
+      image_url: `https://cdn.example.com/${index}.jpg`,
+      thumbnail_url: `https://cdn.example.com/${index}-thumb.jpg`,
+      source: 'example.com',
+      favicon_url: 'https://example.com/favicon.ico',
+      raw_provider_payload: { hidden: true },
+    })) as Array<Parameters<typeof buildImageSearchPreviewMetadata>[0][number] & { raw_provider_payload: { hidden: boolean } }>;
+
+    const metadata = buildImageSearchPreviewMetadata(results);
+
+    expect(metadata.result_count).toBe(8);
+    expect(metadata.preview_results).toHaveLength(6);
+    expect(metadata.preview_results_json).toBe(JSON.stringify(metadata.preview_results));
+    expect(JSON.stringify(metadata)).not.toContain('raw_provider_payload');
   });
 });
