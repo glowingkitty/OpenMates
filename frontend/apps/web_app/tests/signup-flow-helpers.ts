@@ -20,6 +20,7 @@ const MAILOSAUR_BASE_URL = 'https://mailosaur.com/api';
 const GMAIL_API_BASE_URL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const GMAIL_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GMAIL_RECEIVED_AFTER_TOLERANCE_MS = 10000;
+const STEP_SCREENSHOT_TIMEOUT_MS = 10000;
 
 // ─── Step log — shared state for checkpoint + screenshot interleaving ────────
 // Both createSignupLogger and createStepScreenshotter write to this log so the
@@ -186,10 +187,20 @@ function createStepScreenshotter(
 		screenshotIndex += 1;
 		// Small delay to allow UI transitions to settle before capture.
 		await page.waitForTimeout(1000);
-		await page.screenshot({
-			path: `${artifactsDirname}/${filename}`,
-			fullPage: true
-		});
+		try {
+			await page.screenshot({
+				path: `${artifactsDirname}/${filename}`,
+				fullPage: true,
+				timeout: STEP_SCREENSHOT_TIMEOUT_MS
+			});
+		} catch (error) {
+			logStep('Step screenshot failed (non-fatal).', {
+				label,
+				filename,
+				error: error instanceof Error ? error.message : String(error)
+			});
+			return;
+		}
 		logStep('Captured step screenshot.', { label, filename });
 
 		// Write screenshot entry to step log for MD report generation
