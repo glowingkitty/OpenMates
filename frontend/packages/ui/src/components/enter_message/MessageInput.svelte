@@ -3150,6 +3150,37 @@
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
     async function handlePaste(event: ClipboardEvent) {
         await handleFilePaste(event, editor, $authStore.isAuthenticated);
+        if (!event.defaultPrevented && editor && !editor.isDestroyed) {
+            const rawPasteText = event.clipboardData?.getData('text/plain');
+            const text = rawPasteText ? sanitizeText(rawPasteText) : rawPasteText;
+            if (text) {
+                const normalizedPasteText = text.replace(/\r\n?/g, '\n');
+                const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
+                const htmlPasteText = event.clipboardData?.getData('text/html') || null;
+                const vsCodeLanguage = detectLanguageFromVSCode(vsCodeEditorData);
+                const detectedLanguage = detectLanguageFromContent(normalizedPasteText);
+                const pasteClassification = classifyPastedContent({
+                    text: normalizedPasteText,
+                    html: htmlPasteText,
+                    vsCodeLanguage,
+                    detectedLanguage,
+                });
+
+                if (pasteClassification.kind !== 'text') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const embedKind = pasteClassification.kind;
+                    const embedContent =
+                        embedKind === 'document'
+                            ? (pasteClassification.documentHtml || plainTextToDocumentHtml(normalizedPasteText))
+                            : embedKind === 'sheet'
+                                ? (pasteClassification.sheetMarkdown || normalizedPasteText)
+                                : normalizedPasteText;
+                    const language = vsCodeLanguage || detectedLanguage || 'text';
+                    insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
+                }
+            }
+        }
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             hasEmbedContent = editorHasEmbedContent(editor);

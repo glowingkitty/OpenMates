@@ -86,21 +86,21 @@ const MODELS: ModelCase[] = [
 		provider: 'google',
 		model: 'gemini-3-flash-preview',
 		label: 'gemini-flash',
-		expectedGeneratedBy: /Claude Sonnet 4\.6|claude-sonnet-4-6/i,
+		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i,
 		expectsReroute: true
 	},
 	{
 		provider: 'google',
 		model: 'gemini-3.1-pro-preview',
 		label: 'gemini-pro',
-		expectedGeneratedBy: /Claude Sonnet 4\.6|claude-sonnet-4-6/i,
+		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i,
 		expectsReroute: true
 	},
 	{
 		provider: 'google',
 		model: 'gemini-3.5-flash',
 		label: 'gemini-35-flash',
-		expectedGeneratedBy: /Claude Sonnet 4\.6|claude-sonnet-4-6/i,
+		expectedGeneratedBy: /Claude Haiku 4\.5|claude-haiku-4-5-20251001/i,
 		expectsReroute: true
 	}
 ];

@@ -47,6 +47,9 @@ async function openUsableComposer(page: any): Promise<void> {
 	}
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 20000 });
+	// MessageInput deliberately suppresses auto-focus for 500ms after mount.
+	// Wait past that guard before clicking so the action row mounts reliably.
+	await page.waitForTimeout(600);
 	await editor.click();
 	await page.keyboard.type(' ');
 	await page.keyboard.press('Backspace');
