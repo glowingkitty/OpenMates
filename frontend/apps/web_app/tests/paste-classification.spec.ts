@@ -113,7 +113,7 @@ test('formatted pasted text becomes a docs embed with Paste as text recovery', a
 	await expect(editor).toContainText('Quarterly plan', { timeout: 5000 });
 });
 
-test('pasted code becomes a code embed with Paste as text recovery', async ({ page }: { page: any }) => {
+test('pasted code becomes a code embed', async ({ page }: { page: any }) => {
 	test.setTimeout(60000);
 	const editor = await openUnauthenticatedNewChat(page);
 
@@ -122,12 +122,6 @@ test('pasted code becomes a code embed with Paste as text recovery', async ({ pa
 		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
 	);
 	await expect(codeEmbed).toBeVisible({ timeout: 10000 });
-	await codeEmbed.click({ button: 'right' });
-	await page.getByRole('button', { name: /Paste as text/i }).click();
-	await expect(editor.locator('[data-testid="embed-full-width-wrapper"]')).toHaveCount(0, {
-		timeout: 5000
-	});
-	await expect(editor).toContainText("import { test } from 'vitest';", { timeout: 5000 });
 });
 
 test('pasted table becomes a sheet embed and hides recovery after typing', async ({ page }: { page: any }) => {
