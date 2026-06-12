@@ -28,6 +28,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyFavicon, proxyImage, MAX_WIDTH_HEADER_IMAGE, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
+  import { searchTextHighlightStore } from '../../../stores/messageHighlightStore';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /**
@@ -83,7 +84,7 @@
   let image = $derived(typeof dc.image === 'string' ? dc.image : (typeof attrs.image === 'string' ? attrs.image : undefined));
   let extra_snippets = $derived(dc.extra_snippets as string | string[] | undefined);
   let dataDate = $derived(typeof dc.page_age === 'string' ? dc.page_age : undefined);
-  let highlightQuoteText = $derived(data.highlightQuoteText ?? null);
+  let highlightQuoteText = $derived(data.highlightQuoteText ?? $searchTextHighlightStore ?? null);
   let contentEl: HTMLDivElement | undefined = $state(undefined);
   
   // ===========================================
