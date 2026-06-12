@@ -902,13 +902,12 @@ async def record_mates_consent(
 @router.post(
     "/auto-topup/low-balance",
     response_model=SimpleSuccessResponse,
-    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
 )
 @limiter.limit("30/minute")  # Prevent abuse of auto-topup settings
 async def update_low_balance_auto_topup(
     request: Request,
     request_data: AutoTopUpLowBalanceRequest,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
@@ -1055,12 +1054,11 @@ class ApiKeyListResponse(BaseModel):
 @router.get(
     "/api-keys",
     response_model=ApiKeyListResponse,
-    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
 )
 @limiter.limit("30/minute")
 async def get_api_keys(
     request: Request,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
@@ -1307,12 +1305,11 @@ class DeviceListResponse(BaseModel):
 @router.get(
     "/api-key-devices",
     response_model=DeviceListResponse,
-    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
 )
 @limiter.limit("30/minute")
 async def get_api_key_devices(
     request: Request,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service)
 ):
     """
@@ -2084,7 +2081,7 @@ async def get_chat_entries(
 async def export_usage_csv(
     request: Request,
     months: int = 3,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
@@ -2197,12 +2194,11 @@ async def export_usage_csv(
 @router.get(
     "/billing",
     response_model=BillingOverviewResponse,
-    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
 )
 @limiter.limit("30/minute")
 async def get_billing_overview(
     request: Request,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
@@ -2210,7 +2206,7 @@ async def get_billing_overview(
     """
     Get billing overview for the current user.
     Returns current payment tier, auto top-up settings, and list of invoices.
-    Secured by API key validation (supports both session and API key authentication).
+    Secured by session authentication because billing data and invoices are account-sensitive.
     """
     logger.info(f"Fetching billing overview for user {current_user.id}")
     

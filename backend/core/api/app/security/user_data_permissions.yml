@@ -525,6 +525,47 @@ rest_modules:
     access: [owner_read, owner_write, api_key_read, api_key_write]
     data_domains: [settings, memories, billing, invoices, profile, usage, account_export, api_keys]
     rationale: Settings contains many owner-scoped account, memory, billing, and export operations.
+    endpoints:
+      - method: POST
+        route: /auto-topup/low-balance
+        function: update_low_balance_auto_topup
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [settings, billing]
+        auth_model: session_required
+        rationale: Auto-topup settings can change billing behavior and must be mutated from an interactive owner session, not an API key.
+      - method: GET
+        route: /api-keys
+        function: get_api_keys
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [api_keys, user_security]
+        auth_model: session_required
+        rationale: API key inventory exposes account security state and must not be readable using an API key itself.
+      - method: GET
+        route: /api-key-devices
+        function: get_api_key_devices
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [api_keys, user_security]
+        auth_model: session_required
+        rationale: API key device inventory exposes security state and pending device approvals, so it is web-session only.
+      - method: GET
+        route: /usage/export
+        function: export_usage_csv
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [usage, account_export]
+        auth_model: session_required
+        rationale: Full usage CSV export can contain detailed account activity and must require an interactive owner session.
+      - method: GET
+        route: /billing
+        function: get_billing_overview
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [billing, invoices]
+        auth_model: session_required
+        rationale: Billing overview exposes payment tier, auto-topup configuration, and invoices, so it is web-session only.
   - path: backend/core/api/app/routes/settings_software_update.py
     expected_routes: 6
     actors: [admin, internal_service]

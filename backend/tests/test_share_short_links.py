@@ -68,6 +68,16 @@ resolve_short_url = getattr(
     "__wrapped__",
     share_routes.resolve_short_url,
 )
+get_shared_embed = getattr(
+    share_routes.get_shared_embed,
+    "__wrapped__",
+    share_routes.get_shared_embed,
+)
+get_embed_og_metadata = getattr(
+    share_routes.get_embed_og_metadata,
+    "__wrapped__",
+    share_routes.get_embed_og_metadata,
+)
 
 
 class FakeUser:
@@ -94,12 +104,24 @@ class FakeEmbedMethods:
     async def get_embed_by_id(self, embed_id: str):
         if embed_id == "missing-embed":
             return None
+        if embed_id == "legacy-no-privacy-flag":
+            return {
+                "id": "embed-row-legacy",
+                "embed_id": embed_id,
+                "encrypted_content": "legacy-ciphertext",
+                "shared_encrypted_title": "enc-legacy-embed-title",
+                "shared_encrypted_description": "enc-legacy-embed-description",
+                "hashed_user_id": hashlib.sha256(FakeUser.id.encode()).hexdigest(),
+            }
         return {
             "id": "embed-row-1",
             "embed_id": embed_id,
             "is_private": False,
             "hashed_user_id": hashlib.sha256(FakeUser.id.encode()).hexdigest(),
         }
+
+    async def get_embed_keys_by_embed_id(self, _embed_id: str):
+        return []
 
 
 class FakeDirectusService:
@@ -139,6 +161,33 @@ class FakeDirectusService:
         return {"id": item_id, **payload}
 
 
+@pytest.mark.asyncio
+async def test_shared_embed_without_privacy_flag_defaults_to_private():
+    result = await get_shared_embed(
+        request=object(),
+        embed_id="legacy-no-privacy-flag",
+        directus_service=FakeDirectusService(),
+    )
+
+    assert result["embed"]["embed_id"] == "legacy-no-privacy-flag"
+    assert result["embed"].get("encrypted_content") != "legacy-ciphertext"
+    assert result["child_embeds"] == []
+    assert result["embed_keys"] == []
+
+
+@pytest.mark.asyncio
+async def test_shared_embed_og_metadata_without_privacy_flag_uses_fallback():
+    result = await get_embed_og_metadata(
+        request=object(),
+        embed_id="legacy-no-privacy-flag",
+        directus_service=FakeDirectusService(),
+        encryption_service=FakeEncryptionService(),
+    )
+
+    assert result["title"] == "Shared Embed - OpenMates"
+    assert result["description"] == "View this shared content on OpenMates"
+
+
 class FailingCreateDirectusService(FakeDirectusService):
     async def create_item(self, collection: str, payload: dict, **_kwargs):
         assert collection == "share_short_links"
@@ -170,6 +219,8 @@ class FakeEncryptionService:
             "enc-category": "general_knowledge",
             "enc-icon": "map",
             "enc-image-bubbles": '[{"imageUrl":"https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Fone.jpg","title":"One"}]',
+            "enc-legacy-embed-title": "Legacy private embed title",
+            "enc-legacy-embed-description": "Legacy private embed description",
         }[value]
 
 

@@ -898,10 +898,9 @@ async def get_shared_embed(
             dummy_data.pop("is_dummy", None)
             return {"embed": dummy_data, "child_embeds": [], "embed_keys": [], "code_run_outputs": []}
 
-        # Check if embed is private (not shared)
-        # Use is_private field (mirrors chat sharing structure)
-        # Default to False (shareable) if field doesn't exist (for backward compatibility)
-        is_private = embed.get("is_private", False)
+        # Missing legacy privacy flags fail closed: embeds are shareable only
+        # after an owner explicitly sets is_private=false while sharing.
+        is_private = embed.get("is_private", True)
         if is_private:
             # Embed is private (unshared) - return dummy data
             logger.debug(f"Embed {embed_id} is private (unshared), returning dummy data")
@@ -1002,10 +1001,9 @@ async def get_embed_og_metadata(
                 "type": "embed"
             }
 
-        # Check if embed is private (not shared)
-        # Use is_private field (mirrors chat sharing structure)
-        # Default to False (shareable) if field doesn't exist (for backward compatibility)
-        is_private = embed.get("is_private", False)
+        # Missing legacy privacy flags fail closed: embeds are shareable only
+        # after an owner explicitly sets is_private=false while sharing.
+        is_private = embed.get("is_private", True)
         if is_private:
             logger.debug(f"Embed {embed_id} is private (unshared), using fallback metadata")
             return {

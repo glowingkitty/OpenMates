@@ -14,6 +14,7 @@ from typing import Any
 from scripts.audit_user_data_permissions import (
     RestEndpoint,
     audit_registry,
+    discover_file_endpoints,
     discover_rest_endpoints,
     discover_rest_routes,
     discover_websocket_handlers,
@@ -252,3 +253,20 @@ def test_endpoint_auth_shape_mismatch_is_reported(tmp_path: Path) -> None:
     )
 
     assert any("uses required user auth" in issue.message for issue in issues)
+
+
+def test_settings_sensitive_endpoints_are_session_only() -> None:
+    settings_path = Path("backend/core/api/app/routes/settings.py")
+    endpoints = {endpoint.key: endpoint for endpoint in discover_file_endpoints(settings_path, Path.cwd())}
+    sensitive_endpoint_keys = {
+        "POST /auto-topup/low-balance",
+        "GET /api-keys",
+        "GET /api-key-devices",
+        "GET /usage/export",
+        "GET /billing",
+    }
+
+    for key in sensitive_endpoint_keys:
+        assert key in endpoints
+        assert "get_current_user" in endpoints[key].auth_guards
+        assert "get_current_user_or_api_key" not in endpoints[key].auth_guards
