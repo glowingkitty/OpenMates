@@ -1,1003 +1,268 @@
 title:
-  context: "Title of example chat: Saved home listing memory"
-  en: "Saved home listing memory"
-  de: "Saved home listing memory"
-  zh: "Saved home listing memory"
-  es: "Saved home listing memory"
-  fr: "Saved home listing memory"
-  pt: "Saved home listing memory"
-  ru: "Saved home listing memory"
-  ja: "Saved home listing memory"
-  ko: "Saved home listing memory"
-  it: "Saved home listing memory"
-  tr: "Saved home listing memory"
-  vi: "Saved home listing memory"
-  id: "Saved home listing memory"
-  pl: "Saved home listing memory"
-  nl: "Saved home listing memory"
-  ar: "Saved home listing memory"
-  hi: "Saved home listing memory"
-  th: "Saved home listing memory"
-  cs: "Saved home listing memory"
-  sv: "Saved home listing memory"
-  he: "Saved home listing memory"
+  context: "Title of example chat: Memory Home Saved Listings"
+  en: "Memory Home Saved Listings"
+  de: "Memory Home Saved Listings"
+  zh: "Memory Home Saved Listings"
+  es: "Memory Home Saved Listings"
+  fr: "Memory Home Saved Listings"
+  pt: "Memory Home Saved Listings"
+  ru: "Memory Home Saved Listings"
+  ja: "Memory Home Saved Listings"
+  ko: "Memory Home Saved Listings"
+  it: "Memory Home Saved Listings"
+  tr: "Memory Home Saved Listings"
+  vi: "Memory Home Saved Listings"
+  id: "Memory Home Saved Listings"
+  pl: "Memory Home Saved Listings"
+  nl: "Memory Home Saved Listings"
+  ar: "Memory Home Saved Listings"
+  hi: "Memory Home Saved Listings"
+  th: "Memory Home Saved Listings"
+  cs: "Memory Home Saved Listings"
+  sv: "Memory Home Saved Listings"
+  he: "Memory Home Saved Listings"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Saved home listing memory"
-  en: "See how a saved apartment listing memory turns into viewing questions."
-  de: "See how a saved apartment listing memory turns into viewing questions."
-  zh: "See how a saved apartment listing memory turns into viewing questions."
-  es: "See how a saved apartment listing memory turns into viewing questions."
-  fr: "See how a saved apartment listing memory turns into viewing questions."
-  pt: "See how a saved apartment listing memory turns into viewing questions."
-  ru: "See how a saved apartment listing memory turns into viewing questions."
-  ja: "See how a saved apartment listing memory turns into viewing questions."
-  ko: "See how a saved apartment listing memory turns into viewing questions."
-  it: "See how a saved apartment listing memory turns into viewing questions."
-  tr: "See how a saved apartment listing memory turns into viewing questions."
-  vi: "See how a saved apartment listing memory turns into viewing questions."
-  id: "See how a saved apartment listing memory turns into viewing questions."
-  pl: "See how a saved apartment listing memory turns into viewing questions."
-  nl: "See how a saved apartment listing memory turns into viewing questions."
-  ar: "See how a saved apartment listing memory turns into viewing questions."
-  hi: "See how a saved apartment listing memory turns into viewing questions."
-  th: "See how a saved apartment listing memory turns into viewing questions."
-  cs: "See how a saved apartment listing memory turns into viewing questions."
-  sv: "See how a saved apartment listing memory turns into viewing questions."
-  he: "See how a saved apartment listing memory turns into viewing questions."
+  context: "Summary of example chat: Memory Home Saved Listings"
+  en: "OpenMates uses saved home saved_listings memory in a real chat."
+  de: "OpenMates uses saved home saved_listings memory in a real chat."
+  zh: "OpenMates uses saved home saved_listings memory in a real chat."
+  es: "OpenMates uses saved home saved_listings memory in a real chat."
+  fr: "OpenMates uses saved home saved_listings memory in a real chat."
+  pt: "OpenMates uses saved home saved_listings memory in a real chat."
+  ru: "OpenMates uses saved home saved_listings memory in a real chat."
+  ja: "OpenMates uses saved home saved_listings memory in a real chat."
+  ko: "OpenMates uses saved home saved_listings memory in a real chat."
+  it: "OpenMates uses saved home saved_listings memory in a real chat."
+  tr: "OpenMates uses saved home saved_listings memory in a real chat."
+  vi: "OpenMates uses saved home saved_listings memory in a real chat."
+  id: "OpenMates uses saved home saved_listings memory in a real chat."
+  pl: "OpenMates uses saved home saved_listings memory in a real chat."
+  nl: "OpenMates uses saved home saved_listings memory in a real chat."
+  ar: "OpenMates uses saved home saved_listings memory in a real chat."
+  hi: "OpenMates uses saved home saved_listings memory in a real chat."
+  th: "OpenMates uses saved home saved_listings memory in a real chat."
+  cs: "OpenMates uses saved home saved_listings memory in a real chat."
+  sv: "OpenMates uses saved home saved_listings memory in a real chat."
+  he: "OpenMates uses saved home saved_listings memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Saved home listing memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  de: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  zh: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  es: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  fr: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  pt: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  ru: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  ja: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  ko: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  it: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  tr: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  vi: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  id: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  pl: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  nl: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  ar: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  hi: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  th: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  cs: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  sv: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
-  he: "Use my saved home listing memory to draft questions I should ask before viewing the apartment."
+  context: "user message 1 in example chat: Memory Home Saved Listings. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Saved home listing memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Home Saved Listings. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "6a554b12-3a87-48ef-872b-dffe918e1fda", "app_id": "web", "skill_id": "search", "query": "questions to ask apartment viewing Berlin 2026 checklist", "provider": "Brave"}
-    ```
+    Based on your saved listing for the [Neukölln](wiki:Berlin-Neukölln) canal studio near Weserstraße, here are the specific questions you should ask the provider before your viewing. These questions incorporate the concerns you already noted in your memory and expand on them for a [Berlin](wiki:Berlin) rental context:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "c2937c3e-4392-4237-bb28-99304770dbb9", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Weserstrasse street view", "provider": "Brave Search"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "691f228d-513f-47fe-991c-653f73ba2304", "app_id": "images", "skill_id": "search", "query": "Berlin Neuk\u00f6lln Landwehrkanal view", "provider": "Brave Search"}
-    ```
-    
-    Based on your saved listings in [Neukölln](wiki:Neukölln), I've drafted a specific set of questions for each apartment. Since both are available from August 1, 2026, you'll want to be prepared for viewings very soon.
-    
-    ### Your Neukölln Apartment Viewing Guide
-    
-    [!](embed:derinternaut.ch-lc8)
-    [!](embed:commons.wikimedia.org-PSJ)
-    
-    I've compiled these questions into a structured document that you can print or keep on your phone during the viewings. It includes tailored questions based on your notes (like the bar noise on Weserstraße and internet speeds for the canal studio) along with general "must-ask" items for the [Berlin](wiki:Berlin) rental market in 2026.
-    
-    
-    
-    ### Next Steps for Your Search
-    In the current Berlin housing market, speed is everything. It is often recommended to send a follow-up "confirmation of interest" email within an hour of leaving the viewing.
-    
-    Would you like me to help you with the next step of the process?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "apartment_followup",
-      "multiple": false,
-      "question": "What should we prepare next?",
-      "options": [
-        { "id": "email_template", "text": "Draft a 'Confirmation of Interest' email template" },
-        { "id": "search_more", "text": "Search for more Neukölln listings for August 1st" },
-        { "id": "cover_letter", "text": "Write a 'Tenant Cover Letter' for my application" }
-      ]
-    }
-    ```
-    
-    
+    *   **Noise & Nightlife:** "As the apartment is located near Weserstraße, how effective is the [soundproofing](wiki:Soundproofing) of the windows against evening street noise and nearby bar activity?"
+    *   **Internet Infrastructure:** "What is the maximum [internet speed](wiki:Internet_access) currently available at this address, and which providers are active in the building?"
+    *   **Heating & Utility Breakdown:** "Could you provide a detailed breakdown of the 'warm' rent? Specifically, what type of [heating](wiki:Heating) system is used (e.g., gas floor heating or central district heating), and what was the actual consumption cost for the previous tenant?"
+    *   **Thermal Insulation:** "Are the canal-facing windows double or triple-glazed, and has the building undergone recent energy-efficient renovations to help with [thermal insulation](wiki:Building_insulation)?"
+    *   **Basement & Storage:** "Does the studio include a dedicated cellar (Keller) space for storage, and is there a secure area for bicycle parking?"
+    *   **Rental Contract Specifics:** "Is the rental agreement limited-term (befristet) or indefinite (unbefristet), and is there a minimum rental period (Mindestmietdauer) required?"
   verified_by_human: []
 

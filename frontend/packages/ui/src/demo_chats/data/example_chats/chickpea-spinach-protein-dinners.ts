@@ -40,90 +40,34 @@ export const chickpeaSpinachProteinDinnersChat: ExampleChat = {
         embed_ids: null
     },
     {
-        embed_id: "227a2c67-b95d-4aa8-aec6-2c08f5ba299e",
-        type: "recipe",
-        content: "uid: bltfc7ad119194c7118\ntitle: Gegrillte Avocado\nslug: gegrillte-avocado\nrecipe_url: \"https://www.rewe.de/rezepte/gegrillte-avocado/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 5\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: gegrillte-avocado-VTs\napp_id: nutrition\nskill_id: search_recipes",
-        parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
-        embed_ids: null
-    },
-    {
-        embed_id: "9eff9ce7-342a-4012-b5f1-460656260d05",
-        type: "recipe",
-        content: "uid: bltaf1e0ab1aa1b0aba\ntitle: Curry-Hähnchen-Burger mit Ananas\nslug: curry-haehnchen-burger-mit-ananas\nrecipe_url: \"https://www.rewe.de/rezepte/curry-haehnchen-burger-mit-ananas/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 6\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: curry-h-hnchen-xHG\napp_id: nutrition\nskill_id: search_recipes",
-        parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
-        embed_ids: null
-    },
-    {
         embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
         type: "app_skill_use",
-        content: "app_id: nutrition\nskill_id: search_recipes\nresult_count: 10\nembed_ids: 25fdb4e8-1fbe-44c2-b974-9153b58d93d7|578cdebb-f8c3-47c5-a96a-d5f9bb8838ad|6408f6a0-af18-4f8c-9996-d370e175f468|292745d2-985b-4714-9c97-237d6a44f480|227a2c67-b95d-4aa8-aec6-2c08f5ba299e|9eff9ce7-342a-4012-b5f1-460656260d05|50f883b7-3a83-4297-ae49-0a96c44b985a|aae5fbc3-45fd-4712-b043-a09df9e45e67|2a38917a-9035-4f64-87bc-6ce13facb907|ac76d5dc-e2a5-4791-80f5-a266bf6953e5\nstatus: finished\nembed_id: 0f3d4856-52c7-4843-ad65-4bab26269b1e\nfilters: vegetarisch|hauptspeise|einfach\nmax_results: 10",
+        content: "app_id: nutrition\nskill_id: search_recipes\nresult_count: 3\nembed_ids: 25fdb4e8-1fbe-44c2-b974-9153b58d93d7|578cdebb-f8c3-47c5-a96a-d5f9bb8838ad|6408f6a0-af18-4f8c-9996-d370e175f468\nstatus: finished\nembed_id: 0f3d4856-52c7-4843-ad65-4bab26269b1e\nquery: vegetarian chickpea spinach dinner under 35 minutes\nprovider: REWE\nproviders: REWE\nfilters: vegetarisch|hauptspeise|einfach\nmax_results: 3\npreview_title: REWE vegetarian chickpea and spinach recipes\npreview_summary: 3 current REWE recipes with timings, ingredients, instructions, and nutrition.",
         parent_embed_id: null,
         embed_ids: [
             "25fdb4e8-1fbe-44c2-b974-9153b58d93d7",
             "578cdebb-f8c3-47c5-a96a-d5f9bb8838ad",
-            "6408f6a0-af18-4f8c-9996-d370e175f468",
-            "292745d2-985b-4714-9c97-237d6a44f480",
-            "227a2c67-b95d-4aa8-aec6-2c08f5ba299e",
-            "9eff9ce7-342a-4012-b5f1-460656260d05",
-            "50f883b7-3a83-4297-ae49-0a96c44b985a",
-            "aae5fbc3-45fd-4712-b043-a09df9e45e67",
-            "2a38917a-9035-4f64-87bc-6ce13facb907",
-            "ac76d5dc-e2a5-4791-80f5-a266bf6953e5"
+            "6408f6a0-af18-4f8c-9996-d370e175f468"
         ]
     },
     {
         embed_id: "25fdb4e8-1fbe-44c2-b974-9153b58d93d7",
         type: "recipe",
-        content: "uid: blt96e45568b582bde8\ntitle: Süßkartoffel-Hackfleisch-Auflauf\nslug: suesskartoffel-hackfleisch-auflauf\nrecipe_url: \"https://www.rewe.de/rezepte/suesskartoffel-hackfleisch-auflauf/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 1\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: s-kartoffel-hackfleisch-rtH\napp_id: nutrition\nskill_id: search_recipes",
+        content: "uid: rewe-kichererbsen-pfanne-spinat\ntitle: Kichererbsen-Pfanne mit Spinat\nslug: kichererbsen-pfanne-spinat\nrecipe_url: \"https://www.rewe.de/rezepte/kichererbsen-pfanne-spinat/\"\nimage_url: null\ndescription: \"Eine kunterbunte Freude für Auge und Gaumen: ein schnelles Pfannengericht mit Kichererbsen, Spinat, Tomaten und Curry.\"\nprep_time_minutes: 10\ncook_time_minutes: 5\ntotal_time_minutes: 15\nservings: 4\ndifficulty: Einfach\nrating: 4.2\nrating_count: 436\nernaehrwert_score: null\ndietary_tags: Vegetarisch|Vegan|Low Carb|Laktosefrei\ncategories: Gemüsepfannen|Pfannengericht|Fitness|gesund\ningredients: 2 Gläser REWE Bio Kichererbsen 220g|300 g Blattspinat|400 g Tomaten|2 große Zwiebeln|2 EL Olivenöl|Salz|1 TL Curry\ninstructions: Kichererbsen abtropfen lassen.|Spinat und Tomaten waschen.|Tomaten in grobe Würfel schneiden.|Zwiebel schälen und in feine Würfel schneiden.|Öl in einer Pfanne erhitzen und Zwiebeln darin anbraten.|Kichererbsen, Tomaten und Spinat dazugeben und kurz andünsten.|Mit Salz und Curry würzen.\nnutrition_energy: 232 kcal\nnutrition_carbohydrates: 32.5 g\nnutrition_fat: 8.4 g\nnutrition_protein: 10.7 g\nsearch_rank: 1\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 3\nembed_ref: kichererbsen-pfanne-spinat-Tx1\napp_id: nutrition\nskill_id: search_recipes",
         parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
         embed_ids: null
     },
     {
         embed_id: "578cdebb-f8c3-47c5-a96a-d5f9bb8838ad",
         type: "recipe",
-        content: "uid: bltc72eef5c459bd527\ntitle: Dreierlei Grillspieße mit Tomatendip\nslug: dreierlei-grillspiesse-mit-tomatendip\nrecipe_url: \"https://www.rewe.de/rezepte/dreierlei-grillspiesse-mit-tomatendip/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 2\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: dreierlei-grillspie-e-qZc\napp_id: nutrition\nskill_id: search_recipes",
-        parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
-        embed_ids: null
-    },
-    {
-        embed_id: "50f883b7-3a83-4297-ae49-0a96c44b985a",
-        type: "recipe",
-        content: "uid: blte8639097cfea7f94\ntitle: Bunter Pasta-Salat\nslug: bunter-pasta-salat\nrecipe_url: \"https://www.rewe.de/rezepte/bunter-pasta-salat/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 7\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: bunter-pasta-salat-Vhe\napp_id: nutrition\nskill_id: search_recipes",
-        parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
-        embed_ids: null
-    },
-    {
-        embed_id: "292745d2-985b-4714-9c97-237d6a44f480",
-        type: "recipe",
-        content: "uid: bltb5e4dc7a046780de\ntitle: Rucola-Salat mit gegrilltem Pfirsich und Prosciutto\nslug: rucola-salat-mit-gegrilltem-pfirsich-und-prosciutto\nrecipe_url: \"https://www.rewe.de/rezepte/rucola-salat-mit-gegrilltem-pfirsich-und-prosciutto/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 4\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: rucola-salat-mit-CXP\napp_id: nutrition\nskill_id: search_recipes",
-        parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
-        embed_ids: null
-    },
-    {
-        embed_id: "aae5fbc3-45fd-4712-b043-a09df9e45e67",
-        type: "recipe",
-        content: "uid: blt589c5f9c0add133b\ntitle: Grill-Burger mit Krautsalat & scharfem Joghurt-Dressing\nslug: grill-burger-mit-krautsalat-scharfem-joghurt-dressing\nrecipe_url: \"https://www.rewe.de/rezepte/grill-burger-mit-krautsalat-scharfem-joghurt-dressing/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 8\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: grill-burger-mit-Zov\napp_id: nutrition\nskill_id: search_recipes",
-        parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
-        embed_ids: null
-    },
-    {
-        embed_id: "2a38917a-9035-4f64-87bc-6ce13facb907",
-        type: "recipe",
-        content: "uid: bltf226916fc0929b9b\ntitle: Kartoffel-Rucola-Kräuter-Püree\nslug: kartoffel-rucola-kraeuter-pueree\nrecipe_url: \"https://www.rewe.de/rezepte/kartoffel-rucola-kraeuter-pueree/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 9\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: kartoffel-rucola-kr-r5b\napp_id: nutrition\nskill_id: search_recipes",
-        parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
-        embed_ids: null
-    },
-    {
-        embed_id: "ac76d5dc-e2a5-4791-80f5-a266bf6953e5",
-        type: "recipe",
-        content: "uid: blt0bbf17b9aff93497\ntitle: Low carb Waffeln mit Beeren\nslug: low-carb-waffeln-mit-beeren\nrecipe_url: \"https://www.rewe.de/rezepte/low-carb-waffeln-mit-beeren/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 10\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: low-carb-waffeln-BFJ\napp_id: nutrition\nskill_id: search_recipes",
+        content: "uid: rewe-spinat-shakshuka\ntitle: Shakshuka mit Spinat\nslug: spinat-shakshuka\nrecipe_url: \"https://www.rewe.de/rezepte/spinat-shakshuka/\"\nimage_url: null\ndescription: \"Vegetarische Shakshuka mit Spinat, Kichererbsen, Tomatensauce und Eiern.\"\nprep_time_minutes: 15\ncook_time_minutes: 10\ntotal_time_minutes: 25\nservings: 4\ndifficulty: Einfach\nrating: 4.4\nrating_count: 33\nernaehrwert_score: null\ndietary_tags: Vegetarisch|Laktosefrei\ncategories: Hauptspeise|Mittagessen|Abendessen|herzhaft|Geringer Aufwand|gesund|Brunch\ningredients: 1 REWE Beste Wahl Fladenbrot 500 g|1 Pck. REWE Beste Wahl Junger Spinat 450 g, aufgetaut|1 Glas REWE Bio Kichererbsen 220 g|2 Pck. REWE Beste Wahl Tomatensauce Basilikum 380 ml|1 TL Kreuzkümmel gemahlen|Salz|Pfeffer|4 Eier M, zimmerwarm\ninstructions: Fladenbrot nach Packungsanweisung im Ofen aufbacken; Spinat gut ausdrücken; Kichererbsen abgießen; Backofen auf 200 °C vorheizen.|Tomatensauce in einer hohen Pfanne erhitzen; Spinat und Kichererbsen zugeben; mit Kreuzkümmel, Salz und Pfeffer würzen und aufkochen.|Vier Mulden in die Soße drücken; Eier aufschlagen und in die Mulden geben; im heißen Ofen 10 Minuten stocken lassen.|Mit dem Fladenbrot servieren.\nnutrition_energy: 656 kcal\nnutrition_carbohydrates: 96.8 g\nnutrition_fat: 19.7 g\nnutrition_protein: 28 g\nsearch_rank: 2\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 3\nembed_ref: spinat-shakshuka-Fm2\napp_id: nutrition\nskill_id: search_recipes",
         parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
         embed_ids: null
     },
     {
         embed_id: "6408f6a0-af18-4f8c-9996-d370e175f468",
         type: "recipe",
-        content: "uid: bltfa6c3c859e191e6f\ntitle: Weißer Fisch mit Rösttomaten und Röstbrot\nslug: weisser-fisch-mit-roesttomaten-und-roestbrot\nrecipe_url: \"https://www.rewe.de/rezepte/weisser-fisch-mit-roesttomaten-und-roestbrot/\"\nimage_url: null\ndescription: null\nprep_time_minutes: null\ncook_time_minutes: null\ntotal_time_minutes: null\nservings: null\ndifficulty: null\nrating: null\nrating_count: null\nernaehrwert_score: null\ndietary_tags[0]:\ncategories[0]:\ningredients[0]:\ninstructions[0]:\nnutrition: null\nsearch_rank: 3\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 10000\nembed_ref: wei-er-fisch-sDF\napp_id: nutrition\nskill_id: search_recipes",
+        content: "uid: rewe-auberginen-curry\ntitle: Auberginen-Curry\nslug: auberginen-curry\nrecipe_url: \"https://www.rewe.de/rezepte/auberginen-curry/\"\nimage_url: null\ndescription: \"Schnelles vegetarisch-veganes Curry mit Auberginen, Kichererbsen, Babyspinat und Kokosmilch.\"\nprep_time_minutes: 15\ncook_time_minutes: 15\ntotal_time_minutes: 30\nservings: 4\ndifficulty: Einfach\nrating: 4.8\nrating_count: 13\nernaehrwert_score: null\ndietary_tags: Vegetarisch|Vegan|Laktosefrei|Kalorienarm\ncategories: Hauptspeise|Gemüse|Curry\ningredients: 2 Auberginen|Salz|400 g Kichererbsen|200 g Babyspinat frisch|2 Zwiebeln|15 g Ingwer|5 EL Rapsöl|1 TL Garam Masala|1 TL Kurkuma gemahlen|200 ml Gemüsefond|200 ml Kokosmilch|Pfeffer\ninstructions: Auberginen waschen, in 3 cm große Würfel schneiden, leicht salzen und ca. 5 Minuten ziehen lassen.|Kichererbsen abspülen und abtropfen lassen; Spinat waschen und trocken schleudern.|Zwiebeln und Ingwer schälen und würfeln.|Auberginenwürfel in 3 EL Rapsöl scharf anbraten und herausnehmen.|Zwiebeln und Ingwer in 2 EL Rapsöl anschwitzen; Garam Masala und Kurkuma zugeben und mit Gemüsefond ablöschen.|Auberginen, Kichererbsen und Spinat zugeben und aufkochen lassen.|Kokosmilch unterrühren und ca. 10 Minuten mit Deckel köcheln lassen.|Mit Salz und Pfeffer abschmecken; dazu z. B. Reis servieren.\nnutrition_energy: 204 kcal\nnutrition_carbohydrates: 16.8 g\nnutrition_fat: 13.8 g\nnutrition_protein: 6 g\nsearch_rank: 3\nfrom_cache: false\ntype: recipe\nprovider: REWE\ntotal_available: 3\nembed_ref: auberginen-curry-Lp3\napp_id: nutrition\nskill_id: search_recipes",
         parent_embed_id: "0f3d4856-52c7-4843-ad65-4bab26269b1e",
         embed_ids: null
     }

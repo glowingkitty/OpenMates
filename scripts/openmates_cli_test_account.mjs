@@ -24,7 +24,7 @@ const AES_GCM_IV_LENGTH = 12;
 function usage() {
   process.stderr.write(`Usage:
   node scripts/openmates_cli_test_account.mjs login [--slot <n>] [--api-url <url>]
-  node scripts/openmates_cli_test_account.mjs chat "<prompt>" [--slot <n>] [--api-url <url>] [--expires <seconds>]
+  node scripts/openmates_cli_test_account.mjs chat "<prompt>" [--slot <n>] [--api-url <url>] [--expires <seconds>] [--auto-approve-memories]
 
 Environment:
   OPENMATES_TEST_ACCOUNT_EMAIL / PASSWORD / OTP_KEY
@@ -58,6 +58,7 @@ function loadDotenv() {
 function parseArgs(argv) {
   const options = {
     apiUrl: process.env.OPENMATES_API_URL || DEFAULT_API_URL,
+    autoApproveMemories: false,
     expires: "604800",
     slot: process.env.OPENMATES_TEST_ACCOUNT_SOURCE_SLOT || "2",
   };
@@ -71,6 +72,8 @@ function parseArgs(argv) {
       options.expires = argv[++index];
     } else if (arg === "--slot") {
       options.slot = argv[++index];
+    } else if (arg === "--auto-approve-memories") {
+      options.autoApproveMemories = true;
     } else if (arg === "--help" || arg === "-h") {
       options.help = true;
     } else {
@@ -353,7 +356,9 @@ function parseCliJson(output) {
 
 async function createChat(prompt, options) {
   await login(options);
-  const chatOutput = runCli(["chats", "new", prompt, "--json"], options.apiUrl);
+  const chatArgs = ["chats", "new", prompt, "--json"];
+  if (options.autoApproveMemories) chatArgs.push("--auto-approve-memories");
+  const chatOutput = runCli(chatArgs, options.apiUrl);
   const chat = parseCliJson(chatOutput);
   const chatId = chat.chat_id || chat.chatId || chat.id;
   if (!chatId) {

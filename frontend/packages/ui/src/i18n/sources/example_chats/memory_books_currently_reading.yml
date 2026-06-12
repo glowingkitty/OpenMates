@@ -1,1108 +1,373 @@
 title:
-  context: "Title of example chat: Currently reading memory"
-  en: "Currently reading memory"
-  de: "Currently reading memory"
-  zh: "Currently reading memory"
-  es: "Currently reading memory"
-  fr: "Currently reading memory"
-  pt: "Currently reading memory"
-  ru: "Currently reading memory"
-  ja: "Currently reading memory"
-  ko: "Currently reading memory"
-  it: "Currently reading memory"
-  tr: "Currently reading memory"
-  vi: "Currently reading memory"
-  id: "Currently reading memory"
-  pl: "Currently reading memory"
-  nl: "Currently reading memory"
-  ar: "Currently reading memory"
-  hi: "Currently reading memory"
-  th: "Currently reading memory"
-  cs: "Currently reading memory"
-  sv: "Currently reading memory"
-  he: "Currently reading memory"
+  context: "Title of example chat: Memory Books Currently Reading"
+  en: "Memory Books Currently Reading"
+  de: "Memory Books Currently Reading"
+  zh: "Memory Books Currently Reading"
+  es: "Memory Books Currently Reading"
+  fr: "Memory Books Currently Reading"
+  pt: "Memory Books Currently Reading"
+  ru: "Memory Books Currently Reading"
+  ja: "Memory Books Currently Reading"
+  ko: "Memory Books Currently Reading"
+  it: "Memory Books Currently Reading"
+  tr: "Memory Books Currently Reading"
+  vi: "Memory Books Currently Reading"
+  id: "Memory Books Currently Reading"
+  pl: "Memory Books Currently Reading"
+  nl: "Memory Books Currently Reading"
+  ar: "Memory Books Currently Reading"
+  hi: "Memory Books Currently Reading"
+  th: "Memory Books Currently Reading"
+  cs: "Memory Books Currently Reading"
+  sv: "Memory Books Currently Reading"
+  he: "Memory Books Currently Reading"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Currently reading memory"
-  en: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  de: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  zh: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  es: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  fr: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  pt: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  ru: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  ja: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  ko: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  it: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  tr: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  vi: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  id: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  pl: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  nl: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  ar: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  hi: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  th: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  cs: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  sv: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
-  he: "See how OpenMates uses a current-reading memory for a spoiler-free companion suggestion."
+  context: "Summary of example chat: Memory Books Currently Reading"
+  en: "OpenMates uses saved books currently_reading memory in a real chat."
+  de: "OpenMates uses saved books currently_reading memory in a real chat."
+  zh: "OpenMates uses saved books currently_reading memory in a real chat."
+  es: "OpenMates uses saved books currently_reading memory in a real chat."
+  fr: "OpenMates uses saved books currently_reading memory in a real chat."
+  pt: "OpenMates uses saved books currently_reading memory in a real chat."
+  ru: "OpenMates uses saved books currently_reading memory in a real chat."
+  ja: "OpenMates uses saved books currently_reading memory in a real chat."
+  ko: "OpenMates uses saved books currently_reading memory in a real chat."
+  it: "OpenMates uses saved books currently_reading memory in a real chat."
+  tr: "OpenMates uses saved books currently_reading memory in a real chat."
+  vi: "OpenMates uses saved books currently_reading memory in a real chat."
+  id: "OpenMates uses saved books currently_reading memory in a real chat."
+  pl: "OpenMates uses saved books currently_reading memory in a real chat."
+  nl: "OpenMates uses saved books currently_reading memory in a real chat."
+  ar: "OpenMates uses saved books currently_reading memory in a real chat."
+  hi: "OpenMates uses saved books currently_reading memory in a real chat."
+  th: "OpenMates uses saved books currently_reading memory in a real chat."
+  cs: "OpenMates uses saved books currently_reading memory in a real chat."
+  sv: "OpenMates uses saved books currently_reading memory in a real chat."
+  he: "OpenMates uses saved books currently_reading memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Currently reading memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved currently reading list to make a simple one-week reading plan."
-  de: "Use my saved currently reading list to make a simple one-week reading plan."
-  zh: "Use my saved currently reading list to make a simple one-week reading plan."
-  es: "Use my saved currently reading list to make a simple one-week reading plan."
-  fr: "Use my saved currently reading list to make a simple one-week reading plan."
-  pt: "Use my saved currently reading list to make a simple one-week reading plan."
-  ru: "Use my saved currently reading list to make a simple one-week reading plan."
-  ja: "Use my saved currently reading list to make a simple one-week reading plan."
-  ko: "Use my saved currently reading list to make a simple one-week reading plan."
-  it: "Use my saved currently reading list to make a simple one-week reading plan."
-  tr: "Use my saved currently reading list to make a simple one-week reading plan."
-  vi: "Use my saved currently reading list to make a simple one-week reading plan."
-  id: "Use my saved currently reading list to make a simple one-week reading plan."
-  pl: "Use my saved currently reading list to make a simple one-week reading plan."
-  nl: "Use my saved currently reading list to make a simple one-week reading plan."
-  ar: "Use my saved currently reading list to make a simple one-week reading plan."
-  hi: "Use my saved currently reading list to make a simple one-week reading plan."
-  th: "Use my saved currently reading list to make a simple one-week reading plan."
-  cs: "Use my saved currently reading list to make a simple one-week reading plan."
-  sv: "Use my saved currently reading list to make a simple one-week reading plan."
-  he: "Use my saved currently reading list to make a simple one-week reading plan."
+  context: "user message 1 in example chat: Memory Books Currently Reading. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Currently reading memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Books Currently Reading. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "8b25a013-73cc-4132-b07e-1fbd183f3d87", "app_id": "web", "skill_id": "search", "query": "Project Hail Mary Andy Weir page count", "provider": "Brave"}
-    ```
+    Based on your saved preferences, here is a spoiler-free one-week reading plan for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir). Since you are currently at page 250 and enjoy a pace of 25 pages per night, this plan will help you maintain that steady progress through the next week.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "144dff1f-cfec-4f66-b4af-4d6e448870dd", "app_id": "images", "skill_id": "search", "query": "Project Hail Mary Andy Weir book cover", "provider": "Brave Search"}
-    ```
+    **One-Week Reading Schedule:**
     
-    Based on your progress with [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), I've put together a one-week reading plan for you. 
+    *   **Night 1:** Read pages 250–275
+    *   **Night 2:** Read pages 275–300
+    *   **Night 3:** Read pages 300–325
+    *   **Night 4:** Read pages 325–350
+    *   **Night 5:** Read pages 350–375
+    *   **Night 6:** Read pages 375–400
+    *   **Night 7:** Read pages 400–425
     
-    According to your [settings](/#settings/apps/books), you started reading on June 1st and have been maintaining a steady pace of about 25 pages per night. With the book being approximately 476 pages long, you’ve likely reached around page 250 by tonight.
-    
-    [!](embed:etsy.com-IPh)
-    [!](embed:ebay.com-EHq)
-    [!](embed:ebay.com-VmR)
-    
-    ### Your One-Week Reading Plan
-    
-    This plan keeps you at your preferred pace of 25 pages per night, allowing you to enjoy the story without rushing.
-    
-    ```json
-    {"type": "sheet", "embed_id": "62b3b767-f4b2-400e-8b6a-fe26f1b42f45"}
-    ```
-    
-    
-    By the end of this plan on June 17th, you'll have about 51 pages left, meaning you'll be on track to finish the book in just two more nights!
-    
-    ```json
-    {"type": "document", "embed_id": "1009ccee-4ab3-4865-82ab-41969e1cd130"}
-    ```
-    
-    
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "reading_plan_adjustment",
-      "multiple": false,
-      "question": "How does this pace feel for the next week?",
-      "options": [
-        { "id": "perfect", "text": "Perfect, keep it as is." },
-        { "id": "faster", "text": "I'd like to finish sooner (increase pace)." },
-        { "id": "slower", "text": "I need to slow down a bit." }
-      ]
-    }
-    ```
-    
-    
+    This consistent pace allows you to fully absorb the scientific details and plot developments Weir is known for without feeling rushed. Reading at a set pace can also be a great way to build a sustainable habit that leaves room for reflection on the story's themes of problem-solving and cooperation. Enjoy your time with Ryland Grace as he continues his journey.
   verified_by_human: []
 

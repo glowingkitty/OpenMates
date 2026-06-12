@@ -74,10 +74,13 @@ def _dedupe_accounts(accounts: list[dict[str, Any]]) -> list[dict[str, Any]]:
         slot = account.get("slot")
         if slot is not None and slot not in existing["slots"]:
             existing["slots"].append(slot)
-    return sorted(
-        by_email.values(),
-        key=lambda item: min(item["slots"] or [999]),
-    )
+    def sort_key(item: dict[str, Any]) -> tuple[int, str]:
+        slots = item["slots"] or [999]
+        normalized_slots = [str(slot) for slot in slots]
+        numeric_slots = [int(slot) for slot in normalized_slots if slot.isdigit()]
+        return (min(numeric_slots or [999]), min(normalized_slots))
+
+    return sorted(by_email.values(), key=sort_key)
 
 
 async def top_up(args: argparse.Namespace) -> int:

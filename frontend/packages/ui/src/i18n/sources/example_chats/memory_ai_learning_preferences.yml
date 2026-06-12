@@ -1,2410 +1,604 @@
 title:
-  context: "Title of example chat: Learning preference memory"
-  en: "Learning preference memory"
-  de: "Learning preference memory"
-  zh: "Learning preference memory"
-  es: "Learning preference memory"
-  fr: "Learning preference memory"
-  pt: "Learning preference memory"
-  ru: "Learning preference memory"
-  ja: "Learning preference memory"
-  ko: "Learning preference memory"
-  it: "Learning preference memory"
-  tr: "Learning preference memory"
-  vi: "Learning preference memory"
-  id: "Learning preference memory"
-  pl: "Learning preference memory"
-  nl: "Learning preference memory"
-  ar: "Learning preference memory"
-  hi: "Learning preference memory"
-  th: "Learning preference memory"
-  cs: "Learning preference memory"
-  sv: "Learning preference memory"
-  he: "Learning preference memory"
+  context: "Title of example chat: Memory Ai Learning Preferences"
+  en: "Memory Ai Learning Preferences"
+  de: "Memory Ai Learning Preferences"
+  zh: "Memory Ai Learning Preferences"
+  es: "Memory Ai Learning Preferences"
+  fr: "Memory Ai Learning Preferences"
+  pt: "Memory Ai Learning Preferences"
+  ru: "Memory Ai Learning Preferences"
+  ja: "Memory Ai Learning Preferences"
+  ko: "Memory Ai Learning Preferences"
+  it: "Memory Ai Learning Preferences"
+  tr: "Memory Ai Learning Preferences"
+  vi: "Memory Ai Learning Preferences"
+  id: "Memory Ai Learning Preferences"
+  pl: "Memory Ai Learning Preferences"
+  nl: "Memory Ai Learning Preferences"
+  ar: "Memory Ai Learning Preferences"
+  hi: "Memory Ai Learning Preferences"
+  th: "Memory Ai Learning Preferences"
+  cs: "Memory Ai Learning Preferences"
+  sv: "Memory Ai Learning Preferences"
+  he: "Memory Ai Learning Preferences"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Learning preference memory"
-  en: "See how a saved hands-on learning preference shapes a practical study plan."
-  de: "See how a saved hands-on learning preference shapes a practical study plan."
-  zh: "See how a saved hands-on learning preference shapes a practical study plan."
-  es: "See how a saved hands-on learning preference shapes a practical study plan."
-  fr: "See how a saved hands-on learning preference shapes a practical study plan."
-  pt: "See how a saved hands-on learning preference shapes a practical study plan."
-  ru: "See how a saved hands-on learning preference shapes a practical study plan."
-  ja: "See how a saved hands-on learning preference shapes a practical study plan."
-  ko: "See how a saved hands-on learning preference shapes a practical study plan."
-  it: "See how a saved hands-on learning preference shapes a practical study plan."
-  tr: "See how a saved hands-on learning preference shapes a practical study plan."
-  vi: "See how a saved hands-on learning preference shapes a practical study plan."
-  id: "See how a saved hands-on learning preference shapes a practical study plan."
-  pl: "See how a saved hands-on learning preference shapes a practical study plan."
-  nl: "See how a saved hands-on learning preference shapes a practical study plan."
-  ar: "See how a saved hands-on learning preference shapes a practical study plan."
-  hi: "See how a saved hands-on learning preference shapes a practical study plan."
-  th: "See how a saved hands-on learning preference shapes a practical study plan."
-  cs: "See how a saved hands-on learning preference shapes a practical study plan."
-  sv: "See how a saved hands-on learning preference shapes a practical study plan."
-  he: "See how a saved hands-on learning preference shapes a practical study plan."
+  context: "Summary of example chat: Memory Ai Learning Preferences"
+  en: "OpenMates uses saved AI learning preferences in a real chat."
+  de: "OpenMates uses saved AI learning preferences in a real chat."
+  zh: "OpenMates uses saved AI learning preferences in a real chat."
+  es: "OpenMates uses saved AI learning preferences in a real chat."
+  fr: "OpenMates uses saved AI learning preferences in a real chat."
+  pt: "OpenMates uses saved AI learning preferences in a real chat."
+  ru: "OpenMates uses saved AI learning preferences in a real chat."
+  ja: "OpenMates uses saved AI learning preferences in a real chat."
+  ko: "OpenMates uses saved AI learning preferences in a real chat."
+  it: "OpenMates uses saved AI learning preferences in a real chat."
+  tr: "OpenMates uses saved AI learning preferences in a real chat."
+  vi: "OpenMates uses saved AI learning preferences in a real chat."
+  id: "OpenMates uses saved AI learning preferences in a real chat."
+  pl: "OpenMates uses saved AI learning preferences in a real chat."
+  nl: "OpenMates uses saved AI learning preferences in a real chat."
+  ar: "OpenMates uses saved AI learning preferences in a real chat."
+  hi: "OpenMates uses saved AI learning preferences in a real chat."
+  th: "OpenMates uses saved AI learning preferences in a real chat."
+  cs: "OpenMates uses saved AI learning preferences in a real chat."
+  sv: "OpenMates uses saved AI learning preferences in a real chat."
+  he: "OpenMates uses saved AI learning preferences in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Learning preference memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  de: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  zh: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  es: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  fr: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  pt: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  ru: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  ja: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  ko: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  it: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  tr: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  vi: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  id: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  pl: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  nl: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  ar: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  hi: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  th: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  cs: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  sv: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
-  he: "Use my saved learning preference memory to design a 30-minute practice plan for understanding event loops."
+  context: "user message 1 in example chat: Memory Ai Learning Preferences. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  de: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  zh: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  es: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  fr: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  pt: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  ru: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  ja: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  ko: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  it: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  tr: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  vi: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  id: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  pl: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  nl: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  ar: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  hi: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  th: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  cs: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  sv: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  he: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Learning preference memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Ai Learning Preferences. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "11fe1e7d-d208-40d0-a3b5-eb739171f61a", "app_id": "web", "skill_id": "search", "query": "javascript event loop explained tiny examples exercises", "provider": "Brave"}
-    ```
+    PRACTICE PLAN: JAVASCRIPT PROMISES (30 MINUTES)
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "bab635d3-5936-4d43-9224-4caea9090020", "app_id": "images", "skill_id": "search", "query": "javascript event loop diagram visual explanation", "provider": "Brave Search"}
-    ```
+    Based on your preference for hands-on learning with tiny runnable examples, this plan skips long explanations and focuses on immediate coding.
     
-    Since you're a **hands-on learner** who prefers starting with tiny examples and immediate exercises, I've designed a 30-minute "Sprints" plan for you. 
+    SECTION 1: THE COMPLETED PROMISE (5 MINUTES)
+    A Promise is an object representing the eventual result of an asynchronous operation. You use .then() to handle the result once it arrives.
+    Example: const simplePromise = Promise.resolve('Hello World'); simplePromise.then(value => console.log(value));
     
-    We’ll focus on the [JavaScript](wiki:JavaScript) [Event Loop](wiki:Event_loop), which is the engine that allows code to be non-blocking even though it's single-threaded.
+    SECTION 2: EXERCISE 1 - BUILDING A TIMER (10 MINUTES)
+    Task: Create a function named waitOneSecond. It should return a new Promise. Inside that promise, use the setTimeout function to call resolve with the string 'Time is up' after 1000 milliseconds. 
+    Goal: Practice the Promise constructor syntax and the resolve callback.
+    Test: Call waitOneSecond().then(message => console.log(message)) to see if the message appears after a delay.
     
-    ### ⏱️ The 30-Minute Sprint Plan
+    SECTION 3: EXERCISE 2 - CONDITIONAL OUTCOMES (10 MINUTES)
+    Task: Create a promise that checks a variable called 'batteryLevel'. If batteryLevel is greater than 20, resolve with 'System OK'. If it is 20 or less, reject with 'Low Battery'. 
+    Goal: Practice using both resolve and reject, then handling them with .then() and .catch().
+    Test: Set batteryLevel to 15 and ensure your .catch() block logs the error message correctly.
     
-    ```json
-    {"type": "sheet", "embed_id": "10eeaf07-1a2b-4a97-95b5-c6061babfcf8"}
-    ```
-    
-    
-    ---
-    
-    ### Phase 1: The Call Stack (0-5 mins)
-    The [Call Stack](wiki:Call_stack) is like a stack of plates. JavaScript can only do one thing at a time, working from the top down.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "070166e4-c07e-46dc-9e47-52c959c4ed54"}
-    ```
-    
-    
-    *Logic: `Start` → `greet()` is called → `Hello!` → `greet()` finishes → `End`.*
-    
-    #### 🛠️ Exercise 1: Quick Predict
-    What is the exact output of this code?
-    ```json
-    {"type": "code", "embed_id": "1b8ce624-5dbe-46ea-90d3-cbe74f16709c"}
-    ```
-    
-    
-    
-    ---
-    
-    ### Visual Aid: How it looks
-    Before we move to the async parts, keep this mental model in mind. The Event Loop's job is simply to look at the **Task Queues** and move things to the **Call Stack** only when it's empty.
-    
-    [!](embed:dev.to-wqJ)
-    [!](embed:medium.com-gBU)
-    [!](embed:rapidops.com-3RC)
-    
-    ---
-    
-    ### Phase 2: The Task Queue (5-15 mins)
-    When you use `setTimeout`, the browser doesn't stop. It hands the timer to a "Web API" helper. Once the timer finishes, the helper puts the callback into the **Task Queue**.
-    
-    **Tiny Example:**
-    ```json
-    {"type": "code", "embed_id": "4040d5e4-4969-4df4-9ac5-fe1104f60ece"}
-    ```
-    
-    
-    *Output: `A`, `C`, `B`. Because the stack must be empty before the Event Loop picks up `B`.*
-    
-    #### 🛠️ Exercise 2: The Delay Twist
-    How long does it take for `Message 2` to appear?
-    
-    
-    
-    ---
-    
-    ### Phase 3: The Microtask Queue (15-25 mins)
-    [Promises](wiki:Futures_and_promises) go into a high-priority "Microtask Queue." The Event Loop checks this queue **after every single task** and empties it entirely before moving to the next regular Task (like `setTimeout`).
-    
-    **Tiny Example:**
-    
-    
-    *Output: `Promise` then `Timer`. Promises always cut the line.*
-    
-    ---
-    
-    ### Phase 4: The Final Boss (25-30 mins)
-    Ready for the ultimate test? Try to predict this full sequence.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_loop_boss",
-      "multiple": false,
-      "question": "What is the correct output order for this code snippet?",
-      "options": [
-        { "id": "ans_1", "text": "Start, End, Promise, Timeout" },
-        { "id": "ans_2", "text": "Start, Promise, End, Timeout" },
-        { "id": "ans_3", "text": "Start, End, Timeout, Promise" }
-      ]
-    }
-    ```
-    
-    javascript:boss_challenge.js
-    console.log("Start");
-    
-    setTimeout(() => {
-      console.log("Timeout");
-    }, 0);
-    
-    Promise.resolve().then(() => {
-      console.log("Promise");
-    });
-    
-    console.log("End");
-    
-    
+    SECTION 4: FINAL REVIEW (5 MINUTES)
+    Reflect on the three states of a promise:
+    1. Pending: Initial state, neither fulfilled nor rejected.
+    2. Fulfilled: The operation completed successfully.
+    3. Rejected: The operation failed.
+    Understanding these states helps you debug why a piece of code might be stuck or failing.
   verified_by_human: []
 

@@ -1,310 +1,163 @@
 title:
-  context: "Title of example chat: TV watchlist memory"
-  en: "TV watchlist memory"
-  de: "TV watchlist memory"
-  zh: "TV watchlist memory"
-  es: "TV watchlist memory"
-  fr: "TV watchlist memory"
-  pt: "TV watchlist memory"
-  ru: "TV watchlist memory"
-  ja: "TV watchlist memory"
-  ko: "TV watchlist memory"
-  it: "TV watchlist memory"
-  tr: "TV watchlist memory"
-  vi: "TV watchlist memory"
-  id: "TV watchlist memory"
-  pl: "TV watchlist memory"
-  nl: "TV watchlist memory"
-  ar: "TV watchlist memory"
-  hi: "TV watchlist memory"
-  th: "TV watchlist memory"
-  cs: "TV watchlist memory"
-  sv: "TV watchlist memory"
-  he: "TV watchlist memory"
+  context: "Title of example chat: Memory Tv To Watch List"
+  en: "Memory Tv To Watch List"
+  de: "Memory Tv To Watch List"
+  zh: "Memory Tv To Watch List"
+  es: "Memory Tv To Watch List"
+  fr: "Memory Tv To Watch List"
+  pt: "Memory Tv To Watch List"
+  ru: "Memory Tv To Watch List"
+  ja: "Memory Tv To Watch List"
+  ko: "Memory Tv To Watch List"
+  it: "Memory Tv To Watch List"
+  tr: "Memory Tv To Watch List"
+  vi: "Memory Tv To Watch List"
+  id: "Memory Tv To Watch List"
+  pl: "Memory Tv To Watch List"
+  nl: "Memory Tv To Watch List"
+  ar: "Memory Tv To Watch List"
+  hi: "Memory Tv To Watch List"
+  th: "Memory Tv To Watch List"
+  cs: "Memory Tv To Watch List"
+  sv: "Memory Tv To Watch List"
+  he: "Memory Tv To Watch List"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: TV watchlist memory"
-  en: "See how a saved watchlist memory helps choose what to start after dinner."
-  de: "See how a saved watchlist memory helps choose what to start after dinner."
-  zh: "See how a saved watchlist memory helps choose what to start after dinner."
-  es: "See how a saved watchlist memory helps choose what to start after dinner."
-  fr: "See how a saved watchlist memory helps choose what to start after dinner."
-  pt: "See how a saved watchlist memory helps choose what to start after dinner."
-  ru: "See how a saved watchlist memory helps choose what to start after dinner."
-  ja: "See how a saved watchlist memory helps choose what to start after dinner."
-  ko: "See how a saved watchlist memory helps choose what to start after dinner."
-  it: "See how a saved watchlist memory helps choose what to start after dinner."
-  tr: "See how a saved watchlist memory helps choose what to start after dinner."
-  vi: "See how a saved watchlist memory helps choose what to start after dinner."
-  id: "See how a saved watchlist memory helps choose what to start after dinner."
-  pl: "See how a saved watchlist memory helps choose what to start after dinner."
-  nl: "See how a saved watchlist memory helps choose what to start after dinner."
-  ar: "See how a saved watchlist memory helps choose what to start after dinner."
-  hi: "See how a saved watchlist memory helps choose what to start after dinner."
-  th: "See how a saved watchlist memory helps choose what to start after dinner."
-  cs: "See how a saved watchlist memory helps choose what to start after dinner."
-  sv: "See how a saved watchlist memory helps choose what to start after dinner."
-  he: "See how a saved watchlist memory helps choose what to start after dinner."
+  context: "Summary of example chat: Memory Tv To Watch List"
+  en: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  de: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  zh: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  es: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  fr: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  pt: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  ru: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  ja: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  ko: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  it: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  tr: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  vi: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  id: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  pl: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  nl: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  ar: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  hi: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  th: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  cs: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  sv: "OpenMates uses saved tv to_watch_list memory in a real chat."
+  he: "OpenMates uses saved tv to_watch_list memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: TV watchlist memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  de: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  zh: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  es: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  fr: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  pt: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  ru: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  ja: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  ko: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  it: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  tr: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  vi: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  id: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  pl: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  nl: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  ar: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  hi: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  th: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  cs: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  sv: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
-  he: "Plain text only, no links or embeds: use my saved watchlist memory to help me decide what to start after dinner tonight."
+  context: "user message 1 in example chat: Memory Tv To Watch List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved TV watchlist memory to help me decide what to start after dinner tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: TV watchlist memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Tv To Watch List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   de: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   zh: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   es: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   fr: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   pt: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   ru: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   ja: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   ko: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   it: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   tr: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   vi: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   id: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   pl: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   nl: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   ar: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   hi: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   th: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   cs: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   sv: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   he: |
+    Based on your watchlist, you should absolutely dive into **[The Bear](wiki:The_Bear_(TV_series))** tonight! 
     
-    Based on your saved watchlist, the clear choice for you to start after dinner tonight is The Bear.
-    
-    You marked this as a high-priority show because your friends specifically recommended it for its excellent pacing and character development. It is a gripping drama with comedic elements that follows a world-class young chef who returns home to Chicago to run his family's gritty sandwich shop after a personal tragedy.
-    
-    Since today is June 10, 2026, starting tonight is actually perfect timing. There are currently four seasons available, and a special surprise flashback episode titled Gary was just released last month on May 5. Most importantly, the fifth season is set to premiere in exactly two weeks on June 25, 2026. If you start the first season tonight, you will have just enough time to get caught up before the new episodes begin airing.
-    
-    Be prepared for a high-intensity experience; the show is famous for its fast-paced kitchen environment and emotional depth, making it a very engaging watch for a post-dinner session.
-    
-    Since you're diving into a show about the culinary world, would you like to know more about the real-life Chicago food scene that inspired it, or should we look for some quick trivia about the cast?
+    Since it’s your high-priority item, it’s the perfect choice for a post-dinner watch. Your friends were spot on with their recommendation—the show is famous for its relentless, high-energy pacing and incredible character development. It captures the chaotic, high-stakes environment of a professional kitchen with such intensity that it feels almost visceral. It’s a brilliant blend of stress-inducing drama and sharp comedy that will keep you completely hooked from the very first episode. Enjoy the heat of the kitchen!
   verified_by_human: []
 

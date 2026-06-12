@@ -77,7 +77,7 @@ export const buckConverters24v5vChat: ExampleChat = {
     {
         embed_id: "bf56c645-032a-431d-91ae-8e562b5c2ab0",
         type: "app_skill_use",
-        content: "app_id: electronics\nskill_id: search_components\nresult_count: 10\nembed_ids: e798544d-3420-4f44-ae8d-5ad3b7553516|fe4a8870-8b02-48f6-ae9a-5a8f114d1547|95657b33-c4d4-40dd-9ff1-03ceac03cfb1|fbc7b10d-a5a6-4e63-8894-9dfce7ae7f5e|1380ec45-5cfc-4634-851c-1cc9647caa3c|ff5eb413-8777-4f53-a829-fbddde766e03|5d14197e-abbe-4645-9c6b-6abadb0bd037|8067e3e9-4ffa-4da5-9606-4f970d557e55|cddbb600-8f19-4012-8442-4c2538cb36cc|f0fa33b2-9f90-48d4-b16e-023a65d6bded\nstatus: finished\nembed_id: bf56c645-032a-431d-91ae-8e562b5c2ab0\noutput_voltage: 5\ninput_voltage_max: 24\noutput_current_max: 3\ninput_voltage_min: 24\ncategory: power_converters",
+        content: "app_id: electronics\nskill_id: search_components\nresult_count: 10\nembed_ids: e798544d-3420-4f44-ae8d-5ad3b7553516|fe4a8870-8b02-48f6-ae9a-5a8f114d1547|95657b33-c4d4-40dd-9ff1-03ceac03cfb1|fbc7b10d-a5a6-4e63-8894-9dfce7ae7f5e|1380ec45-5cfc-4634-851c-1cc9647caa3c|ff5eb413-8777-4f53-a829-fbddde766e03|5d14197e-abbe-4645-9c6b-6abadb0bd037|8067e3e9-4ffa-4da5-9606-4f970d557e55|cddbb600-8f19-4012-8442-4c2538cb36cc|f0fa33b2-9f90-48d4-b16e-023a65d6bded\nstatus: finished\nembed_id: bf56c645-032a-431d-91ae-8e562b5c2ab0\nquery: 24V to 5V 3A buck converter\nprovider: TI WEBENCH\nproviders: TI WEBENCH\noutput_voltage: 5\ninput_voltage_max: 24\noutput_current_max: 3\ninput_voltage_min: 24\ncategory: power_converters\npreview_title: TI buck converter options\npreview_summary: 10 WEBENCH component results for 24V input, 5V output, 3A load.",
         parent_embed_id: null,
         embed_ids: [
             "e798544d-3420-4f44-ae8d-5ad3b7553516",

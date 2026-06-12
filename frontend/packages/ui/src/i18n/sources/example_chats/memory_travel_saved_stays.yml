@@ -1,1276 +1,184 @@
 title:
-  context: "Title of example chat: Saved stay memory"
-  en: "Saved stay memory"
-  de: "Saved stay memory"
-  zh: "Saved stay memory"
-  es: "Saved stay memory"
-  fr: "Saved stay memory"
-  pt: "Saved stay memory"
-  ru: "Saved stay memory"
-  ja: "Saved stay memory"
-  ko: "Saved stay memory"
-  it: "Saved stay memory"
-  tr: "Saved stay memory"
-  vi: "Saved stay memory"
-  id: "Saved stay memory"
-  pl: "Saved stay memory"
-  nl: "Saved stay memory"
-  ar: "Saved stay memory"
-  hi: "Saved stay memory"
-  th: "Saved stay memory"
-  cs: "Saved stay memory"
-  sv: "Saved stay memory"
-  he: "Saved stay memory"
+  context: "Title of example chat: Memory Travel Saved Stays"
+  en: "Memory Travel Saved Stays"
+  de: "Memory Travel Saved Stays"
+  zh: "Memory Travel Saved Stays"
+  es: "Memory Travel Saved Stays"
+  fr: "Memory Travel Saved Stays"
+  pt: "Memory Travel Saved Stays"
+  ru: "Memory Travel Saved Stays"
+  ja: "Memory Travel Saved Stays"
+  ko: "Memory Travel Saved Stays"
+  it: "Memory Travel Saved Stays"
+  tr: "Memory Travel Saved Stays"
+  vi: "Memory Travel Saved Stays"
+  id: "Memory Travel Saved Stays"
+  pl: "Memory Travel Saved Stays"
+  nl: "Memory Travel Saved Stays"
+  ar: "Memory Travel Saved Stays"
+  hi: "Memory Travel Saved Stays"
+  th: "Memory Travel Saved Stays"
+  cs: "Memory Travel Saved Stays"
+  sv: "Memory Travel Saved Stays"
+  he: "Memory Travel Saved Stays"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Saved stay memory"
-  en: "See how a saved accommodation memory helps check what to verify before booking."
-  de: "See how a saved accommodation memory helps check what to verify before booking."
-  zh: "See how a saved accommodation memory helps check what to verify before booking."
-  es: "See how a saved accommodation memory helps check what to verify before booking."
-  fr: "See how a saved accommodation memory helps check what to verify before booking."
-  pt: "See how a saved accommodation memory helps check what to verify before booking."
-  ru: "See how a saved accommodation memory helps check what to verify before booking."
-  ja: "See how a saved accommodation memory helps check what to verify before booking."
-  ko: "See how a saved accommodation memory helps check what to verify before booking."
-  it: "See how a saved accommodation memory helps check what to verify before booking."
-  tr: "See how a saved accommodation memory helps check what to verify before booking."
-  vi: "See how a saved accommodation memory helps check what to verify before booking."
-  id: "See how a saved accommodation memory helps check what to verify before booking."
-  pl: "See how a saved accommodation memory helps check what to verify before booking."
-  nl: "See how a saved accommodation memory helps check what to verify before booking."
-  ar: "See how a saved accommodation memory helps check what to verify before booking."
-  hi: "See how a saved accommodation memory helps check what to verify before booking."
-  th: "See how a saved accommodation memory helps check what to verify before booking."
-  cs: "See how a saved accommodation memory helps check what to verify before booking."
-  sv: "See how a saved accommodation memory helps check what to verify before booking."
-  he: "See how a saved accommodation memory helps check what to verify before booking."
+  context: "Summary of example chat: Memory Travel Saved Stays"
+  en: "OpenMates uses saved travel saved_stays memory in a real chat."
+  de: "OpenMates uses saved travel saved_stays memory in a real chat."
+  zh: "OpenMates uses saved travel saved_stays memory in a real chat."
+  es: "OpenMates uses saved travel saved_stays memory in a real chat."
+  fr: "OpenMates uses saved travel saved_stays memory in a real chat."
+  pt: "OpenMates uses saved travel saved_stays memory in a real chat."
+  ru: "OpenMates uses saved travel saved_stays memory in a real chat."
+  ja: "OpenMates uses saved travel saved_stays memory in a real chat."
+  ko: "OpenMates uses saved travel saved_stays memory in a real chat."
+  it: "OpenMates uses saved travel saved_stays memory in a real chat."
+  tr: "OpenMates uses saved travel saved_stays memory in a real chat."
+  vi: "OpenMates uses saved travel saved_stays memory in a real chat."
+  id: "OpenMates uses saved travel saved_stays memory in a real chat."
+  pl: "OpenMates uses saved travel saved_stays memory in a real chat."
+  nl: "OpenMates uses saved travel saved_stays memory in a real chat."
+  ar: "OpenMates uses saved travel saved_stays memory in a real chat."
+  hi: "OpenMates uses saved travel saved_stays memory in a real chat."
+  th: "OpenMates uses saved travel saved_stays memory in a real chat."
+  cs: "OpenMates uses saved travel saved_stays memory in a real chat."
+  sv: "OpenMates uses saved travel saved_stays memory in a real chat."
+  he: "OpenMates uses saved travel saved_stays memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Saved stay memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  de: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  zh: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  es: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  fr: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  pt: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  ru: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  ja: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  ko: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  it: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  tr: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  vi: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  id: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  pl: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  nl: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  ar: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  hi: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  th: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  cs: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  sv: "Use my saved stay memory to suggest what I should check before booking accommodation."
-  he: "Use my saved stay memory to suggest what I should check before booking accommodation."
+  context: "user message 1 in example chat: Memory Travel Saved Stays. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Saved stay memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Travel Saved Stays. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a1d136f9-fb85-4479-b453-daeb49ada7f8", "app_id": "images", "skill_id": "search", "query": "Kyoto machiya interior traditional house", "provider": "Brave Search"}
-    ```
+    Based on the notes in your saved memory for the **Quiet Kyoto machiya stay**, you should specifically check the following before booking your accommodation:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9567e912-58a3-4bba-87d5-ccc2e7e2d9f5", "app_id": "images", "skill_id": "search", "query": "Kyoto riverside guesthouse gion", "provider": "Brave Search"}
-    ```
-    
-    Based on the notes in your [saved stays](/#settings/apps/travel), you seem to value authentic, quiet, and well-located guesthouses. Specifically, your interest in the Quiet Kyoto machiya stay and the Kyoto riverside guesthouse highlights a preference for traditional atmosphere and convenience.
-    
-    Here are the key things you should check before booking your next accommodation, based on your previous preferences:
-    
-    ### 1. Accessibility and Floor Level
-    For the [machiya](wiki:Machiya) stay, you specifically noted "no elevator." In traditional Japanese townhouses, stairs can be quite steep and narrow. 
-    *   **Check:** Does the room require climbing stairs? If it's a multi-story guesthouse, ask if ground-floor rooms are available if you have heavy luggage.
-    
-    ### 2. Verified "Quiet" Status
-    Both of your saved stays mention "quiet streets." Listings often claim to be quiet, but reality can differ.
-    *   **Check:** Look for reviews that specifically mention "noise insulation" or "tranquility." Using a map to see if the property is on a main artery or near a nightlife district (like parts of [Gion](wiki:Gion)) can help confirm this.
-    
-    ### 3. Exact Transit Proximity
-    You noted "near transit" for the riverside guesthouse.
-    *   **Check:** Don't just look at the distance to the nearest station—check which *lines* run there. In [Kyoto](wiki:Kyoto), being near a [Keihan Electric Railway](wiki:Keihan_Electric_Railway) station is different from being near a [Subway](wiki:Kyoto_Municipal_Subway) station in terms of where you can easily go.
-    
-    ### 4. Modern Comforts vs. Traditional Charm
-    Machiyas are beautiful but can sometimes be drafty or have shared bathroom facilities.
-    *   **Check:** Does the "traditional house" have modern climate control and en-suite bathrooms? Your saved stays have high ratings (4.7–4.8), suggesting you prefer traditional styles that don't compromise on quality.
-    
-    [!](embed:worldarchitecture.org-t1l)
-    [!](embed:agoda.com-KXV)
-    [!](embed:hotels-of-kyoto.com-SXV)
-    [!](embed:kamogawa-riverside-guesthouse-kyoto.book-Zdj)
-    
-    ### What is your top priority for your next booking?
-    Knowing this will help me refine future suggestions for you.
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "accommodation_priority",
-      "multiple": false,
-      "question": "Which of these is most important for your next stay?",
-      "options": [
-        { "id": "quiet", "text": "Absolute quiet (Away from crowds)" },
-        { "id": "transit", "text": "Proximity to transit (Easy sightseeing)" },
-        { "id": "style", "text": "Traditional architecture (Authentic feel)" },
-        { "id": "amenities", "text": "Modern amenities (Elevators/Heating)" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "6e912db7-be5d-437a-96ad-9e97fccc4bad"}
-    ```
-    
-    
+    *   **Accessibility and Stairs**: Since the property does not have an elevator, it is important to verify the layout of the stairs to ensure they are manageable for you and your luggage.
+    *   **Transit Access**: You should confirm the proximity and ease of access to local transportation from the property's location near [Gion](wiki:Gion).
   verified_by_human: []
 

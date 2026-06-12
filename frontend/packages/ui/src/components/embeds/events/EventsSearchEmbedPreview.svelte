@@ -70,7 +70,7 @@
     /** Events provider (e.g., 'Meetup') — legacy single-provider field */
     provider: string;
     /** List of provider slugs that contributed results (e.g. ['meetup', 'luma']) */
-    providers?: string[];
+    providers?: string[] | string;
     /** Processing status - must match SkillExecutionStatus */
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Event results (for finished state) */
@@ -103,6 +103,20 @@
     }
   }
 
+  function normalizeProviderSlug(slug: string): string {
+    return slug.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+
+  function parseProviders(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value.filter((provider): provider is string => typeof provider === 'string' && provider.trim().length > 0);
+    }
+    if (typeof value === 'string') {
+      return value.split('|').map((provider) => provider.trim()).filter((provider) => provider.length > 0);
+    }
+    return [];
+  }
+
   let {
     id,
     query: queryProp,
@@ -133,7 +147,7 @@
     if (!storeResolved) {
       localQuery = queryProp || '';
       localProvider = providerProp || '';
-      localProviders = providersProp || [];
+      localProviders = parseProviders(providersProp);
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localResultCount = resultCountProp || resultsProp?.length || 0;
@@ -174,7 +188,8 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
-      if (Array.isArray(content.providers)) localProviders = content.providers as string[];
+      const decodedProviders = parseProviders(content.providers);
+      if (decodedProviders.length > 0) localProviders = decodedProviders;
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results as EventResult[];
         localResultCount = localResults.length;
@@ -222,6 +237,11 @@
 
   // Event count for finished state: the total number of results
   let eventCount = $derived(localResultCount || results?.length || 0);
+
+  let providerBadges = $derived(providers.map((providerSlug) => ({
+    slug: normalizeProviderSlug(providerSlug),
+    label: getProviderLabel(providerSlug)
+  })).filter((provider) => provider.label.length > 0));
 
   /**
    * Handle stop button — cancels this specific skill or the entire AI task as fallback.
@@ -271,6 +291,17 @@
       <!-- Provider subtitle -->
       <div class="ds-search-provider">{viaProvider}</div>
 
+      {#if providerBadges.length > 0}
+        <div class="provider-badges" aria-label={viaProvider}>
+          {#each providerBadges as provider}
+            <span class={`provider-badge provider-badge-${provider.slug}`} title={provider.label}>
+              <span class="provider-badge-icon" aria-hidden="true"></span>
+              <span class="provider-badge-label">{provider.label}</span>
+            </span>
+          {/each}
+        </div>
+      {/if}
+
       <!-- Finished state: show event count or loading -->
       {#if status === 'finished'}
         <div class="ds-search-results-info">
@@ -319,6 +350,57 @@
 
   .events-search-details.mobile .ds-search-provider {
     font-size: var(--font-size-xxs);
+  }
+
+  .provider-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-1);
+    align-items: center;
+  }
+
+  .provider-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    max-width: 100%;
+    color: var(--color-grey-70);
+    font-size: var(--font-size-xxs);
+    line-height: 1.2;
+  }
+
+  .provider-badge-icon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+    background-color: currentColor;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  .provider-badge-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .provider-badge-meetup .provider-badge-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/meetup.svg');
+    mask-image: url('@openmates/ui/static/icons/meetup.svg');
+  }
+
+  .provider-badge-luma .provider-badge-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/luma.svg');
+    mask-image: url('@openmates/ui/static/icons/luma.svg');
+  }
+
+  .provider-badge-resident_advisor .provider-badge-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/resident_advisor.svg');
+    mask-image: url('@openmates/ui/static/icons/resident_advisor.svg');
   }
 
   .events-search-details.mobile .ds-search-results-info {

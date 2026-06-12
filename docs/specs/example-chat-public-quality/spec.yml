@@ -12,19 +12,21 @@ goal: >
 
 scope:
   in:
-    - Full audit of public example chats with app_skill_examples, app_focus_mode_examples, app_settings_memory_examples, PDF/document examples, and media examples.
+    - Full audit and replacement of every public example chat currently listed in `ALL_EXAMPLE_CHATS`.
+    - Preserve current public capability coverage for app skills, focus modes, settings memories, content embeds, PDF/document examples, media examples, and general showcase examples.
     - Root-cause investigation for every broken chat before replacement or removal.
-    - Replacement chats created from natural prompts that never rely on @ mentions or @focus directives.
+    - Replacement chats created from real OpenMates CLI/app output using natural prompts that never rely on @ mentions, @skill directives, @mate directives, or @focus directives.
     - Stable public fixture assets for media, image, audio, video, and PDF examples instead of auth-bound generated S3 files.
     - Removal of superseded broken slugs with 404 behavior; new slugs are allowed when the concept changes substantially.
-    - Preservation of capability coverage so every currently demonstrated public capability still has at least one working example after cleanup.
+    - Preservation of capability coverage so every currently demonstrated public capability still has at least one working example after cleanup, even when old slugs are removed.
     - Agent quality review of each replacement before deployment and Firecrawl verification of deployed pages after deployment.
-    - Deterministic audits and targeted tests that prevent vault keys, missing embeds, invalid interactive questions, and private media URLs from reaching public examples again.
+    - Deterministic audits and targeted tests that prevent vault keys, missing embeds, invalid interactive questions, forbidden directive syntax, missing parent preview metadata, and private media URLs from reaching public examples again.
   out:
     - Changing normal authenticated chat behavior unless root-cause investigation proves the public example bug is caused there.
     - Preserving old broken example URLs through redirects or hidden direct-render pages.
     - Publishing examples that require authenticated media fetches, private S3 presigned URLs, raw vault keys, or private user/account identifiers.
     - Broad redesign of example chat UI beyond fixes needed to render existing embed types correctly.
+    - Replacing internal deterministic fixtures listed only in `INTERNAL_EXAMPLE_CHATS`, except when a fixture itself violates deterministic test contracts.
     - Apple UI changes; Apple can consume corrected public example data later, but this spec targets web/static example quality.
 
 context_discovery:
@@ -91,12 +93,16 @@ clarification:
       answer: Use stable public fixtures.
     - question: Should coverage be preserved for every public app skill/focus/memory/PDF/media capability currently represented by an example?
       answer: Preserve coverage.
+    - question: Should regeneration target current coverage only or full catalog coverage for every configured app skill, memory category, focus mode, and content type?
+      answer: Current coverage only, but fully replace all existing public example chats with fresh real chats and explicitly address the reported issues.
   vision_summary: >
     Public example chats should be production-quality demonstrations that work for
     unauthenticated visitors. They may be replaced by new slugs, but broken
-    examples must not remain published, every demonstrated capability needs a
-    working example, and no replacement can rely on explicit @ triggers, private
-    assets, raw embed payloads, or unreviewed generated content.
+    examples must not remain published, every demonstrated capability and public
+    showcase currently listed in `ALL_EXAMPLE_CHATS` needs a fresh real-chat
+    replacement, and no replacement can rely on explicit @ triggers, private
+    assets, raw embed payloads, stale parent metadata, or unreviewed generated
+    content.
   approved_by_user: true
 
 scenarios:
@@ -113,18 +119,33 @@ scenarios:
       - The workflow fails for unresolved high-risk issues such as vault keys, private media, missing embed references, raw JSON payloads, invalid interactive questions, missing focus activation embeds, and incomplete sub-chat transcripts.
 
   - id: S-2
-    title: Broken example is replaced by a reviewed public-safe chat
+    title: Public example is replaced by a reviewed public-safe real chat
     given:
-      - An existing public example leaks private media, renders a broken embed, or has low-quality/unhelpful content.
-      - The capability demonstrated by that example must remain represented publicly.
+      - An existing public example is listed in `ALL_EXAMPLE_CHATS`.
+      - It may be broken, stale, low-quality, or simply generated before recent embed/app-skill/memory behavior changes.
     when:
       - A replacement example is created.
     then:
-      - The replacement uses a natural prompt with no @ mentions or @focus directives.
+      - The replacement comes from a real OpenMates CLI/app chat output, not a hand-invented transcript.
+      - The replacement uses a natural prompt with no @mate, @skill, app-skill, or @focus directives.
       - The system naturally demonstrates the app skill, memory, focus mode, PDF, or media capability.
       - Any file or media input uses a checked-in or otherwise stable public fixture asset.
       - An agent quality review confirms the transcript is useful, accurate enough for a demo, and free of unsafe operational advice.
       - The old broken slug is removed from listings and direct SSR lookup returns 404.
+
+  - id: S-9
+    title: Existing public example coverage is fully regenerated
+    given:
+      - "`ALL_EXAMPLE_CHATS` contains the current public example list."
+      - "`INTERNAL_EXAMPLE_CHATS` contains deterministic fixtures that are not normal public examples."
+    when:
+      - The regeneration workflow runs for current coverage.
+    then:
+      - Every existing public example in `ALL_EXAMPLE_CHATS` has a replacement decision recorded.
+      - Every kept public example is newly generated or re-captured from real OpenMates output after the recent embed/app-skill/memory updates.
+      - Internal deterministic fixtures are excluded from real-chat regeneration unless their deterministic fixture contract is broken.
+      - Old public slugs may break or return 404 when replaced by new slugs.
+      - Current coverage remains represented across app skills, memory examples, focus modes, content embeds, media/PDF/document examples, and general showcases.
 
   - id: S-3
     title: Focus-mode examples render the same affordances as normal chats
@@ -205,7 +226,7 @@ acceptance_criteria:
     text: Every broken example has a recorded root-cause category and replacement/removal decision.
   - id: AC-3
     scenario: S-2
-    text: Replacements use natural prompts without @ mentions and preserve capability coverage with at least one working public example per previously demonstrated capability.
+    text: Replacements are based on real OpenMates CLI/app output, use natural prompts without @mate/@skill/app-skill/@focus directives, and preserve capability coverage with at least one working public example per previously demonstrated capability.
   - id: AC-4
     scenario: S-2
     text: Superseded broken slugs are removed from public listings and return 404 rather than redirecting or rendering hidden stale content.
@@ -227,15 +248,21 @@ acceptance_criteria:
   - id: AC-10
     scenario: S-8
     text: Memory examples preserve system-message semantics or equivalent visible context and render expected mail/document embeds without blank previews.
+  - id: AC-11
+    scenario: S-9
+    text: Every example currently listed in `ALL_EXAMPLE_CHATS` is replaced by a fresh reviewed real-chat example or has an explicit removal/exclusion decision recorded; `INTERNAL_EXAMPLE_CHATS` fixtures are excluded from this real-chat requirement.
 
 contracts:
   data:
     - "Every in-scope `ExampleChat` must declare enough metadata for audits to identify demonstrated app skills, focus modes, memories, and asset-backed capabilities."
+    - "Every public replacement must be traceable to a real CLI/app chat share URL or extracted chat JSON reviewed during the regeneration workflow; raw share keys are never committed."
     - "Message text must reference renderable embeds through supported embed references; raw fenced JSON payloads are not acceptable public content."
+    - "User-facing example prompts and transcript text must not contain directive syntax such as `@mate:`, `@skill:`, `@app:`, or `@focus:`."
     - "No checked-in example chat data may contain `vault_wrapped_aes_key`, `vault:v1:`, presigned S3 URLs, private bucket names, account IDs, or other private source identifiers."
     - "Media/document examples must point to public fixture assets whose URLs are stable for unauthenticated visitors."
     - "Focus-mode examples with `active_focus_id` must include a renderable focus activation artifact and must not contain @focus directives in user prompts."
     - "Memory examples must not contain malformed interactive question JSON; if interactive UI cannot be represented safely, the transcript must use plain conversation instead."
+    - "Search/result-list parent embeds must include parent-level preview metadata needed by the preview card, including result counts and provider/source summaries where applicable, without requiring child embed hydration."
     - "Example chat messages may use `role: system` when preserving app-settings/memory permission request/response artifacts from real chats."
     - "Document examples using a direct document embed must store renderable `docs-doc` content (`html` or `code`) or be rejected by deterministic audit."
     - "Mail examples whose transcript says an email draft was prepared must include at least one renderable `mail-email` embed."
@@ -247,6 +274,7 @@ contracts:
   tooling:
     - "`scripts/audit_example_chats.py` remains the primary deterministic local audit and is expanded rather than bypassed."
     - "Replacement/regeneration notes must record old slug, new slug, root-cause category, capability coverage, prompt source, fixture assets, quality-review result, and deployment Firecrawl result."
+    - "Regeneration notes must include a current-coverage manifest showing every old `ALL_EXAMPLE_CHATS` slug and its replacement, removal, or explicit internal-fixture exclusion."
     - "Playwright remains the repeatable browser verification path; Firecrawl is used only for deployed public rendering verification as required by this spec."
   privacy_security:
     - "Public example chats are open-source-safe and must not contain private user data, secrets, raw share keys, vault keys, private file paths, private emails, or production identifiers."
@@ -266,10 +294,12 @@ tests:
       - AC-7
       - AC-9
       - AC-10
+      - AC-11
     assertions:
       - Audit inventories in-scope examples and reports capability-linked failures with chat IDs.
-      - Audit fails on vault keys, presigned/private media errors, raw fenced embed JSON, invalid interactive-question placeholders, @focus directives, missing activation artifacts, and incomplete sub-chat transcripts.
+      - Audit fails on vault keys, presigned/private media errors, raw fenced embed JSON, invalid interactive-question placeholders, forbidden @mate/@skill/@app/@focus directives, missing activation artifacts, and incomplete sub-chat transcripts.
       - Audit fails on unbalanced `interactive_question` fences, blank document embed payloads, missing expected mail embeds, and memory examples with neither system artifacts nor equivalent visible context.
+      - Audit fails when a public example lacks a replacement/removal decision in the current-coverage manifest.
       - Audit passes after replacement examples and fixtures satisfy the contract.
     red_phase:
       required: true
@@ -298,6 +328,7 @@ tests:
       - AC-7
       - AC-9
       - AC-10
+      - AC-11
     assertions:
       - Example listing and every linked `/example/<slug>` page return crawlable HTML with transcript text and no unresolved i18n keys.
       - Deep research or other focus examples render activation/sub-chat affordances without @focus syntax.
@@ -305,6 +336,7 @@ tests:
       - Media, PDF, memory, and app-skill examples selected by this spec do not expose broken embed text in the browser.
       - Clicking a memory example card updates `window.location.hash` and reload restores that example chat.
       - Reported memory examples render valid interactive questions and non-empty mail/document embed previews.
+      - Representative replacement examples cover child-result fullscreen links, parent preview result counts, event provider labels/icons, and recipe result content without stale or empty data.
     red_phase:
       required: false
       expected: not_applicable
@@ -326,11 +358,14 @@ tests:
       - AC-2
       - AC-3
       - AC-8
+      - AC-11
     assertions:
       - Each replacement has an agent quality-review note covering usefulness, natural triggering, capability coverage, public fixture assets, and unsafe-content review.
+      - The current-coverage manifest accounts for every old public slug and confirms replacement chats came from real OpenMates CLI/app output.
       - After deployment, Firecrawl verifies each affected new slug renders specific transcript content and contains no broken/missing embed markers or private asset errors.
       - After deployment, Firecrawl verifies removed old slugs return 404.
       - Focus-mode replacements include a rendered focus activation embed/card in Firecrawl output.
+      - "The reported examples are explicitly checked: buck-converter child links open fullscreen, chickpea/recipe data is non-empty, memory-home includes saved-memory context, AI-workshop events show providers, and Berlin-Bangkok flights show the correct parent result count."
     red_phase:
       required: false
       expected: not_applicable
@@ -355,10 +390,15 @@ implementation_plan:
     - docs/specs/focus-mode-example-chat-rendering/spec.yml
   architecture: >
     Treat example chats as public product fixtures with deterministic source
-    validation and deployed rendering validation. First harden the local audit to
-    expose all currently broken examples, then repair or replace data while
-    preserving capability coverage, then deploy and Firecrawl-check public pages.
+    validation and deployed rendering validation. First create a current-coverage
+    manifest from `ALL_EXAMPLE_CHATS`, then regenerate fresh real CLI/app chats
+    for every public example, quality-review them, convert the approved outputs
+    through the shared-chat scaffold, remove stale public slugs, and verify both
+    local data contracts and deployed rendering.
   data_flow:
+    - Inventory reads checked-in example chat TypeScript and i18n sources.
+    - CLI/app automation creates real chats, shares them, and extracts reviewed data without committing share keys.
+    - Scaffold conversion writes replacement TypeScript and i18n source files.
     - Audit reads checked-in example chat TypeScript and i18n sources.
     - Audit maps chat metadata to demonstrated capabilities and public asset requirements.
     - Replacement chats and fixture assets are checked in through existing example-chat data files.
@@ -368,6 +408,10 @@ implementation_plan:
   affected_files:
     - path: scripts/audit_example_chats.py
       reason: Expand deterministic public-quality checks and inventory reporting.
+    - path: scripts/openmates_cli_test_account.mjs
+      reason: Reuse or extend CLI automation for repeatable real-chat creation and share URL capture.
+    - path: scripts/create-example-chat-from-share.mjs
+      reason: Preserve or extend scaffold conversion for regenerated shared chats and metadata.
     - path: frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
       reason: Replace or remove broken example chat data while preserving capability coverage.
     - path: frontend/packages/ui/src/i18n/sources/example_chats/*.yml
@@ -384,13 +428,14 @@ implementation_plan:
       reason: Executable product contract and verification evidence.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/example-chat-public-quality/spec.yml
+    - current-coverage manifest review for every `ALL_EXAMPLE_CHATS` entry
     - python3 scripts/audit_example_chats.py
     - python3 scripts/run_tests.py --spec example-chats-load.spec.ts
     - Firecrawl scrape affected deployed example URLs after deploy.
   verification_order:
     - Spec validation first.
-    - Deterministic audit red phase against current data.
-    - Data/tooling implementation and quality review.
+    - Current-coverage manifest and deterministic audit red phase against current data.
+    - CLI/app regeneration, extraction, conversion, and quality review.
     - Deterministic audit green phase locally.
     - Deploy to dev and wait for Vercel Ready.
     - Playwright green phase against `app.dev.openmates.org`.
@@ -398,13 +443,14 @@ implementation_plan:
 
 tasks:
   - id: TASK-1
-    title: Harden example-chat audit and record current failures
+    title: Inventory current public example coverage and harden audit
     covers:
       scenarios:
         - S-1
       acceptance_criteria:
         - AC-1
         - AC-2
+        - AC-11
     expected_files:
       - scripts/audit_example_chats.py
       - docs/specs/example-chat-public-quality/spec.yml
@@ -413,10 +459,11 @@ tasks:
     independently_deployable: false
 
   - id: TASK-2
-    title: Replace or remove broken public examples while preserving coverage
+    title: Regenerate every current public example from real chats
     covers:
       scenarios:
         - S-2
+        - S-9
         - S-4
         - S-5
       acceptance_criteria:
@@ -424,7 +471,10 @@ tasks:
         - AC-4
         - AC-6
         - AC-7
+        - AC-11
     expected_files:
+      - scripts/openmates_cli_test_account.mjs
+      - scripts/create-example-chat-from-share.mjs
       - frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
       - frontend/packages/ui/src/i18n/sources/example_chats/*.yml
     verification:
@@ -433,14 +483,21 @@ tasks:
     independently_deployable: false
 
   - id: TASK-3
-    title: Preserve focus-mode rendering and sub-chat contracts
+    title: Verify reported embed and memory regressions in replacements
     covers:
       scenarios:
         - S-3
+        - S-4
+        - S-5
       acceptance_criteria:
         - AC-5
+        - AC-6
+        - AC-7
+        - AC-10
     expected_files:
       - frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
+      - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+      - frontend/packages/ui/src/services/embedStore.ts
       - frontend/apps/web_app/tests/example-chats-load.spec.ts
     verification:
       - T-AUDIT-001

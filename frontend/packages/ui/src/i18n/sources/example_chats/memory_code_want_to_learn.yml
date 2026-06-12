@@ -1,541 +1,478 @@
 title:
-  context: "Title of example chat: Code learning goal memory"
-  en: "Code learning goal memory"
-  de: "Code learning goal memory"
-  zh: "Code learning goal memory"
-  es: "Code learning goal memory"
-  fr: "Code learning goal memory"
-  pt: "Code learning goal memory"
-  ru: "Code learning goal memory"
-  ja: "Code learning goal memory"
-  ko: "Code learning goal memory"
-  it: "Code learning goal memory"
-  tr: "Code learning goal memory"
-  vi: "Code learning goal memory"
-  id: "Code learning goal memory"
-  pl: "Code learning goal memory"
-  nl: "Code learning goal memory"
-  ar: "Code learning goal memory"
-  hi: "Code learning goal memory"
-  th: "Code learning goal memory"
-  cs: "Code learning goal memory"
-  sv: "Code learning goal memory"
-  he: "Code learning goal memory"
+  context: "Title of example chat: Memory Code Want To Learn"
+  en: "Memory Code Want To Learn"
+  de: "Memory Code Want To Learn"
+  zh: "Memory Code Want To Learn"
+  es: "Memory Code Want To Learn"
+  fr: "Memory Code Want To Learn"
+  pt: "Memory Code Want To Learn"
+  ru: "Memory Code Want To Learn"
+  ja: "Memory Code Want To Learn"
+  ko: "Memory Code Want To Learn"
+  it: "Memory Code Want To Learn"
+  tr: "Memory Code Want To Learn"
+  vi: "Memory Code Want To Learn"
+  id: "Memory Code Want To Learn"
+  pl: "Memory Code Want To Learn"
+  nl: "Memory Code Want To Learn"
+  ar: "Memory Code Want To Learn"
+  hi: "Memory Code Want To Learn"
+  th: "Memory Code Want To Learn"
+  cs: "Memory Code Want To Learn"
+  sv: "Memory Code Want To Learn"
+  he: "Memory Code Want To Learn"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Code learning goal memory"
-  en: "See how a saved coding skill to learn becomes a practical first mini-project."
-  de: "See how a saved coding skill to learn becomes a practical first mini-project."
-  zh: "See how a saved coding skill to learn becomes a practical first mini-project."
-  es: "See how a saved coding skill to learn becomes a practical first mini-project."
-  fr: "See how a saved coding skill to learn becomes a practical first mini-project."
-  pt: "See how a saved coding skill to learn becomes a practical first mini-project."
-  ru: "See how a saved coding skill to learn becomes a practical first mini-project."
-  ja: "See how a saved coding skill to learn becomes a practical first mini-project."
-  ko: "See how a saved coding skill to learn becomes a practical first mini-project."
-  it: "See how a saved coding skill to learn becomes a practical first mini-project."
-  tr: "See how a saved coding skill to learn becomes a practical first mini-project."
-  vi: "See how a saved coding skill to learn becomes a practical first mini-project."
-  id: "See how a saved coding skill to learn becomes a practical first mini-project."
-  pl: "See how a saved coding skill to learn becomes a practical first mini-project."
-  nl: "See how a saved coding skill to learn becomes a practical first mini-project."
-  ar: "See how a saved coding skill to learn becomes a practical first mini-project."
-  hi: "See how a saved coding skill to learn becomes a practical first mini-project."
-  th: "See how a saved coding skill to learn becomes a practical first mini-project."
-  cs: "See how a saved coding skill to learn becomes a practical first mini-project."
-  sv: "See how a saved coding skill to learn becomes a practical first mini-project."
-  he: "See how a saved coding skill to learn becomes a practical first mini-project."
+  context: "Summary of example chat: Memory Code Want To Learn"
+  en: "OpenMates uses saved code want_to_learn memory in a real chat."
+  de: "OpenMates uses saved code want_to_learn memory in a real chat."
+  zh: "OpenMates uses saved code want_to_learn memory in a real chat."
+  es: "OpenMates uses saved code want_to_learn memory in a real chat."
+  fr: "OpenMates uses saved code want_to_learn memory in a real chat."
+  pt: "OpenMates uses saved code want_to_learn memory in a real chat."
+  ru: "OpenMates uses saved code want_to_learn memory in a real chat."
+  ja: "OpenMates uses saved code want_to_learn memory in a real chat."
+  ko: "OpenMates uses saved code want_to_learn memory in a real chat."
+  it: "OpenMates uses saved code want_to_learn memory in a real chat."
+  tr: "OpenMates uses saved code want_to_learn memory in a real chat."
+  vi: "OpenMates uses saved code want_to_learn memory in a real chat."
+  id: "OpenMates uses saved code want_to_learn memory in a real chat."
+  pl: "OpenMates uses saved code want_to_learn memory in a real chat."
+  nl: "OpenMates uses saved code want_to_learn memory in a real chat."
+  ar: "OpenMates uses saved code want_to_learn memory in a real chat."
+  hi: "OpenMates uses saved code want_to_learn memory in a real chat."
+  th: "OpenMates uses saved code want_to_learn memory in a real chat."
+  cs: "OpenMates uses saved code want_to_learn memory in a real chat."
+  sv: "OpenMates uses saved code want_to_learn memory in a real chat."
+  he: "OpenMates uses saved code want_to_learn memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Code learning goal memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  de: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  zh: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  es: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  fr: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  pt: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  ru: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  ja: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  ko: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  it: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  tr: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  vi: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  id: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  pl: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  nl: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  ar: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  hi: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  th: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  cs: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  sv: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
-  he: "Plain text only, no links or embeds: use my saved code app want-to-learn memory to suggest a practical first mini-project for this weekend."
+  context: "user message 1 in example chat: Memory Code Want To Learn. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Code learning goal memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Code Want To Learn. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   de: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   zh: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   es: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   fr: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   pt: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   ru: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   ja: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   ko: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   it: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   tr: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   vi: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   id: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   pl: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   nl: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   ar: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   hi: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   th: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   cs: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   sv: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   he: |
-    Since you have WebAssembly and Rust on your learning list, a practical and rewarding project for this weekend is a High-Performance Image Filter tool.
+    Based on your interest in learning [Rust](wiki:Rust_(programming_language)) and [WebAssembly](wiki:WebAssembly), a perfect practical mini-project for this weekend would be building a **Real-time Markdown-to-HTML Previewer**.
     
-    The goal of this project is to create a simple web application where a user can upload a photo and apply a filter, like a grayscale or a blur, which is calculated entirely within a Rust-based WebAssembly module.
+    This project allows you to explore the core strengths of both technologies: Rust's performance and safety for string processing, and WebAssembly's ability to run that logic at near-native speed within a web browser.
     
-    Why this is a great first project:
+    ### Project Concept: Rust Markdown Previewer
+    You can create a simple web interface where a user types [Markdown](wiki:Markdown) into a text area on the left, and the rendered [HTML](wiki:HTML) appears instantly on the right.
     
-    1. It proves the value: JavaScript can be slow when looping through millions of pixels in a high-resolution image. Rust is designed for this kind of heavy lifting, making the performance difference visible.
-    2. It covers the basics: You will learn how to pass data (specifically byte arrays) between JavaScript and Rust, which is the most important skill in WebAssembly development.
-    3. Privacy-focused: By processing images client-side rather than sending them to a server, you are building a tool that inherently respects user privacy and data security.
+    **Why this is a great first step:**
+    *   **Performance:** Text parsing is a CPU-intensive task where Rust excels.
+    *   **Interoperability:** You will learn how to pass strings between [JavaScript](wiki:JavaScript) and Rust.
+    *   **Ecosystem:** You can use existing Rust crates like `pulldown-cmark` to handle the heavy lifting of parsing, focusing your time on the Wasm integration.
+    *   **Immediate Feedback:** You get a visual result in the browser quickly, which is highly motivating when learning a new stack.
     
-    Suggested Weekend Roadmap:
-    
-    Friday Evening: Set up your environment by installing the Rust toolchain and wasm-pack. Create a new project using the wasm-bindgen template.
-    
-    Saturday: Focus on the Rust side. Write a function that accepts a buffer of pixel data and iterates through it to modify the RGB values. Start with a simple grayscale conversion (averaging the red, green, and blue values).
-    
-    Sunday: Build the web interface. Use a standard HTML file with a file input and a canvas element. Write the JavaScript necessary to load the image, extract the pixel data from the canvas, send it to your Rust function, and then draw the result back onto the screen.
-    
-    If you finish early, you can try adding a more complex filter like a Gaussian blur, which requires looking at neighboring pixels and will further demonstrate Rust's computational efficiency. This project is a solid step toward mastering high-performance web development while creating something tangible you can share.
-    
-    Since this involves setting up a new development environment, would you like me to explain the specific commands needed to initialize a Rust-WebAssembly project, or would you prefer a breakdown of how to pass image data between JavaScript and Rust?
+    **Weekend Roadmap:**
+    1.  **Set up your environment:** Install `wasm-pack`, which is the one-stop shop for compiling Rust to WebAssembly.
+    2.  **Logic in Rust:** Write a small Rust function that takes a string of Markdown and returns a string of HTML.
+    3.  **Compile to Wasm:** Use `wasm-pack build --target web` to generate the Wasm binary and the JavaScript glue code.
+    4.  **Frontend Integration:** Create a basic `index.html` and `main.js`. Import your generated Wasm module and call your Rust function inside an event listener triggered by the `input` event of your text area.
   verified_by_human: []
 

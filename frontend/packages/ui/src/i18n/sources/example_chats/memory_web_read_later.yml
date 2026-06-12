@@ -1,793 +1,163 @@
 title:
-  context: "Title of example chat: Read-later memory"
-  en: "Read-later memory"
-  de: "Read-later memory"
-  zh: "Read-later memory"
-  es: "Read-later memory"
-  fr: "Read-later memory"
-  pt: "Read-later memory"
-  ru: "Read-later memory"
-  ja: "Read-later memory"
-  ko: "Read-later memory"
-  it: "Read-later memory"
-  tr: "Read-later memory"
-  vi: "Read-later memory"
-  id: "Read-later memory"
-  pl: "Read-later memory"
-  nl: "Read-later memory"
-  ar: "Read-later memory"
-  hi: "Read-later memory"
-  th: "Read-later memory"
-  cs: "Read-later memory"
-  sv: "Read-later memory"
-  he: "Read-later memory"
+  context: "Title of example chat: Memory Web Read Later"
+  en: "Memory Web Read Later"
+  de: "Memory Web Read Later"
+  zh: "Memory Web Read Later"
+  es: "Memory Web Read Later"
+  fr: "Memory Web Read Later"
+  pt: "Memory Web Read Later"
+  ru: "Memory Web Read Later"
+  ja: "Memory Web Read Later"
+  ko: "Memory Web Read Later"
+  it: "Memory Web Read Later"
+  tr: "Memory Web Read Later"
+  vi: "Memory Web Read Later"
+  id: "Memory Web Read Later"
+  pl: "Memory Web Read Later"
+  nl: "Memory Web Read Later"
+  ar: "Memory Web Read Later"
+  hi: "Memory Web Read Later"
+  th: "Memory Web Read Later"
+  cs: "Memory Web Read Later"
+  sv: "Memory Web Read Later"
+  he: "Memory Web Read Later"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Read-later memory"
-  en: "See how a saved read-later memory connects an article to engineering planning."
-  de: "See how a saved read-later memory connects an article to engineering planning."
-  zh: "See how a saved read-later memory connects an article to engineering planning."
-  es: "See how a saved read-later memory connects an article to engineering planning."
-  fr: "See how a saved read-later memory connects an article to engineering planning."
-  pt: "See how a saved read-later memory connects an article to engineering planning."
-  ru: "See how a saved read-later memory connects an article to engineering planning."
-  ja: "See how a saved read-later memory connects an article to engineering planning."
-  ko: "See how a saved read-later memory connects an article to engineering planning."
-  it: "See how a saved read-later memory connects an article to engineering planning."
-  tr: "See how a saved read-later memory connects an article to engineering planning."
-  vi: "See how a saved read-later memory connects an article to engineering planning."
-  id: "See how a saved read-later memory connects an article to engineering planning."
-  pl: "See how a saved read-later memory connects an article to engineering planning."
-  nl: "See how a saved read-later memory connects an article to engineering planning."
-  ar: "See how a saved read-later memory connects an article to engineering planning."
-  hi: "See how a saved read-later memory connects an article to engineering planning."
-  th: "See how a saved read-later memory connects an article to engineering planning."
-  cs: "See how a saved read-later memory connects an article to engineering planning."
-  sv: "See how a saved read-later memory connects an article to engineering planning."
-  he: "See how a saved read-later memory connects an article to engineering planning."
+  context: "Summary of example chat: Memory Web Read Later"
+  en: "OpenMates uses saved web read_later memory in a real chat."
+  de: "OpenMates uses saved web read_later memory in a real chat."
+  zh: "OpenMates uses saved web read_later memory in a real chat."
+  es: "OpenMates uses saved web read_later memory in a real chat."
+  fr: "OpenMates uses saved web read_later memory in a real chat."
+  pt: "OpenMates uses saved web read_later memory in a real chat."
+  ru: "OpenMates uses saved web read_later memory in a real chat."
+  ja: "OpenMates uses saved web read_later memory in a real chat."
+  ko: "OpenMates uses saved web read_later memory in a real chat."
+  it: "OpenMates uses saved web read_later memory in a real chat."
+  tr: "OpenMates uses saved web read_later memory in a real chat."
+  vi: "OpenMates uses saved web read_later memory in a real chat."
+  id: "OpenMates uses saved web read_later memory in a real chat."
+  pl: "OpenMates uses saved web read_later memory in a real chat."
+  nl: "OpenMates uses saved web read_later memory in a real chat."
+  ar: "OpenMates uses saved web read_later memory in a real chat."
+  hi: "OpenMates uses saved web read_later memory in a real chat."
+  th: "OpenMates uses saved web read_later memory in a real chat."
+  cs: "OpenMates uses saved web read_later memory in a real chat."
+  sv: "OpenMates uses saved web read_later memory in a real chat."
+  he: "OpenMates uses saved web read_later memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Read-later memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  de: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  zh: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  es: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  fr: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  pt: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  ru: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  ja: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  ko: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  it: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  tr: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  vi: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  id: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  pl: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  nl: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  ar: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  hi: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  th: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  cs: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  sv: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
-  he: "Use my saved read-later memory to suggest why this article might be useful for my next engineering planning session."
+  context: "user message 1 in example chat: Memory Web Read Later. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Read-later memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Web Read Later. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   de: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   zh: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   es: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   fr: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   pt: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   ru: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   ja: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   ko: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   it: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   tr: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   vi: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   id: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   pl: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   nl: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   ar: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   hi: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   th: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   cs: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   sv: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   he: |
-    Based on your [read-later settings](/#settings/apps/web), you have two articles saved that are highly relevant to engineering strategy and quality assurance. Given your upcoming planning session, the most prominent one is:
+    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
     
-    **The Practical Test Pyramid** by Ham Vocke (on [Martin Fowler](wiki:Martin_Fowler)’s site).
-    
-    ### Why this is useful for your planning session:
-    
-    1.  **Resource Allocation:** The [Test Pyramid](wiki:Test_automation) concept helps engineering teams decide where to invest their time. It argues for a high volume of fast, low-level [unit tests](wiki:Unit_testing) and fewer expensive, slow UI-driven tests. During planning, this helps you justify why you might be spending more time on codebase health rather than end-to-end automation.
-    2.  **Defining "Done":** If you are revising your testing strategy (as your notes suggest), this article provides a framework for what "quality" looks like. It helps prevent the "Ice Cream Cone" anti-pattern where a team relies too heavily on manual or integration tests that are brittle and slow.
-    3.  **CI/CD Optimization:** Planning often involves discussing deployment frequency. The article explains how a balanced pyramid leads to faster [Continuous Integration](wiki:Continuous_integration) feedback loops, which is essential if your goal for the next quarter is increasing velocity.
-    4.  **Regression Coverage:** Your second saved article from `example.com` specifically mentions **regression coverage**. Using these together, you can plan a transition from manual regression cycles to a more automated, layered approach.
-    
-    ### Summary of your saved items:
-    *   **Practical Test Pyramid**: Focused on the "how-to" of balancing different test types.
-    *   **Testing Strategy & Regression**: Focused on broader ideas for practical coverage.
-    
-    To help narrow down how to use this in your meeting, what is the primary goal of this planning session?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "planning_focus",
-      "multiple": false,
-      "question": "What is the main objective of your engineering planning session?",
-      "options": [
-        { "id": "velocity", "text": "Increasing development velocity/speed" },
-        { "id": "quality", "text": "Reducing bugs and improving reliability" },
-        { "id": "tech_debt", "text": "Addressing technical debt and test maintenance" },
-        { "id": "new_process", "text": "Establishing a completely new testing culture" }
-      ]
-    }
-    ```
-    
-    
+    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   verified_by_human: []
 

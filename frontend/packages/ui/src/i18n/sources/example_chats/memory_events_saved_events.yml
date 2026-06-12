@@ -1,939 +1,456 @@
 title:
-  context: "Title of example chat: Saved event memory"
-  en: "Saved event memory"
-  de: "Saved event memory"
-  zh: "Saved event memory"
-  es: "Saved event memory"
-  fr: "Saved event memory"
-  pt: "Saved event memory"
-  ru: "Saved event memory"
-  ja: "Saved event memory"
-  ko: "Saved event memory"
-  it: "Saved event memory"
-  tr: "Saved event memory"
-  vi: "Saved event memory"
-  id: "Saved event memory"
-  pl: "Saved event memory"
-  nl: "Saved event memory"
-  ar: "Saved event memory"
-  hi: "Saved event memory"
-  th: "Saved event memory"
-  cs: "Saved event memory"
-  sv: "Saved event memory"
-  he: "Saved event memory"
+  context: "Title of example chat: Memory Events Saved Events"
+  en: "Memory Events Saved Events"
+  de: "Memory Events Saved Events"
+  zh: "Memory Events Saved Events"
+  es: "Memory Events Saved Events"
+  fr: "Memory Events Saved Events"
+  pt: "Memory Events Saved Events"
+  ru: "Memory Events Saved Events"
+  ja: "Memory Events Saved Events"
+  ko: "Memory Events Saved Events"
+  it: "Memory Events Saved Events"
+  tr: "Memory Events Saved Events"
+  vi: "Memory Events Saved Events"
+  id: "Memory Events Saved Events"
+  pl: "Memory Events Saved Events"
+  nl: "Memory Events Saved Events"
+  ar: "Memory Events Saved Events"
+  hi: "Memory Events Saved Events"
+  th: "Memory Events Saved Events"
+  cs: "Memory Events Saved Events"
+  sv: "Memory Events Saved Events"
+  he: "Memory Events Saved Events"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Saved event memory"
-  en: "See how a saved event memory becomes a practical preparation checklist."
-  de: "See how a saved event memory becomes a practical preparation checklist."
-  zh: "See how a saved event memory becomes a practical preparation checklist."
-  es: "See how a saved event memory becomes a practical preparation checklist."
-  fr: "See how a saved event memory becomes a practical preparation checklist."
-  pt: "See how a saved event memory becomes a practical preparation checklist."
-  ru: "See how a saved event memory becomes a practical preparation checklist."
-  ja: "See how a saved event memory becomes a practical preparation checklist."
-  ko: "See how a saved event memory becomes a practical preparation checklist."
-  it: "See how a saved event memory becomes a practical preparation checklist."
-  tr: "See how a saved event memory becomes a practical preparation checklist."
-  vi: "See how a saved event memory becomes a practical preparation checklist."
-  id: "See how a saved event memory becomes a practical preparation checklist."
-  pl: "See how a saved event memory becomes a practical preparation checklist."
-  nl: "See how a saved event memory becomes a practical preparation checklist."
-  ar: "See how a saved event memory becomes a practical preparation checklist."
-  hi: "See how a saved event memory becomes a practical preparation checklist."
-  th: "See how a saved event memory becomes a practical preparation checklist."
-  cs: "See how a saved event memory becomes a practical preparation checklist."
-  sv: "See how a saved event memory becomes a practical preparation checklist."
-  he: "See how a saved event memory becomes a practical preparation checklist."
+  context: "Summary of example chat: Memory Events Saved Events"
+  en: "OpenMates uses saved events saved_events memory in a real chat."
+  de: "OpenMates uses saved events saved_events memory in a real chat."
+  zh: "OpenMates uses saved events saved_events memory in a real chat."
+  es: "OpenMates uses saved events saved_events memory in a real chat."
+  fr: "OpenMates uses saved events saved_events memory in a real chat."
+  pt: "OpenMates uses saved events saved_events memory in a real chat."
+  ru: "OpenMates uses saved events saved_events memory in a real chat."
+  ja: "OpenMates uses saved events saved_events memory in a real chat."
+  ko: "OpenMates uses saved events saved_events memory in a real chat."
+  it: "OpenMates uses saved events saved_events memory in a real chat."
+  tr: "OpenMates uses saved events saved_events memory in a real chat."
+  vi: "OpenMates uses saved events saved_events memory in a real chat."
+  id: "OpenMates uses saved events saved_events memory in a real chat."
+  pl: "OpenMates uses saved events saved_events memory in a real chat."
+  nl: "OpenMates uses saved events saved_events memory in a real chat."
+  ar: "OpenMates uses saved events saved_events memory in a real chat."
+  hi: "OpenMates uses saved events saved_events memory in a real chat."
+  th: "OpenMates uses saved events saved_events memory in a real chat."
+  cs: "OpenMates uses saved events saved_events memory in a real chat."
+  sv: "OpenMates uses saved events saved_events memory in a real chat."
+  he: "OpenMates uses saved events saved_events memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Saved event memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  de: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  zh: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  es: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  fr: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  pt: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  ru: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  ja: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  ko: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  it: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  tr: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  vi: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  id: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  pl: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  nl: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  ar: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  hi: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  th: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  cs: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  sv: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
-  he: "Use my saved events memory to help me prepare a practical checklist for upcoming events."
+  context: "user message 1 in example chat: Memory Events Saved Events. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Saved event memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Events Saved Events. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "2724b6d3-f9dd-4a39-85e7-db3bfb25a20f", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Factory Berlin June 18 2026", "provider": "Brave"}
-    ```
+    Based on your [saved event](/#settings/app_store/events/settings_memories/saved_events) for the [Berlin AI Builders Meetup](wiki:Berlin) on June 18, 2026, here is a practical checklist to ensure you are ready for the session at Factory Berlin in [Kreuzberg](wiki:Kreuzberg).
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "5283378f-3f72-4a5e-99ce-e5cdcc204c6e", "app_id": "web", "skill_id": "search", "query": "Berlin AI Builders Meetup Kreuzberg July 3 2026", "provider": "Brave"}
-    ```
+    ### **Preparation & Content**
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you hope to learn or contribute to the community.
+    *   **Refine your demo idea:** Since the notes specify having one demo idea ready, ensure you can explain the core value proposition and the [artificial intelligence](wiki:Artificial_intelligence) stack you intend to use.
+    *   **Prepare a "Call to Action":** Think about one specific thing you need help with (e.g., a technical hurdle or a collaborator) so you can make the most of the networking time.
     
-    Based on your [saved events](/#settings/apps/events), you have two key gatherings coming up in [Berlin](wiki:Berlin) that focus on the [AI](wiki:Artificial_intelligence) builder community. Since the first one at Factory Berlin is just over a week away, I’ve put together a structured preparation guide to help you make the most of these opportunities.
+    ### **Logistics & Materials**
+    *   **Charge your hardware:** Ensure your laptop and phone are fully charged if you plan to show any code or digital mockups.
+    *   **Digital Contact Info:** Have a [QR code](wiki:QR_code) or a digital business card ready on your phone to quickly share your [GitHub](wiki:GitHub) or [LinkedIn](wiki:LinkedIn) profile.
+    *   **Travel Planning:** Aim to arrive at the venue by 18:15 to settle in before the 18:30 start time.
     
-    ```json
-    {"type": "document", "embed_id": "538da4c5-982a-45f5-8f62-593278470ec5"}
-    ```
-    
-    
-    
-    ### Next Steps for You
-    For the event on June 18th, it might be helpful to have your "Builder Intro" ready so you can jump straight into technical conversations without overthinking. For the July 3rd event, the "demo idea" is the main focus.
-    
-    Would you like to brainstorm that demo idea now, or would you prefer to refine your technical intro for the first meetup?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "event_prep_focus",
-      "multiple": false,
-      "question": "Which preparation task should we tackle first?",
-      "options": [
-        { "id": "intro", "text": "Draft my 30-second Builder Intro (June 18th focus)" },
-        { "id": "demo", "text": "Brainstorm/Refine my Demo Idea (July 3rd focus)" },
-        { "id": "logistics", "text": "Find specific directions and venue details for Factory Berlin" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "af22a018-88e1-40b1-8ac2-da0bd5ed9f05"}
-    ```
+    ### **Mental Preparation**
+    *   **Set a Networking Goal:** Decide to speak with at least three new people about their projects to foster a sense of belonging in the local AI community.
+    *   **Growth Mindset:** Approach the demo feedback as a learning opportunity to improve your idea rather than a critique of your skills.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   verified_by_human: []

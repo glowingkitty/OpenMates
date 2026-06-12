@@ -1,331 +1,184 @@
 title:
-  context: "Title of example chat: Code project memory"
-  en: "Code project memory"
-  de: "Code project memory"
-  zh: "Code project memory"
-  es: "Code project memory"
-  fr: "Code project memory"
-  pt: "Code project memory"
-  ru: "Code project memory"
-  ja: "Code project memory"
-  ko: "Code project memory"
-  it: "Code project memory"
-  tr: "Code project memory"
-  vi: "Code project memory"
-  id: "Code project memory"
-  pl: "Code project memory"
-  nl: "Code project memory"
-  ar: "Code project memory"
-  hi: "Code project memory"
-  th: "Code project memory"
-  cs: "Code project memory"
-  sv: "Code project memory"
-  he: "Code project memory"
+  context: "Title of example chat: Memory Code Projects"
+  en: "Memory Code Projects"
+  de: "Memory Code Projects"
+  zh: "Memory Code Projects"
+  es: "Memory Code Projects"
+  fr: "Memory Code Projects"
+  pt: "Memory Code Projects"
+  ru: "Memory Code Projects"
+  ja: "Memory Code Projects"
+  ko: "Memory Code Projects"
+  it: "Memory Code Projects"
+  tr: "Memory Code Projects"
+  vi: "Memory Code Projects"
+  id: "Memory Code Projects"
+  pl: "Memory Code Projects"
+  nl: "Memory Code Projects"
+  ar: "Memory Code Projects"
+  hi: "Memory Code Projects"
+  th: "Memory Code Projects"
+  cs: "Memory Code Projects"
+  sv: "Memory Code Projects"
+  he: "Memory Code Projects"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Code project memory"
-  en: "See how a saved project memory turns into focused next engineering tasks."
-  de: "See how a saved project memory turns into focused next engineering tasks."
-  zh: "See how a saved project memory turns into focused next engineering tasks."
-  es: "See how a saved project memory turns into focused next engineering tasks."
-  fr: "See how a saved project memory turns into focused next engineering tasks."
-  pt: "See how a saved project memory turns into focused next engineering tasks."
-  ru: "See how a saved project memory turns into focused next engineering tasks."
-  ja: "See how a saved project memory turns into focused next engineering tasks."
-  ko: "See how a saved project memory turns into focused next engineering tasks."
-  it: "See how a saved project memory turns into focused next engineering tasks."
-  tr: "See how a saved project memory turns into focused next engineering tasks."
-  vi: "See how a saved project memory turns into focused next engineering tasks."
-  id: "See how a saved project memory turns into focused next engineering tasks."
-  pl: "See how a saved project memory turns into focused next engineering tasks."
-  nl: "See how a saved project memory turns into focused next engineering tasks."
-  ar: "See how a saved project memory turns into focused next engineering tasks."
-  hi: "See how a saved project memory turns into focused next engineering tasks."
-  th: "See how a saved project memory turns into focused next engineering tasks."
-  cs: "See how a saved project memory turns into focused next engineering tasks."
-  sv: "See how a saved project memory turns into focused next engineering tasks."
-  he: "See how a saved project memory turns into focused next engineering tasks."
+  context: "Summary of example chat: Memory Code Projects"
+  en: "OpenMates uses saved code projects memory in a real chat."
+  de: "OpenMates uses saved code projects memory in a real chat."
+  zh: "OpenMates uses saved code projects memory in a real chat."
+  es: "OpenMates uses saved code projects memory in a real chat."
+  fr: "OpenMates uses saved code projects memory in a real chat."
+  pt: "OpenMates uses saved code projects memory in a real chat."
+  ru: "OpenMates uses saved code projects memory in a real chat."
+  ja: "OpenMates uses saved code projects memory in a real chat."
+  ko: "OpenMates uses saved code projects memory in a real chat."
+  it: "OpenMates uses saved code projects memory in a real chat."
+  tr: "OpenMates uses saved code projects memory in a real chat."
+  vi: "OpenMates uses saved code projects memory in a real chat."
+  id: "OpenMates uses saved code projects memory in a real chat."
+  pl: "OpenMates uses saved code projects memory in a real chat."
+  nl: "OpenMates uses saved code projects memory in a real chat."
+  ar: "OpenMates uses saved code projects memory in a real chat."
+  hi: "OpenMates uses saved code projects memory in a real chat."
+  th: "OpenMates uses saved code projects memory in a real chat."
+  cs: "OpenMates uses saved code projects memory in a real chat."
+  sv: "OpenMates uses saved code projects memory in a real chat."
+  he: "OpenMates uses saved code projects memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Code project memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  de: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  zh: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  es: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  fr: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  pt: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  ru: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  ja: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  ko: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  it: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  tr: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  vi: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  id: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  pl: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  nl: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  ar: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  hi: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  th: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  cs: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  sv: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
-  he: "Without searching, opening links, or creating embeds, use my saved code project memory to suggest the next two focused tasks I should do this evening."
+  context: "user message 1 in example chat: Memory Code Projects. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Code project memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Code Projects. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   de: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   zh: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   es: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   fr: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   pt: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   ru: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   ja: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   ko: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   it: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   tr: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   vi: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   id: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   pl: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   nl: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   ar: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   hi: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   th: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   cs: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   sv: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   he: |
-    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project memory, which describes a [SvelteKit](wiki:Svelte) app for tracking balcony plants, watering, pests, and harvest notes, here are two focused tasks for your evening:
+    Based on your [Garden Ledger](/#settings/app_store/code/settings_memories/projects) project details, here are two focused engineering tasks you could tackle this evening:
     
-    1.  **Build the "Quick Water" Action:** Since your goal is tracking watering, you could implement a SvelteKit [form action](wiki:Svelte#SvelteKit) that allows you to click a single "Watered" button next to any plant. This task would involve creating the API route to update a `last_watered` timestamp in your database and adding a quick visual confirmation (like a toast notification or a status update) in the UI.
-    2.  **Design the Pest Logging Schema or UI:** Your description specifically mentions tracking pests. You could focus on creating a small component to log observations. This would involve adding fields for the pest type (e.g., [Aphids](wiki:Aphid), [Spider mites](wiki:Spider_mite)), the date discovered, and the treatment applied (like [Neem oil](wiki:Neem_oil)). This is a great "focused" task because it defines a new data relationship in your app.
-    
-    Which of these features feels like the most natural next step for your current workflow?
-    
-    ---
-    **Next Steps:**
-    - Would you like help drafting the Zod schema for that Pest Logging form?
-    - Or should we look at how to structure the SvelteKit load function for your plant dashboard?
+    1.  **Implement Watering Frequency Logic**: Create a Svelte store or a utility module to calculate the next required watering date for each plant. This involves writing logic that takes a `lastWateredDate` and a `frequencyDays` integer to determine which plants should appear in a "Needs Attention" filter. This is a core feature for a balcony tracker where consistency is key.
+    2.  **Develop a Reusable 'Observation' Form Component**: Since your project tracks pests and harvest notes, build a generic form component in [SvelteKit](wiki:Svelte) that accepts different "observation types." This component should handle state for a text area (notes) and an optional photo upload placeholder, allowing you to quickly log a pest sighting or a successful harvest without duplicating UI logic.
   verified_by_human: []
 

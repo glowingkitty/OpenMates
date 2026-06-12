@@ -1,1128 +1,393 @@
 title:
-  context: "Title of example chat: Health appointment memory"
-  en: "Health appointment memory"
-  de: "Health appointment memory"
-  zh: "Health appointment memory"
-  es: "Health appointment memory"
-  fr: "Health appointment memory"
-  pt: "Health appointment memory"
-  ru: "Health appointment memory"
-  ja: "Health appointment memory"
-  ko: "Health appointment memory"
-  it: "Health appointment memory"
-  tr: "Health appointment memory"
-  vi: "Health appointment memory"
-  id: "Health appointment memory"
-  pl: "Health appointment memory"
-  nl: "Health appointment memory"
-  ar: "Health appointment memory"
-  hi: "Health appointment memory"
-  th: "Health appointment memory"
-  cs: "Health appointment memory"
-  sv: "Health appointment memory"
-  he: "Health appointment memory"
+  context: "Title of example chat: Memory Health Appointments"
+  en: "Memory Health Appointments"
+  de: "Memory Health Appointments"
+  zh: "Memory Health Appointments"
+  es: "Memory Health Appointments"
+  fr: "Memory Health Appointments"
+  pt: "Memory Health Appointments"
+  ru: "Memory Health Appointments"
+  ja: "Memory Health Appointments"
+  ko: "Memory Health Appointments"
+  it: "Memory Health Appointments"
+  tr: "Memory Health Appointments"
+  vi: "Memory Health Appointments"
+  id: "Memory Health Appointments"
+  pl: "Memory Health Appointments"
+  nl: "Memory Health Appointments"
+  ar: "Memory Health Appointments"
+  hi: "Memory Health Appointments"
+  th: "Memory Health Appointments"
+  cs: "Memory Health Appointments"
+  sv: "Memory Health Appointments"
+  he: "Memory Health Appointments"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Health appointment memory"
-  en: "See how a saved appointment memory helps prepare a health checklist."
-  de: "See how a saved appointment memory helps prepare a health checklist."
-  zh: "See how a saved appointment memory helps prepare a health checklist."
-  es: "See how a saved appointment memory helps prepare a health checklist."
-  fr: "See how a saved appointment memory helps prepare a health checklist."
-  pt: "See how a saved appointment memory helps prepare a health checklist."
-  ru: "See how a saved appointment memory helps prepare a health checklist."
-  ja: "See how a saved appointment memory helps prepare a health checklist."
-  ko: "See how a saved appointment memory helps prepare a health checklist."
-  it: "See how a saved appointment memory helps prepare a health checklist."
-  tr: "See how a saved appointment memory helps prepare a health checklist."
-  vi: "See how a saved appointment memory helps prepare a health checklist."
-  id: "See how a saved appointment memory helps prepare a health checklist."
-  pl: "See how a saved appointment memory helps prepare a health checklist."
-  nl: "See how a saved appointment memory helps prepare a health checklist."
-  ar: "See how a saved appointment memory helps prepare a health checklist."
-  hi: "See how a saved appointment memory helps prepare a health checklist."
-  th: "See how a saved appointment memory helps prepare a health checklist."
-  cs: "See how a saved appointment memory helps prepare a health checklist."
-  sv: "See how a saved appointment memory helps prepare a health checklist."
-  he: "See how a saved appointment memory helps prepare a health checklist."
+  context: "Summary of example chat: Memory Health Appointments"
+  en: "OpenMates uses saved health appointments memory in a real chat."
+  de: "OpenMates uses saved health appointments memory in a real chat."
+  zh: "OpenMates uses saved health appointments memory in a real chat."
+  es: "OpenMates uses saved health appointments memory in a real chat."
+  fr: "OpenMates uses saved health appointments memory in a real chat."
+  pt: "OpenMates uses saved health appointments memory in a real chat."
+  ru: "OpenMates uses saved health appointments memory in a real chat."
+  ja: "OpenMates uses saved health appointments memory in a real chat."
+  ko: "OpenMates uses saved health appointments memory in a real chat."
+  it: "OpenMates uses saved health appointments memory in a real chat."
+  tr: "OpenMates uses saved health appointments memory in a real chat."
+  vi: "OpenMates uses saved health appointments memory in a real chat."
+  id: "OpenMates uses saved health appointments memory in a real chat."
+  pl: "OpenMates uses saved health appointments memory in a real chat."
+  nl: "OpenMates uses saved health appointments memory in a real chat."
+  ar: "OpenMates uses saved health appointments memory in a real chat."
+  hi: "OpenMates uses saved health appointments memory in a real chat."
+  th: "OpenMates uses saved health appointments memory in a real chat."
+  cs: "OpenMates uses saved health appointments memory in a real chat."
+  sv: "OpenMates uses saved health appointments memory in a real chat."
+  he: "OpenMates uses saved health appointments memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Health appointment memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  de: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  zh: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  es: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  fr: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  pt: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  ru: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  ja: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  ko: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  it: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  tr: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  vi: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  id: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  pl: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  nl: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  ar: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  hi: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  th: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  cs: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  sv: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
-  he: "Use my saved appointment memory to make a simple preparation checklist for my next health appointment."
+  context: "user message 1 in example chat: Memory Health Appointments. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Health appointment memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Health Appointments. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "bc0bd5a5-cdd9-4283-b0c5-fc95af91489a", "app_id": "web", "skill_id": "search", "query": "checklist for dermatology follow-up appointment preparation", "provider": "Brave"}
-    ```
+    Based on your saved health memories, here is your preparation checklist for your upcoming appointment:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9398f6a2-e863-4d85-941b-8ec7f0fe3e1a", "app_id": "images", "skill_id": "search", "query": "skin rash flare-up photos examples", "provider": "Brave Search"}
-    ```
+    **Appointment Details**
+    *   **Type:** Dermatology Follow-up (Specialist)
+    *   **Location:** Mitte Skin Clinic
+    *   **Date:** June 20, 2026
     
-    Based on your saved health memories, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-    
-    To help you get the most out of your visit, I've created a personalized preparation checklist based on your specific notes and general [dermatology](wiki:Dermatology) best practices.
-    
-    ```json
-    {"type": "document", "embed_id": "715f86e4-ddcc-46b3-a745-fbeee54de93c"}
-    ```
-    
-    
-    
-    ### Visual Guide: Documenting Your Rash
-    Since your notes mention bringing photos of [rash](wiki:Rash) flare-ups, here are a few examples of how different conditions might look. When taking your own photos, try to get one "wide" shot for location and one close-up "macro" shot for texture.
-    
-    [!](embed:www2.hse.ie-aMw)
-    [!](embed:gardensdermatology.com-0Ed)
-    [!](embed:gettyimages.com-Thc)
-    [!](embed:everydayhealth.com-u8s)
-    
-    ---
-    
-    Would you also like me to create a separate prep list for your **Dermatology Clinic Mitte** appointment on **July 8th**, or should we focus on finding specific questions you might want to ask at the clinic next week?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "next_step_preference",
-      "multiple": false,
-      "question": "How would you like to proceed?",
-      "options": [
-        { "id": "prep_july", "text": "Prepare for the July 8th appointment too" },
-        { "id": "search_questions", "text": "Help me find specific questions for my doctor" },
-        { "id": "done", "text": "I'm all set for now" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "9d993334-9cfb-456a-aa5f-b671bab352a4"}
-    ```
+    **Preparation Checklist**
+    *   **Gather Photos:** Ensure you have the photos of your rash flare-ups ready on your phone or printed to show the specialist.
+    *   **Prepare Questions:** Write down your specific questions regarding the different treatment options you'd like to discuss.
+    *   **Symptoms Log:** If you've noticed any specific triggers or changes since your last visit, jot those down as well.
+    *   **Current Medications:** Have a list of any topical creams or medications you are currently using for the rash.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   verified_by_human: []

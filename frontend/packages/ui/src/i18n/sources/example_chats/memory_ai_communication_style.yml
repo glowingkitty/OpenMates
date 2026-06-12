@@ -1,855 +1,540 @@
 title:
-  context: "Title of example chat: AI communication style memory"
-  en: "AI communication style memory"
-  de: "AI communication style memory"
-  zh: "AI communication style memory"
-  es: "AI communication style memory"
-  fr: "AI communication style memory"
-  pt: "AI communication style memory"
-  ru: "AI communication style memory"
-  ja: "AI communication style memory"
-  ko: "AI communication style memory"
-  it: "AI communication style memory"
-  tr: "AI communication style memory"
-  vi: "AI communication style memory"
-  id: "AI communication style memory"
-  pl: "AI communication style memory"
-  nl: "AI communication style memory"
-  ar: "AI communication style memory"
-  hi: "AI communication style memory"
-  th: "AI communication style memory"
-  cs: "AI communication style memory"
-  sv: "AI communication style memory"
-  he: "AI communication style memory"
+  context: "Title of example chat: Memory Ai Communication Style"
+  en: "Memory Ai Communication Style"
+  de: "Memory Ai Communication Style"
+  zh: "Memory Ai Communication Style"
+  es: "Memory Ai Communication Style"
+  fr: "Memory Ai Communication Style"
+  pt: "Memory Ai Communication Style"
+  ru: "Memory Ai Communication Style"
+  ja: "Memory Ai Communication Style"
+  ko: "Memory Ai Communication Style"
+  it: "Memory Ai Communication Style"
+  tr: "Memory Ai Communication Style"
+  vi: "Memory Ai Communication Style"
+  id: "Memory Ai Communication Style"
+  pl: "Memory Ai Communication Style"
+  nl: "Memory Ai Communication Style"
+  ar: "Memory Ai Communication Style"
+  hi: "Memory Ai Communication Style"
+  th: "Memory Ai Communication Style"
+  cs: "Memory Ai Communication Style"
+  sv: "Memory Ai Communication Style"
+  he: "Memory Ai Communication Style"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: AI communication style memory"
-  en: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  de: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  zh: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  es: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  fr: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  pt: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  ru: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  ja: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  ko: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  it: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  tr: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  vi: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  id: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  pl: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  nl: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  ar: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  hi: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  th: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  cs: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  sv: "See how OpenMates adapts an answer to a saved AI communication style preference."
-  he: "See how OpenMates adapts an answer to a saved AI communication style preference."
+  context: "Summary of example chat: Memory Ai Communication Style"
+  en: "OpenMates uses saved ai communication_style memory in a real chat."
+  de: "OpenMates uses saved ai communication_style memory in a real chat."
+  zh: "OpenMates uses saved ai communication_style memory in a real chat."
+  es: "OpenMates uses saved ai communication_style memory in a real chat."
+  fr: "OpenMates uses saved ai communication_style memory in a real chat."
+  pt: "OpenMates uses saved ai communication_style memory in a real chat."
+  ru: "OpenMates uses saved ai communication_style memory in a real chat."
+  ja: "OpenMates uses saved ai communication_style memory in a real chat."
+  ko: "OpenMates uses saved ai communication_style memory in a real chat."
+  it: "OpenMates uses saved ai communication_style memory in a real chat."
+  tr: "OpenMates uses saved ai communication_style memory in a real chat."
+  vi: "OpenMates uses saved ai communication_style memory in a real chat."
+  id: "OpenMates uses saved ai communication_style memory in a real chat."
+  pl: "OpenMates uses saved ai communication_style memory in a real chat."
+  nl: "OpenMates uses saved ai communication_style memory in a real chat."
+  ar: "OpenMates uses saved ai communication_style memory in a real chat."
+  hi: "OpenMates uses saved ai communication_style memory in a real chat."
+  th: "OpenMates uses saved ai communication_style memory in a real chat."
+  cs: "OpenMates uses saved ai communication_style memory in a real chat."
+  sv: "OpenMates uses saved ai communication_style memory in a real chat."
+  he: "OpenMates uses saved ai communication_style memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: AI communication style memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  de: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  zh: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  es: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  fr: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  pt: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  ru: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  ja: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  ko: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  it: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  tr: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  vi: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  id: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  pl: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  nl: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  ar: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  hi: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  th: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  cs: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  sv: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
-  he: "Use my saved communication style to help me plan a focused Monday morning work block. Keep it practical and short."
+  context: "user message 1 in example chat: Memory Ai Communication Style. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: AI communication style memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Ai Communication Style. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   de: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   zh: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   es: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   fr: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   pt: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ru: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ja: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ko: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   it: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   tr: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   vi: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   id: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   pl: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   nl: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   ar: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   hi: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   th: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   cs: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   sv: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   he: |
-    Based on your preference for a **Concise technical coach** style, here is a high-efficiency 3-hour [Monday](wiki:Monday) work block designed for maximum output.
+    As a concise technical coach, I have designed the following focused Monday morning work block to optimize your cognitive performance and technical output:
     
-    ### Monday Morning Focus Block (08:00 – 11:00)
+    **08:00 – 08:30 | Strategic Triage**
+    *   Review repository updates and urgent communications.
+    *   Define three high-impact objectives for the day.
+    *   Close all non-essential browser tabs and notifications.
     
-    ```json
-    {"type": "sheet", "embed_id": "bb2f5aa1-d838-4d88-8c2e-d54ecf3cd069"}
-    ```
+    **08:30 – 10:30 | Deep Work: Technical Execution**
+    *   Allocate this 120-minute block to your most complex task (coding, architecture design, or debugging).
+    *   Utilize the [Pomodoro Technique](wiki:Pomodoro_Technique) if needed, but prioritize flow state.
     
+    **10:30 – 10:45 | Physiological Reset**
+    *   Step away from all screens.
+    *   Hydrate and perform light stretching to mitigate physical fatigue.
     
-    ### Practical Execution
-    *   **Environment:** Place your phone in another room to eliminate cognitive switching.
-    *   **Intervals:** Use the **[Pomodoro Technique](wiki:Pomodoro_Technique)** (50/10) if you find your focus waning.
-    *   **Priority:** Identify your "One Big Thing" the night before to avoid decision fatigue at 08:00.
-    
-    How would you like to refine this block for your specific stack or project type?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "work_block_refinement",
-      "multiple": false,
-      "question": "What is your primary objective for this Monday block?",
-      "options": [
-        { "id": "coding", "text": "Deep Feature Development / Coding" },
-        { "id": "architecture", "text": "System Design & Architecture" },
-        { "id": "maintenance", "text": "Debugging & Maintenance" },
-        { "id": "planning", "text": "Strategic Planning & Meetings" }
-      ]
-    }
-    ```
-
-    ```json
-    {"type": "code", "embed_id": "ae887bab-ca42-4988-b516-520596a74790"}
-    ```
+    **10:45 – 12:00 | Secondary Tasks & Collaborative Sync**
+    *   Address code reviews or smaller technical debt.
+    *   Engage in necessary team coordination.
+    *   Finalize documentation for the morning's progress.
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   verified_by_human: []

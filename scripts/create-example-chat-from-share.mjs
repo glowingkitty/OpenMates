@@ -371,22 +371,37 @@ function validateExtractedChat(chat) {
 
 function readExistingMetadata(slug) {
   const filePath = path.join(EXAMPLE_DATA_DIR, `${slug}.ts`);
-  if (!existsSync(filePath)) return { order: null, appFocusModeExamples: [], activeFocusId: null };
+  if (!existsSync(filePath)) {
+    return {
+      order: null,
+      appSkillExamples: [],
+      appFocusModeExamples: [],
+      appSettingsMemoryExamples: [],
+      contentEmbedExamples: [],
+      activeFocusId: null,
+    };
+  }
   const source = readFileSync(filePath, 'utf8');
   const orderMatch = source.match(/order:\s*(\d+)/);
+  const appSkillMatch = source.match(/app_skill_examples:\s*(\[[^\]]*\])/);
   const appFocusMatch = source.match(/app_focus_mode_examples:\s*(\[[^\]]*\])/);
+  const appMemoryMatch = source.match(/app_settings_memory_examples:\s*(\[[^\]]*\])/);
+  const contentEmbedMatch = source.match(/content_embed_examples:\s*(\[[^\]]*\])/);
   const activeFocusMatch = source.match(/active_focus_id:\s*"((?:\\.|[^"])*)"/);
-  let appFocusModeExamples = [];
-  if (appFocusMatch) {
+  function parseArray(match) {
+    if (!match) return [];
     try {
-      appFocusModeExamples = JSON.parse(appFocusMatch[1]);
+      return JSON.parse(match[1]);
     } catch {
-      appFocusModeExamples = [];
+      return [];
     }
   }
   return {
     order: orderMatch ? Number(orderMatch[1]) : null,
-    appFocusModeExamples,
+    appSkillExamples: parseArray(appSkillMatch),
+    appFocusModeExamples: parseArray(appFocusMatch),
+    appSettingsMemoryExamples: parseArray(appMemoryMatch),
+    contentEmbedExamples: parseArray(contentEmbedMatch),
     activeFocusId: activeFocusMatch ? JSON.parse(`"${activeFocusMatch[1]}"`) : null,
   };
 }
@@ -477,6 +492,15 @@ function formatTs(chat, metadata) {
   const appFocusLine = metadata.appFocusModeExamples.length > 0
     ? `\n    app_focus_mode_examples: ${tsArray(metadata.appFocusModeExamples)},`
     : '';
+  const appSkillLine = metadata.appSkillExamples.length > 0
+    ? `\n    app_skill_examples: ${tsArray(metadata.appSkillExamples)},`
+    : '';
+  const appMemoryLine = metadata.appSettingsMemoryExamples.length > 0
+    ? `\n    app_settings_memory_examples: ${tsArray(metadata.appSettingsMemoryExamples)},`
+    : '';
+  const contentEmbedLine = metadata.contentEmbedExamples.length > 0
+    ? `\n    content_embed_examples: ${tsArray(metadata.contentEmbedExamples)},`
+    : '';
   const activeFocusLine = metadata.activeFocusId
     ? `\n    active_focus_id: ${tsString(metadata.activeFocusId)},`
     : '';
@@ -502,7 +526,7 @@ export const ${varName}: ExampleChat = {
   embeds: ${JSON.stringify(embeds, null, 4)},${subChatsLine}
   metadata: {
     featured: ${metadata.featured},
-    order: ${metadata.order},${appFocusLine}${activeFocusLine}
+    order: ${metadata.order},${appSkillLine}${appFocusLine}${appMemoryLine}${contentEmbedLine}${activeFocusLine}
   },
 };
 `;
@@ -614,9 +638,12 @@ function main() {
     keywords: args.keywords,
     featured: args.featured,
     followUps: Array.isArray(chat.follow_up_suggestions) ? chat.follow_up_suggestions : [],
+    appSkillExamples: existingMetadata.appSkillExamples,
     appFocusModeExamples: args.appFocusModeExamples.length > 0
       ? args.appFocusModeExamples
       : existingMetadata.appFocusModeExamples,
+    appSettingsMemoryExamples: existingMetadata.appSettingsMemoryExamples,
+    contentEmbedExamples: existingMetadata.contentEmbedExamples,
     activeFocusId: args.activeFocusId || existingMetadata.activeFocusId,
     order: existingMetadata.order ?? nextOrder(slug),
     chatId: `example-${shortChatId(slug)}`,

@@ -50,27 +50,27 @@ summary:
 
 message_1:
   context: "user message 1 in example chat: Chickpea Spinach Protein Dinners. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  de: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  zh: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  es: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  fr: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  pt: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  ru: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  ja: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  ko: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  it: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  tr: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  vi: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  id: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  pl: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  nl: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  ar: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  hi: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  th: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  cs: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  sv: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  he: "@skill:nutrition:search_recipes Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  en: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  de: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  zh: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  es: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  fr: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  pt: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  ru: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  ja: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  ko: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  it: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  tr: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  vi: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  id: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  pl: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  nl: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  ar: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  hi: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  th: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  cs: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  sv: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  he: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
   verified_by_human: []
 
 message_2:
@@ -1147,4 +1147,3 @@ message_2:
     *   [Add ingredients to your shopping list](/#settings/apps/shopping)
     *   [Set a reminder to cook tonight](/#settings/apps/reminder)
   verified_by_human: []
-

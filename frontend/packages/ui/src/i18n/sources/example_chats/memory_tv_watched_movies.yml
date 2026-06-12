@@ -1,247 +1,205 @@
 title:
-  context: "Title of example chat: Watched movies memory"
-  en: "Watched movies memory"
-  de: "Watched movies memory"
-  zh: "Watched movies memory"
-  es: "Watched movies memory"
-  fr: "Watched movies memory"
-  pt: "Watched movies memory"
-  ru: "Watched movies memory"
-  ja: "Watched movies memory"
-  ko: "Watched movies memory"
-  it: "Watched movies memory"
-  tr: "Watched movies memory"
-  vi: "Watched movies memory"
-  id: "Watched movies memory"
-  pl: "Watched movies memory"
-  nl: "Watched movies memory"
-  ar: "Watched movies memory"
-  hi: "Watched movies memory"
-  th: "Watched movies memory"
-  cs: "Watched movies memory"
-  sv: "Watched movies memory"
-  he: "Watched movies memory"
+  context: "Title of example chat: Memory Tv Watched Movies"
+  en: "Memory Tv Watched Movies"
+  de: "Memory Tv Watched Movies"
+  zh: "Memory Tv Watched Movies"
+  es: "Memory Tv Watched Movies"
+  fr: "Memory Tv Watched Movies"
+  pt: "Memory Tv Watched Movies"
+  ru: "Memory Tv Watched Movies"
+  ja: "Memory Tv Watched Movies"
+  ko: "Memory Tv Watched Movies"
+  it: "Memory Tv Watched Movies"
+  tr: "Memory Tv Watched Movies"
+  vi: "Memory Tv Watched Movies"
+  id: "Memory Tv Watched Movies"
+  pl: "Memory Tv Watched Movies"
+  nl: "Memory Tv Watched Movies"
+  ar: "Memory Tv Watched Movies"
+  hi: "Memory Tv Watched Movies"
+  th: "Memory Tv Watched Movies"
+  cs: "Memory Tv Watched Movies"
+  sv: "Memory Tv Watched Movies"
+  he: "Memory Tv Watched Movies"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Watched movies memory"
-  en: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  de: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  zh: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  es: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  fr: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  pt: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  ru: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  ja: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  ko: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  it: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  tr: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  vi: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  id: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  pl: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  nl: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  ar: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  hi: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  th: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  cs: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  sv: "See how a watched-movie memory guides a thoughtful movie recommendation."
-  he: "See how a watched-movie memory guides a thoughtful movie recommendation."
+  context: "Summary of example chat: Memory Tv Watched Movies"
+  en: "OpenMates uses saved tv watched_movies memory in a real chat."
+  de: "OpenMates uses saved tv watched_movies memory in a real chat."
+  zh: "OpenMates uses saved tv watched_movies memory in a real chat."
+  es: "OpenMates uses saved tv watched_movies memory in a real chat."
+  fr: "OpenMates uses saved tv watched_movies memory in a real chat."
+  pt: "OpenMates uses saved tv watched_movies memory in a real chat."
+  ru: "OpenMates uses saved tv watched_movies memory in a real chat."
+  ja: "OpenMates uses saved tv watched_movies memory in a real chat."
+  ko: "OpenMates uses saved tv watched_movies memory in a real chat."
+  it: "OpenMates uses saved tv watched_movies memory in a real chat."
+  tr: "OpenMates uses saved tv watched_movies memory in a real chat."
+  vi: "OpenMates uses saved tv watched_movies memory in a real chat."
+  id: "OpenMates uses saved tv watched_movies memory in a real chat."
+  pl: "OpenMates uses saved tv watched_movies memory in a real chat."
+  nl: "OpenMates uses saved tv watched_movies memory in a real chat."
+  ar: "OpenMates uses saved tv watched_movies memory in a real chat."
+  hi: "OpenMates uses saved tv watched_movies memory in a real chat."
+  th: "OpenMates uses saved tv watched_movies memory in a real chat."
+  cs: "OpenMates uses saved tv watched_movies memory in a real chat."
+  sv: "OpenMates uses saved tv watched_movies memory in a real chat."
+  he: "OpenMates uses saved tv watched_movies memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Watched movies memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  de: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  zh: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  es: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  fr: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  pt: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  ru: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  ja: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  ko: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  it: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  tr: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  vi: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  id: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  pl: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  nl: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  ar: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  hi: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  th: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  cs: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  sv: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
-  he: "Plain text only, no links or embeds: use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why."
+  context: "user message 1 in example chat: Memory Tv Watched Movies. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Watched movies memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Tv Watched Movies. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   de: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   zh: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   es: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   fr: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   pt: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   ru: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   ja: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   ko: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   it: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   tr: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   vi: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   id: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   pl: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   nl: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   ar: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   hi: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   th: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   cs: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   sv: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   he: |
-    Hi! I am happy to help you find something great to watch. Looking at your movie history, it is clear that Arrival left a big impression on you. You noted that you loved the thoughtful approach to science fiction and the emotional weight of the ending. 
+    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
     
-    Since you are looking for something thoughtful tonight that matches that vibe, I highly recommend watching the 1997 film Contact.
+    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
     
-    The reason I chose this for you is that it shares a very similar DNA with Arrival. It is a first-contact story that avoids the usual tropes of explosions or alien invasions. Instead, it focuses on the intellectual and emotional process of trying to communicate with something from another world. Just like Arrival used linguistics to explore human connection, Contact uses the language of mathematics and science to explore the intersection of faith and discovery. It centers on a scientist who is searching for meaning in the stars while dealing with her own personal history and grief, which provides that same "thoughtful sci-fi" and emotional core you enjoyed in Denis Villeneuve's work.
-    
-    Have you seen Contact before, or would you prefer a recommendation for something more recent? Also, since you seem to be a fan of Denis Villeneuve, we could look into some of his other films like Blade Runner 2049 or Incendies if you haven't checked those out yet!
+    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   verified_by_human: []
 

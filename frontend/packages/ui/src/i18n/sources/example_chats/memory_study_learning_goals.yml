@@ -1,1276 +1,1255 @@
 title:
-  context: "Title of example chat: Study goal memory"
-  en: "Study goal memory"
-  de: "Study goal memory"
-  zh: "Study goal memory"
-  es: "Study goal memory"
-  fr: "Study goal memory"
-  pt: "Study goal memory"
-  ru: "Study goal memory"
-  ja: "Study goal memory"
-  ko: "Study goal memory"
-  it: "Study goal memory"
-  tr: "Study goal memory"
-  vi: "Study goal memory"
-  id: "Study goal memory"
-  pl: "Study goal memory"
-  nl: "Study goal memory"
-  ar: "Study goal memory"
-  hi: "Study goal memory"
-  th: "Study goal memory"
-  cs: "Study goal memory"
-  sv: "Study goal memory"
-  he: "Study goal memory"
+  context: "Title of example chat: Memory Study Learning Goals"
+  en: "Memory Study Learning Goals"
+  de: "Memory Study Learning Goals"
+  zh: "Memory Study Learning Goals"
+  es: "Memory Study Learning Goals"
+  fr: "Memory Study Learning Goals"
+  pt: "Memory Study Learning Goals"
+  ru: "Memory Study Learning Goals"
+  ja: "Memory Study Learning Goals"
+  ko: "Memory Study Learning Goals"
+  it: "Memory Study Learning Goals"
+  tr: "Memory Study Learning Goals"
+  vi: "Memory Study Learning Goals"
+  id: "Memory Study Learning Goals"
+  pl: "Memory Study Learning Goals"
+  nl: "Memory Study Learning Goals"
+  ar: "Memory Study Learning Goals"
+  hi: "Memory Study Learning Goals"
+  th: "Memory Study Learning Goals"
+  cs: "Memory Study Learning Goals"
+  sv: "Memory Study Learning Goals"
+  he: "Memory Study Learning Goals"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Study goal memory"
-  en: "See how a saved learning goal becomes a one-week study plan."
-  de: "See how a saved learning goal becomes a one-week study plan."
-  zh: "See how a saved learning goal becomes a one-week study plan."
-  es: "See how a saved learning goal becomes a one-week study plan."
-  fr: "See how a saved learning goal becomes a one-week study plan."
-  pt: "See how a saved learning goal becomes a one-week study plan."
-  ru: "See how a saved learning goal becomes a one-week study plan."
-  ja: "See how a saved learning goal becomes a one-week study plan."
-  ko: "See how a saved learning goal becomes a one-week study plan."
-  it: "See how a saved learning goal becomes a one-week study plan."
-  tr: "See how a saved learning goal becomes a one-week study plan."
-  vi: "See how a saved learning goal becomes a one-week study plan."
-  id: "See how a saved learning goal becomes a one-week study plan."
-  pl: "See how a saved learning goal becomes a one-week study plan."
-  nl: "See how a saved learning goal becomes a one-week study plan."
-  ar: "See how a saved learning goal becomes a one-week study plan."
-  hi: "See how a saved learning goal becomes a one-week study plan."
-  th: "See how a saved learning goal becomes a one-week study plan."
-  cs: "See how a saved learning goal becomes a one-week study plan."
-  sv: "See how a saved learning goal becomes a one-week study plan."
-  he: "See how a saved learning goal becomes a one-week study plan."
+  context: "Summary of example chat: Memory Study Learning Goals"
+  en: "OpenMates uses saved study learning_goals memory in a real chat."
+  de: "OpenMates uses saved study learning_goals memory in a real chat."
+  zh: "OpenMates uses saved study learning_goals memory in a real chat."
+  es: "OpenMates uses saved study learning_goals memory in a real chat."
+  fr: "OpenMates uses saved study learning_goals memory in a real chat."
+  pt: "OpenMates uses saved study learning_goals memory in a real chat."
+  ru: "OpenMates uses saved study learning_goals memory in a real chat."
+  ja: "OpenMates uses saved study learning_goals memory in a real chat."
+  ko: "OpenMates uses saved study learning_goals memory in a real chat."
+  it: "OpenMates uses saved study learning_goals memory in a real chat."
+  tr: "OpenMates uses saved study learning_goals memory in a real chat."
+  vi: "OpenMates uses saved study learning_goals memory in a real chat."
+  id: "OpenMates uses saved study learning_goals memory in a real chat."
+  pl: "OpenMates uses saved study learning_goals memory in a real chat."
+  nl: "OpenMates uses saved study learning_goals memory in a real chat."
+  ar: "OpenMates uses saved study learning_goals memory in a real chat."
+  hi: "OpenMates uses saved study learning_goals memory in a real chat."
+  th: "OpenMates uses saved study learning_goals memory in a real chat."
+  cs: "OpenMates uses saved study learning_goals memory in a real chat."
+  sv: "OpenMates uses saved study learning_goals memory in a real chat."
+  he: "OpenMates uses saved study learning_goals memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Study goal memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  de: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  zh: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  es: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  fr: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  pt: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  ru: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  ja: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  ko: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  it: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  tr: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  vi: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  id: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  pl: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  nl: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  ar: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  hi: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  th: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  cs: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  sv: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
-  he: "Use my saved study goal memory to build a one-week study plan with a practical exercise."
+  context: "user message 1 in example chat: Memory Study Learning Goals. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Study goal memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Study Learning Goals. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   de: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   zh: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   es: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   fr: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   pt: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   ru: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   ja: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   ko: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   it: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   tr: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   vi: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   id: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   pl: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   nl: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   ar: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   hi: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   th: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   cs: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   sv: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   he: |
-    Based on your saved learning goals, I see you're focusing on **intermediate Linear Algebra for machine learning and graphics**, with a specific emphasis on **intuition, matrix operations, and eigenvectors**. 
+    Based on your saved goal for [Linear Algebra](wiki:Linear_Algebra) (intermediate level) with a focus on [Machine Learning](wiki:Machine_learning) and [Computer Graphics](wiki:Computer_graphics), here is your one-week study plan. Since you want to focus on intuition and practical application before your July 31st deadline, this plan emphasizes the "why" behind the math.
     
-    Since you already have the foundational concepts down, this one-week plan skips the absolute basics and dives straight into geometrical intuition, computational practice, and real-world applications.
+    ### One-Week Linear Algebra Intensive
     
-    ### 📅 One-Week Study Plan: Linear Algebra for ML & Graphics
+    **Day 1: Vector Spaces and Geometric Intuition**
+    *   **Focus:** Think of vectors as movements in space rather than just lists of numbers.
+    *   **Topic:** Review vector addition and scalar multiplication through the lens of [Linear Combinations](wiki:Linear_combination) and "Span."
+    *   **Goal:** Understand how [Basis](wiki:Basis_(linear_algebra)) vectors define a coordinate system.
     
-    **Day 1: The Geometry of Matrix Transformations (Intuition Focus)**
-    *   **Goal:** Stop thinking of matrices as grids of numbers and start seeing them as functions that transform space.
-    *   **Action:** Review how a $2 \times 2$ matrix alters the standard basis vectors ($\hat{i}$ and $\hat{j}$). Watch 3Blue1Brown's *Essence of Linear Algebra* chapters on Linear Transformations and Matrix Multiplication.
-    *   **Takeaway:** Every matrix multiplication is a rotation, scaling, or shear of space.
+    **Day 2: Matrices as Functions (The Graphics Perspective)**
+    *   **Focus:** Stop seeing a matrix as a box of numbers and start seeing it as a "transformation" of space.
+    *   **Topic:** Linear Transformations, specifically how matrices can stretch, rotate, or shear a grid.
+    *   **Goal:** Visualize how a 2x2 matrix moves the unit square.
     
-    **Day 2: Matrix Operations in Practice (ML Focus)**
-    *   **Goal:** Translate your theoretical understanding into code.
-    *   **Action:** Set up a Python environment with NumPy. Practice dot products, matrix multiplication (`np.dot` and the `@` operator), and transposing. 
-    *   **Takeaway:** Understand the broadcasting rules in NumPy and how matrix multiplication relates to processing batches of data in neural networks.
+    **Day 3: Matrix Multiplication and Composition**
+    *   **Focus:** Why is matrix multiplication not commutative?
+    *   **Topic:** Matrix-vector and matrix-matrix multiplication as "applying one transformation after another."
+    *   **Goal:** Relate this to stacking layers in a neural network or chaining transforms in a graphics pipeline.
     
-    **Day 3: Determinants and Inverses (Graphics Focus)**
-    *   **Goal:** Understand the geometric meaning of determinants.
-    *   **Action:** Learn how the determinant measures how much a transformation scales area (or volume in 3D). Understand *why* a determinant of $0$ means the matrix squishes space into a lower dimension (making it irreversible/non-invertible).
-    *   **Takeaway:** In 3D graphics, if a transformation matrix has a determinant of $0$, your 3D object just got flattened into a 2D plane!
+    **Day 4: The Determinant and Inverses**
+    *   **Focus:** The "scaling factor" of space.
+    *   **Topic:** The [Determinant](wiki:Determinant) (area/volume change) and the [Invertible Matrix](wiki:Invertible_matrix).
+    *   **Goal:** Understand that a zero determinant means the transformation squashes space into a lower dimension (data loss).
     
-    **Day 4: Eigenvectors & Eigenvalues - The Theory**
-    *   **Goal:** Demystify the equation $Av = \lambda v$.
-    *   **Action:** Conceptually grasp that most vectors get knocked off their span during a transformation. **Eigenvectors** are the special vectors that stay on their original line—they are only stretched or squished by a factor of their **eigenvalue** ($\lambda$).
-    *   **Takeaway:** Eigenvectors give us the "axes of transformation" for any given matrix.
+    **Day 5: Eigenvalues and Eigenvectors (Intuition)**
+    *   **Focus:** Finding the "fixed" directions of a transformation.
+    *   **Topic:** [Eigenvalues and Eigenvectors](wiki:Eigenvalues_and_eigenvectors).
+    *   **Goal:** Identify the vectors that only get scaled (not knocked off their span) during a transformation.
     
-    **Day 5: Calculating Eigendecomposition**
-    *   **Goal:** Learn how to find them programmatically and mathematically.
-    *   **Action:** Practice finding eigenvalues by solving the characteristic equation $\det(A - \lambda I) = 0$ on paper for a simple $2 \times 2$ matrix, then learn to do it instantly in Python using `np.linalg.eig()`.
+    **Day 6: Singular Value Decomposition (SVD) and PCA**
+    *   **Focus:** Data compression and feature extraction.
+    *   **Topic:** [Singular Value Decomposition](wiki:Singular_value_decomposition) and its relation to [Principal Component Analysis](wiki:Principal_component_analysis).
+    *   **Goal:** Conceptualize how high-dimensional data is projected onto the most "important" axes.
     
-    **Day 6: Tying it to Machine Learning (PCA)**
-    *   **Goal:** Understand Principal Component Analysis (PCA).
-    *   **Action:** Read up on how the eigenvectors of a dataset's *covariance matrix* represent the directions of maximum variance. This is how ML models reduce dimensions (e.g., shrinking a 1000-pixel image to 50 essential features) without losing the core information.
+    **Day 7: Practical Exercise and Review**
+    *   **Focus:** Applying the theory to a logical problem.
+    *   **Activity:** Complete the exercise below and review the "Eigen-decomposition" concept as it bridges ML and graphics.
     
-    **Day 7: Practical Exercise day!**
+    ---
     
-    ***
+    ### Practical Exercise: The 2D Rotation Logic
     
-    ### 💻 Practical Exercise: Transformations & Eigenvectors in Code
+    In [Computer Graphics](wiki:Computer_graphics), to rotate a point $(x, y)$ by an angle $\theta$ around the origin, we use a rotation matrix.
     
-    Here is an intermediate-level Python exercise using NumPy and Matplotlib. It covers both of your core interests: transforming shapes (Graphics) and finding principal directions (ML).
+    **The Task:**
+    Imagine you have a point at coordinates $(1, 0)$ on a 2D plane. You want to rotate this point $90^\circ$ (which is $\pi/2$ radians) counter-clockwise.
     
-    **Your Task:**
-    1. Run this code in a Jupyter Notebook or a local Python script.
-    2. Observe how the matrix "shears" the original data points.
-    3. Look at the plotted eigenvectors (the red and green arrows). Notice how they point exactly in the directions where the data is being stretched the most and the least!
+    1.  **Construct the Matrix:** Use the standard 2D rotation matrix:
+        $$R = \begin{bmatrix} \cos(\theta) & -\sin(\theta) \\ \sin(\theta) & \cos(\theta) \end{bmatrix}$$
+    2.  **Calculate:** Substitute $\theta = 90^\circ$. Remember that $\cos(90^\circ) = 0$ and $\sin(90^\circ) = 1$.
+    3.  **Transform:** Multiply the matrix by the vector $\begin{bmatrix} 1 \\ 0 \end{bmatrix}$.
+    4.  **Verify the Intuition:** Does the result $(\text{new } x, \text{new } y)$ match where you would expect the point to land if you rotated it a quarter-turn on a graph?
     
-    ```json
-    {"type": "code", "embed_id": "225b9a26-fe76-4c0a-97ac-b79f19ce6fc1"}
-    ```
-    
-    
-    
-    ### Next Steps
-    
-    How does this pace look to you? If you want, we could use the interactive prompt right now to test your geometric intuition on what happens to a $2 \times 2$ matrix when its determinant is exactly `0`, or we could dive deeper into how this specifically applies to the ML topic you mentioned for July.
+    **Logic Check:**
+    If performed correctly, your point $(1, 0)$ should transform to $(0, 1)$. This confirms that the matrix successfully "pushed" the x-axis basis vector onto the y-axis.
   verified_by_human: []
 

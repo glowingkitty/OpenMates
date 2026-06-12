@@ -1,835 +1,163 @@
 title:
-  context: "Title of example chat: To-read list memory"
-  en: "To-read list memory"
-  de: "To-read list memory"
-  zh: "To-read list memory"
-  es: "To-read list memory"
-  fr: "To-read list memory"
-  pt: "To-read list memory"
-  ru: "To-read list memory"
-  ja: "To-read list memory"
-  ko: "To-read list memory"
-  it: "To-read list memory"
-  tr: "To-read list memory"
-  vi: "To-read list memory"
-  id: "To-read list memory"
-  pl: "To-read list memory"
-  nl: "To-read list memory"
-  ar: "To-read list memory"
-  hi: "To-read list memory"
-  th: "To-read list memory"
-  cs: "To-read list memory"
-  sv: "To-read list memory"
-  he: "To-read list memory"
+  context: "Title of example chat: Memory Books To Read List"
+  en: "Memory Books To Read List"
+  de: "Memory Books To Read List"
+  zh: "Memory Books To Read List"
+  es: "Memory Books To Read List"
+  fr: "Memory Books To Read List"
+  pt: "Memory Books To Read List"
+  ru: "Memory Books To Read List"
+  ja: "Memory Books To Read List"
+  ko: "Memory Books To Read List"
+  it: "Memory Books To Read List"
+  tr: "Memory Books To Read List"
+  vi: "Memory Books To Read List"
+  id: "Memory Books To Read List"
+  pl: "Memory Books To Read List"
+  nl: "Memory Books To Read List"
+  ar: "Memory Books To Read List"
+  hi: "Memory Books To Read List"
+  th: "Memory Books To Read List"
+  cs: "Memory Books To Read List"
+  sv: "Memory Books To Read List"
+  he: "Memory Books To Read List"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: To-read list memory"
-  en: "See how a saved to-read list helps choose the right book for a train ride."
-  de: "See how a saved to-read list helps choose the right book for a train ride."
-  zh: "See how a saved to-read list helps choose the right book for a train ride."
-  es: "See how a saved to-read list helps choose the right book for a train ride."
-  fr: "See how a saved to-read list helps choose the right book for a train ride."
-  pt: "See how a saved to-read list helps choose the right book for a train ride."
-  ru: "See how a saved to-read list helps choose the right book for a train ride."
-  ja: "See how a saved to-read list helps choose the right book for a train ride."
-  ko: "See how a saved to-read list helps choose the right book for a train ride."
-  it: "See how a saved to-read list helps choose the right book for a train ride."
-  tr: "See how a saved to-read list helps choose the right book for a train ride."
-  vi: "See how a saved to-read list helps choose the right book for a train ride."
-  id: "See how a saved to-read list helps choose the right book for a train ride."
-  pl: "See how a saved to-read list helps choose the right book for a train ride."
-  nl: "See how a saved to-read list helps choose the right book for a train ride."
-  ar: "See how a saved to-read list helps choose the right book for a train ride."
-  hi: "See how a saved to-read list helps choose the right book for a train ride."
-  th: "See how a saved to-read list helps choose the right book for a train ride."
-  cs: "See how a saved to-read list helps choose the right book for a train ride."
-  sv: "See how a saved to-read list helps choose the right book for a train ride."
-  he: "See how a saved to-read list helps choose the right book for a train ride."
+  context: "Summary of example chat: Memory Books To Read List"
+  en: "OpenMates uses saved books to_read_list memory in a real chat."
+  de: "OpenMates uses saved books to_read_list memory in a real chat."
+  zh: "OpenMates uses saved books to_read_list memory in a real chat."
+  es: "OpenMates uses saved books to_read_list memory in a real chat."
+  fr: "OpenMates uses saved books to_read_list memory in a real chat."
+  pt: "OpenMates uses saved books to_read_list memory in a real chat."
+  ru: "OpenMates uses saved books to_read_list memory in a real chat."
+  ja: "OpenMates uses saved books to_read_list memory in a real chat."
+  ko: "OpenMates uses saved books to_read_list memory in a real chat."
+  it: "OpenMates uses saved books to_read_list memory in a real chat."
+  tr: "OpenMates uses saved books to_read_list memory in a real chat."
+  vi: "OpenMates uses saved books to_read_list memory in a real chat."
+  id: "OpenMates uses saved books to_read_list memory in a real chat."
+  pl: "OpenMates uses saved books to_read_list memory in a real chat."
+  nl: "OpenMates uses saved books to_read_list memory in a real chat."
+  ar: "OpenMates uses saved books to_read_list memory in a real chat."
+  hi: "OpenMates uses saved books to_read_list memory in a real chat."
+  th: "OpenMates uses saved books to_read_list memory in a real chat."
+  cs: "OpenMates uses saved books to_read_list memory in a real chat."
+  sv: "OpenMates uses saved books to_read_list memory in a real chat."
+  he: "OpenMates uses saved books to_read_list memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: To-read list memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  de: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  zh: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  es: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  fr: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  pt: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  ru: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  ja: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  ko: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  it: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  tr: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  vi: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  id: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  pl: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  nl: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  ar: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  hi: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  th: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  cs: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  sv: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
-  he: "Use my saved to-read memory to help me choose what to start on a long train ride this week."
+  context: "user message 1 in example chat: Memory Books To Read List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: To-read list memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Books To Read List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "a5ce4cb1-e3c1-4ff0-8a42-49655d5e971e", "app_id": "images", "skill_id": "search", "query": "Dune Frank Herbert book cover", "provider": "Brave Search"}
-    ```
+    Based on your books-to-read list, the ideal choice for your upcoming long train ride is **[Dune](wiki:Dune_(novel))** by **[Frank Herbert](wiki:Frank_Herbert)**.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "e3a0ccde-d849-4737-8d8c-ceda75df47d8", "app_id": "web", "skill_id": "search", "query": "Dune Frank Herbert book summary and length for reading time", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "9ff43565-7cfa-4841-b2a4-90e832750dc7", "app_id": "web", "skill_id": "search", "query": "best immersive science fiction books for long train rides similar to Dune", "provider": "Brave"}
-    ```
-    
-    Based on your **to-read list**, you have a very clear winner for your train ride: [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert).
-    
-    Interestingly, you have this book saved twice in your memories—once noting it as a "big immersive book for a quiet vacation" and again as a "high priority for worldbuilding inspiration." A long train ride is the perfect environment for this; the "labor of reading" it often requires (due to its dense political and ecological detail) is much easier to tackle when you have hours of uninterrupted travel.
-    
-    ### Why *Dune* fits your trip:
-    *   **Immersion & Scale:** At roughly 133,000 words (about 600–800 pages), it is a massive epic that will easily span a long cross-country journey. 
-    *   **Worldbuilding Masterclass:** Since you are looking for "worldbuilding inspiration," *Dune* is the gold standard. It creates a complete ecosystem on the desert planet [Arrakis](wiki:Arrakis), featuring complex cultures like the [Fremen](wiki:Fremen) and the intricate "spice" economy.
-    *   **Atmosphere:** The vast, sweeping landscapes of the novel often pair beautifully with watching the world go by through a train window.
-    
-    [!](embed:etsy.com-gY2)
-    [!](embed:postmarkedfromthestars.com-NuH)
-    [!](embed:amazon.com-9SY)
-    
-    ### Backups (In case you've already started *Dune*):
-    Since your list is currently focused entirely on *Dune*, I searched for a few alternatives that match your preference for "big, immersive worldbuilding":
-    
-    1.  **Foundation by [Isaac Asimov](wiki:Isaac_Asimov):** If you enjoy the "galactic empire" scale and political intrigue of *Dune*, this is the other pillar of classic sci-fi. It focuses on the fall of a civilization and the use of "psychohistory" to save it.
-    2.  **[Hyperion](wiki:Hyperion_(Simmons_novel)) by [Dan_Simmons](wiki:Dan_Simmons):** Often described as the *Canterbury Tales* of science fiction, it features multiple perspectives and some of the most haunting worldbuilding in the genre (including the mysterious Shrike).
-    3.  **[The Fifth Season](wiki:The_Fifth_Season_(novel)) by [N. K. Jemisin](wiki:N._K._Jemisin):** For something more modern, this provides incredible worldbuilding inspiration centered on a planet plagued by catastrophic geological "seasons."
-    
-    **Next Steps:**
-    *   Do you already have a physical copy of *Dune*, or would you like me to find the [nearest bookstore](/#settings/apps/maps) along your route?
-    *   Would you like me to add one of those backups to your [to-read list](/#settings/apps/books) as a "Plan B"?
+    You specifically noted that this [science fiction](wiki:Science_fiction) classic is a high-priority, "big immersive book" perfect for a quiet trip. A long train journey provides the necessary dedicated time to sink into its dense world-building and complex themes of [ecology](wiki:Ecology), [religion](wiki:Religion), and [politics](wiki:Politics). Since you also mentioned it as a source for world-building inspiration, the uninterrupted hours on the rails will allow you to fully appreciate Herbert's intricate construction of the desert planet [Arrakis](wiki:Arrakis).
   verified_by_human: []
 

@@ -1,1423 +1,310 @@
 title:
-  context: "Title of example chat: Preferred tech memory"
-  en: "Preferred tech memory"
-  de: "Preferred tech memory"
-  zh: "Preferred tech memory"
-  es: "Preferred tech memory"
-  fr: "Preferred tech memory"
-  pt: "Preferred tech memory"
-  ru: "Preferred tech memory"
-  ja: "Preferred tech memory"
-  ko: "Preferred tech memory"
-  it: "Preferred tech memory"
-  tr: "Preferred tech memory"
-  vi: "Preferred tech memory"
-  id: "Preferred tech memory"
-  pl: "Preferred tech memory"
-  nl: "Preferred tech memory"
-  ar: "Preferred tech memory"
-  hi: "Preferred tech memory"
-  th: "Preferred tech memory"
-  cs: "Preferred tech memory"
-  sv: "Preferred tech memory"
-  he: "Preferred tech memory"
+  context: "Title of example chat: Memory Code Preferred Tech"
+  en: "Memory Code Preferred Tech"
+  de: "Memory Code Preferred Tech"
+  zh: "Memory Code Preferred Tech"
+  es: "Memory Code Preferred Tech"
+  fr: "Memory Code Preferred Tech"
+  pt: "Memory Code Preferred Tech"
+  ru: "Memory Code Preferred Tech"
+  ja: "Memory Code Preferred Tech"
+  ko: "Memory Code Preferred Tech"
+  it: "Memory Code Preferred Tech"
+  tr: "Memory Code Preferred Tech"
+  vi: "Memory Code Preferred Tech"
+  id: "Memory Code Preferred Tech"
+  pl: "Memory Code Preferred Tech"
+  nl: "Memory Code Preferred Tech"
+  ar: "Memory Code Preferred Tech"
+  hi: "Memory Code Preferred Tech"
+  th: "Memory Code Preferred Tech"
+  cs: "Memory Code Preferred Tech"
+  sv: "Memory Code Preferred Tech"
+  he: "Memory Code Preferred Tech"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Preferred tech memory"
-  en: "See how a saved technology preference influences a starter-stack suggestion."
-  de: "See how a saved technology preference influences a starter-stack suggestion."
-  zh: "See how a saved technology preference influences a starter-stack suggestion."
-  es: "See how a saved technology preference influences a starter-stack suggestion."
-  fr: "See how a saved technology preference influences a starter-stack suggestion."
-  pt: "See how a saved technology preference influences a starter-stack suggestion."
-  ru: "See how a saved technology preference influences a starter-stack suggestion."
-  ja: "See how a saved technology preference influences a starter-stack suggestion."
-  ko: "See how a saved technology preference influences a starter-stack suggestion."
-  it: "See how a saved technology preference influences a starter-stack suggestion."
-  tr: "See how a saved technology preference influences a starter-stack suggestion."
-  vi: "See how a saved technology preference influences a starter-stack suggestion."
-  id: "See how a saved technology preference influences a starter-stack suggestion."
-  pl: "See how a saved technology preference influences a starter-stack suggestion."
-  nl: "See how a saved technology preference influences a starter-stack suggestion."
-  ar: "See how a saved technology preference influences a starter-stack suggestion."
-  hi: "See how a saved technology preference influences a starter-stack suggestion."
-  th: "See how a saved technology preference influences a starter-stack suggestion."
-  cs: "See how a saved technology preference influences a starter-stack suggestion."
-  sv: "See how a saved technology preference influences a starter-stack suggestion."
-  he: "See how a saved technology preference influences a starter-stack suggestion."
+  context: "Summary of example chat: Memory Code Preferred Tech"
+  en: "OpenMates uses saved code preferred_tech memory in a real chat."
+  de: "OpenMates uses saved code preferred_tech memory in a real chat."
+  zh: "OpenMates uses saved code preferred_tech memory in a real chat."
+  es: "OpenMates uses saved code preferred_tech memory in a real chat."
+  fr: "OpenMates uses saved code preferred_tech memory in a real chat."
+  pt: "OpenMates uses saved code preferred_tech memory in a real chat."
+  ru: "OpenMates uses saved code preferred_tech memory in a real chat."
+  ja: "OpenMates uses saved code preferred_tech memory in a real chat."
+  ko: "OpenMates uses saved code preferred_tech memory in a real chat."
+  it: "OpenMates uses saved code preferred_tech memory in a real chat."
+  tr: "OpenMates uses saved code preferred_tech memory in a real chat."
+  vi: "OpenMates uses saved code preferred_tech memory in a real chat."
+  id: "OpenMates uses saved code preferred_tech memory in a real chat."
+  pl: "OpenMates uses saved code preferred_tech memory in a real chat."
+  nl: "OpenMates uses saved code preferred_tech memory in a real chat."
+  ar: "OpenMates uses saved code preferred_tech memory in a real chat."
+  hi: "OpenMates uses saved code preferred_tech memory in a real chat."
+  th: "OpenMates uses saved code preferred_tech memory in a real chat."
+  cs: "OpenMates uses saved code preferred_tech memory in a real chat."
+  sv: "OpenMates uses saved code preferred_tech memory in a real chat."
+  he: "OpenMates uses saved code preferred_tech memory in a real chat."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Preferred tech memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  de: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  zh: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  es: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  fr: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  pt: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  ru: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  ja: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  ko: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  it: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  tr: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  vi: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  id: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  pl: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  nl: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  ar: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  hi: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  th: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  cs: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  sv: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
-  he: "Use my saved coding preferences to suggest a starter stack for a small personal dashboard I can build this weekend."
+  context: "user message 1 in example chat: Memory Code Preferred Tech. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Preferred tech memory. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Memory Code Preferred Tech. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "9f338f1d-cb24-4e71-9564-8c2c9c28be04", "app_id": "code", "skill_id": "get_docs"}
-    ```
+    Based on your saved preferences, you have an advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can realistically build and deploy this weekend, I suggest the following starter stack:
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "9e12f67f-29ec-4018-8388-b943ad039eac", "app_id": "code", "skill_id": "search_repos", "query": "sveltekit rust wasm starter"}
-    ```
+    *   **Framework:** [SvelteKit](wiki:SvelteKit) — Utilizing your primary strength for efficient routing and server-side rendering.
+    *   **Styling:** [Tailwind CSS](wiki:Tailwind_CSS) — Ideal for building custom dashboard layouts quickly without writing verbose CSS.
+    *   **UI Components:** **bits-ui** or **shadcn-svelte** — These libraries provide accessible, unstyled components that integrate perfectly with the Svelte ecosystem and Tailwind.
+    *   **Database & Auth:** Supabase — It offers a PostgreSQL database, authentication, and real-time listeners out of the box, which minimizes the time spent on backend boilerplate.
+    *   **Icons:** Lucide (specifically the `lucide-svelte` package) — Provides a clean and consistent icon set for navigation and data visualization.
+    *   **Deployment:** [Vercel](wiki:Vercel) — Offers first-class support for SvelteKit and can have your dashboard live in minutes.
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "2c509338-f661-4e83-9fa5-6e1d4a28138e", "app_id": "web", "skill_id": "search", "query": "best lightweight database for sveltekit weekend project 2026", "provider": "Brave"}
-    ```
-    
-    ```json
-    {"type": "app_skill_use", "embed_id": "94bba0e8-c37a-4959-873d-52699324b92d", "app_id": "web", "skill_id": "search", "query": "sveltekit keyboard navigation library", "provider": "Brave"}
-    ```
-    
-    Since you are already advanced in [SvelteKit](wiki:Svelte) and mentioned a desire to learn [WebAssembly](wiki:WebAssembly) with [Rust](wiki:Rust), I've designed a "Keyboard-First Local Stack" that fits your terminal-driven workflow and preference for small, reviewable diffs.
-    
-    This stack avoids heavy cloud dependencies, keeping everything local to your machine for maximum speed and simplicity this weekend.
-    
-    ### 🛠️ The "Local-First Dash" Stack
-    
-    ```json
-    {"type": "sheet", "embed_id": "46496cdc-9cfa-4273-9886-d85b7ac1a639"}
-    ```
-    
-    
-    ### 🚀 Getting Started (Terminal Workflow)
-    
-    1.  **Initialize SvelteKit:**
-    
-    
-    2.  **Add Rust/WASM Support:**
-        Install `wasm-pack` globally and use the [Vite plugin](embed:rust-wasm-sveltekit-cJc) to automatically compile Rust on save:
-    
-    
-    3.  **Local Database:**
-        Since you prefer keyboard-first, I suggest using `better-sqlite3`. It’s synchronous and works beautifully in SvelteKit `+server.js` or `+page.server.js` routes without complex async overhead.
-    
-    ### 💡 Weekend Project Idea: "Garden Engine"
-    Since you already have the Garden Ledger project, you could build this dashboard as a **"Garden Prediction Engine."**
-    *   **Rust Logic:** Use Rust to calculate harvest dates based on [GDD (Growing Degree Days)](wiki:Growing_degree-day) formulas.
-    *   **Wasm:** Pass your garden history from the Ledger into the Rust module for high-speed simulation.
-    *   **Keyboard:** Bind `j`/`k` for navigation and `n` for "New Entry" to match your terminal habits.
-    
-    ### ❓ Refine Your Weekend Goal
-    To help you further, which "vibe" are you going for this weekend?
-    
-    ```interactive_question
-    {
-      "type": "choice",
-      "id": "dash_theme_choice",
-      "multiple": false,
-      "question": "What kind of dashboard are we building?",
-      "options": [
-        { "id": "garden_extension", "text": "A 'Pro' extension for your Garden Ledger (Stats & Predictions)" },
-        { "id": "system_monitor", "text": "A Local System/Home Monitor (using Rust to poll system APIs)" },
-        { "id": "dev_productivity", "text": "A Keyboard-Centric 'Command Center' for your active git repos" }
-      ]
-    }
-    ```
-    
-    
+    This stack focuses on minimizing configuration time so you can spend the majority of your weekend building the actual dashboard features.
   verified_by_human: []
 

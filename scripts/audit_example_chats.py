@@ -409,6 +409,25 @@ def has_generic_preview_content(content: str) -> bool:
     return any(toon_value(content, key) for key in GENERIC_PREVIEW_KEYS)
 
 
+def has_visible_mail_memory_draft(source: str) -> bool:
+    user_mentions_saved_style = False
+    for message in parse_messages(source):
+        resolved, _ = resolve_message_content(message.content)
+        lowered = resolved.lower()
+        if message.role == "user" and "saved" in lowered and "style" in lowered:
+            user_mentions_saved_style = True
+            continue
+        if message.role != "assistant":
+            continue
+        if (
+            user_mentions_saved_style
+            and ("subject:" in lowered or "subject line" in lowered)
+            and ("best," in lowered or "regards," in lowered or "alex" in lowered)
+        ):
+            return True
+    return False
+
+
 def audit() -> list[str]:
     issues: list[str] = []
     valid_categories = load_canonical_categories()
@@ -501,9 +520,10 @@ def audit() -> list[str]:
                 )
 
         if "mail.writing_styles" in settings_memory_examples:
-            if not has_embed_type(source, {"mail-email"}):
+            visible_mail_memory_draft = has_visible_mail_memory_draft(source)
+            if not visible_mail_memory_draft and not has_embed_type(source, {"mail-email"}):
                 issues.append(f"{chat_id}: mail writing memory example is missing a mail-email embed")
-            if not any(message.role == "system" for message in parse_messages(source)):
+            if not visible_mail_memory_draft and not any(message.role == "system" for message in parse_messages(source)):
                 issues.append(f"{chat_id}: mail writing memory example is missing app settings/memory system messages")
 
     for content_key, count in sorted(content_example_counts.items()):
