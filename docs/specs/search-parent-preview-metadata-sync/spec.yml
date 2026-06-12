@@ -258,8 +258,8 @@ tests:
       expected: pass
       evidence:
         status: "passed"
-        run_id: "local-pytest-21-passed"
-        timestamp: "2026-06-12T09:15:00Z"
+        run_id: "gh-27407834238"
+        timestamp: "2026-06-12T09:43:44Z"
 
   - id: T-PYTEST-002
     type: pytest
@@ -283,8 +283,8 @@ tests:
       expected: pass
       evidence:
         status: "passed"
-        run_id: "local-pytest-21-passed"
-        timestamp: "2026-06-12T09:15:00Z"
+        run_id: "gh-27407834238"
+        timestamp: "2026-06-12T09:43:44Z"
 
   - id: T-AUDIT-001
     type: pytest
@@ -335,9 +335,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: "pending_after_deploy"
-        run_id: ""
-        timestamp: ""
+        status: "passed"
+        run_id: "gh-27407785762"
+        timestamp: "2026-06-12T09:41:59Z"
 
   - id: T-E2E-001
     type: playwright
@@ -363,9 +363,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: "passed"
+        run_id: "gh-27408008736"
+        timestamp: "2026-06-12T09:47:12Z"
 
   - id: T-E2E-002
     type: playwright
@@ -391,9 +391,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: "passed"
+        run_id: "gh-27407687333"
+        timestamp: "2026-06-12T09:40:42Z"
 
 implementation_plan:
   existing_patterns:
