@@ -834,8 +834,6 @@ async function sendMessage(
 				assistantLastText: assistantLastTextBeforeSend
 			});
 			logCheckpoint('Message send accepted after synthetic send fallback.', {
-				userCount: await locatorCount(userMessages),
-				assistantCount: await locatorCount(assistantMessages),
 				assistantCountBeforeSend
 			});
 			return;
@@ -855,8 +853,6 @@ async function sendMessage(
 		assistantLastText: assistantLastTextBeforeSend
 	});
 	logCheckpoint('Message send accepted after send.', {
-		userCount: await locatorCount(userMessages),
-		assistantCount: await locatorCount(assistantMessages),
 		assistantCountBeforeSend
 	});
 }
