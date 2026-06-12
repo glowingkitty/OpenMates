@@ -320,16 +320,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: not_reproduced_existing_spec_passed
+        run_id: "python3 scripts/run_tests.py --suite playwright --spec interactive-questions.spec.ts (old spec passed before answer-only assertion was added; GitHub Actions 27419630077)"
+        timestamp: "2026-06-12"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/run_tests.py --suite playwright --spec interactive-questions.spec.ts (GitHub Actions 27420887742, passed; tested head ef6db6c includes 1a8e169)"
+        timestamp: "2026-06-12"
 
   - id: T-APPLE-001
     type: unit
@@ -348,16 +348,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: not_run
+        run_id: "Apple native answering tests were not added in this checkpoint; only markdown rendering safeguards were implemented."
+        timestamp: "2026-06-12"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked_ssh_failed
+        run_id: "python3 scripts/apple_remote.py status -> ssh_reachable=False"
+        timestamp: "2026-06-12"
 
 implementation_plan:
   existing_patterns:
