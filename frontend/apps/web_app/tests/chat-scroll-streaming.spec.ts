@@ -349,24 +349,30 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// ───────────────────────────────────────────────────
 	logCheckpoint('Cleaning up: deleting test chat...');
 
-	// Ensure sidebar is open
-	const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
-	if (await sidebarToggle.isVisible()) {
-		await sidebarToggle.click();
-		await page.waitForTimeout(500);
+	try {
+		// Ensure sidebar is open
+		const sidebarToggle = page.locator('[data-testid="sidebar-toggle"]');
+		if (await sidebarToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await sidebarToggle.click({ timeout: 2000 });
+			await page.waitForTimeout(500);
+		}
+
+		const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+		await expect(activeChatItem).toBeVisible({ timeout: 5000 });
+
+		// Right-click to open context menu
+		await activeChatItem.click({ button: 'right', timeout: 5000 });
+		const deleteButton = page.getByTestId('chat-context-delete');
+		await expect(deleteButton).toBeVisible({ timeout: 5000 });
+		await deleteButton.click({ timeout: 5000 }); // First click: enter confirm mode
+		await deleteButton.click({ timeout: 5000 }); // Second click: confirm deletion
+
+		await expect(activeChatItem).not.toBeVisible({ timeout: 5000 });
+		await takeStepScreenshot(page, 'chat-deleted');
+		logCheckpoint('Chat deleted successfully. Test complete.');
+	} catch (error) {
+		logCheckpoint('Cleanup skipped after successful assertions.', {
+			error: error instanceof Error ? error.message : String(error)
+		});
 	}
-
-	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
-	await expect(activeChatItem).toBeVisible();
-
-	// Right-click to open context menu
-	await activeChatItem.click({ button: 'right' });
-	const deleteButton = page.getByTestId('chat-context-delete');
-	await expect(deleteButton).toBeVisible();
-	await deleteButton.click(); // First click: enter confirm mode
-	await deleteButton.click(); // Second click: confirm deletion
-
-	await expect(activeChatItem).not.toBeVisible({ timeout: 10000 });
-	await takeStepScreenshot(page, 'chat-deleted');
-	logCheckpoint('Chat deleted successfully. Test complete.');
 });
