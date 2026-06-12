@@ -355,8 +355,8 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: blocked_ssh_failed
-        run_id: "python3 scripts/apple_remote.py status -> ssh_reachable=False"
+        status: partial_passed_pending_native_answering
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing \"OpenMatesTests/InteractiveQuestionsParityTests\" -> 4 tests passed, 0 failures; covers parser/rendering safeguards only, not native answer submission/routing."
         timestamp: "2026-06-12"
 
 implementation_plan:
