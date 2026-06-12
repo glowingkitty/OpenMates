@@ -464,6 +464,7 @@
     interface AutoConvertedPasteCandidate {
         embedId: string;
         text: string;
+        textAtCreation: string;
     }
 
     let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
@@ -669,7 +670,11 @@
         });
 
         if (embedId) {
-            autoConvertedPasteCandidate = { embedId, text: pastedText };
+            autoConvertedPasteCandidate = {
+                embedId,
+                text: pastedText,
+                textAtCreation: editor.getText(),
+            };
         }
     }
 
@@ -718,7 +723,11 @@
             try {
                 editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
                 editor.commands.focus('end');
-                autoConvertedPasteCandidate = { embedId, text: originalText };
+                autoConvertedPasteCandidate = {
+                    embedId,
+                    text: originalText,
+                    textAtCreation: editor.getText(),
+                };
             } finally {
                 isConvertingEmbeds = false;
             }
@@ -775,7 +784,11 @@
 
         editor.commands.insertContent(' ');
         editor.commands.focus('end');
-        autoConvertedPasteCandidate = { embedId, text };
+        autoConvertedPasteCandidate = {
+            embedId,
+            text,
+            textAtCreation: editor.getText(),
+        };
         hasContent = !isContentEmptyExceptMention(editor);
     }
 
@@ -2572,6 +2585,14 @@
 
         updateAutoConvertedPasteCandidateVisibility(editor);
         
+        if (
+            textActuallyChanged &&
+            autoConvertedPasteCandidate &&
+            currentText !== autoConvertedPasteCandidate.textAtCreation
+        ) {
+            autoConvertedPasteCandidate = null;
+        }
+
         if (textActuallyChanged) {
             lastEditorUpdateText = currentText;
         }
@@ -2621,8 +2642,13 @@
         // any content modifications (URL → embed conversion) complete first.
         scheduleHeavyParsing(editor, currentText, wasPaste);
         if (wasPaste) {
-            updateDefaultPasteRecoveryCandidate(editor, pendingDefaultPasteTextForRecovery);
+            const recoveryText = pendingDefaultPasteTextForRecovery;
             pendingDefaultPasteTextForRecovery = null;
+            tick().then(() => {
+                if (editor && !editor.isDestroyed) {
+                    updateDefaultPasteRecoveryCandidate(editor, recoveryText);
+                }
+            });
         }
 
         // PII Detection: immediate only on paste events; delimiter-triggered detection
