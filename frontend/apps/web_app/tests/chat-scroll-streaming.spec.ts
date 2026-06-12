@@ -135,7 +135,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// ───────────────────────────────────────────────────
 	const testMessage = withMockMarker(
 		'What is the capital of France? Please explain in detail.',
-		'chat_scroll_streaming',
+		'chat_flow_capital',
 		'medium'
 	);
 	const messageEditor = page.getByTestId('message-editor');
