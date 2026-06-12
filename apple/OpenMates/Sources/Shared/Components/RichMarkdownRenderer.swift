@@ -123,7 +123,7 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
     var sliderLowerBound: Double { min ?? 0 }
     var sliderUpperBound: Double { max ?? 10 }
     var sliderStep: Double { step ?? 1 }
-    var ratingMaximum: Int { max(1, maxStars ?? 5) }
+    var ratingMaximum: Int { Swift.max(1, maxStars ?? 5) }
 
     @MainActor
     func responseContent(response: [String: Any]) -> String {
