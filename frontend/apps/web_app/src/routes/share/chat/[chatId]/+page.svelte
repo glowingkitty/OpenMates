@@ -873,8 +873,8 @@
 	{#if isLoading}
 		<div class="loading-container">
 			<img class="openmates-logo" src="/favicon.svg" alt="OpenMates" />
+			<p>Decrypting chat…</p>
 			<div class="loading-spinner"></div>
-			<p>Decrypting chat...</p>
 		</div>
 	{:else if error}
 		<div class="error-container">
@@ -933,6 +933,13 @@
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 	}
 
+	.loading-container {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+	}
+
 	.loading-spinner {
 		width: 48px;
 		height: 48px;
@@ -940,13 +947,13 @@
 		border-top-color: var(--color-primary, #6b46c1);
 		border-radius: 50%;
 		animation: spin 1s linear infinite;
-		margin: 0 auto 20px;
+		margin: 0 auto;
 	}
 
 	.openmates-logo {
-		width: 56px;
-		height: 56px;
-		margin-bottom: 20px;
+		width: 96px;
+		height: 96px;
+		margin-bottom: 18px;
 	}
 
 	@keyframes spin {
@@ -969,8 +976,10 @@
 
 	p {
 		font-size: 16px;
+		font-family: var(--font-primary, 'Lexend Deca', sans-serif);
+		text-align: center;
 		color: var(--color-grey-70, #666);
-		margin: 0 0 24px;
+		margin: 0 0 18px;
 	}
 
 	button {

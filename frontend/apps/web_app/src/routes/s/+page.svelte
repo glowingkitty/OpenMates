@@ -122,14 +122,14 @@
     {#if status === 'loading'}
         <div class="status-container">
             <img class="openmates-logo" src="/favicon.svg" alt="OpenMates" />
+            <p class="status-text">Decrypting link…</p>
             <div class="spinner"></div>
-            <p class="status-text">Decrypting link...</p>
         </div>
     {:else if status === 'redirecting'}
         <div class="status-container">
             <img class="openmates-logo" src="/favicon.svg" alt="OpenMates" />
+            <p class="status-text">Decrypting link…</p>
             <div class="spinner"></div>
-            <p class="status-text">Decrypting link...</p>
         </div>
     {:else if status === 'error'}
         <div class="error-container">
@@ -155,7 +155,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        justify-content: center;
+        gap: 18px;
     }
 
     .spinner {
@@ -168,8 +169,8 @@
     }
 
     .openmates-logo {
-        width: 56px;
-        height: 56px;
+        width: 96px;
+        height: 96px;
     }
 
     @keyframes spin {
@@ -178,6 +179,8 @@
 
     .status-text {
         font-size: 16px;
+        font-family: var(--font-primary, 'Lexend Deca', sans-serif);
+        text-align: center;
         color: var(--color-grey-70, #374151);
         margin: 0;
     }
