@@ -539,6 +539,9 @@ async function startNewChat(
 
 	const currentUrl = page.url();
 	const previousChatId = currentUrl.match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+	const messageInput = page.locator('[data-action="message-input"]').last();
+	const previousInputChatId = await messageInput.getAttribute('data-current-chat-id').catch(() => null);
+	const previousContextId = previousChatId ?? previousInputChatId;
 	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
 
 	// If the editor has focus, the adjacent new-chat CTA is intentionally hidden.
@@ -582,6 +585,21 @@ async function startNewChat(
 	}
 
 	if (!clicked) {
+		const attachedNewChatButton = page.locator('[data-testid="new-chat-button"], [data-action="new-chat"]').first();
+		if (await attachedNewChatButton.count().catch(() => 0)) {
+			const clickedAttached = await attachedNewChatButton.evaluate((button: HTMLElement) => {
+				button.click();
+				return true;
+			}).catch(() => false);
+			if (clickedAttached) {
+				logCheckpoint('Triggered attached New Chat button via DOM fallback.');
+				clicked = true;
+				await page.waitForTimeout(2000);
+			}
+		}
+	}
+
+	if (!clicked) {
 		const messageEditor = page.getByTestId('message-editor');
 		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
 			logCheckpoint('New Chat button not visible; editor is already ready, treating page as new chat.');
@@ -591,12 +609,11 @@ async function startNewChat(
 	}
 
 	const newUrl = page.url();
-	if (clicked && previousChatId) {
-		const messageInput = page.locator('[data-action="message-input"]').last();
+	if (clicked && previousContextId) {
 		await expect(async () => {
 			const contextId = await messageInput.getAttribute('data-current-chat-id');
 			expect(contextId).toBeTruthy();
-			expect(contextId).not.toBe(previousChatId);
+			expect(contextId).not.toBe(previousContextId);
 		}).toPass({ timeout: 10000 });
 		logCheckpoint('Message input rebound to new chat context.');
 	}
