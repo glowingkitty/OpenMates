@@ -15,13 +15,12 @@
   import type {
     InteractiveQuestionPayload,
     InteractiveQuestionResponse,
-    ChoiceResponse,
-    InputResponse,
-    SliderResponse,
-    SwipeResponse,
-    RatingResponse
   } from './types';
-  import { findSubsequentResponse, submitResponse } from './utils/questionState';
+  import {
+    findSubsequentResponse,
+    formatInteractiveQuestionUserResponse,
+    submitResponse
+  } from './utils/questionState';
   import { chatDB } from '../../services/db';
   import { chatSyncService } from '../../services/chatSyncService';
   import type { Message } from '../../types/chat';
@@ -89,72 +88,23 @@
     isValid = false;
   }
 
-  // Format human-readable text + json payload for submission
-  function formatUserResponse(sel: InteractiveQuestionResponse): string {
-    let headerText = '';
-
-    if (payload.type === 'choice') {
-      const choiceSel = sel as ChoiceResponse;
-      const selectedIds: string[] = choiceSel.selection;
-      const texts = payload.options
-        .filter(opt => selectedIds.includes(opt.id))
-        .map(opt => opt.text);
-
-      if (payload.multiple) {
-        headerText = `I selected:\n` + texts.map(t => `- ${t}`).join('\n');
-      } else {
-        headerText = `I selected: ${texts[0] || ''}`;
-      }
-    } else if (payload.type === 'input') {
-      const inputSel = sel as InputResponse;
-      const inputsMap: Record<string, string> = inputSel.inputs;
-      const lines = payload.fields.map(field => {
-        return `- ${field.label}: ${inputsMap[field.id] || ''}`;
-      });
-      headerText = `Form Submitted:\n` + lines.join('\n');
-    } else if (payload.type === 'slider') {
-      const sliderSel = sel as SliderResponse;
-      const scoreValue = sliderSel.value;
-      const labelSuffix = payload.labels && payload.labels[scoreValue]
-        ? ` (${payload.labels[scoreValue]})`
-        : '';
-      headerText = `I selected: ${scoreValue}${labelSuffix} (out of ${payload.max})`;
-    } else if (payload.type === 'swipe') {
-      const swipeSel = sel as SwipeResponse;
-      const swipesMap: Record<string, 'like' | 'dislike'> = swipeSel.swipes;
-      const lines = payload.cards.map(card => {
-        const action = swipesMap[card.id] === 'like' ? 'LIKED' : 'DISLIKED';
-        return `- ${card.text.substring(0, 40)}...: ${action}`;
-      });
-      headerText = `Swiped Results:\n` + lines.join('\n');
-    } else if (payload.type === 'rating') {
-      const ratingSel = sel as RatingResponse;
-      const ratingStars = ratingSel.rating;
-      const starsStr = '⭐'.repeat(ratingStars);
-      const optComment = ratingSel.comment ? `\nComment: ${ratingSel.comment}` : '';
-      headerText = `Rated: ${starsStr} (${ratingStars}/${payload.max_stars ?? 5})${optComment}`;
-    }
-
-    // Embed response as clean markdown fenced block
-    const responsePayload: InteractiveQuestionResponse = sel;
-    const jsonBlock = `\`\`\`interactive_response\n${JSON.stringify(responsePayload, null, 2)}\n\`\`\``;
-
-    return `${headerText}\n\n${jsonBlock}`;
-  }
-
   // Handle "Send" click
   async function handleSend() {
     const activeChatId = chatId || activeChatStore.get() || '';
-    if (!isValid || !activeChatId || isAnswered) return;
+    if (!isValid || !activeChatId || isAnswered || !currentSelection) return;
 
     try {
-      const responseText = formatUserResponse(currentSelection);
+      const responseText = formatInteractiveQuestionUserResponse(payload, currentSelection);
       await submitResponse(activeChatId, responseText);
       // Optimistic lock before sync triggers DB refresh
       loadedHistory = [
         ...loadedHistory,
         {
+          message_id: `${activeChatId.slice(-10)}-${crypto.randomUUID()}`,
+          chat_id: activeChatId,
           role: 'user',
+          created_at: Math.floor(Date.now() / 1000),
+          status: 'synced',
           content: responseText
         }
       ];

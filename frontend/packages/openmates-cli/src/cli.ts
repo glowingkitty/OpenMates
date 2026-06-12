@@ -14,16 +14,11 @@ import {
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   deriveAppUrl,
-  parseNewChatSuggestionText,
   type ChatListPage,
   type DecryptedMessage,
-  type DecryptedEmbed,
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
   type DocsTree,
-  type DocsFolder,
-  type DocsFile,
-  type DocsSearchResult,
   type SubChatApprovalRequest,
   type BankTransferOrderDetails,
   type BankTransferStatus,
@@ -39,7 +34,6 @@ import WebSocket from "ws";
 import {
   parseMentions,
   listMentionOptions,
-  type MentionContext,
   type MentionType,
 } from "./mentions.js";
 import { OutputRedactor } from "./outputRedactor.js";
@@ -61,6 +55,11 @@ import {
   searchExampleChats,
   type ExampleChatConversation,
 } from "./exampleChats.js";
+import {
+  parseInteractiveQuestionBlock,
+  toWaitingForUserResult,
+  type WaitingForUserResult,
+} from "./interactiveQuestions.js";
 
 type CliArgs = {
   positionals: string[];
@@ -1817,7 +1816,11 @@ async function printSettingsResult(
   flags: Record<string, string | boolean>,
 ): Promise<void> {
   const result = await resultPromise;
-  flags.json === true ? printJson(result) : printGenericObject(result);
+  if (flags.json === true) {
+    printJson(result);
+  } else {
+    printGenericObject(result);
+  }
 }
 
 async function printSettingsMutationResult(
@@ -2425,7 +2428,11 @@ async function handleSettings(
 
   if (matches(tokens, ["account", "info"])) {
     const user = await client.whoAmI();
-    flags.json === true ? printJson(user) : printWhoAmI(user as Record<string, unknown>);
+    if (flags.json === true) {
+      printJson(user);
+    } else {
+      printWhoAmI(user as Record<string, unknown>);
+    }
     return;
   }
 
@@ -2615,7 +2622,11 @@ async function handleSettings(
   if (matches(tokens, ["billing", "buy-credits", "bank-transfer"])) {
     const credits = parseRequiredNumber(flags.credits, "--credits");
     const order = await client.createBankTransferOrder(credits);
-    flags.json === true ? printJson(order) : printBankTransferOrder(order, false);
+    if (flags.json === true) {
+      printJson(order);
+    } else {
+      printBankTransferOrder(order, false);
+    }
     return;
   }
 
@@ -2623,7 +2634,11 @@ async function handleSettings(
     const orderId = rest[2];
     if (!orderId) throw new Error("Missing order ID.");
     const status = await client.getBankTransferStatus(orderId);
-    flags.json === true ? printJson(status) : printBankTransferStatus(status, false);
+    if (flags.json === true) {
+      printJson(status);
+    } else {
+      printBankTransferStatus(status, false);
+    }
     return;
   }
 
@@ -2688,7 +2703,11 @@ async function handleSettings(
   if (matches(tokens, ["billing", "gift-card", "buy", "bank-transfer"])) {
     const credits = parseRequiredNumber(flags.credits, "--credits");
     const order = await client.createGiftCardBankTransferOrder(credits);
-    flags.json === true ? printJson(order) : printBankTransferOrder(order, true);
+    if (flags.json === true) {
+      printJson(order);
+    } else {
+      printBankTransferOrder(order, true);
+    }
     return;
   }
 
@@ -2696,7 +2715,11 @@ async function handleSettings(
     const orderId = rest[3];
     if (!orderId) throw new Error("Missing order ID.");
     const status = await client.getGiftCardPurchaseStatus(orderId);
-    flags.json === true ? printJson(status) : printBankTransferStatus(status, true);
+    if (flags.json === true) {
+      printJson(status);
+    } else {
+      printBankTransferStatus(status, true);
+    }
     return;
   }
 
@@ -2726,7 +2749,11 @@ async function handleSettings(
       backup_reminder_interval_days: user.backup_reminder_interval_days ?? null,
       encrypted_notification_email_configured: Boolean(user.encrypted_notification_email),
     };
-    flags.json === true ? printJson(status) : printGenericObject(status);
+    if (flags.json === true) {
+      printJson(status);
+    } else {
+      printGenericObject(status);
+    }
     return;
   }
 
@@ -3111,11 +3138,6 @@ function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));
 }
 
-/** Dim separator line */
-function hr(): void {
-  process.stdout.write("\x1b[2m" + "─".repeat(60) + "\x1b[0m\n");
-}
-
 /** Bold section header */
 function header(text: string): void {
   process.stdout.write(`\x1b[1m${text}\x1b[0m\n`);
@@ -3205,11 +3227,6 @@ function ansiMateBlock(
   return `\x1b[48;2;${r};${g};${b}m\x1b[97m ${label} \x1b[0m`;
 }
 
-/** Keep for backwards compat in non-list contexts */
-function ansiCategoryPill(category: string | null): string {
-  return ansiColorBlock(category);
-}
-
 function formatTimestamp(ts: number | null): string {
   if (!ts) return "—";
   const d = new Date(ts * 1000);
@@ -3279,7 +3296,9 @@ async function sendMessageStreaming(
   },
   redactor?: OutputRedactor,
 ): Promise<{
+  status: "completed" | "waiting_for_user";
   chatId: string;
+  messageId: string | null;
   assistant: string;
   category: string | null;
   modelName: string | null;
@@ -3292,7 +3311,7 @@ async function sendMessageStreaming(
     approvedKeys: string[];
     entryCount: number;
   }>;
-}> {
+} | WaitingForUserResult> {
   let headerPrinted = false;
   let typingShown = false;
   // Track which embed IDs we've already rendered during streaming
@@ -3659,6 +3678,26 @@ async function sendMessageStreaming(
 
   clearTyping();
 
+  if (result.status === "waiting_for_user") {
+    const question = parseInteractiveQuestionBlock(result.assistant);
+    if (params.json && question) {
+      return toWaitingForUserResult({
+        chatId: result.chatId,
+        messageId: result.messageId ?? "",
+        parentId: result.chatId,
+        question,
+      });
+    }
+
+    if (!params.json) {
+      process.stderr.write(
+        "\x1b[33mOpenMates needs more input to continue.\x1b[0m\n" +
+          "Continue in the web app, or rerun with --json to inspect the structured waiting state.\n",
+      );
+    }
+    return result;
+  }
+
   if (!params.json) {
     if (!headerPrinted) {
       const mateBlock = ansiMateBlock(result.category, result.mateName);
@@ -3738,17 +3777,6 @@ async function sendMessageStreaming(
   }
 
   return result;
-}
-
-/**
- * Strip ```json embed blocks from content for clean streaming output.
- * These are rendered separately after the response completes.
- * Also collapses multiple blank lines left after stripping.
- */
-function stripEmbedJsonBlocks(content: string): string {
-  return content
-    .replace(/```(?:json_embed|json)\n[\s\S]*?\n```/g, "")
-    .replace(/\n{3,}/g, "\n\n");
 }
 
 function printIncognitoNoHistoryNotice(json: boolean): void {

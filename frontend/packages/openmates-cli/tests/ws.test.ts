@@ -402,4 +402,51 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       client.close();
     }
   });
+
+  it("resolves awaiting_user_input for child chat events routed through the active parent", async () => {
+    const chatId = "parent-waiting-chat";
+    const childChatId = "child-waiting-chat";
+    const userMessageId = "user-message-waiting";
+    const receivedEvents: Array<{ type: string; payload: Record<string, unknown> }> = [];
+
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
+            type: "awaiting_user_input",
+            payload: {
+              chat_id: childChatId,
+              parent_id: chatId,
+              task_id: "task-waiting",
+              message_id: "assistant-question-message",
+              question: "Which source should the child chat inspect next?",
+            },
+          }),
+        );
+      }, 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-awaiting-input",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      const response = await client.collectAiResponse(userMessageId, chatId, {
+        timeoutMs: 1_000,
+        onSubChatEvent: (event) => receivedEvents.push(event),
+      });
+
+      assert.equal(response.status, "waiting_for_user");
+      assert.equal(response.messageId, "assistant-question-message");
+      assert.equal(receivedEvents[0]?.type, "awaiting_user_input");
+      assert.equal(receivedEvents[0]?.payload.chat_id, childChatId);
+      assert.equal(receivedEvents[0]?.payload.parent_id, chatId);
+    } finally {
+      client.close();
+    }
+  });
 });

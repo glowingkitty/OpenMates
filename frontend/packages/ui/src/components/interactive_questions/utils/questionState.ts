@@ -10,8 +10,18 @@
 
 import { chatSyncService } from "../../../services/chatSyncService";
 import type { Message } from "../../../types/chat";
-import type { InteractiveQuestionResponse } from "../types";
+import type {
+  ChoiceResponse,
+  InputResponse,
+  InteractiveQuestionPayload,
+  InteractiveQuestionResponse,
+  RatingResponse,
+  SliderResponse,
+  SwipeResponse,
+} from "../types";
 import { chatDB } from "../../../services/db";
+
+const INTERACTIVE_QUESTION_RE = /```interactive_question\s*([\s\S]*?)\s*```/g;
 
 /**
  * Searches the chat history for a subsequent user response containing an interactive response payload
@@ -23,7 +33,10 @@ export function findSubsequentResponse(
 ): InteractiveQuestionResponse | null {
   if (!chatHistory || !Array.isArray(chatHistory)) return null;
 
+  const questionIndex = findLatestQuestionIndex(chatHistory, questionId);
+
   for (let i = chatHistory.length - 1; i >= 0; i--) {
+    if (i <= questionIndex) break;
     const msg = chatHistory[i];
     if (msg.role === "user" && msg.content) {
       // Extract code block formatted as interactive_response
@@ -41,6 +54,95 @@ export function findSubsequentResponse(
     }
   }
   return null;
+}
+
+export function formatInteractiveQuestionUserResponse(
+  payload: InteractiveQuestionPayload,
+  response: InteractiveQuestionResponse
+): string {
+  const displayText = formatInteractiveQuestionDisplayText(payload, response);
+  const jsonBlock = `\`\`\`interactive_response\n${JSON.stringify(response, null, 2)}\n\`\`\``;
+
+  return `${displayText}\n\n${jsonBlock}`;
+}
+
+export function isInteractiveQuestionPayload(value: unknown): value is InteractiveQuestionPayload {
+  if (!value || typeof value !== "object") return false;
+  const payload = value as Partial<InteractiveQuestionPayload>;
+  if (typeof payload.id !== "string" || payload.id.trim().length === 0) return false;
+  if (payload.type === "choice") return Array.isArray(payload.options) && payload.options.length > 0;
+  if (payload.type === "input") return Array.isArray(payload.fields) && payload.fields.length > 0;
+  if (payload.type === "slider") return typeof payload.min === "number" && typeof payload.max === "number";
+  if (payload.type === "swipe") return Array.isArray(payload.cards) && payload.cards.length > 0;
+  if (payload.type === "rating") return typeof payload.max_stars === "number" || payload.max_stars === undefined;
+  return false;
+}
+
+function findLatestQuestionIndex(chatHistory: Message[], questionId: string): number {
+  for (let i = chatHistory.length - 1; i >= 0; i--) {
+    const msg = chatHistory[i];
+    if (msg.role !== "assistant" || typeof msg.content !== "string") continue;
+    if (messageContainsQuestionId(msg.content, questionId)) return i;
+  }
+  return -1;
+}
+
+function messageContainsQuestionId(content: string, questionId: string): boolean {
+  INTERACTIVE_QUESTION_RE.lastIndex = 0;
+  for (const match of content.matchAll(INTERACTIVE_QUESTION_RE)) {
+    try {
+      const parsed = JSON.parse(match[1]) as { id?: unknown };
+      if (parsed.id === questionId) return true;
+    } catch {
+      // Ignore malformed historic question blocks.
+    }
+  }
+  return false;
+}
+
+function formatInteractiveQuestionDisplayText(
+  payload: InteractiveQuestionPayload,
+  response: InteractiveQuestionResponse
+): string {
+  if (payload.type === "choice") {
+    const selectedIds = (response as ChoiceResponse).selection;
+    const texts = payload.options
+      .filter((option) => selectedIds.includes(option.id))
+      .map((option) => option.text);
+    return payload.multiple ? texts.join("\n") : texts[0] || "";
+  }
+
+  if (payload.type === "input") {
+    const inputs = (response as InputResponse).inputs;
+    return payload.fields
+      .map((field) => inputs[field.id] || "")
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  if (payload.type === "slider") {
+    const value = (response as SliderResponse).value;
+    const label = payload.labels?.[value];
+    return label ? `${value} (${label})` : String(value);
+  }
+
+  if (payload.type === "swipe") {
+    const swipes = (response as SwipeResponse).swipes;
+    return payload.cards
+      .map((card) => `${card.text}: ${swipes[card.id] || "dislike"}`)
+      .join("\n");
+  }
+
+  if (payload.type === "rating") {
+    const rating = response as RatingResponse;
+    const maxStars = payload.max_stars ?? 5;
+    return [
+      `${rating.rating}/${maxStars}`,
+      rating.comment?.trim() || "",
+    ].filter(Boolean).join("\n");
+  }
+
+  return "";
 }
 
 /**

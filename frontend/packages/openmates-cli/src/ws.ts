@@ -304,6 +304,7 @@ export class OpenMatesWsClient {
       ) => void | Promise<void>;
     },
   ): Promise<{
+    status: "completed" | "waiting_for_user";
     messageId: string | null;
     taskId: string | null;
     content: string;
@@ -329,6 +330,7 @@ export class OpenMatesWsClient {
       const pendingMemoryRequestHandlers = new Set<Promise<void>>();
       const embeds = new Map<string, SendEmbedDataFrame>();
       const processingEmbedIds = new Set<string>();
+      let waitingForUserPayload: Record<string, unknown> | null = null;
       // Track whether the AI response is done so we can wait for post-processing.
       let aiResponseDone = false;
       let postProcessingDone = false;
@@ -381,6 +383,22 @@ export class OpenMatesWsClient {
       };
 
       const maybeResolve = () => {
+        if (waitingForUserPayload) {
+          if (pendingSubChatHandlers.size > 0) return;
+          cleanup();
+          resolve({
+            status: "waiting_for_user",
+            messageId,
+            taskId,
+            content: latestContent,
+            category,
+            modelName,
+            followUpSuggestions,
+            embeds: [...embeds.values()],
+            subChatEvents,
+          });
+          return;
+        }
         if (!aiResponseDone || !postProcessingDone) return;
         if (pendingSubChatHandlers.size > 0) return;
         if (pendingMemoryRequestHandlers.size > 0) return;
@@ -388,6 +406,7 @@ export class OpenMatesWsClient {
           asyncEmbedTimer = setTimeout(() => {
             cleanup();
             resolve({
+              status: "completed",
               messageId,
               taskId,
               content: latestContent,
@@ -403,6 +422,7 @@ export class OpenMatesWsClient {
         if (processingEmbedIds.size > 0) return;
         cleanup();
         resolve({
+          status: "completed",
           messageId,
           taskId,
           content: latestContent,
@@ -420,15 +440,24 @@ export class OpenMatesWsClient {
             ? (p.payload as Record<string, unknown>)
             : p;
         const eventChatId =
-          typeof eventPayload.chat_id === "string"
-            ? eventPayload.chat_id
-            : typeof eventPayload.parent_id === "string"
-              ? eventPayload.parent_id
-              : null;
+          type === "awaiting_user_input" && typeof eventPayload.parent_id === "string"
+            ? eventPayload.parent_id
+            : typeof eventPayload.chat_id === "string"
+              ? eventPayload.chat_id
+              : typeof eventPayload.parent_id === "string"
+                ? eventPayload.parent_id
+                : null;
         if (eventChatId && eventChatId !== chatId) return;
 
         const event = { type: type as SubChatEventType, payload: eventPayload };
         subChatEvents.push(event);
+        if (type === "awaiting_user_input") {
+          waitingForUserPayload = eventPayload;
+          messageId = typeof eventPayload.message_id === "string" ? eventPayload.message_id : messageId;
+          taskId = typeof eventPayload.task_id === "string" ? eventPayload.task_id : taskId;
+          latestContent = typeof eventPayload.question === "string" ? eventPayload.question : latestContent;
+          postProcessingDone = true;
+        }
         if (type === "awaiting_sub_chats_completion") {
           awaitingSubChatsCompletion = true;
           resetTimeout(SUB_CHAT_COMPLETION_TIMEOUT_MS);
@@ -661,6 +690,7 @@ export class OpenMatesWsClient {
         if (aiResponseDone) {
           cleanup();
           resolve({
+            status: "completed",
             messageId,
             taskId,
             content: latestContent,

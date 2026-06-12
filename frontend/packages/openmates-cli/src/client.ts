@@ -22,7 +22,6 @@ import {
   encryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
   base64ToBytes,
-  bytesToBase64,
   hashItemKey,
   createRecoveryKeyMaterial,
   createSignupCryptoMaterial,
@@ -1944,7 +1943,9 @@ export class OpenMatesClient {
     /** Prepared embeds to encrypt after the real chat/message IDs are known. */
     preparedEmbeds?: PreparedEmbed[];
   }): Promise<{
+    status: "completed" | "waiting_for_user";
     chatId: string;
+    messageId: string | null;
     assistant: string;
     category: string | null;
     modelName: string | null;
@@ -2306,6 +2307,20 @@ export class OpenMatesClient {
         modelName = resp.modelName;
         subChatEvents = resp.subChatEvents;
         // Incognito chats are not post-processed — follow-up suggestions are not stored.
+        if (resp.status === "waiting_for_user") {
+          return {
+            status: resp.status,
+            chatId,
+            messageId: assistantMessageId,
+            assistant,
+            category,
+            modelName,
+            mateName: category ? MATE_NAMES[category] ?? null : null,
+            followUpSuggestions,
+            subChatEvents,
+            appSettingsMemoryRequests,
+          };
+        }
       } finally {
         ws.close();
       }
@@ -2318,6 +2333,21 @@ export class OpenMatesClient {
         modelName = resp.modelName;
         followUpSuggestions = resp.followUpSuggestions;
         subChatEvents = resp.subChatEvents;
+
+        if (resp.status === "waiting_for_user") {
+          return {
+            status: resp.status,
+            chatId,
+            messageId: assistantMessageId,
+            assistant,
+            category,
+            modelName,
+            mateName: category ? MATE_NAMES[category] ?? null : null,
+            followUpSuggestions,
+            subChatEvents,
+            appSettingsMemoryRequests,
+          };
+        }
 
         if (chatKeyBytes && assistant) {
           const completedAt = Math.floor(Date.now() / 1000);
@@ -2376,7 +2406,9 @@ export class OpenMatesClient {
 
     const mateName = category ? (MATE_NAMES[category] ?? null) : null;
     return {
+      status: "completed",
       chatId,
+      messageId: assistantMessageId,
       assistant,
       category,
       modelName,
@@ -4186,8 +4218,8 @@ export class OpenMatesClient {
 
     const { ws } = await this.openWsClient();
     const chats: CachedChat[] = [];
-    let embeds: Record<string, unknown>[] = [];
-    let embedKeys: Record<string, unknown>[] = [];
+    const embeds: Record<string, unknown>[] = [];
+    const embedKeys: Record<string, unknown>[] = [];
     let newChatSuggestions: Record<string, unknown>[] = [];
     let totalChatCount = 0;
 

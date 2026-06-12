@@ -85,6 +85,7 @@ enum AppStrings {
     static var openChat: String { L("chat.open_chat") }
     static var scrollToTop: String { L("chats.scroll_to_top") }
     static var scrollToBottom: String { L("chats.scroll_to_bottom") }
+    static var interactiveQuestionFailed: String { L("chat.interactive_question_failed") }
 
     static func welcomeHeyUser(_ username: String) -> String {
         LocalizationManager.shared.text("chat.welcome.hey_user", replacements: ["username": username])

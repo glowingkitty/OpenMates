@@ -2345,6 +2345,127 @@ APPLICATION_PREVIEW_EXTENSION_LANGUAGES = {
     ".vue": "vue",
 }
 
+INTERACTIVE_QUESTION_FALLBACK_TEXT = "Failed to display question."
+INTERACTIVE_QUESTION_TYPES = {"choice", "input", "slider", "swipe", "rating"}
+
+
+def _is_valid_interactive_question_payload(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    question_type = payload.get("type")
+    if question_type not in INTERACTIVE_QUESTION_TYPES:
+        return False
+    if not isinstance(payload.get("id"), str) or not payload["id"].strip():
+        return False
+    if question_type == "choice":
+        if not isinstance(payload.get("question"), str) or not payload["question"].strip():
+            return False
+        options = payload.get("options")
+        return isinstance(options, list) and len(options) > 0
+    if question_type == "input":
+        fields = payload.get("fields")
+        return isinstance(fields, list) and len(fields) > 0
+    if question_type == "slider":
+        if not isinstance(payload.get("question"), str) or not payload["question"].strip():
+            return False
+        return payload.get("min") is not None and payload.get("max") is not None
+    if question_type == "swipe":
+        cards = payload.get("cards")
+        return isinstance(cards, list) and len(cards) > 0
+    if question_type == "rating":
+        if not isinstance(payload.get("question"), str) or not payload["question"].strip():
+            return False
+        return payload.get("max") is not None or payload.get("scale") is not None
+    return False
+
+
+def _is_inside_open_interactive_question(text: str) -> bool:
+    """Return True when text currently ends inside an unclosed interactive question fence."""
+    if not text:
+        return False
+    lines = text.splitlines()
+    in_question = False
+    for line in lines:
+        marker = line.strip()
+        if not in_question and marker == "```interactive_question":
+            in_question = True
+            continue
+        if in_question:
+            if marker == "```":
+                in_question = False
+            elif marker.startswith("```"):
+                # A new fence before the closing marker means the question fence
+                # is malformed and must still be treated as open/protected.
+                return True
+    return in_question
+
+
+def _finalize_interactive_question_protocol(text: str) -> str:
+    """Validate interactive question fences before durable message persistence.
+
+    Valid question fences are preserved byte-for-byte. Malformed, unclosed, or
+    structurally invalid question fences are downgraded to visible fallback prose
+    so clients do not try to render broken protocol JSON from encrypted history.
+    """
+    if "```interactive_question" not in text:
+        return text
+
+    lines = text.splitlines(keepends=True)
+    output: List[str] = []
+    index = 0
+    changed = False
+
+    while index < len(lines):
+        if lines[index].strip() != "```interactive_question":
+            output.append(lines[index])
+            index += 1
+            continue
+
+        start = index
+        body_lines: List[str] = []
+        index += 1
+        closed = False
+        invalid_nested_fence = False
+        while index < len(lines):
+            marker = lines[index].strip()
+            if marker == "```":
+                closed = True
+                break
+            if marker.startswith("```"):
+                invalid_nested_fence = True
+                break
+            body_lines.append(lines[index])
+            index += 1
+
+        is_valid = False
+        if closed and not invalid_nested_fence:
+            try:
+                payload = json.loads("".join(body_lines).strip())
+                is_valid = _is_valid_interactive_question_payload(payload)
+            except json.JSONDecodeError:
+                is_valid = False
+
+        if is_valid:
+            output.extend(lines[start:index + 1])
+            index += 1
+            continue
+
+        changed = True
+        while output and not output[-1].strip():
+            output.pop()
+        if output:
+            output.append("\n\n")
+        output.append(INTERACTIVE_QUESTION_FALLBACK_TEXT)
+        output.append("\n")
+        # A malformed interactive question makes the remainder ambiguous: later
+        # fences may have been parsed as code/embed content while logically inside
+        # the broken question. Drop the remainder instead of persisting raw JSON.
+        break
+
+    if not changed:
+        return "".join(output)
+    return "".join(output).rstrip() + "\n"
+
 
 def _should_process_chunk_as_code_block(
     chunk: str,
@@ -2363,6 +2484,9 @@ def _should_process_chunk_as_code_block(
     *examples* of markdown code fences like 'use ```json blocks' in prose.
     """
     if in_code_block:
+        return False
+
+    if _is_inside_open_interactive_question(aggregated_so_far):
         return False
 
     if not chunk.strip().startswith("```"):
@@ -5495,6 +5619,14 @@ async def _consume_main_processing_stream(
             logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+    finalized_interactive_response = _finalize_interactive_question_protocol(aggregated_response)
+    if finalized_interactive_response != aggregated_response:
+        logger.warning(
+            f"{log_prefix} Downgraded malformed interactive_question block before persistence "
+            f"({len(aggregated_response)} -> {len(finalized_interactive_response)} chars)"
+        )
+        aggregated_response = finalized_interactive_response
+        final_response_chunks = [aggregated_response]
 
     # Emit the generated-application parent as soon as all streamed code blocks
     # are finalized. Later post-processing can be slow; the UI should not wait

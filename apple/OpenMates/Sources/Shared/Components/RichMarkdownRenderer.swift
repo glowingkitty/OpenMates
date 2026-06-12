@@ -8,6 +8,7 @@
 // Svelte:  frontend/packages/ui/src/components/DemoMessageContent.svelte
 //          frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
 //          frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
+//          frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
 // CSS:     ChatEmbedPreview.svelte <style>
 //          .chat-embed-card { width:300px; height:200px; border-radius:30px;
 //            box-shadow:0 8px 24px rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.1) }
@@ -66,7 +67,29 @@ enum MarkdownBlock {
     case table(headers: [String], rows: [[String]])
     case demoGroup(DemoGroupKind)
     case embedGroup([MarkdownEmbedReference])
+    case interactiveQuestion(AppleInteractiveQuestionPayload)
+    case interactiveQuestionFallback
+    case hiddenProtocol
 
+}
+
+struct AppleInteractiveQuestionPayload: Decodable, Equatable {
+    struct Option: Decodable, Equatable, Identifiable {
+        let id: String
+        let text: String
+    }
+
+    struct Field: Decodable, Equatable, Identifiable {
+        let id: String
+        let label: String
+    }
+
+    let id: String
+    let type: String
+    let question: String?
+    let options: [Option]?
+    let fields: [Field]?
+    let cards: [Option]?
 }
 
 struct MarkdownEmbedReference: Equatable {
@@ -139,7 +162,15 @@ enum MarkdownParser {
                     i += 1
                 }
                 let code = codeLines.joined(separator: "\n")
-                if let embed = parseFencedEmbedReference(language: language, code: code) {
+                if language == "interactive_response" {
+                    blocks.append(.hiddenProtocol)
+                } else if language == "interactive_question" {
+                    if let payload = parseInteractiveQuestionPayload(code) {
+                        blocks.append(.interactiveQuestion(payload))
+                    } else {
+                        blocks.append(.interactiveQuestionFallback)
+                    }
+                } else if let embed = parseFencedEmbedReference(language: language, code: code) {
                     blocks.append(.embedGroup([embed]))
                 } else {
                     blocks.append(.codeBlock(language: language, code: code))
@@ -262,6 +293,16 @@ enum MarkdownParser {
             }
         }
         return nil
+    }
+
+    private static func parseInteractiveQuestionPayload(_ code: String) -> AppleInteractiveQuestionPayload? {
+        guard let data = code.data(using: .utf8),
+              let payload = try? JSONDecoder().decode(AppleInteractiveQuestionPayload.self, from: data),
+              !payload.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              ["choice", "input", "slider", "swipe", "rating"].contains(payload.type) else {
+            return nil
+        }
+        return payload
     }
 
     private static func parseEmbedPlaceholder(_ line: String) -> MarkdownEmbedReference? {
@@ -413,6 +454,21 @@ struct RichMarkdownView: View {
                     }
                 }
             }
+
+        case .interactiveQuestion(let payload):
+            AppleInteractiveQuestionCard(payload: payload)
+
+        case .interactiveQuestionFallback:
+            Text(AppStrings.interactiveQuestionFailed)
+                .font(.omP)
+                .foregroundStyle(Color.fontSecondary)
+                .padding(.spacing4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius4))
+
+        case .hiddenProtocol:
+            EmptyView()
         }
     }
 
@@ -423,6 +479,68 @@ struct RichMarkdownView: View {
             }
         }
         return embedLookup[reference.value] ?? allEmbedRecords[reference.value]
+    }
+}
+
+private struct AppleInteractiveQuestionCard: View {
+    let payload: AppleInteractiveQuestionPayload
+
+    private var title: String {
+        if let question = payload.question, !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return question
+        }
+        if let field = payload.fields?.first {
+            return field.label
+        }
+        return AppStrings.interactiveQuestionFailed
+    }
+
+    private var rows: [String] {
+        switch payload.type {
+        case "choice":
+            return payload.options?.map(\.text) ?? []
+        case "input":
+            return payload.fields?.map(\.label) ?? []
+        case "swipe":
+            return payload.cards?.map(\.text) ?? []
+        default:
+            return []
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            Text(title)
+                .font(.omP)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+
+            if !rows.isEmpty {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                        HStack(alignment: .top, spacing: .spacing2) {
+                            Circle()
+                                .fill(Color.buttonPrimary)
+                                .frame(width: 6, height: 6)
+                                .padding(.top, 7)
+                            Text(row)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontSecondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.spacing5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey10)
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius4)
+                .stroke(Color.grey20, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("interactive-question-card")
     }
 }
 

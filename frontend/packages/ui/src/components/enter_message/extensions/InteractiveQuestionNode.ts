@@ -10,8 +10,11 @@
 
 import { Node, mergeAttributes } from "@tiptap/core";
 import { mount, unmount } from "svelte";
+import { get } from "svelte/store";
 import InteractiveQuestionContainer from "../../interactive_questions/InteractiveQuestionContainer.svelte";
 import type { InteractiveQuestionPayload } from "../../interactive_questions/types";
+import { isInteractiveQuestionPayload } from "../../interactive_questions/utils/questionState";
+import { text } from "../../../i18n/translations";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface InteractiveQuestionNodeOptions {}
@@ -80,15 +83,20 @@ export const InteractiveQuestionNode = Node.create<InteractiveQuestionNodeOption
       let svelteInstance: Record<string, unknown> | null = null;
       let parsedPayload: InteractiveQuestionPayload | null = null;
 
+      function fallbackText() {
+        return get(text)("chat.interactive_question_failed");
+      }
+
       try {
-        parsedPayload = JSON.parse(node.attrs.json) as InteractiveQuestionPayload;
+        const parsed = JSON.parse(node.attrs.json) as unknown;
+        parsedPayload = isInteractiveQuestionPayload(parsed) ? parsed : null;
       } catch (_err) {
         console.error("[InteractiveQuestionNode] Failed to parse payload JSON:", _err);
       }
 
       function mountComponent() {
         if (!parsedPayload) {
-          dom.textContent = "[Interactive Question - Invalid JSON]";
+          dom.textContent = fallbackText();
           return;
         }
 
@@ -106,7 +114,7 @@ export const InteractiveQuestionNode = Node.create<InteractiveQuestionNodeOption
             "[InteractiveQuestionNode] Failed to mount InteractiveQuestionContainer:",
             _err,
           );
-          dom.textContent = `[Interactive Question: ${node.attrs.id}]`;
+          dom.textContent = fallbackText();
         }
       }
 
@@ -135,7 +143,8 @@ export const InteractiveQuestionNode = Node.create<InteractiveQuestionNodeOption
           }
           dom.innerHTML = "";
           try {
-            parsedPayload = JSON.parse(node.attrs.json) as InteractiveQuestionPayload;
+            const parsed = JSON.parse(node.attrs.json) as unknown;
+            parsedPayload = isInteractiveQuestionPayload(parsed) ? parsed : null;
           } catch (_err) {
             parsedPayload = null;
           }

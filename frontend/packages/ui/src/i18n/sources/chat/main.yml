@@ -22,6 +22,30 @@ new_chat:
   sv: Ny chatt
   he: "צ'אט חדש"
   verified_by_human: []
+interactive_question_failed:
+  context: Fallback shown when an interactive question payload cannot be parsed or displayed
+  en: Failed to display question.
+  de: Frage konnte nicht angezeigt werden.
+  zh: 无法显示问题。
+  es: No se pudo mostrar la pregunta.
+  fr: Impossible d’afficher la question.
+  pt: Não foi possível exibir a pergunta.
+  ru: Не удалось показать вопрос.
+  ja: 質問を表示できませんでした。
+  ko: 질문을 표시하지 못했습니다.
+  it: Impossibile visualizzare la domanda.
+  tr: Soru gösterilemedi.
+  vi: Không thể hiển thị câu hỏi.
+  id: Gagal menampilkan pertanyaan.
+  pl: Nie udało się wyświetlić pytania.
+  nl: Kan de vraag niet weergeven.
+  ar: تعذر عرض السؤال.
+  hi: प्रश्न दिखाया नहीं जा सका।
+  th: ไม่สามารถแสดงคำถามได้
+  cs: Nepodařilo se zobrazit otázku.
+  sv: Det gick inte att visa frågan.
+  he: לא ניתן להציג את השאלה.
+  verified_by_human: [en]
 share:
   context: Button label for sharing a chat
   en: Share chat
