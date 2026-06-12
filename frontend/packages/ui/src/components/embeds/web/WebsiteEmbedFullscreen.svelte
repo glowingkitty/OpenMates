@@ -401,26 +401,99 @@
     if (!contentEl) return;
     clearSourceQuoteHighlights();
 
+    const textNodes: Text[] = [];
     const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode() as Text | null;
-    const lowerQuote = quote.toLowerCase();
-
     while (node) {
-      const textValue = node.nodeValue || '';
-      const index = textValue.toLowerCase().indexOf(lowerQuote);
-      if (index !== -1) {
-        const range = document.createRange();
-        range.setStart(node, index);
-        range.setEnd(node, index + quote.length);
-        const marker = document.createElement('mark');
-        marker.className = 'embed-source-text-highlight';
-        marker.dataset.testid = 'embed-source-text-highlight';
-        range.surroundContents(marker);
-        marker.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-        return;
-      }
+      textNodes.push(node);
       node = walker.nextNode() as Text | null;
     }
+
+    const fullText = textNodes.map((textNode) => textNode.nodeValue || '').join('');
+    const match = findSourceQuoteMatch(fullText, quote);
+    if (!match) return;
+
+    const start = locateTextPosition(textNodes, match.start);
+    const end = locateTextPosition(textNodes, match.end);
+    if (!start || !end) return;
+
+    const range = document.createRange();
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    const marker = document.createElement('mark');
+    marker.className = 'embed-source-text-highlight';
+    marker.dataset.testid = 'embed-source-text-highlight';
+    range.surroundContents(marker);
+    marker.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  }
+
+  function findSourceQuoteMatch(fullText: string, quote: string): { start: number; end: number } | null {
+    const exactIndex = fullText.toLowerCase().indexOf(quote.toLowerCase());
+    if (exactIndex !== -1) return { start: exactIndex, end: exactIndex + quote.length };
+
+    const normalizedFull = normalizeForQuoteMatch(fullText);
+    const normalizedQuote = normalizeForQuoteMatch(quote);
+    const fullQuoteMatch = resolveNormalizedQuoteMatch(normalizedFull, normalizedQuote.text);
+    if (fullQuoteMatch) return fullQuoteMatch;
+
+    const quoteWords = normalizedQuote.text.split(' ').filter(Boolean);
+    for (let wordCount = quoteWords.length - 1; wordCount >= 6; wordCount -= 1) {
+      const prefixMatch = resolveNormalizedQuoteMatch(normalizedFull, quoteWords.slice(0, wordCount).join(' '));
+      if (prefixMatch) return prefixMatch;
+
+      const suffixMatch = resolveNormalizedQuoteMatch(normalizedFull, quoteWords.slice(-wordCount).join(' '));
+      if (suffixMatch) return suffixMatch;
+    }
+
+    return null;
+  }
+
+  function resolveNormalizedQuoteMatch(
+    normalizedFull: { text: string; indexMap: number[] },
+    normalizedQuoteText: string,
+  ): { start: number; end: number } | null {
+    if (!normalizedQuoteText) return null;
+    const normalizedIndex = normalizedFull.text.indexOf(normalizedQuoteText);
+    if (normalizedIndex === -1) return null;
+
+    const start = normalizedFull.indexMap[normalizedIndex];
+    const endMapIndex = normalizedIndex + normalizedQuoteText.length - 1;
+    const end = (normalizedFull.indexMap[endMapIndex] ?? start) + 1;
+    return { start, end };
+  }
+
+  function normalizeForQuoteMatch(value: string): { text: string; indexMap: number[] } {
+    let text = '';
+    const indexMap: number[] = [];
+    let previousWasSpace = false;
+    for (let i = 0; i < value.length; i += 1) {
+      const char = value[i];
+      if (/\s/.test(char)) {
+        if (!previousWasSpace) {
+          text += ' ';
+          indexMap.push(i);
+          previousWasSpace = true;
+        }
+      } else {
+        text += char.toLowerCase();
+        indexMap.push(i);
+        previousWasSpace = false;
+      }
+    }
+    return { text: text.trim(), indexMap };
+  }
+
+  function locateTextPosition(textNodes: Text[], targetOffset: number): { node: Text; offset: number } | null {
+    let cursor = 0;
+    for (const textNode of textNodes) {
+      const length = textNode.nodeValue?.length || 0;
+      if (targetOffset <= cursor + length) {
+        return { node: textNode, offset: Math.max(0, targetOffset - cursor) };
+      }
+      cursor += length;
+    }
+    const lastNode = textNodes[textNodes.length - 1];
+    return lastNode ? { node: lastNode, offset: lastNode.nodeValue?.length || 0 } : null;
   }
 </script>
 
