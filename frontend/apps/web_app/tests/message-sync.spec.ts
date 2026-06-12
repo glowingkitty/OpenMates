@@ -208,6 +208,27 @@ async function waitForMessagesVSettled(
 	}, chatId, { timeout: timeoutMs, polling: 500 });
 }
 
+async function waitForSyncedAssistantMessages(
+	page: any,
+	chatId: string,
+	expectedAssistantCount: number,
+	timeoutMs: number = 60000
+): Promise<{ messages_v: number; messageCount: number; roles: Record<string, number>; messageDetails: any[] }> {
+	const startTime = Date.now();
+	let lastStats = await getMessageStats(page, chatId);
+
+	while ((Date.now() - startTime) < timeoutMs) {
+		const syncedAssistantCount = lastStats.messageDetails.filter(
+			(message) => message.role === 'assistant' && message.status === 'synced'
+		).length;
+		if (syncedAssistantCount >= expectedAssistantCount) return lastStats;
+		await page.waitForTimeout(500);
+		lastStats = await getMessageStats(page, chatId);
+	}
+
+	return lastStats;
+}
+
 test('message sync: verifies all messages are synced after sending multiple messages', async ({ page }: { page: any }) => {
 	// Listen for console logs - filter for sync-related messages
 	page.on('console', (msg: any) => {
@@ -505,11 +526,10 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
 	
-	// Wait for AI response to be saved to IndexedDB (at least 2 messages).
-	// toBeVisible fires on the first streaming chunk. The AI stream must
-	// complete before the message is written to IndexedDB, which can take
-	// much longer than 10s. Use 60s to match the total AI response window.
-	stats = await waitForMessageCount(page, chatId, 2, 60000);
+	// Wait for the assistant response to finish, not just for the streaming
+	// placeholder to be saved. Streaming chunks are intentionally persisted with
+	// status="streaming", while messages_v advances only after final storage.
+	stats = await waitForSyncedAssistantMessages(page, chatId, 1, 60000);
 	versionsOverTime.push({ 
 		timestamp: 'after_ai_response', 
 		messages_v: stats.messages_v, 
