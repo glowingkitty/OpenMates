@@ -153,6 +153,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	await sendButton.click();
 	logCheckpoint('Message sent.');
 	await takeStepScreenshot(page, 'message-sent');
+	await expect(page.getByText(/Creating new chat/i)).toHaveCount(0, { timeout: 15000 });
 
 	// ───────────────────────────────────────────────────
 	// 4. Verify user message scrolls to the top of the chat area
