@@ -134,7 +134,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// 3. Type and send a message
 	// ───────────────────────────────────────────────────
 	const testMessage = withMockMarker(
-		'What is the capital of France? Please explain in detail.',
+		'What is the capital of Germany? Please explain in detail.',
 		'chat_flow_capital',
 		'medium'
 	);
@@ -321,8 +321,8 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// ───────────────────────────────────────────────────
 	logCheckpoint('Waiting for complete assistant response...');
 
-	// Wait for the response to contain "Paris" (should be the answer about France's capital)
-	await expect(assistantMessage).toContainText('Paris', { timeout: 45000 });
+	// Wait for the response to contain "Berlin" (the answer in the chat_flow_capital fixture)
+	await expect(assistantMessage).toContainText('Berlin', { timeout: 45000 });
 	logCheckpoint('PASS: Assistant response contains expected answer.');
 
 	// Verify no missing translations on the chat page during streaming
