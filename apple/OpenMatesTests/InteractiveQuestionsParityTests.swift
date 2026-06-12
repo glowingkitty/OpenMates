@@ -101,4 +101,33 @@ final class InteractiveQuestionsParityTests: XCTestCase {
             return
         }
     }
+
+    @MainActor
+    func testChoiceResponseFormatsAnswerTextAndHiddenProtocol() throws {
+        let json = """
+        {
+          "type": "choice",
+          "id": "python_slicing",
+          "multiple": false,
+          "question": "Which expression returns every second item?",
+          "options": [
+            { "id": "step_2", "text": "items[::2]" },
+            { "id": "reverse", "text": "items[::-1]" }
+          ]
+        }
+        """
+        let payload = try JSONDecoder().decode(
+            AppleInteractiveQuestionPayload.self,
+            from: XCTUnwrap(json.data(using: .utf8))
+        )
+
+        let content = payload.responseContent(response: [
+            "id": "python_slicing",
+            "selection": ["step_2"]
+        ])
+
+        XCTAssertTrue(content.hasPrefix("items[::2]\n\n```interactive_response"))
+        XCTAssertTrue(content.contains("\"id\" : \"python_slicing\""))
+        XCTAssertTrue(content.contains("\"selection\" : ["))
+    }
 }
