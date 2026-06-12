@@ -872,8 +872,9 @@
 <div class="share-chat-page">
 	{#if isLoading}
 		<div class="loading-container">
+			<img class="openmates-logo" src="/favicon.svg" alt="OpenMates" />
 			<div class="loading-spinner"></div>
-			<p>Loading shared chat...</p>
+			<p>Decrypting chat...</p>
 		</div>
 	{:else if error}
 		<div class="error-container">
@@ -940,6 +941,12 @@
 		border-radius: 50%;
 		animation: spin 1s linear infinite;
 		margin: 0 auto 20px;
+	}
+
+	.openmates-logo {
+		width: 56px;
+		height: 56px;
+		margin-bottom: 20px;
 	}
 
 	@keyframes spin {

@@ -121,13 +121,15 @@
 <div class="short-url-page">
     {#if status === 'loading'}
         <div class="status-container">
+            <img class="openmates-logo" src="/favicon.svg" alt="OpenMates" />
             <div class="spinner"></div>
-            <p class="status-text">Resolving link...</p>
+            <p class="status-text">Decrypting link...</p>
         </div>
     {:else if status === 'redirecting'}
         <div class="status-container">
+            <img class="openmates-logo" src="/favicon.svg" alt="OpenMates" />
             <div class="spinner"></div>
-            <p class="status-text">Redirecting...</p>
+            <p class="status-text">Decrypting link...</p>
         </div>
     {:else if status === 'error'}
         <div class="error-container">
@@ -163,6 +165,11 @@
         border-top-color: var(--color-primary, #6366f1);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
+    }
+
+    .openmates-logo {
+        width: 56px;
+        height: 56px;
     }
 
     @keyframes spin {
