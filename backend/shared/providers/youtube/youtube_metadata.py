@@ -14,6 +14,7 @@ import logging
 import os
 import re
 from typing import Dict, List, Optional
+from urllib.parse import parse_qs, urlparse
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -94,13 +95,20 @@ def extract_youtube_id_from_url(url: str) -> Optional[str]:
         logger.warning(f"Failed to sanitize YouTube URL for ID extraction: '{url}'")
         return None
     
-    # Use sanitized URL for extraction
-    url = sanitized_url
-    
-    # Pattern for various YouTube URL formats
+    # Use query parsing for watch URLs so v= can appear after other params
+    # (for example: /watch?app=desktop&v=VIDEO_ID&ra=m).
+    parsed = urlparse(sanitized_url)
+    hostname = (parsed.hostname or "").lower()
+    if hostname in {"youtube.com", "www.youtube.com", "m.youtube.com"} and parsed.path == "/watch":
+        video_ids = parse_qs(parsed.query).get("v", [])
+        if video_ids and re.fullmatch(r"[\w-]{11}", video_ids[0]):
+            return video_ids[0]
+        return None
+
+    # Pattern for path-based YouTube URL formats.
     # Matches: youtube.com, www.youtube.com, m.youtube.com (mobile), youtu.be
-    # Supports: /watch?v=, /embed/, /shorts/, /v/ (legacy) formats
-    match = re.search(r'(?:(?:www\.|m\.)?youtube\.com/(?:watch\?v=|embed/|shorts/|v/)|youtu\.be/)([\w-]{11})', url)
+    # Supports: /embed/, /shorts/, /v/ (legacy), and youtu.be/ formats.
+    match = re.search(r'(?:(?:www\.|m\.)?youtube\.com/(?:embed/|shorts/|v/)|youtu\.be/)([\w-]{11})', sanitized_url)
     if match:
         return match.group(1)
     
