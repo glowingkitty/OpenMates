@@ -227,6 +227,22 @@
   
   // Strip HTML tags from each snippet as fallback
   let cleanedSnippets = $derived(snippets.map(snippet => stripHtmlTags(snippet)));
+
+  type HighlightPart = { text: string; highlighted: boolean };
+
+  function getSourceQuoteParts(text: string): HighlightPart[] {
+    const quote = highlightQuoteText?.trim();
+    if (!quote) return [{ text, highlighted: false }];
+
+    const match = findSourceQuoteMatch(text, quote);
+    if (!match) return [{ text, highlighted: false }];
+
+    return [
+      { text: text.slice(0, match.start), highlighted: false },
+      { text: text.slice(match.start, match.end), highlighted: true },
+      { text: text.slice(match.end), highlighted: false },
+    ].filter((part) => part.text.length > 0);
+  }
   
   // Favicon URL with fallback chain
   // SECURITY: All favicon sources must be proxied to prevent user IP leaks.
@@ -383,7 +399,14 @@
       clearSourceQuoteHighlights();
       return;
     }
-    const raf = requestAnimationFrame(() => highlightSourceQuoteText(quote));
+    const raf = requestAnimationFrame(() => {
+      const declarativeHighlight = contentEl?.querySelector('mark.embed-source-text-highlight');
+      if (declarativeHighlight) {
+        declarativeHighlight.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        return;
+      }
+      highlightSourceQuoteText(quote);
+    });
     return () => cancelAnimationFrame(raf);
   });
 
@@ -549,7 +572,15 @@
       
       <!-- Description - rendered as plain text (HTML tags stripped server-side, client fallback) -->
       {#if cleanedDescription}
-        <p class="description">{cleanedDescription}</p>
+        <p class="description">
+          {#each getSourceQuoteParts(cleanedDescription) as part}
+            {#if part.highlighted}
+              <mark class="embed-source-text-highlight" data-testid="embed-source-text-highlight">{part.text}</mark>
+            {:else}
+              {part.text}
+            {/if}
+          {/each}
+        </p>
       {/if}
       
       <!-- Snippets Section -->
@@ -567,7 +598,15 @@
                 <!-- Closing quote icon (top-right) - rotated 180deg -->
                 <div class="quote-icon quote-close clickable-icon icon_quote"></div>
                 
-                <p class="snippet-text">{snippet}</p>
+                <p class="snippet-text">
+                  {#each getSourceQuoteParts(snippet) as part}
+                    {#if part.highlighted}
+                      <mark class="embed-source-text-highlight" data-testid="embed-source-text-highlight">{part.text}</mark>
+                    {:else}
+                      {part.text}
+                    {/if}
+                  {/each}
+                </p>
               </div>
             {/each}
           </div>
