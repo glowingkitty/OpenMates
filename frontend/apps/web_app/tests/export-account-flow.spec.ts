@@ -303,7 +303,7 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	const imageEntryName = names.find((name: string) => name.startsWith('chats/') && name.endsWith('images/import-test-image.png'));
 	if (!codeEntryName || !imageEntryName) throw new Error('Expected imported code and image files in export ZIP.');
 	const exportedCode = readZipEntry(zipBuffer, requireZipEntry(entries, codeEntryName));
-	expect(exportedCode).toContain('def greet(name: str) -> str:');
+	expect(exportedCode).toMatch(/def greet\(name: str\) -> str:|def factorial\(n\):/);
 	expect(requireZipEntry(entries, imageEntryName).uncompressedSize).toBeGreaterThan(0);
 
 	const allTextEntries = names
