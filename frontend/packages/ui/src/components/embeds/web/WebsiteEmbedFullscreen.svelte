@@ -751,6 +751,7 @@
     font-weight: inherit;
     border-radius: 2px;
     padding: 1px 0;
+    box-shadow: 0 0 0 2px rgba(255, 213, 0, 0.18);
   }
   
   /* ===========================================
