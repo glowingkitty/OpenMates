@@ -551,8 +551,57 @@
     return events.map(({ kind, text, timestamp }) => ({ kind, text, timestamp }));
   }
 
+  function isDependencyInstallEvent(event: CodeRunEvent): boolean {
+    const text = event.text.trimStart();
+    return (
+      event.kind === 'status' && text.startsWith('Installing selected ')
+      || text.startsWith('Collecting ')
+      || text.startsWith('Obtaining dependency information for ')
+      || text.startsWith('Downloading ')
+      || text.startsWith('Installing collected packages:')
+      || text.startsWith('Successfully installed ')
+      || text.startsWith('Requirement already satisfied:')
+    );
+  }
+
+  function hasFailedFinalStatus(events: CodeRunEvent[]): boolean {
+    return events.some((event) => {
+      const text = event.text.trimStart();
+      return event.kind === 'status' && (text.startsWith('Exited ') && !text.includes('code 0'));
+    });
+  }
+
+  function hasSuccessfulFinalStatus(events: CodeRunEvent[]): boolean {
+    return events.some((event) => {
+      const text = event.text.trimStart();
+      return event.kind === 'status' && text.startsWith('Exited ') && text.includes('code 0');
+    });
+  }
+
+  function omitSuccessfulDependencyInstallEvents(events: CodeRunEvent[]): CodeRunEvent[] {
+    const filtered: CodeRunEvent[] = [];
+    let inInstallBlock = false;
+    for (const event of events) {
+      const text = event.text.trimStart();
+      if (event.kind === 'status' && text.startsWith('Installing selected ')) {
+        inInstallBlock = true;
+        continue;
+      }
+      if (inInstallBlock && event.kind === 'status' && text.startsWith('Running ')) {
+        inInstallBlock = false;
+        filtered.push(event);
+        continue;
+      }
+      if (inInstallBlock && isDependencyInstallEvent(event)) continue;
+      if (!inInstallBlock) filtered.push(event);
+    }
+    return filtered;
+  }
+
   function buildCompactRunEvents(events: CodeRunEvent[]): CodeRunEvent[] {
-    return events.filter((event) => !event.text.startsWith('Queued code run for'));
+    const compactEvents = events.filter((event) => !event.text.startsWith('Queued code run for'));
+    if (!hasSuccessfulFinalStatus(compactEvents) || hasFailedFinalStatus(compactEvents)) return compactEvents;
+    return omitSuccessfulDependencyInstallEvents(compactEvents);
   }
 
   function compactRunOutputText(): string {
@@ -1576,9 +1625,12 @@
   }
 
   .code-run-overlay {
+    display: flex;
+    flex-direction: column;
     width: 100%;
     height: 100%;
-    overflow: auto;
+    min-height: 0;
+    overflow: hidden;
     box-sizing: border-box;
     border-radius: 2rem;
     background: var(--color-grey-0);
@@ -1594,6 +1646,8 @@
 
   .code-run-breadcrumb {
     display: inline-flex;
+    flex: 0 0 auto;
+    align-self: flex-start;
     align-items: center;
     gap: var(--spacing-3);
     min-width: 0;
@@ -1630,6 +1684,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-8);
+    min-height: 0;
+    overflow: auto;
   }
 
   .code-run-execute-summary {
@@ -1811,8 +1867,9 @@
   .code-run-terminal {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    min-height: 22rem;
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
   }
 
   .code-run-output {
@@ -1886,7 +1943,7 @@
     color: #fca5a5;
   }
 
-  @container fullscreen (min-width: 1600px) {
+  @container fullscreen (min-width: 1400px) {
     .code-split-wrapper.code-run-pane-active {
       gap: var(--spacing-8);
       background-color: transparent;

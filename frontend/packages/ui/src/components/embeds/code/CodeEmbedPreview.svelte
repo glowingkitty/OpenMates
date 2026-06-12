@@ -140,7 +140,9 @@
   let savedRunOutputPreviewText = $derived.by(() => {
     if (!savedRunOutputText) return '';
     const maxLines = isLargePreview ? MAX_OUTPUT_PREVIEW_LINES_LARGE : MAX_OUTPUT_PREVIEW_LINES_STANDARD;
-    return savedRunOutputText.split('\n').slice(0, maxLines).join('\n');
+    const lines = savedRunOutputText.split('\n');
+    while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+    return lines.slice(-maxLines).join('\n');
   });
 
   onMount(() => {
