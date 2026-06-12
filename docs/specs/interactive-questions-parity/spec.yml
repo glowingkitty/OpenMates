@@ -355,8 +355,8 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: partial_passed_pending_native_answering
-        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing \"OpenMatesTests/InteractiveQuestionsParityTests\" -> 4 tests passed, 0 failures; covers parser/rendering safeguards only, not native answer submission/routing."
+        status: passed
+        run_id: "python3 scripts/apple_remote.py repo -- bash -lc \"xcodebuild test -quiet -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing OpenMatesTests/InteractiveQuestionsParityTests\" -> exit_code=0 after native answer controls, hidden response formatting, and awaiting_user_input routing were added. Coverage is unit/build-level; no Apple UI automation was added in this slice."
         timestamp: "2026-06-12"
 
 implementation_plan:
