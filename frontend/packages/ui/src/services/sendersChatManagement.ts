@@ -24,37 +24,6 @@ import type {
 	SetActiveChatPayload
 } from "../types/chat";
 
-const ACTIVE_CHAT_ACK_TIMEOUT_MS = 2000;
-
-type ActiveChatSetAckPayload = {
-	chat_id?: string | null;
-};
-
-function waitForActiveChatAck(chatId: string | null): Promise<boolean> {
-	return new Promise((resolve) => {
-		const handleAck = (payload: ActiveChatSetAckPayload) => {
-			if (payload?.chat_id !== chatId) return;
-			cleanup();
-			resolve(true);
-		};
-
-		const cleanup = () => {
-			clearTimeout(timeoutId);
-			webSocketService.off("active_chat_set_ack", handleAck);
-		};
-
-		const timeoutId = setTimeout(() => {
-			cleanup();
-			console.warn(
-				`[ChatSyncService:Senders] Timed out waiting for active_chat_set_ack for chat: ${chatId}`
-			);
-			resolve(false);
-		}, ACTIVE_CHAT_ACK_TIMEOUT_MS);
-
-		webSocketService.on("active_chat_set_ack", handleAck);
-	});
-}
-
 export async function sendUpdateTitleImpl(
 	serviceInstance: ChatSynchronizationService,
 	chat_id: string,
@@ -397,18 +366,8 @@ export async function sendSetActiveChatImpl(
 	}
 	const payload: SetActiveChatPayload = { chat_id: chatId };
 	try {
-		const ackReceived = waitForActiveChatAck(chatId);
 		await webSocketService.sendMessage("set_active_chat", payload);
-		const didReceiveAck = await ackReceived;
-		if (didReceiveAck) {
-			console.debug(
-				`[ChatSyncService:Senders] Sent 'set_active_chat' to server and received ack: ${chatId}`
-			);
-		} else {
-			console.debug(
-				`[ChatSyncService:Senders] Sent 'set_active_chat' to server without ack before timeout: ${chatId}`
-			);
-		}
+		console.debug(`[ChatSyncService:Senders] Sent 'set_active_chat' to server: ${chatId}`);
 	} catch (error) {
 		console.error(
 			`[ChatSyncService:Senders] Error sending 'set_active_chat' for chat_id: ${chatId}:`,
