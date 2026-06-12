@@ -464,11 +464,23 @@
     interface AutoConvertedPasteCandidate {
         embedId: string;
         text: string;
-        textAtCreation: string;
+        dismissOnTextEdit: boolean;
     }
 
     let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
     let pendingDefaultPasteTextForRecovery: string | null = null;
+
+    function setAutoConvertedPasteCandidate(embedId: string, text: string) {
+        autoConvertedPasteCandidate = { embedId, text, dismissOnTextEdit: false };
+        tick().then(() => {
+            if (autoConvertedPasteCandidate?.embedId === embedId) {
+                autoConvertedPasteCandidate = {
+                    ...autoConvertedPasteCandidate,
+                    dismissOnTextEdit: true,
+                };
+            }
+        });
+    }
 
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
@@ -670,11 +682,7 @@
         });
 
         if (embedId) {
-            autoConvertedPasteCandidate = {
-                embedId,
-                text: pastedText,
-                textAtCreation: editor.getText(),
-            };
+            setAutoConvertedPasteCandidate(embedId, pastedText);
         }
     }
 
@@ -723,11 +731,7 @@
             try {
                 editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
                 editor.commands.focus('end');
-                autoConvertedPasteCandidate = {
-                    embedId,
-                    text: originalText,
-                    textAtCreation: editor.getText(),
-                };
+                setAutoConvertedPasteCandidate(embedId, originalText);
             } finally {
                 isConvertingEmbeds = false;
             }
@@ -784,11 +788,7 @@
 
         editor.commands.insertContent(' ');
         editor.commands.focus('end');
-        autoConvertedPasteCandidate = {
-            embedId,
-            text,
-            textAtCreation: editor.getText(),
-        };
+        setAutoConvertedPasteCandidate(embedId, text);
         hasContent = !isContentEmptyExceptMention(editor);
     }
 
@@ -2588,7 +2588,7 @@
         if (
             textActuallyChanged &&
             autoConvertedPasteCandidate &&
-            currentText !== autoConvertedPasteCandidate.textAtCreation
+            autoConvertedPasteCandidate.dismissOnTextEdit
         ) {
             autoConvertedPasteCandidate = null;
         }
