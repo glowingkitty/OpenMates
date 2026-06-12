@@ -21,6 +21,12 @@ export const memoryImagesPreferredStylesChat: ExampleChat = {
         "role": "user",
         "content": "example_chats.memory_images_preferred_styles.message_1",
         "created_at": 1781280186
+    },
+    {
+        "id": "f52dc087-c8ea-4d40-a51c-0ec7b28f63d5",
+        "role": "assistant",
+        "content": "example_chats.memory_images_preferred_styles.message_2",
+        "created_at": 1781280196
     }
 ],
   embeds: [],
