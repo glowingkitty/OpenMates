@@ -34,7 +34,7 @@ const {
 	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
-const { submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
+const { submitPasswordAndHandleOtp, sendMessage } = require('./helpers/chat-test-helpers');
 
 /**
  * Chat scroll & streaming behavior test:
@@ -133,14 +133,13 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	// ───────────────────────────────────────────────────
 	// 3. Type and send a message
 	// ───────────────────────────────────────────────────
+	const testMessage = withMockMarker(
+		'What is the capital of France? Please explain in detail.',
+		'chat_scroll_streaming',
+		'medium'
+	);
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(withMockMarker('What is the capital of France? Please explain in detail.', 'chat_scroll_streaming', 'medium'));
-	await takeStepScreenshot(page, 'message-typed');
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled();
 
 	// Record scroll position BEFORE sending
 	const scrollBefore = await chatContainer.evaluate((el: HTMLElement) => ({
@@ -150,9 +149,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	}));
 	logCheckpoint('Scroll before send', scrollBefore);
 
-	await sendButton.click();
-	logCheckpoint('Message sent.');
-	await takeStepScreenshot(page, 'message-sent');
+	await sendMessage(page, testMessage, logCheckpoint, takeStepScreenshot, 'scroll');
 
 	// ───────────────────────────────────────────────────
 	// 4. Verify user message scrolls to the top of the chat area
