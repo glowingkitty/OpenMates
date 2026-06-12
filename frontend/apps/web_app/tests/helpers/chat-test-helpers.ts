@@ -838,7 +838,6 @@ async function sendMessage(
 				assistantCount: await locatorCount(assistantMessages),
 				assistantCountBeforeSend
 			});
-			await takeStepScreenshot(page, `${stepLabel}-message-sent`);
 			return;
 		}
 		throw error;
@@ -860,7 +859,6 @@ async function sendMessage(
 		assistantCount: await locatorCount(assistantMessages),
 		assistantCountBeforeSend
 	});
-	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
 }
 
 /**
