@@ -313,6 +313,28 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 )
             }
 
+        case "awaiting_user_input":
+            let chatId = msg.stringField("chat_id") ?? ""
+            let messageId = msg.stringField("message_id") ?? msg.stringField("task_id") ?? ""
+            let question = msg.stringField("question") ?? ""
+            guard !chatId.isEmpty, !messageId.isEmpty, !question.isEmpty else { break }
+            Task {
+                await StreamingClient.shared.dispatch(
+                    .chunk(
+                        chatId: chatId,
+                        messageId: messageId,
+                        sequence: 0,
+                        content: question,
+                        isFinal: true,
+                        userMessageId: msg.stringField("user_message_id"),
+                        category: nil,
+                        modelName: nil,
+                        rejectionReason: nil
+                    ),
+                    for: chatId
+                )
+            }
+
         case "preprocessing_step":
             let chatId = msg.stringField("chat_id") ?? ""
             let step = msg.stringField("step") ?? ""
