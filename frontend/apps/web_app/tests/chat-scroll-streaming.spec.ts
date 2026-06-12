@@ -111,7 +111,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 
 	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logCheckpoint);
 
-	await page.waitForURL(/chat/);
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	await page.waitForTimeout(5000);
 
 	// Start a fresh chat
