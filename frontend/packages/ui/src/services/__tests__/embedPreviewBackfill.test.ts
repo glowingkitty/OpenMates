@@ -5,7 +5,7 @@
 // but server sync is only eligible for writable owner copies.
 
 import { describe, expect, it } from 'vitest';
-import { canPersistPreviewBackfill } from '../embedPreviewBackfill';
+import { canPersistPreviewBackfill, canStorePreviewBackfillLocally } from '../embedPreviewBackfill';
 
 const writableEntry = {
   encrypted_content: 'encrypted-content',
@@ -16,6 +16,10 @@ const writableEntry = {
 };
 
 describe('preview metadata backfill write guard', () => {
+  it('allows local persistence for shared/read-only parent entries with decryptable content', () => {
+    expect(canStorePreviewBackfillLocally({ ...writableEntry, is_shared: true })).toBe(true);
+  });
+
   it('allows owner/write parent entries with complete encrypted routing metadata', () => {
     expect(canPersistPreviewBackfill(writableEntry)).toBe(true);
   });

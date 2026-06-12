@@ -14,6 +14,21 @@ export interface PreviewBackfillPersistEntry {
   hashed_user_id?: string;
 }
 
+export function canStorePreviewBackfillLocally(
+  entry: PreviewBackfillPersistEntry | null | undefined,
+): entry is PreviewBackfillPersistEntry & {
+  encrypted_content: string;
+  encrypted_type: string;
+  hashed_chat_id: string;
+} {
+  return Boolean(
+    entry &&
+      entry.encrypted_content &&
+      entry.encrypted_type &&
+      entry.hashed_chat_id,
+  );
+}
+
 export function canPersistPreviewBackfill(
   entry: PreviewBackfillPersistEntry | null | undefined,
 ): entry is PreviewBackfillPersistEntry & {
@@ -24,11 +39,8 @@ export function canPersistPreviewBackfill(
   hashed_user_id: string;
 } {
   return Boolean(
-    entry &&
+    canStorePreviewBackfillLocally(entry) &&
       !entry.is_shared &&
-      entry.encrypted_content &&
-      entry.encrypted_type &&
-      entry.hashed_chat_id &&
       entry.hashed_message_id &&
       entry.hashed_user_id,
   );

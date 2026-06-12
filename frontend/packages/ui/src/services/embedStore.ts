@@ -24,7 +24,10 @@ import {
   decryptWithEmbedKey,
 } from "./cryptoService";
 import type { StoreEmbedPayload } from "../types/chat";
-import { canPersistPreviewBackfill } from "./embedPreviewBackfill";
+import {
+  canPersistPreviewBackfill,
+  canStorePreviewBackfillLocally,
+} from "./embedPreviewBackfill";
 // Embed store name for IndexedDB
 const EMBEDS_STORE_NAME = "embeds";
 
@@ -1939,7 +1942,7 @@ export class EmbedStore {
       updatedAt: nowMs,
     });
 
-    if (!canPersistPreviewBackfill(rawEntry)) {
+    if (!canStorePreviewBackfillLocally(rawEntry)) {
       return { updated: true };
     }
 
@@ -1996,6 +1999,10 @@ export class EmbedStore {
         vault_key_id: rawEntry.vault_key_id,
       },
     );
+
+    if (!canPersistPreviewBackfill(rawEntry)) {
+      return { updated: true };
+    }
 
     return {
       updated: true,
