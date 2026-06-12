@@ -532,6 +532,9 @@ struct ChatView: View {
                                             showEmbedFullscreen = true
                                         },
                                         onOpenPublicChat: onOpenPublicChat,
+                                        onInteractiveQuestionSubmit: { content in
+                                            Task { await viewModel.sendMessage(content) }
+                                        },
                                         onShowActions: {
                                             actionMessage = message
                                         }
@@ -1650,6 +1653,7 @@ struct MessageBubble: View {
     let containerWidth: CGFloat
     let onEmbedTap: (EmbedRecord) -> Void
     let onOpenPublicChat: ((String) -> Void)?
+    let onInteractiveQuestionSubmit: ((String) -> Void)?
     let onShowActions: (() -> Void)?
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -1669,6 +1673,10 @@ struct MessageBubble: View {
     var displayContent: String {
         if let streaming = streamingContent { return streaming }
         return message.content ?? ""
+    }
+
+    private var viewAllowsInteractiveQuestionSubmit: Bool {
+        !isUser && streamingContent == nil
     }
 
     private var topLevelAppSkillEmbeds: [EmbedRecord] {
@@ -1799,7 +1807,12 @@ struct MessageBubble: View {
     private var userBubble: some View {
         VStack(alignment: .trailing, spacing: .spacing3) {
             if !displayContent.isEmpty {
-                InlineMarkdownText(content: displayContent, isUserMessage: true)
+                RichMarkdownView(
+                    content: displayContent,
+                    isUserMessage: true,
+                    allEmbedRecords: allEmbedRecords,
+                    onEmbedTap: onEmbedTap
+                )
                     .foregroundStyle(Color.fontPrimary)
                     .padding(.spacing6)
                     .background(Color.greyBlue)
@@ -1855,7 +1868,8 @@ struct MessageBubble: View {
                             embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
                             allEmbedRecords: allEmbedRecords,
                             hiddenEmbedIds: hiddenInlineEmbedIds,
-                            onEmbedTap: onEmbedTap
+                            onEmbedTap: onEmbedTap,
+                            onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil
                         )
                     }
                     .foregroundStyle(Color.grey100)
