@@ -201,7 +201,7 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		log('Clicked Add Payment Method to open checkout.');
 	}
 	const consentToggle = page.locator('#limited-refund-consent-toggle');
-	if (await consentToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
+	if (await consentToggle.waitFor({ state: 'attached', timeout: 5000 }).then(() => true).catch(() => false)) {
 		await setToggleChecked(consentToggle, true);
 		log('Accepted limited refund consent.');
 	}
