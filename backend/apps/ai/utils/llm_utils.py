@@ -1364,6 +1364,11 @@ async def call_main_llm_stream(
         auth_indicators = ["401", "unauthorized"]
         if any(indicator in error_lower for indicator in auth_indicators):
             return True
+        # Bedrock can reject multimodal requests with a 400 ValidationException for
+        # provider-specific image handling. The same OpenAI-format message may still
+        # succeed on the configured direct Anthropic fallback server.
+        if "validationexception" in error_lower and "could not process image" in error_lower:
+            return True
         # Non-retryable errors: 400 (bad request) - the request itself is malformed,
         # sending the same request to another provider won't help.
         # EXCEPTION: "thought signature is not valid" is a special 400 that CAN be fixed by stripping

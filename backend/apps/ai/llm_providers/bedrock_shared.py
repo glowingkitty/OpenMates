@@ -9,6 +9,8 @@
 
 import logging
 import json
+import base64
+import binascii
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 from botocore.exceptions import ClientError
@@ -234,10 +236,15 @@ def _convert_image_url_to_converse(block: Dict[str, Any]) -> Optional[Dict[str, 
             "image/webp": "webp",
         }
         img_format = format_map.get(mime_type, "png")
+        try:
+            image_bytes = base64.b64decode(b64_data, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            logger.warning(f"[bedrock_shared] Invalid base64 image data for Converse API: {exc}")
+            return None
         return {
             "image": {
                 "format": img_format,
-                "source": {"bytes": b64_data},
+                "source": {"bytes": image_bytes},
             }
         }
 
