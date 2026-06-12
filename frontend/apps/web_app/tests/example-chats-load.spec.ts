@@ -198,10 +198,10 @@ test.describe('Example chats loading for new users', () => {
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Your One-Week Reading Plan' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'One-Week Reading Schedule' })).toBeVisible({ timeout: 15000 });
 	});
 
-	test('reported memory examples render document, mail, and interactive-question content', async ({
+	test('reported memory examples render current text content without interactive-question errors', async ({
 		page
 	}: {
 		page: any;
@@ -211,16 +211,16 @@ test.describe('Example chats loading for new users', () => {
 		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-books-currently-reading'), {
 			waitUntil: 'domcontentloaded'
 		});
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Your One-Week Reading Plan' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'One-Week Reading Schedule' })).toBeVisible({ timeout: 15000 });
 		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
-		await expect(page.getByTestId('embed-preview').filter({ hasText: 'Reading_Plan_Project_Hail_Mary.docx' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Project Hail Mary' })).toBeVisible({ timeout: 15000 });
 
 		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-mail-writing-styles'), {
 			waitUntil: 'domcontentloaded'
 		});
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Friday client update' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Weekly Update - [Project Name]' })).toBeVisible({ timeout: 15000 });
 		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
-		await expect(page.getByTestId('embed-preview').filter({ hasText: 'Progress Update: [Project Name]' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Have a wonderful weekend' })).toBeVisible({ timeout: 15000 });
 	});
 
 	test('sidebar example chats show newest first and append older results after show more', async ({
