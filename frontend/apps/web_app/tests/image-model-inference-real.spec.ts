@@ -28,6 +28,7 @@ const IMAGE_FIXTURE = path.resolve(
 );
 
 const PROMPT = 'Evaluate the design and give recommendations for improvements.';
+const DESIGN_FEEDBACK_PATTERN = /design|recommend|improve|layout|spacing|interface|ui/i;
 const TRIALS = [1, 2, 3];
 const DEFAULT_SMOKE_MODEL_LABELS = ['gemini-pro'];
 
@@ -199,6 +200,7 @@ async function waitForImageViewAndResponse(page: any, log: (message: string, met
 	await expect(assistantMessage).toBeVisible({ timeout: 30000 });
 	const generatedBy = assistantMessage.getByTestId('generated-by');
 	await expect(generatedBy).toBeVisible({ timeout: 240000 });
+	await expect(assistantMessage).toContainText(DESIGN_FEEDBACK_PATTERN, { timeout: 240000 });
 	const generatedByText = (await generatedBy.textContent()) || '';
 	const responseText = (await assistantMessage.textContent()) || '';
 	return { generatedByText, responseText };
@@ -251,7 +253,7 @@ for (const model of activeModels) {
 				expect(generatedByText).not.toMatch(/gemini|google/i);
 			}
 			expect(score.rawDumpSuspected, `response looked like a raw coordinate/label dump: ${responseText.slice(0, 500)}`).toBe(false);
-			expect(responseText.toLowerCase()).toMatch(/design|recommend|improve|layout|spacing|interface|ui/);
+			expect(responseText).toMatch(DESIGN_FEEDBACK_PATTERN);
 
 			await deleteActiveChat(page, log, screenshot, `cleanup-${model.label}-${trial}`);
 		});
