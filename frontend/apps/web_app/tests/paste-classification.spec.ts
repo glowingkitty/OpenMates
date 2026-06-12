@@ -112,10 +112,16 @@ test('pasted code becomes a code embed with Paste as text recovery', async ({ pa
 	const editor = await openUnauthenticatedNewChat(page);
 
 	await pasteIntoEditor(page, editor, "import { test } from 'vitest';\nconst answer = 42;");
-	await expect(
-		editor.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]')
-	).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('paste-as-text-chip')).toBeVisible({ timeout: 5000 });
+	const codeEmbed = editor.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
+	);
+	await expect(codeEmbed).toBeVisible({ timeout: 10000 });
+	await codeEmbed.click({ button: 'right' });
+	await page.getByRole('button', { name: /Paste as text/i }).click();
+	await expect(editor.locator('[data-testid="embed-full-width-wrapper"]')).toHaveCount(0, {
+		timeout: 5000
+	});
+	await expect(editor).toContainText("import { test } from 'vitest';", { timeout: 5000 });
 });
 
 test('pasted table becomes a sheet embed and hides recovery after typing', async ({ page }: { page: any }) => {
