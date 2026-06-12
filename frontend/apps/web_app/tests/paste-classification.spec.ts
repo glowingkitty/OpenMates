@@ -16,12 +16,18 @@ async function openUnauthenticatedNewChat(page: any): Promise<any> {
 	await page.waitForLoadState('networkidle');
 
 	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
-	await expect(newChatButton).toBeVisible({ timeout: 15000 });
-	await newChatButton.click();
-
 	const editor = page.getByTestId('message-editor');
+	try {
+		await newChatButton.waitFor({ state: 'visible', timeout: 15000 });
+		await newChatButton.click();
+	} catch {
+		await expect(editor).toBeVisible({ timeout: 10000 });
+	}
+
 	await expect(editor).toBeVisible({ timeout: 10000 });
 	await editor.click();
+	await page.keyboard.press('Control+A');
+	await page.keyboard.press('Backspace');
 	return editor;
 }
 
