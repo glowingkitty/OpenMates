@@ -116,6 +116,16 @@ scenarios:
       - It prints each backend module/handler, allowed actors, access type, data domains, and rationale.
       - Public/shared/admin/internal endpoints are visible for product review.
 
+  - id: S-5
+    title: Mixed-permission REST module has endpoint-level classifications
+    given:
+      - A REST route module contains both public/token endpoints and authenticated owner endpoints.
+    when:
+      - The permission audit runs in matrix mode.
+    then:
+      - The matrix prints each REST method, route, function, detected auth guard, auth model, actors, access type, data domains, and rationale.
+      - Explicit endpoint overrides fail if they reference a stale route or conflict with detected auth guards.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -129,6 +139,9 @@ acceptance_criteria:
   - id: AC-4
     scenario: S-4
     text: The audit can print a permission matrix for current backend entrypoints to support follow-up restriction decisions.
+  - id: AC-5
+    scenario: S-5
+    text: Mixed REST modules can define endpoint-level overrides that are validated against discovered method/path/function and auth guard shape.
 
 contracts:
   api:
@@ -140,6 +153,9 @@ contracts:
         - Endpoint count mismatch for a registered route module.
         - Missing WebSocket handler registry entry.
         - Registry entry missing actors, access, data_domains, or rationale.
+        - Missing endpoint-level registry entry when a module requires overrides.
+        - Stale endpoint override for a route that no longer exists.
+        - Endpoint override actor/auth mismatch.
   data:
     - backend/core/api/app/security/user_data_permissions.yml is the initial YAML source of truth for backend entrypoint permissions.
   privacy_security:
@@ -156,10 +172,14 @@ tests:
       - AC-1
       - AC-2
       - AC-4
+      - AC-5
     assertions:
       - missing REST route module fails
       - endpoint count mismatch fails
       - missing WebSocket handler fails
+      - missing required endpoint override fails
+      - stale endpoint override fails
+      - endpoint actor/auth mismatch fails
       - fully covered fixture passes
     red_phase:
       required: true
@@ -173,8 +193,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: local-pytest-6-passed
-        timestamp: "2026-06-12T12:49:01Z"
+        run_id: local-pytest-12-passed
+        timestamp: "2026-06-12T13:33:42Z"
 
   - id: T-PYTEST-002
     type: pytest
@@ -209,9 +229,10 @@ tests:
       - AC-1
       - AC-2
       - AC-4
+      - AC-5
     assertions:
       - repository registry covers current backend REST route files and WebSocket handlers
-      - matrix mode prints actor/access/domain classifications
+      - matrix mode prints endpoint method, route, function, auth guards, auth model, actors, access, domains, and rationale
     red_phase:
       required: true
       expected: fail
@@ -224,8 +245,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: local-audit-56-rest-42-websocket-handlers
-        timestamp: "2026-06-12T12:49:01Z"
+        run_id: local-endpoint-audit-56-rest-modules-42-websocket-handlers
+        timestamp: "2026-06-12T13:33:42Z"
 
 implementation_plan:
   existing_patterns:
@@ -235,14 +256,15 @@ implementation_plan:
   architecture: >
     Add a YAML backend entrypoint permission registry and an AST-based audit that
     discovers FastAPI route decorators plus WebSocket handler files. The registry
-    records expected route counts per module so new endpoints in already-known
-    modules fail until reviewed. Later slices can add frontend/CLI/Apple action
-    registries that map to the same data-domain and actor vocabulary.
+    records expected route counts per module and endpoint-level overrides for
+    mixed modules so public/token/signature/owner routes can be reviewed without
+    relying on broad module defaults. Later slices can add frontend/CLI/Apple
+    action registries that map to the same data-domain and actor vocabulary.
   data_flow:
-    - Audit discovers REST endpoint counts by route module.
+    - Audit discovers REST endpoints by method, route, function, and dependency guards.
     - Audit discovers WebSocket handler files.
-    - Audit validates each discovered entry against YAML registry actors, access, data_domains, and rationale.
-    - Matrix mode prints the reviewed contract for human discussion.
+    - Audit validates module defaults and explicit endpoint overrides against YAML registry actors, access, data_domains, auth_model, and rationale.
+    - Matrix mode prints the endpoint-level reviewed contract for human discussion.
   affected_files:
     - path: docs/specs/user-data-permission-audit/spec.yml
       reason: Executable permission-audit contract.
@@ -273,10 +295,12 @@ tasks:
         - S-1
         - S-2
         - S-4
+        - S-5
       acceptance_criteria:
         - AC-1
         - AC-2
         - AC-4
+        - AC-5
     expected_files:
       - backend/core/api/app/security/user_data_permissions.yml
       - scripts/audit_user_data_permissions.py

@@ -12,7 +12,9 @@ from pathlib import Path
 from typing import Any
 
 from scripts.audit_user_data_permissions import (
+    RestEndpoint,
     audit_registry,
+    discover_rest_endpoints,
     discover_rest_routes,
     discover_websocket_handlers,
 )
@@ -74,7 +76,8 @@ def fixture_discovery(tmp_path: Path) -> tuple[dict[str, int], set[str], str, st
     write_file(tmp_path / rest_path, route_file())
     write_file(tmp_path / ws_path, "async def handle_example():\n    return None\n")
 
-    discovered_rest = discover_rest_routes(tmp_path / "backend/core/api/app/routes", tmp_path)
+    discovered_endpoints = discover_rest_endpoints(tmp_path / "backend/core/api/app/routes", tmp_path)
+    discovered_rest = {path: len(endpoints) for path, endpoints in discovered_endpoints.items()}
     discovered_ws = discover_websocket_handlers(
         tmp_path / "backend/core/api/app/routes/handlers/websocket_handlers",
         tmp_path,
@@ -177,3 +180,75 @@ async def stream():
     discovered_rest = discover_rest_routes(tmp_path / "backend/core/api/app/routes", tmp_path)
 
     assert discovered_rest[rest_path] == 2
+
+
+def test_endpoint_overrides_required_reports_missing_endpoint(tmp_path: Path) -> None:
+    discovered_rest, discovered_ws, rest_path, ws_path = fixture_discovery(tmp_path)
+    discovered_endpoints = {
+        rest_path: [RestEndpoint(rest_path, "GET", "/items", "list_items", tuple())]
+    }
+    registry = valid_registry(rest_path, ws_path)
+    registry["rest_modules"][0]["endpoint_overrides_required"] = True
+
+    issues = audit_registry(
+        registry,
+        discovered_rest_routes=discovered_rest,
+        discovered_rest_endpoints=discovered_endpoints,
+        discovered_websocket_handlers=discovered_ws,
+    )
+
+    assert any("missing endpoint-level permission registry entry" in issue.message for issue in issues)
+
+
+def test_stale_endpoint_override_is_reported(tmp_path: Path) -> None:
+    discovered_rest, discovered_ws, rest_path, ws_path = fixture_discovery(tmp_path)
+    registry = valid_registry(rest_path, ws_path)
+    registry["rest_modules"][0]["endpoints"] = [
+        {
+            "method": "POST",
+            "route": "/missing",
+            "function": "missing",
+            "actors": ["authenticated_owner"],
+            "access": ["owner_write"],
+            "data_domains": ["chats"],
+            "auth_model": "session_required",
+            "rationale": "Fixture stale endpoint.",
+        }
+    ]
+
+    issues = audit_registry(
+        registry,
+        discovered_rest_routes=discovered_rest,
+        discovered_rest_endpoints={rest_path: [RestEndpoint(rest_path, "GET", "/items", "list_items", tuple())]},
+        discovered_websocket_handlers=discovered_ws,
+    )
+
+    assert any("registered endpoint was not discovered" in issue.message for issue in issues)
+
+
+def test_endpoint_auth_shape_mismatch_is_reported(tmp_path: Path) -> None:
+    discovered_rest, discovered_ws, rest_path, ws_path = fixture_discovery(tmp_path)
+    registry = valid_registry(rest_path, ws_path)
+    registry["rest_modules"][0]["endpoints"] = [
+        {
+            "method": "GET",
+            "route": "/items",
+            "function": "list_items",
+            "actors": ["unauthenticated"],
+            "access": ["owner_read"],
+            "data_domains": ["chats"],
+            "auth_model": "session_required",
+            "rationale": "Fixture intentionally wrong actor.",
+        }
+    ]
+
+    issues = audit_registry(
+        registry,
+        discovered_rest_routes=discovered_rest,
+        discovered_rest_endpoints={
+            rest_path: [RestEndpoint(rest_path, "GET", "/items", "list_items", ("get_current_user",))]
+        },
+        discovered_websocket_handlers=discovered_ws,
+    )
+
+    assert any("uses required user auth" in issue.message for issue in issues)

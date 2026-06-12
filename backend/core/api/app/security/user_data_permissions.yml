@@ -20,6 +20,9 @@ access_modes:
   - internal_write
   - test_write
   - system_write
+  - public_write
+  - token_read
+  - signature_write
 rest_modules:
   - path: backend/core/api/app/routes/admin.py
     expected_routes: 10
@@ -57,12 +60,62 @@ rest_modules:
     access: [owner_read, owner_write, share_read]
     data_domains: [embeds, generated_assets]
     rationale: Application preview sessions are owner-started or share-context-authorized.
+    endpoints:
+      - method: POST
+        route: /{application_embed_id}/preview/start
+        function: start_application_preview
+        actors: [authenticated_owner, shared_link_recipient]
+        access: [owner_write, share_read]
+        data_domains: [embeds, generated_assets, application_preview]
+        auth_model: session_required_with_optional_shared_context
+        rationale: Authenticated owner starts own app previews; authenticated shared viewers may start from client-provided shared context and spend their own session/credits.
+      - method: GET
+        route: /preview/{session_id}
+        function: get_application_preview_status
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [application_preview]
+        auth_model: session_required
+        rationale: Preview status is scoped to the viewer hash stored in the preview session.
+      - method: POST
+        route: /preview/{session_id}/open
+        function: open_application_preview
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [application_preview]
+        auth_model: session_required
+        rationale: Opening extends only the authenticated viewer's preview session.
+      - method: POST
+        route: /preview/{session_id}/stop
+        function: stop_application_preview
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [application_preview]
+        auth_model: session_required
+        rationale: Stopping is scoped to the authenticated viewer's preview session.
   - path: backend/core/api/app/routes/application_preview_gateway.py
     expected_routes: 2
     actors: [authenticated_owner, shared_link_recipient]
     access: [owner_read, owner_write, share_read]
     data_domains: [embeds, generated_assets, application_preview]
     rationale: Preview gateway traffic is authorized by a short-lived sandbox token issued from an owner or shared preview session.
+    endpoints:
+      - method: API_ROUTE
+        route: /t/{preview_token}/{path:path}
+        function: application_preview_host_gateway
+        actors: [authenticated_owner, shared_link_recipient]
+        access: [token_read]
+        data_domains: [application_preview]
+        auth_model: preview_gateway_token
+        rationale: Host-based preview traffic has no cookie auth and is authorized by preview host plus short-lived token.
+      - method: API_ROUTE
+        route: /p/{session_id}/{preview_token}/{path:path}
+        function: application_preview_gateway
+        actors: [authenticated_owner, shared_link_recipient]
+        access: [token_read]
+        data_domains: [application_preview]
+        auth_model: preview_gateway_token
+        rationale: Legacy preview traffic has no cookie auth and is authorized by session id plus short-lived token.
   - path: backend/core/api/app/routes/apps.py
     expected_routes: 3
     actors: [unauthenticated, authenticated_owner]
@@ -99,6 +152,23 @@ rest_modules:
     access: [public_read, owner_write]
     data_domains: [billing, gifts]
     rationale: Gift token validation and acceptance occur around auth/signup.
+    endpoints:
+      - method: GET
+        route: /check-gift
+        function: check_gift
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [billing, gifts]
+        auth_model: session_required
+        rationale: Gift status is checked for the current authenticated user/session.
+      - method: POST
+        route: /accept-gift
+        function: accept_gift
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [billing, gifts]
+        auth_model: session_required
+        rationale: Gift acceptance mutates authenticated owner billing credits.
   - path: backend/core/api/app/routes/auth_routes/auth_invite.py
     expected_routes: 1
     actors: [unauthenticated]
@@ -123,12 +193,62 @@ rest_modules:
     access: [public_read, owner_write]
     data_domains: [auth, sessions]
     rationale: Pair-auth bridges unauthenticated polling with authenticated approval.
+    endpoints:
+      - method: GET
+        route: /pair/credentials
+        function: pair_credentials
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [auth, sessions]
+        auth_model: session_required
+        rationale: Pair credentials are returned only to the authenticated account approving a pair flow.
+      - method: POST
+        route: /pair/authorize/{token}
+        function: pair_authorize
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [auth, sessions]
+        auth_model: session_required_and_pair_token
+        rationale: Pair authorization requires the current authenticated owner plus the pair token.
+      - method: DELETE
+        route: /pair/{token}
+        function: pair_cancel
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [auth, sessions]
+        auth_model: session_required_and_pair_token
+        rationale: Pair cancellation requires the authenticated owner plus the pair token.
   - path: backend/core/api/app/routes/auth_routes/auth_passkey.py
     expected_routes: 8
     actors: [unauthenticated, authenticated_owner]
     access: [public_read, owner_read, owner_write]
     data_domains: [auth, passkeys, user_security]
     rationale: Passkey registration/assertion includes public challenges and authenticated passkey management.
+    endpoints:
+      - method: GET
+        route: /passkeys
+        function: list_passkeys
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [auth, passkeys, user_security]
+        auth_model: session_required_and_allowed_origin
+        rationale: Passkey listing is authenticated account security state.
+      - method: POST
+        route: /passkeys/rename
+        function: rename_passkey
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [auth, passkeys, user_security]
+        auth_model: session_required_and_allowed_origin
+        rationale: Passkey rename mutates authenticated account security state.
+      - method: POST
+        route: /passkeys/delete
+        function: delete_passkey
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [auth, passkeys, user_security]
+        auth_model: session_required_and_allowed_origin
+        rationale: Passkey deletion mutates authenticated account security state.
   - path: backend/core/api/app/routes/auth_routes/auth_password.py
     expected_routes: 1
     actors: [authenticated_owner]
@@ -161,10 +281,19 @@ rest_modules:
     rationale: Device/session list, metadata registration, and revocation are owner-only.
   - path: backend/core/api/app/routes/client_logs_ephemeral.py
     expected_routes: 1
-    actors: [unauthenticated, authenticated_owner, e2e_test_actor]
-    access: [public_read, test_write]
+    actors: [authenticated_owner]
+    access: [owner_write]
     data_domains: [diagnostics]
-    rationale: Ephemeral client logs are debug telemetry and must stay bounded/redacted.
+    rationale: Ephemeral client log forwarding requires an authenticated user and strips identity before OpenObserve.
+    endpoints:
+      - method: POST
+        route: /client-logs
+        function: receive_ephemeral_client_logs
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [diagnostics]
+        auth_model: session_required
+        rationale: Any logged-in user may submit bounded, server-sanitized diagnostic warnings/errors.
   - path: backend/core/api/app/routes/code_execution.py
     expected_routes: 4
     actors: [authenticated_owner, api_key]
@@ -234,9 +363,18 @@ rest_modules:
   - path: backend/core/api/app/routes/generated_assets_api.py
     expected_routes: 1
     actors: [authenticated_owner, shared_link_recipient]
-    access: [owner_read, share_read]
+    access: [token_read]
     data_domains: [generated_assets, embeds]
     rationale: Generated asset downloads require owner or authorized shared context.
+    endpoints:
+      - method: GET
+        route: /{asset_id}/files/{variant}/download
+        function: download_generated_asset
+        actors: [authenticated_owner, shared_link_recipient]
+        access: [token_read]
+        data_domains: [generated_assets, embeds]
+        auth_model: download_token
+        rationale: Decrypted generated assets are streamed only when a signed token matches asset id, variant, and user id.
   - path: backend/core/api/app/routes/geocode.py
     expected_routes: 2
     actors: [authenticated_owner]
@@ -261,6 +399,23 @@ rest_modules:
     access: [public_read, owner_write]
     data_domains: [newsletter, email]
     rationale: Newsletter subscribe/confirm/unsubscribe flows are tokenized/public.
+    endpoints:
+      - method: GET
+        route: /newsletter/categories
+        function: get_newsletter_categories
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [newsletter, email]
+        auth_model: session_required
+        rationale: Newsletter category preferences are per-user settings.
+      - method: PATCH
+        route: /newsletter/categories
+        function: update_newsletter_categories
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [newsletter, email]
+        auth_model: session_required
+        rationale: Newsletter category preference updates mutate authenticated user settings.
   - path: backend/core/api/app/routes/notifications.py
     expected_routes: 2
     actors: [authenticated_owner]
@@ -273,12 +428,62 @@ rest_modules:
     access: [owner_read, owner_write, internal_write]
     data_domains: [billing, invoices, credits, gifts]
     rationale: Payment APIs mutate owner billing state; webhooks/internal flows are service-authenticated.
+    endpoints:
+      - method: GET
+        route: /config
+        function: get_payment_config
+        actors: [unauthenticated, authenticated_owner]
+        access: [public_read]
+        data_domains: [billing]
+        auth_model: public_configuration
+        rationale: Payment config returns publishable Stripe configuration and region mode, not private billing records.
+      - method: POST
+        route: /create-support-order
+        function: create_support_order
+        actors: [unauthenticated, authenticated_owner]
+        access: [public_write, owner_write]
+        data_domains: [billing]
+        auth_model: optional_session
+        rationale: Support contributions may be guest or authenticated and create payment provider orders.
+      - method: POST
+        route: /create-support-bank-transfer-order
+        function: create_support_bank_transfer_order
+        actors: [unauthenticated, authenticated_owner]
+        access: [public_write, owner_write]
+        data_domains: [billing]
+        auth_model: optional_session
+        rationale: Support bank transfers may be guest or authenticated and create pending transfer orders.
+      - method: POST
+        route: /webhook
+        function: payment_webhook
+        actors: [internal_service]
+        access: [signature_write]
+        data_domains: [billing, invoices, credits, gifts]
+        auth_model: provider_signature
+        rationale: Payment providers call this unauthenticated endpoint, but processing requires verified Stripe/Revolut signature headers.
+      - method: POST
+        route: /refund
+        function: request_refund
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [billing, invoices, credits]
+        auth_model: session_required
+        rationale: Refund requests mutate authenticated owner billing state.
   - path: backend/core/api/app/routes/profile_api.py
     expected_routes: 1
-    actors: [unauthenticated, authenticated_owner]
-    access: [public_read]
+    actors: [authenticated_owner, api_key]
+    access: [owner_read, api_key_read]
     data_domains: [profile]
-    rationale: Profile image route serves public/profile-safe image data.
+    rationale: Profile image route serves avatar image bytes to authenticated sessions or API keys.
+    endpoints:
+      - method: GET
+        route: /{user_id}/profile-image
+        function: get_profile_image
+        actors: [authenticated_owner, api_key]
+        access: [owner_read, api_key_read]
+        data_domains: [profile]
+        auth_model: session_or_api_key
+        rationale: Any authenticated session/API key can view profile avatars; this is broader than owner-only and should be reviewed before group/team features.
   - path: backend/core/api/app/routes/projects.py
     expected_routes: 10
     actors: [authenticated_owner]
@@ -293,10 +498,27 @@ rest_modules:
     rationale: Push subscription state is owner device data.
   - path: backend/core/api/app/routes/referrals.py
     expected_routes: 2
-    actors: [unauthenticated, authenticated_owner]
-    access: [public_read, owner_write]
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
     data_domains: [referrals]
-    rationale: Referral capture may occur before auth; status is user-scoped.
+    rationale: Referral status and capture are authenticated user flows.
+    endpoints:
+      - method: GET
+        route: /status
+        function: get_referral_status
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [referrals]
+        auth_model: session_required
+        rationale: Referral status is scoped to the authenticated user.
+      - method: POST
+        route: /capture
+        function: capture_referral
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [referrals]
+        auth_model: session_required
+        rationale: Referral capture mutates authenticated user attribution state.
   - path: backend/core/api/app/routes/settings.py
     expected_routes: 59
     actors: [authenticated_owner, api_key]
@@ -315,6 +537,127 @@ rest_modules:
     access: [public_read, owner_write, share_read]
     data_domains: [chats, messages, embeds, highlights, shares]
     rationale: Share routes combine owner share management with public encrypted shared-chat reads.
+    endpoints:
+      - method: GET
+        route: /chat/{chat_id}
+        function: get_shared_chat
+        actors: [unauthenticated, shared_link_recipient]
+        access: [share_read]
+        data_domains: [chats, messages, embeds, highlights]
+        auth_model: share_id
+        rationale: Anyone with a shared chat id can fetch encrypted shared chat payloads; URL fragment key is never sent to the server.
+      - method: GET
+        route: /chat/{chat_id}/manifest
+        function: get_shared_chat_manifest
+        actors: [unauthenticated, shared_link_recipient]
+        access: [share_read]
+        data_domains: [chats, embeds, highlights]
+        auth_model: share_id
+        rationale: Anyone with a shared chat id can fetch encrypted shared metadata and auxiliary records without messages.
+      - method: GET
+        route: /chat/{chat_id}/messages
+        function: get_shared_chat_message_window
+        actors: [unauthenticated, shared_link_recipient]
+        access: [share_read]
+        data_domains: [messages]
+        auth_model: share_id
+        rationale: Anyone with a shared chat id can page encrypted shared messages; PII mappings are stripped unless owner enabled sharing them.
+      - method: GET
+        route: /chat/{chat_id}/og-metadata
+        function: get_og_metadata
+        actors: [unauthenticated]
+        access: [public_read]
+        data_domains: [shares]
+        auth_model: share_id
+        rationale: Public crawlers can read server-decrypted shared OG metadata intentionally prepared by the owner.
+      - method: GET
+        route: /chat/{chat_id}/og-image.png
+        function: get_chat_og_image
+        actors: [unauthenticated]
+        access: [public_read]
+        data_domains: [shares]
+        auth_model: share_id
+        rationale: Public crawlers can read generated OG image bytes for shared chats.
+      - method: POST
+        route: /chat/metadata
+        function: update_share_metadata
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [chats, shares]
+        auth_model: session_required
+        rationale: Owner-only endpoint updates share metadata and sharing flags after verifying chat owner hash.
+      - method: POST
+        route: /chat/unshare
+        function: unshare_chat
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [chats, shares]
+        auth_model: session_required
+        rationale: Owner-only endpoint revokes share state and short links after verifying chat owner hash.
+      - method: GET
+        route: /time
+        function: get_server_time
+        actors: [unauthenticated]
+        access: [public_read]
+        data_domains: [shares]
+        auth_model: public_clock
+        rationale: Public clock endpoint supports share-link expiration checks.
+      - method: GET
+        route: /embed/{embed_id}
+        function: get_shared_embed
+        actors: [unauthenticated, shared_link_recipient]
+        access: [share_read]
+        data_domains: [embeds]
+        auth_model: share_id
+        rationale: Anyone with a shared embed id can fetch encrypted embed payloads, child embeds, embed keys, and latest code output.
+      - method: GET
+        route: /embed/{embed_id}/og-metadata
+        function: get_embed_og_metadata
+        actors: [unauthenticated]
+        access: [public_read]
+        data_domains: [shares, embeds]
+        auth_model: share_id
+        rationale: Public crawlers can read server-decrypted shared embed OG metadata intentionally prepared by the owner.
+      - method: POST
+        route: /embed/metadata
+        function: update_embed_share_metadata
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [embeds, shares]
+        auth_model: session_required
+        rationale: Owner-only endpoint updates embed share metadata after verifying embed owner hash.
+      - method: POST
+        route: /short-url
+        function: create_short_url
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [shares]
+        auth_model: session_required
+        rationale: Owner-only endpoint creates encrypted short URLs for owned shared content.
+      - method: GET
+        route: /short-url/{token}
+        function: resolve_short_url
+        actors: [unauthenticated, shared_link_recipient]
+        access: [token_read]
+        data_domains: [shares]
+        auth_model: short_url_token
+        rationale: Anyone with a short URL token can resolve the owner-encrypted shared target until revoked/expired.
+      - method: GET
+        route: /short-url/{token}/metadata
+        function: get_short_url_metadata
+        actors: [unauthenticated]
+        access: [token_read]
+        data_domains: [shares]
+        auth_model: short_url_token
+        rationale: Public crawlers can read short-link metadata when token is valid.
+      - method: GET
+        route: /short-url/{token}/og-image.png
+        function: get_short_url_og_image
+        actors: [unauthenticated]
+        access: [token_read]
+        data_domains: [shares]
+        auth_model: short_url_token
+        rationale: Public crawlers can read short-link OG image bytes when token is valid.
   - path: backend/core/api/app/routes/status_routes.py
     expected_routes: 3
     actors: [unauthenticated, authenticated_owner]
@@ -347,10 +690,43 @@ rest_modules:
     rationale: Test recordings are test/debug artifacts.
   - path: backend/core/api/app/routes/video_remotion.py
     expected_routes: 4
-    actors: [authenticated_owner, shared_link_recipient]
-    access: [owner_read, owner_write, share_read]
+    actors: [authenticated_owner]
+    access: [owner_read, owner_write]
     data_domains: [embeds, generated_assets]
-    rationale: Remotion render/read operations require owner or authorized shared context.
+    rationale: Remotion render/read operations currently require an authenticated owner session.
+    endpoints:
+      - method: POST
+        route: /{embed_id}/render
+        function: start_remotion_render
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [embeds, generated_assets]
+        auth_model: session_required
+        rationale: Render dispatch decrypts current user's cached Remotion embed content.
+      - method: GET
+        route: /{embed_id}
+        function: get_remotion_embed
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [embeds, generated_assets]
+        auth_model: session_required
+        rationale: Remotion status/content read decrypts current user's cached Remotion embed content.
+      - method: POST
+        route: /{embed_id}/render/{render_id}/stop
+        function: stop_remotion_render
+        actors: [authenticated_owner]
+        access: [owner_write]
+        data_domains: [embeds, generated_assets]
+        auth_model: session_required
+        rationale: Render stop mutates current user's Remotion embed content/status.
+      - method: GET
+        route: /{embed_id}/versions
+        function: get_remotion_versions
+        actors: [authenticated_owner]
+        access: [owner_read]
+        data_domains: [embeds, generated_assets]
+        auth_model: session_required
+        rationale: Version metadata read decrypts current user's cached Remotion embed content.
   - path: backend/core/api/app/routes/wikipedia_proxy.py
     expected_routes: 2
     actors: [unauthenticated, authenticated_owner]
