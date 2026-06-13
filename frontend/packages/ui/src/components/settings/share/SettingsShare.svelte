@@ -700,7 +700,12 @@
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-                throw new Error(errorData.detail || `Short link creation failed with ${response.status}`);
+                console.warn(
+                    '[SettingsShare] Short link API rejected creation; using long share URL fallback:',
+                    errorData.detail || response.status
+                );
+                shortLinkError = $text('settings.share.short_link_fallback_unavailable');
+                return { url: longShareLink, usedLongFallback: true };
             }
 
             const responseData = await response.json().catch(() => ({}));
