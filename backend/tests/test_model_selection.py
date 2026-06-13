@@ -10,8 +10,6 @@
 # Run with: /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_model_selection.py
 
 import pytest
-import yaml
-from pathlib import Path
 from typing import Dict, Any
 
 
@@ -265,43 +263,6 @@ class TestModelSelector:
         assert not result.primary_model_id.startswith("google/")
         assert result.secondary_model_id is None or not result.secondary_model_id.startswith("google/")
         assert "google" in result.selection_reason.lower()
-
-    def test_claude_fable_5_provider_config_resolution(self):
-        """Claude Fable 5 should route to Anthropic Direct with Bedrock as fallback."""
-        provider_path = Path(__file__).resolve().parents[1] / "providers" / "anthropic.yml"
-        provider_config = yaml.safe_load(provider_path.read_text())
-        model_config = next(
-            (
-                model
-                for model in provider_config["models"]
-                if model.get("id") == "claude-fable-5"
-            ),
-            None,
-        )
-
-        assert model_config is not None
-        assert model_config["name"] == "Claude Fable 5"
-        assert model_config["costs"]["input_per_million_token"]["price"] == 10.00
-        assert model_config["costs"]["output_per_million_token"]["price"] == 50.00
-        assert model_config["costs"]["cache_write_per_million_token"]["price"] == 12.50
-        assert model_config["costs"]["cache_read_per_million_token"]["price"] == 1.00
-
-        servers = model_config["servers"]
-        default_server = next(
-            server for server in servers if server["id"] == model_config["default_server"]
-        )
-        fallback_servers = [
-            server for server in servers if server["id"] != model_config["default_server"]
-        ]
-
-        assert model_config["default_server"] == "anthropic"
-        assert f'{default_server["id"]}/{default_server["model_id"]}' == (
-            "anthropic/claude-fable-5"
-        )
-        assert [f'{server["id"]}/{server["model_id"]}' for server in fallback_servers] == [
-            "aws_bedrock/eu.anthropic.claude-fable-5"
-        ]
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Override Parser Tests

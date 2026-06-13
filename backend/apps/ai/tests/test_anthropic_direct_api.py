@@ -24,8 +24,8 @@ except ImportError:
     not HAS_ANTHROPIC_DIRECT_API,
     reason="Anthropic direct API dependencies not installed",
 )
-def test_fable_5_omits_deprecated_temperature():
-    """Claude Fable 5 rejects temperature, so the direct client must omit it."""
+def test_opus_4_8_omits_deprecated_temperature():
+    """Claude Opus 4.8 rejects temperature, so the direct client must omit it."""
 
     @dataclass
     class MockUsage:
@@ -35,7 +35,7 @@ def test_fable_5_omits_deprecated_temperature():
     @dataclass
     class MockTextBlock:
         type: str = "text"
-        text: str = "Fable 5 is online."
+        text: str = "Opus 4.8 is online."
 
     @dataclass
     class MockResponse:
@@ -47,8 +47,8 @@ def test_fable_5_omits_deprecated_temperature():
         mock_client.messages.create.return_value = MockResponse()
 
         response = await invoke_direct_api(
-            task_id="test-fable-temperature",
-            model_id="claude-fable-5",
+            task_id="test-opus48-temperature",
+            model_id="claude-opus-4-8",
             messages=[{"role": "user", "content": "test"}],
             anthropic_client=mock_client,
             temperature=0,
@@ -58,7 +58,7 @@ def test_fable_5_omits_deprecated_temperature():
 
         assert response.success is True
         request_kwargs = mock_client.messages.create.call_args.kwargs
-        assert request_kwargs["model"] == "claude-fable-5"
+        assert request_kwargs["model"] == "claude-opus-4-8"
         assert "temperature" not in request_kwargs
 
     asyncio.run(run())

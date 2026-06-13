@@ -59,7 +59,6 @@ async def invoke_direct_api(
         temperature_unsupported = bare_model.startswith((
             "claude-opus-4-7",
             "claude-opus-4-8",
-            "claude-fable-5",
         ))
         if not temperature_unsupported:
             request_kwargs["temperature"] = temperature

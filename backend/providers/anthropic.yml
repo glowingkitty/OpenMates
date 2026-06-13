@@ -276,59 +276,6 @@ models:
         price: 0.50
         currency: USD
 
-  - id: "claude-fable-5" # Official Claude API model ID
-    name: "Claude Fable 5"
-    description: "Anthropic's most capable widely released model for demanding reasoning, coding, long-horizon agentic work, and vision tasks."
-    country_origin: "US"
-    for_app_skill: "ai.ask"
-    release_date: "2026-06-09"
-    allow_auto_select: true
-    search_aliases:
-      - "fable"
-      - "fable 5"
-      - "claude fable"
-      - "claude-fable"
-    input_types:
-      - text
-      - image
-    output_types:
-      - text
-    reasoning: true
-    # Fable 5 is active on Bedrock, but this AWS account is not enabled for inference yet.
-    # Keep Anthropic Direct as the default until Bedrock account access is granted.
-    default_server: "anthropic"
-    servers:
-      - id: "anthropic"
-        name: "Anthropic API"
-        model_id: "claude-fable-5"
-        region: "US"
-      - id: "aws_bedrock"
-        name: "AWS Bedrock"
-        model_id: "eu.anthropic.claude-fable-5"
-        aws_region: "eu-central-1"
-        region: "EU"
-    pricing:
-      tokens:
-        input:
-          per_credit_unit: 35
-        output:
-          per_credit_unit: 7
-    costs:
-      input_per_million_token:
-        price: 10.00
-        currency: USD
-        max_context: 1000000
-      output_per_million_token:
-        price: 50.00
-        currency: USD
-        max_context: 1000000
-      cache_write_per_million_token:
-        price: 12.50
-        currency: USD
-      cache_read_per_million_token:
-        price: 1.00
-        currency: USD
-
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
