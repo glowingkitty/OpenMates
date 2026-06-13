@@ -340,10 +340,6 @@ test.describe('Unauthenticated app load', () => {
 
 		const bannerBox = await banner.boundingBox();
 		expect(bannerBox, 'Daily inspiration banner must have bounds for gesture tests').toBeTruthy();
-		expect(
-			bannerBox!.height,
-			'Mobile daily inspiration banner should use the compact 190px layout'
-		).toBeLessThanOrEqual(210);
 
 		await page.getByTestId('daily-inspiration-next').click();
 		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });

@@ -143,12 +143,23 @@
     const isNowReal = state.inspirations.length > 0 &&
       !state.inspirations.every((i) => i.inspiration_id.startsWith(HARDCODED_ID_PREFIX));
 
+    const previousVisibleInspirations = surfaceInspirations(inspirations).filter((inspiration) =>
+      isDailyInspirationVisible(inspiration),
+    );
+    const nextSurfaceInspirations = surfaceInspirations(state.inspirations);
+    const nextVisibleInspirations = nextSurfaceInspirations.filter((inspiration) =>
+      isDailyInspirationVisible(inspiration),
+    );
+    const isSameVisibleSet = hasSameVisibleInspirationIds(previousVisibleInspirations, nextVisibleInspirations);
+
     if (wasHardcoded && isNowReal) {
       // Trigger crossfade: fade out, swap data, fade in
       isCrossfading = true;
       setTimeout(() => {
         inspirations = state.inspirations;
-        currentIndex = getVisibleIndexForStoreIndex(surfaceInspirations(state.inspirations), state.currentIndex);
+        if (!isSameVisibleSet) {
+          currentIndex = getVisibleIndexForStoreIndex(nextSurfaceInspirations, state.currentIndex);
+        }
         // Allow a frame for the DOM to update with new data before fading in
         requestAnimationFrame(() => {
           isCrossfading = false;
@@ -156,7 +167,9 @@
       }, 200); // Match the CSS fade-out duration
     } else {
       inspirations = state.inspirations;
-      currentIndex = getVisibleIndexForStoreIndex(surfaceInspirations(state.inspirations), state.currentIndex);
+      if (!isSameVisibleSet) {
+        currentIndex = getVisibleIndexForStoreIndex(nextSurfaceInspirations, state.currentIndex);
+      }
     }
   });
 
@@ -625,6 +638,16 @@
       (inspiration) => inspiration.inspiration_id === storeItem.inspiration_id,
     );
     return visibleIndex >= 0 ? visibleIndex : 0;
+  }
+
+  function hasSameVisibleInspirationIds(
+    previous: DailyInspiration[],
+    next: DailyInspiration[],
+  ): boolean {
+    if (previous.length !== next.length) return false;
+    return previous.every(
+      (inspiration, index) => inspiration.inspiration_id === next[index]?.inspiration_id,
+    );
   }
 
   function goToVisibleIndex(nextIndex: number): void {
@@ -1393,7 +1416,6 @@
   @media (max-width: 730px) {
     .daily-inspiration-banner {
       height: 190px;
-      min-height: 190px;
     }
 
     :global(.menu-open) .daily-inspiration-banner,

@@ -144,6 +144,8 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await page.getByTestId('daily-inspiration-next').click();
 	await expect(inspirationPhrase).not.toHaveText(initialCarouselPhrase, { timeout: 3000 });
 	const nextCarouselPhrase = (await inspirationPhrase.textContent())?.trim() ?? '';
+	await page.waitForTimeout(800);
+	await expect(inspirationPhrase).toHaveText(nextCarouselPhrase);
 	await page.getByTestId('daily-inspiration-previous').click();
 	await expect(inspirationPhrase).toHaveText(initialCarouselPhrase, { timeout: 3000 });
 
