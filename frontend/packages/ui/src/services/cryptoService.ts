@@ -456,7 +456,7 @@ export async function encryptKey(
 }
 
 /**
- * Unwraps (decrypts) a master key and imports it as extractable
+ * Decrypts a wrapped master key and imports it as extractable
  * Extractable keys are needed for recovery key creation (wrapping with recovery key)
  * @param wrappedKeyBase64 - Base64 encoded wrapped key
  * @param iv - Base64 encoded IV
@@ -477,10 +477,12 @@ export async function decryptKey(
       unwrappingKeyBuffer,
       { name: "AES-GCM" },
       false,
-      ["unwrapKey"],
+      ["decrypt"],
     );
 
-    // Unwrap the master key as extractable
+    // AES-GCM wrapKey("raw", ...) is equivalent to encrypting the raw key bytes.
+    // Safari can leave unwrapKey() unresolved after passkey login, so decrypt the
+    // raw bytes explicitly and import them instead.
     // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
     // XSS can use keys anyway if they have access, so extractability is a marginal security trade-off
     // Ensure wrapped key and IV are proper BufferSource
@@ -488,11 +490,14 @@ export async function decryptKey(
       base64ToUint8Array(wrappedKeyBase64),
     );
     const ivBuffer = new Uint8Array(base64ToUint8Array(iv));
-    const masterKey = await crypto.subtle.unwrapKey(
-      "raw",
-      wrappedKeyBuffer,
-      unwrappingKey,
+    const rawMasterKey = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: ivBuffer },
+      unwrappingKey,
+      wrappedKeyBuffer,
+    );
+    const masterKey = await crypto.subtle.importKey(
+      "raw",
+      rawMasterKey,
       { name: "AES-GCM" },
       true, // extractable - needed for recovery key wrapping
       ["encrypt", "decrypt"],
