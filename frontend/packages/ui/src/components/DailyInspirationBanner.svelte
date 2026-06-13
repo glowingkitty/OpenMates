@@ -1393,6 +1393,7 @@
   @media (max-width: 730px) {
     .daily-inspiration-banner {
       height: 190px;
+      min-height: 190px;
     }
 
     :global(.menu-open) .daily-inspiration-banner,
@@ -1402,7 +1403,11 @@
     }
 
     .banner-inner {
-      padding: 12px 38px 10px;
+      padding: 12px 48px 10px;
+    }
+
+    .carousel-arrow {
+      width: 48px !important;
     }
 
     .banner-phrase {
