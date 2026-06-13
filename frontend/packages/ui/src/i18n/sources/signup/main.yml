@@ -22,6 +22,30 @@ sign_up:
   sv: "Registrera dig"
   he: הרשמה
   verified_by_human: []
+test_for_free:
+  context: Header CTA shown while the signup page advertises Free testing credits
+  en: Test for free
+  de: Kostenlos testen
+  zh: 免费测试
+  es: Probar gratis
+  fr: Tester gratuitement
+  pt: Testar gratuitamente
+  ru: Попробовать бесплатно
+  ja: 無料で試す
+  ko: 무료로 테스트
+  it: Prova gratis
+  tr: Ücretsiz dene
+  vi: Dùng thử miễn phí
+  id: Coba gratis
+  pl: Testuj za darmo
+  nl: Gratis testen
+  ar: جرّب مجانًا
+  hi: मुफ्त में आज़माएँ
+  th: ทดลองฟรี
+  cs: Vyzkoušet zdarma
+  sv: Testa gratis
+  he: נסו בחינם
+  verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
   en: v0.12 alpha

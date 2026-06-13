@@ -12,6 +12,8 @@
     import { loginInterfaceOpen, introBannerVisible } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
     import { demoMode } from '../stores/demoModeStore';
+    import { signupFreeTestingCreditsPromotion } from '../stores/serverStatusStore';
+    import { getLastAuthMethod, type LastAuthMethod } from '../utils/lastAuthMethod';
 
     // Props using Svelte 5 runes
     let { 
@@ -199,8 +201,11 @@
 
     // Add mobile breakpoint check
     let isMobile = $state(false);
+    let lastAuthMethod = $state<LastAuthMethod | null>(null);
 
     onMount(() => {
+        lastAuthMethod = getLastAuthMethod();
+
         const checkMobile = () => {
             isMobile = window.innerWidth < 730;
         };
@@ -230,8 +235,24 @@
         };
     });
 
+    $effect(() => {
+        if (!$authStore.isAuthenticated && !$loginInterfaceOpen) {
+            lastAuthMethod = getLastAuthMethod();
+        }
+    });
+
     // Derive button text based on viewport size
-    let loginButtonText = $derived(isMobile ? $text('signup.sign_up') : `${$text('login.login')} / ${$text('signup.sign_up')}`);
+    let loginButtonText = $derived.by(() => {
+        if (lastAuthMethod) {
+            return $text('login.login');
+        }
+
+        if ($signupFreeTestingCreditsPromotion?.active) {
+            return $text('signup.test_for_free');
+        }
+
+        return isMobile ? $text('signup.sign_up') : $text('header.login_signup');
+    });
 
     // Update menu toggle logic to consider the logging out state as well
     const _toggleMenu = () => {
@@ -847,8 +868,8 @@
         margin: 0;
         padding: var(--spacing-4) var(--spacing-6);
         border-radius: var(--radius-3);
-        background: #7a281e;
-        color: white;
+        background: var(--color-button-primary);
+        color: var(--color-font-button, white);
         cursor: pointer;
         transition: all var(--duration-normal) var(--easing-default);
         white-space: nowrap;
@@ -860,7 +881,7 @@
     }
 
     .login-signup-button:active {
-        background-color: #a62c16;
+        background-color: var(--color-button-primary-pressed);
         transform: scale(0.98);
         box-shadow: none;
     }
