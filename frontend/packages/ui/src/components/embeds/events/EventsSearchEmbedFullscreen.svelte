@@ -165,12 +165,16 @@
   let endDate = $derived(localEndDate);
 
   function formatSearchDate(value: string): string {
-    const date = new Date(value);
+    const dateParts = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const date = dateParts
+      ? new Date(Date.UTC(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3])))
+      : new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return new Intl.DateTimeFormat(undefined, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+      timeZone: 'UTC',
     }).format(date);
   }
 
