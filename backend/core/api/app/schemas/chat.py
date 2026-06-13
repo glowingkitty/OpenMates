@@ -100,6 +100,7 @@ class CachedChatListItemData(BaseModel):
     encrypted_icon: Optional[str] = None  # Encrypted icon name from Lucide library
     encrypted_category: Optional[str] = None  # Encrypted category name
     encrypted_chat_summary: Optional[str] = None  # Encrypted 2-3 sentence summary of chat (encrypted with chat-specific key)
+    encrypted_share_cta_text: Optional[str] = None  # Encrypted short call-to-open text for shared chat previews
     encrypted_chat_tags: Optional[str] = None  # Encrypted array of max 10 tags (encrypted as base64 string with chat-specific key)
     encrypted_follow_up_request_suggestions: Optional[str] = None  # Encrypted array of 6 follow-up suggestions (encrypted as base64 string with chat-specific key)
     encrypted_top_recommended_apps_for_chat: Optional[str] = None  # Encrypted array of recommended app IDs for this chat

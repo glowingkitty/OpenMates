@@ -2034,6 +2034,7 @@ export async function handlePostProcessingCompletedImpl(
     follow_up_request_suggestions: string[];
     new_chat_request_suggestions: string[];
     chat_summary: string;
+    share_cta_text?: string | null;
     chat_tags: string[];
     harmful_response: number;
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
@@ -2050,6 +2051,7 @@ export async function handlePostProcessingCompletedImpl(
     let encryptedFollowUpSuggestions: string | null = null;
     let encryptedNewChatSuggestions: string[] = [];
     let encryptedChatSummary: string | null = null;
+    let encryptedShareCtaText: string | null = null;
     let encryptedChatTags: string | null = null;
     let encryptedTopRecommendedApps: string | null = null;
     let encryptedQuickTipSlugs: string | null = null;
@@ -2150,6 +2152,14 @@ export async function handlePostProcessingCompletedImpl(
       chat.encrypted_chat_summary = encryptedChatSummary;
     }
 
+    if (payload.share_cta_text) {
+      encryptedShareCtaText = await encryptWithChatKey(
+        payload.share_cta_text,
+        chatKey,
+      );
+      chat.encrypted_share_cta_text = encryptedShareCtaText;
+    }
+
     if (payload.chat_tags && payload.chat_tags.length > 0) {
       encryptedChatTags = await encryptArrayWithChatKey(
         payload.chat_tags.slice(0, 10), // Max 10 tags
@@ -2204,6 +2214,7 @@ export async function handlePostProcessingCompletedImpl(
     if (
       payload.follow_up_request_suggestions?.length > 0 ||
       payload.chat_summary ||
+      payload.share_cta_text ||
       payload.chat_tags?.length > 0 ||
       encryptedTopRecommendedApps ||
       encryptedQuickTipSlugs ||
@@ -2235,6 +2246,7 @@ export async function handlePostProcessingCompletedImpl(
       encryptedFollowUpSuggestions ||
       encryptedNewChatSuggestions.length > 0 ||
       encryptedChatSummary ||
+      encryptedShareCtaText ||
       encryptedChatTags ||
       encryptedTopRecommendedApps ||
       encryptedQuickTipSlugs ||
@@ -2257,6 +2269,7 @@ export async function handlePostProcessingCompletedImpl(
         encryptedTopRecommendedApps || "",
         encryptedQuickTipSlugs || "",
         encryptedUpdatedTitle || "",
+        encryptedShareCtaText || "",
         encryptedChatKeyForValidation,
       );
       console.debug(

@@ -6,6 +6,15 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { getBackendUrl } from '$lib/backendUrl';
 
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
 /**
  * Server route handler for /share/chat/[chatId]
  *
@@ -18,7 +27,7 @@ import { getBackendUrl } from '$lib/backendUrl';
  * 2. Generate HTML with proper OG tags using the fetched metadata
  * 3. Client-side JavaScript redirects to main app if key fragment is present
  */
-export const GET: RequestHandler = async ({ params, url, fetch }) => {
+export const GET: RequestHandler = async ({ params, url, fetch, request }) => {
 	const chatId = params.chatId;
 
 	if (!chatId) {
@@ -71,6 +80,14 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 		: ogImage.startsWith('/v1/')
 			? `${backendUrl}${ogImage}`
 			: `${siteUrl}${ogImage}`;
+	const safeTitle = escapeHtml(ogTitle);
+	const safeDescription = escapeHtml(ogDescription);
+	const safeImage = escapeHtml(absoluteOgImage);
+	const safeShareUrl = escapeHtml(shareUrl);
+	const safeHost = escapeHtml(url.hostname);
+	const chatIdScriptValue = JSON.stringify(chatId);
+	const userAgent = request.headers.get('user-agent') || '';
+	const isCrawler = /bot|crawler|spider|facebookexternalhit|Twitterbot|Slackbot|Discordbot|LinkedInBot|WhatsApp/i.test(userAgent);
 
 	// Generate HTML with OG tags
 	const html = `<!DOCTYPE html>
@@ -78,25 +95,25 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${ogTitle}</title>
-    <meta name="description" content="${ogDescription}">
+    <title>${safeTitle}</title>
+    <meta name="description" content="${safeDescription}">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="${shareUrl}">
-    <meta property="og:title" content="${ogTitle}">
-    <meta property="og:description" content="${ogDescription}">
-    <meta property="og:image" content="${absoluteOgImage}">
+    <meta property="og:url" content="${safeShareUrl}">
+    <meta property="og:title" content="${safeTitle}">
+    <meta property="og:description" content="${safeDescription}">
+    <meta property="og:image" content="${safeImage}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta property="twitter:domain" content="${url.hostname}">
-    <meta property="twitter:url" content="${shareUrl}">
-    <meta name="twitter:title" content="${ogTitle}">
-    <meta name="twitter:description" content="${ogDescription}">
-    <meta name="twitter:image" content="${absoluteOgImage}">
+    <meta property="twitter:domain" content="${safeHost}">
+    <meta property="twitter:url" content="${safeShareUrl}">
+    <meta name="twitter:title" content="${safeTitle}">
+    <meta name="twitter:description" content="${safeDescription}">
+    <meta name="twitter:image" content="${safeImage}">
 
     <!-- Redirect to main app so SvelteKit boots and can client-side navigate to the share page -->
     <script>
@@ -109,15 +126,16 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
         // which triggers client-side navigation to +page.svelte (which decrypts and stores the chat).
         //
         // The encryption key stays in the URL fragment the whole time and is never sent to the server.
-        if (window.location.hash && window.location.hash.includes('key=')) {
+        var isCrawler = ${JSON.stringify(isCrawler)};
+        if (!isCrawler && window.location.hash && window.location.hash.includes('key=')) {
             var keyFragment = window.location.hash.substring(1); // Remove leading '#'
-            window.location.href = '/#share-chat-id=${chatId}&' + keyFragment;
+            window.location.href = '/#share-chat-id=' + ${chatIdScriptValue} + '&' + keyFragment;
         }
     </script>
 </head>
 <body>
-    <h1>${ogTitle}</h1>
-    <p>${ogDescription}</p>
+    <h1>${safeTitle}</h1>
+    <p>${safeDescription}</p>
     <p><a href="/">Open in OpenMates</a></p>
 </body>
 </html>`;

@@ -57,6 +57,7 @@ class ShareChatMetadataUpdate(BaseModel):
     chat_id: str
     title: Optional[str] = None
     summary: Optional[str] = None
+    share_cta_text: Optional[str] = None
     category: Optional[str] = None
     icon: Optional[str] = None
     follow_up_suggestions: Optional[List[str]] = None
@@ -548,6 +549,13 @@ async def update_share_metadata(
                 key_name=shared_vault_key
             )
             updates["shared_encrypted_summary"] = encrypted_summary
+
+        if payload.share_cta_text is not None:
+            encrypted_share_cta_text, _ = await encryption_service.encrypt(
+                payload.share_cta_text,
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_share_cta_text"] = encrypted_share_cta_text
         
         if payload.category is not None:
             encrypted_category, _ = await encryption_service.encrypt(
@@ -616,12 +624,13 @@ async def update_share_metadata(
             logger.info(f"Updating chat {chat_id} with fields: {list(updates.keys())}")
             logger.debug(f"Update values: is_shared={updates.get('is_shared')}, is_private={updates.get('is_private')}, "
                         f"has_title={bool(updates.get('shared_encrypted_title'))}, "
-                        f"has_summary={bool(updates.get('shared_encrypted_summary'))}")
+                        f"has_summary={bool(updates.get('shared_encrypted_summary'))}, "
+                        f"has_share_cta_text={bool(updates.get('shared_encrypted_share_cta_text'))}")
             
             # Request the updated fields in the response to verify they were saved
             # Directus will return the updated item with these fields if the update succeeds
             params = {
-                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,shared_encrypted_image_bubbles,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights'
+                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,shared_encrypted_image_bubbles,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights'
             }
             updated_item = await directus_service.update_item(
                 "chats",
@@ -754,7 +763,7 @@ async def unshare_chat(
     """
     Unshare a chat by setting is_private = true.
 
-    This also clears shared_encrypted_title and shared_encrypted_summary
+    This also clears shared_encrypted_title, shared_encrypted_summary, and share CTA metadata
     to remove OG metadata.
 
     Requires authentication - user must own the chat.
@@ -781,6 +790,7 @@ async def unshare_chat(
             "share_with_community": False,
             "shared_encrypted_title": None,
             "shared_encrypted_summary": None,
+            "shared_encrypted_share_cta_text": None,
             "shared_encrypted_category": None,
             "shared_encrypted_icon": None,
             "shared_encrypted_follow_up_suggestions": None,
@@ -1349,6 +1359,7 @@ async def _build_shared_chat_metadata(
     fallback = {
         "title": DEFAULT_CHAT_TITLE,
         "description": DEFAULT_CHAT_DESCRIPTION,
+        "image_text": DEFAULT_CHAT_DESCRIPTION,
         "image": image_path or _shared_chat_image_path(chat_id),
         "content_type": "chat",
         "password_protected": False,
@@ -1362,6 +1373,7 @@ async def _build_shared_chat_metadata(
 
     title = await _decrypt_shared_metadata(chat.get("shared_encrypted_title"), DEFAULT_CHAT_TITLE, encryption_service)
     summary = await _decrypt_shared_metadata(chat.get("shared_encrypted_summary"), DEFAULT_CHAT_DESCRIPTION, encryption_service)
+    share_cta_text = await _decrypt_shared_metadata(chat.get("shared_encrypted_share_cta_text"), summary, encryption_service)
     category = await _decrypt_shared_metadata(chat.get("shared_encrypted_category"), "general_knowledge", encryption_service)
     icon = await _decrypt_shared_metadata(chat.get("shared_encrypted_icon"), "chat", encryption_service)
     image_bubbles = await _decrypt_shared_json_metadata(chat.get("shared_encrypted_image_bubbles"), encryption_service)
@@ -1371,6 +1383,7 @@ async def _build_shared_chat_metadata(
     return {
         "title": title,
         "description": summary,
+        "image_text": share_cta_text,
         "image": image_path or _shared_chat_image_path(chat_id),
         "content_type": "chat",
         "password_protected": False,
@@ -1388,6 +1401,7 @@ async def _build_short_url_metadata(
     fallback = {
         "title": DEFAULT_CHAT_TITLE,
         "description": DEFAULT_CHAT_DESCRIPTION,
+        "image_text": DEFAULT_CHAT_DESCRIPTION,
         "image": _short_url_image_path(token),
         "content_type": "chat",
         "password_protected": False,
@@ -1408,6 +1422,7 @@ async def _build_short_url_metadata(
         return {
             "title": PROTECTED_CHAT_TITLE,
             "description": PROTECTED_CHAT_DESCRIPTION,
+            "image_text": PROTECTED_CHAT_DESCRIPTION,
             "image": PROTECTED_CHAT_OG_IMAGE_PATH,
             "content_type": "chat",
             "password_protected": True,
@@ -1420,6 +1435,7 @@ async def _build_short_url_metadata(
         return {
             "title": DEFAULT_EMBED_TITLE,
             "description": DEFAULT_EMBED_DESCRIPTION,
+            "image_text": DEFAULT_EMBED_DESCRIPTION,
             "image": "/images/og-image.jpg",
             "content_type": "embed",
             "password_protected": password_protected,
@@ -1782,7 +1798,7 @@ def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
     text_width = 760 if bubble_count else 940
     summary_lines = _wrap_text(
         draw,
-        str(metadata.get("description") or DEFAULT_CHAT_DESCRIPTION),
+        str(metadata.get("image_text") or metadata.get("description") or DEFAULT_CHAT_DESCRIPTION),
         summary_font,
         text_width,
         4,

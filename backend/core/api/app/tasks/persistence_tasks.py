@@ -1769,7 +1769,7 @@ async def _async_persist_encrypted_chat_metadata(
                     # generates a new random key instead of using the originator's key.
                     rejected_metadata = []
                     for field in ("encrypted_title", "encrypted_icon", "encrypted_category",
-                                   "encrypted_chat_summary", "encrypted_chat_tags",
+                                   "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_chat_tags",
                                    "encrypted_follow_up_request_suggestions",
                                    "encrypted_top_recommended_apps_for_chat",
                                   "encrypted_quick_tip_slugs", "encrypted_shared_short_url"):
@@ -1786,7 +1786,7 @@ async def _async_persist_encrypted_chat_metadata(
             # Separate version fields from metadata fields
             metadata_fields = {
                 "encrypted_title", "encrypted_icon", "encrypted_category", "encrypted_chat_tags",
-                "encrypted_chat_summary", "encrypted_follow_up_request_suggestions", "encrypted_chat_key",
+                "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_follow_up_request_suggestions", "encrypted_chat_key",
                 "encrypted_top_recommended_apps_for_chat",
                 "encrypted_quick_tip_slugs", "encrypted_shared_short_url",
                 "updated_at"
@@ -1862,6 +1862,7 @@ async def _async_persist_encrypted_chat_metadata(
                                 encrypted_icon=fresh_chat_metadata.get("encrypted_icon"),
                                 encrypted_category=fresh_chat_metadata.get("encrypted_category"),
                                 encrypted_chat_summary=fresh_chat_metadata.get("encrypted_chat_summary"),
+                                encrypted_share_cta_text=fresh_chat_metadata.get("encrypted_share_cta_text"),
                                 encrypted_chat_tags=fresh_chat_metadata.get("encrypted_chat_tags"),
                                 encrypted_follow_up_request_suggestions=fresh_chat_metadata.get("encrypted_follow_up_request_suggestions"),
                                 encrypted_top_recommended_apps_for_chat=fresh_chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
@@ -1961,6 +1962,7 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_icon=encrypted_metadata.get("encrypted_icon"),
                         encrypted_category=encrypted_metadata.get("encrypted_category"),
                         encrypted_chat_summary=encrypted_metadata.get("encrypted_chat_summary"),
+                        encrypted_share_cta_text=encrypted_metadata.get("encrypted_share_cta_text"),
                         encrypted_chat_tags=encrypted_metadata.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
                         encrypted_top_recommended_apps_for_chat=encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
@@ -2035,6 +2037,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_category": encrypted_metadata.get("encrypted_category"),  # Add missing encrypted_category field
                 "encrypted_chat_tags": encrypted_metadata.get("encrypted_chat_tags"),
                 "encrypted_chat_summary": encrypted_metadata.get("encrypted_chat_summary"),
+                "encrypted_share_cta_text": encrypted_metadata.get("encrypted_share_cta_text"),
                 "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
                 "encrypted_top_recommended_apps_for_chat": encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
                 "encrypted_quick_tip_slugs": encrypted_metadata.get("encrypted_quick_tip_slugs"),

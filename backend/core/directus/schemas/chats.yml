@@ -49,6 +49,11 @@ chats:
       type: text
       note: "[Encrypted] Chat summary (max 20 words) generated during post-processing, encrypted using chat-specific key"
 
+    encrypted_share_cta_text:
+      type: text
+      nullable: true
+      note: "[Encrypted] Short call-to-open line for shared chat previews and OG images, generated during post-processing and encrypted using chat-specific key"
+
     encrypted_chat_tags:
       type: text
       note: "[Encrypted] Array of max 10 tags for categorizing the chat, encrypted as base64 string using chat-specific key. Must be TEXT not JSON since it's encrypted."
@@ -139,6 +144,11 @@ chats:
       type: text
       nullable: true
       note: "[Vault-Encrypted] Summary for shared chat, encrypted with shared vault key (shared-content-metadata) for OG tag generation. Only populated when is_private = false. Server can decrypt for OG tags without user context."
+
+    shared_encrypted_share_cta_text:
+      type: text
+      nullable: true
+      note: "[Vault-Encrypted] Short call-to-open line for shared chat OG image text, encrypted with shared vault key (shared-content-metadata). Falls back to shared_encrypted_summary when absent."
 
     shared_encrypted_category:
       type: text

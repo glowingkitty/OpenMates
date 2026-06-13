@@ -1159,6 +1159,14 @@
                     console.warn(`[SettingsShare] Failed to decrypt summary for OG metadata update: chat_id=${currentChatId} field=encrypted_chat_summary`);
                 }
             }
+
+            let shareCtaText: string | null = null;
+            if (chat.encrypted_share_cta_text) {
+                shareCtaText = await decryptWithChatKey(chat.encrypted_share_cta_text, chatKey, { chatId: currentChatId, fieldName: 'encrypted_share_cta_text' });
+                if (!shareCtaText) {
+                    console.warn(`[SettingsShare] Failed to decrypt share CTA for OG metadata update: chat_id=${currentChatId} field=encrypted_share_cta_text`);
+                }
+            }
             
             // Decrypt category
             let category: string | null = null;
@@ -1216,6 +1224,7 @@
                         chat_id: currentChatId,
                         title: title || null,
                         summary: summary || null,
+                        share_cta_text: shareCtaText || summary || null,
                         category: category || null,
                         icon: icon || null,
                         follow_up_suggestions: followUpSuggestions || null,
@@ -1241,7 +1250,7 @@
                     // Queue for retry if offline or server error
                     // Network errors will be caught in the catch block
                     if (syncShareStatus) {
-                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
+                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, shareCtaText, includeSensitiveData, shareHighlights);
                     }
                     return;
                 }
@@ -1253,14 +1262,14 @@
                     console.warn('[SettingsShare] OG metadata update returned success=false:', data);
                     // Queue for retry even if server returned success=false
                     if (syncShareStatus) {
-                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
+                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, shareCtaText, includeSensitiveData, shareHighlights);
                     }
                 }
             } catch (fetchError) {
                 // Network error (offline, timeout, etc.) - queue for retry
                 console.debug('[SettingsShare] Network error sending OG metadata update:', fetchError);
                 if (syncShareStatus) {
-                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary, includeSensitiveData, shareHighlights);
+                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary, shareCtaText, includeSensitiveData, shareHighlights);
                 }
             }
         } catch (error) {

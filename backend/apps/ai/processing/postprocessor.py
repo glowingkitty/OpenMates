@@ -221,6 +221,7 @@ class PostProcessingResult(BaseModel):
     harmful_response: float = Field(default=0.0, description="Score 0-10 for harmful response detection")
     top_recommended_apps_for_user: List[str] = Field(default_factory=list, description="Top 5 recommended app IDs for this user based on conversation context")
     chat_summary: Optional[str] = Field(None, description="Updated chat summary (max 20 words) including the latest exchange")
+    share_cta_text: Optional[str] = Field(None, description="Short call-to-open text for shared chat previews and OG images")
     # Updated chat title: only set when the conversation has evolved significantly beyond the original title.
     # None means the current title still fits. See OPE-265 for feature context.
     updated_chat_title: Optional[str] = Field(None, description="New chat title (3-8 words) if the current title no longer describes the conversation well. None if no update needed.")
@@ -414,6 +415,7 @@ async def handle_postprocessing(
     language_lines.extend([
         f"- **new_chat_request_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **chat_summary**: Generate in '{user_system_language}' (the user's system/UI language).",
+        f"- **share_cta_text**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **updated_chat_title**: Generate in '{user_system_language}' (the user's system/UI language), if needed.",
     ])
     language_instruction = "\n".join(language_lines)
@@ -580,6 +582,16 @@ async def handle_postprocessing(
         logger.warning(f"[Task ID: {task_id}] [PostProcessor] chat_summary missing or empty from post-processing LLM. Will fall back to preprocessing summary.")
         postproc_chat_summary = None
 
+    raw_share_cta_text = llm_result.arguments.get("share_cta_text")
+    share_cta_text = raw_share_cta_text.strip() if isinstance(raw_share_cta_text, str) else None
+    if share_cta_text:
+        words = share_cta_text.split()
+        if len(words) > 12:
+            share_cta_text = " ".join(words[:12]).rstrip(" .,;:!")
+        logger.debug(f"[Task ID: {task_id}] [PostProcessor] share_cta_text generated (length: {len(share_cta_text)} characters)")
+    else:
+        logger.warning(f"[Task ID: {task_id}] [PostProcessor] share_cta_text missing or empty from post-processing LLM")
+
     # Validate updated_chat_title from post-processing LLM (OPE-265)
     # Only set when the LLM determines the current title no longer fits the conversation.
     postproc_updated_title = llm_result.arguments.get("updated_chat_title")
@@ -611,6 +623,18 @@ async def handle_postprocessing(
         postproc_chat_summary = await translate_chat_summary(
             task_id=task_id,
             summary=postproc_chat_summary,
+            target_language=user_system_language,
+            secrets_manager=secrets_manager,
+        )
+
+    if share_cta_text:
+        logger.info(
+            f"[Task ID: {task_id}] [PostProcessor] Ensuring share_cta_text is in "
+            f"UI language '{user_system_language}'."
+        )
+        share_cta_text = await translate_chat_summary(
+            task_id=task_id,
+            summary=share_cta_text,
             target_language=user_system_language,
             secrets_manager=secrets_manager,
         )
@@ -690,6 +714,7 @@ async def handle_postprocessing(
         harmful_response=llm_result.arguments.get("harmful_response", 0.0),
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
+        share_cta_text=share_cta_text,
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
         daily_inspiration_topic_suggestions=validated_topic_suggestions,
         quick_tip_slugs=quick_tip_slugs,

@@ -1215,6 +1215,7 @@ export async function handleLoadMoreChatsResponseImpl(
           encrypted_icon: details.encrypted_icon || null,
           encrypted_chat_key: details.encrypted_chat_key || null,
           encrypted_chat_summary: details.encrypted_chat_summary || null,
+          encrypted_share_cta_text: details.encrypted_share_cta_text || null,
           encrypted_chat_tags: details.encrypted_chat_tags || null,
           encrypted_follow_up_request_suggestions:
             details.encrypted_follow_up_request_suggestions || null,
@@ -1297,6 +1298,7 @@ export async function handleSyncMetadataChatsResponseImpl(
           encrypted_icon: details.encrypted_icon || null,
           encrypted_chat_key: details.encrypted_chat_key || null,
           encrypted_chat_summary: details.encrypted_chat_summary || null,
+          encrypted_share_cta_text: details.encrypted_share_cta_text || null,
           encrypted_chat_tags: details.encrypted_chat_tags || null,
           encrypted_follow_up_request_suggestions:
             details.encrypted_follow_up_request_suggestions || null,

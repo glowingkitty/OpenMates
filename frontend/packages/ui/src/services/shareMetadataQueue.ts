@@ -16,6 +16,7 @@ export interface PendingOGMetadataUpdate {
   chat_id: string;
   title: string | null;
   summary: string | null;
+  share_cta_text?: string | null;
   share_pii?: boolean;
   share_highlights?: boolean;
   created_at: number; // Unix timestamp
@@ -119,6 +120,7 @@ class ShareMetadataQueueService {
     chatId: string,
     title: string | null,
     summary: string | null,
+    shareCtaText?: string | null,
     sharePii?: boolean,
     shareHighlights?: boolean,
   ): Promise<void> {
@@ -128,6 +130,7 @@ class ShareMetadataQueueService {
         chat_id: chatId,
         title,
         summary,
+        share_cta_text: shareCtaText,
         share_pii: sharePii,
         share_highlights: shareHighlights,
         created_at: Math.floor(Date.now() / 1000),
@@ -312,6 +315,7 @@ class ShareMetadataQueueService {
             update.chat_id,
             update.title,
             update.summary,
+            update.share_cta_text,
             true, // is_shared = true
             update.share_pii,
             update.share_highlights,
@@ -359,6 +363,7 @@ class ShareMetadataQueueService {
     chatId: string,
     title: string | null,
     summary: string | null,
+    shareCtaText: string | null | undefined,
     isShared: boolean = true,
     sharePii?: boolean,
     shareHighlights?: boolean,
@@ -375,6 +380,7 @@ class ShareMetadataQueueService {
           chat_id: chatId,
           title: title || null,
           summary: summary || null,
+          share_cta_text: shareCtaText || summary || null,
           is_shared: isShared, // Mark chat as shared on server
           share_pii: sharePii,
           share_highlights: shareHighlights,

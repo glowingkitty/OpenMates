@@ -53,6 +53,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
 	const safeDescription = escapeHtml(description);
 	const safeImage = escapeHtml(absoluteImage);
 	const safeShareUrl = escapeHtml(shareUrl);
+	const tokenScriptValue = JSON.stringify(token);
 
 	const html = `<!DOCTYPE html>
 <html lang="en">
@@ -78,8 +79,9 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
     <meta name="twitter:image" content="${safeImage}">
 
     <script>
-        if (window.location.hash && window.location.hash.length > 1) {
-            window.location.replace('/s/#${token}-' + window.location.hash.substring(1));
+        var isCrawler = /bot|crawler|spider|facebookexternalhit|Twitterbot|Slackbot|Discordbot|LinkedInBot|WhatsApp/i.test(navigator.userAgent || '');
+        if (!isCrawler && window.location.hash && window.location.hash.length > 1) {
+            window.location.replace('/s/#' + ${tokenScriptValue} + '-' + window.location.hash.substring(1));
         }
     </script>
 </head>

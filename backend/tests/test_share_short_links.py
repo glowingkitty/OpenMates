@@ -94,6 +94,7 @@ class FakeChatMethods:
             "hashed_user_id": hashlib.sha256(FakeUser.id.encode()).hexdigest(),
             "shared_encrypted_title": "enc-title",
             "shared_encrypted_summary": "enc-summary",
+            "shared_encrypted_share_cta_text": None if chat_id == "chat-no-cta" else "enc-share-cta",
             "shared_encrypted_category": "enc-category",
             "shared_encrypted_icon": "enc-icon",
             "shared_encrypted_image_bubbles": "enc-image-bubbles",
@@ -216,6 +217,7 @@ class FakeEncryptionService:
         return {
             "enc-title": "Paris travel plan",
             "enc-summary": "A concise itinerary for a weekend in Paris.",
+            "enc-share-cta": "Plan a better weekend in Paris",
             "enc-category": "general_knowledge",
             "enc-icon": "map",
             "enc-image-bubbles": '[{"imageUrl":"https://preview.openmates.org/api/v1/image?url=https%3A%2F%2Fexample.com%2Fone.jpg","title":"One"}]',
@@ -332,6 +334,7 @@ async def test_short_url_metadata_uses_shared_chat_title_and_summary():
 
     assert response["title"] == "Paris travel plan"
     assert response["description"] == "A concise itinerary for a weekend in Paris."
+    assert response["image_text"] == "Plan a better weekend in Paris"
     assert response["image"] == "/v1/share/short-url/Abc123XY/og-image.png"
     assert response["password_protected"] is False
     assert response["image_bubbles"] == [
@@ -340,6 +343,37 @@ async def test_short_url_metadata_uses_shared_chat_title_and_summary():
             "title": "One",
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_short_url_metadata_falls_back_to_summary_for_image_text_without_cta():
+    directus = FakeDirectusService()
+    directus.short_links.append(
+        {
+            "token": "Abc123XY",
+            "encrypted_url": "opaque-ciphertext",
+            "content_type": "chat",
+            "content_id": "chat-no-cta",
+            "password_protected": False,
+            "expires_at": None,
+            "revoked_at": None,
+        }
+    )
+
+    get_metadata = getattr(
+        share_routes.get_short_url_metadata,
+        "__wrapped__",
+        share_routes.get_short_url_metadata,
+    )
+    response = await get_metadata(
+        request=None,
+        token="Abc123XY",
+        directus_service=directus,
+        encryption_service=FakeEncryptionService(),
+    )
+
+    assert response["description"] == "A concise itinerary for a weekend in Paris."
+    assert response["image_text"] == "A concise itinerary for a weekend in Paris."
 
 
 @pytest.mark.asyncio
@@ -499,7 +533,9 @@ def test_chat_metadata_field_list_includes_shared_preview_fields_and_stored_url(
 
     assert "shared_encrypted_category" in chat_methods_source
     assert "shared_encrypted_icon" in chat_methods_source
+    assert "shared_encrypted_share_cta_text" in chat_methods_source
     assert "shared_encrypted_image_bubbles" in chat_methods_source
+    assert "encrypted_share_cta_text" in chat_methods_source
     assert "encrypted_shared_short_url" in chat_methods_source
 
 
@@ -596,6 +632,7 @@ async def test_unshare_chat_clears_metadata_and_revokes_short_links():
     assert chat_update["is_shared"] is False
     assert chat_update["shared_encrypted_title"] is None
     assert chat_update["shared_encrypted_summary"] is None
+    assert chat_update["shared_encrypted_share_cta_text"] is None
     assert chat_update["shared_encrypted_category"] is None
     assert chat_update["shared_encrypted_icon"] is None
     assert chat_update["shared_encrypted_image_bubbles"] is None

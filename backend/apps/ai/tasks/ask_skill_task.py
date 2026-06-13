@@ -2037,6 +2037,7 @@ async def _async_process_ai_skill_ask_task(
                 "follow_up_request_suggestions": postprocessing_result.follow_up_request_suggestions,
                 "new_chat_request_suggestions": postprocessing_result.new_chat_request_suggestions,
                 "chat_summary": final_chat_summary,  # Prefer post-processing summary (includes latest exchange), fall back to preprocessing
+                "share_cta_text": postprocessing_result.share_cta_text,
                 "chat_tags": chat_tags,  # From preprocessing (full history context)
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,

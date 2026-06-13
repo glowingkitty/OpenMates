@@ -25,6 +25,7 @@ CHAT_METADATA_FINGERPRINT_FIELDS = (
     "encrypted_category",
     "encrypted_icon",
     "encrypted_chat_summary",
+    "encrypted_share_cta_text",
     "encrypted_chat_tags",
     "encrypted_follow_up_request_suggestions",
     "encrypted_top_recommended_apps_for_chat",
