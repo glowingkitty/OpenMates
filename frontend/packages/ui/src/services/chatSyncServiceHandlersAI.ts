@@ -4349,6 +4349,54 @@ export function handlePreprocessingStepImpl(
 // Daily Inspiration
 // ─────────────────────────────────────────────────────────────────────────────
 
+const RECENT_DAILY_INSPIRATION_SIGNATURE_LIMIT = 20;
+const recentDailyInspirationSignatures: string[] = [];
+const recentDailyInspirationSignatureSet = new Set<string>();
+
+function getDailyInspirationPayloadSignature(payload: {
+  inspirations: import("../stores/dailyInspirationStore").DailyInspiration[];
+  user_id: string;
+}): string {
+  return [
+    payload.user_id,
+    ...payload.inspirations.map(
+      (inspiration) =>
+        `${inspiration.inspiration_id}:${inspiration.generated_at}:${inspiration.content_type}`,
+    ),
+  ].join("|");
+}
+
+function rememberDailyInspirationPayload(signature: string): boolean {
+  if (recentDailyInspirationSignatureSet.has(signature)) return false;
+  recentDailyInspirationSignatureSet.add(signature);
+  recentDailyInspirationSignatures.push(signature);
+  while (
+    recentDailyInspirationSignatures.length >
+    RECENT_DAILY_INSPIRATION_SIGNATURE_LIMIT
+  ) {
+    const oldest = recentDailyInspirationSignatures.shift();
+    if (oldest) recentDailyInspirationSignatureSet.delete(oldest);
+  }
+  return true;
+}
+
+function sendDailyInspirationReceivedAck(): void {
+  webSocketService
+    .sendMessage("daily_inspiration_received", {})
+    .then(() => {
+      console.debug(
+        "[ChatSyncService:AI] Sent daily_inspiration_received ACK to server",
+      );
+    })
+    .catch((ackErr) => {
+      // Non-fatal: if the ACK fails the server will re-deliver on next connect
+      console.warn(
+        "[ChatSyncService:AI] Failed to send daily_inspiration_received ACK (non-fatal):",
+        ackErr,
+      );
+    });
+}
+
 /**
  * Handle the `daily_inspiration` WebSocket event.
  *
@@ -4396,6 +4444,16 @@ export function handleDailyInspirationImpl(
     return;
   }
 
+  const payloadSignature = getDailyInspirationPayloadSignature(payload);
+  if (!rememberDailyInspirationPayload(payloadSignature)) {
+    console.debug(
+      "[ChatSyncService:AI] Duplicate daily_inspiration event ignored:",
+      { count: payload.inspirations.length, user_id: payload.user_id },
+    );
+    sendDailyInspirationReceivedAck();
+    return;
+  }
+
   // Lazily import the store to avoid circular dependencies.
   Promise.all([
     import("../stores/dailyInspirationStore"),
@@ -4416,20 +4474,7 @@ export function handleDailyInspirationImpl(
       //    We send the ACK NOW (not after persistence) so the server clears its
       //    queue immediately. Persistence to IndexedDB/Directus takes over as the
       //    durable storage source.
-      webSocketService
-        .sendMessage("daily_inspiration_received", {})
-        .then(() => {
-          console.debug(
-            "[ChatSyncService:AI] Sent daily_inspiration_received ACK to server",
-          );
-        })
-        .catch((ackErr) => {
-          // Non-fatal: if the ACK fails the server will re-deliver on next connect
-          console.warn(
-            "[ChatSyncService:AI] Failed to send daily_inspiration_received ACK (non-fatal):",
-            ackErr,
-          );
-        });
+      sendDailyInspirationReceivedAck();
 
       // 3 & 4. Persist inspirations to IndexedDB + Directus API (non-blocking)
       // Run in background so UI is never blocked by encryption or network calls.

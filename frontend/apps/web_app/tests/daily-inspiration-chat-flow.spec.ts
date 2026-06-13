@@ -139,6 +139,46 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	log('Daily inspiration banner is visible.');
 	await screenshot(page, 'inspiration-banner-visible');
 
+	const inspirationPhrase = page.getByTestId('daily-inspiration-phrase');
+	const initialCarouselPhrase = (await inspirationPhrase.textContent())?.trim() ?? '';
+	await page.getByTestId('daily-inspiration-next').click();
+	await expect(inspirationPhrase).not.toHaveText(initialCarouselPhrase, { timeout: 3000 });
+	const nextCarouselPhrase = (await inspirationPhrase.textContent())?.trim() ?? '';
+	await page.getByTestId('daily-inspiration-previous').click();
+	await expect(inspirationPhrase).toHaveText(initialCarouselPhrase, { timeout: 3000 });
+
+	const bannerBox = await inspirationBanner.boundingBox();
+	expect(bannerBox, 'Daily inspiration banner must have bounds for swipe test').toBeTruthy();
+	const centerY = bannerBox!.y + bannerBox!.height / 2;
+	await inspirationBanner.dispatchEvent('touchstart', {
+		touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
+	});
+	await inspirationBanner.dispatchEvent('touchmove', {
+		touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
+	});
+	await inspirationBanner.dispatchEvent('touchend', {
+		touches: [],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
+	});
+	await expect(inspirationPhrase).toHaveText(nextCarouselPhrase, { timeout: 3000 });
+
+	await inspirationBanner.dispatchEvent('touchstart', {
+		touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
+	});
+	await inspirationBanner.dispatchEvent('touchmove', {
+		touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
+	});
+	await inspirationBanner.dispatchEvent('touchend', {
+		touches: [],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
+	});
+	await expect(inspirationPhrase).toHaveText(initialCarouselPhrase, { timeout: 3000 });
+	log('Authenticated daily inspiration carousel responds to buttons and touch swipes.');
+
 	// Feature inspirations open settings, and already-opened inspirations resume an
 	// existing chat. This regression needs a fresh inspiration chat creation path.
 	const startChatCta = page.getByText('Click to start chat').first();
