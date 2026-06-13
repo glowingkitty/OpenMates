@@ -200,7 +200,7 @@ test.describe('Example chats loading for new users', () => {
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'One-Week Reading Schedule' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
 	});
 
 	test('reported memory examples render current text content without interactive-question errors', async ({
@@ -213,7 +213,7 @@ test.describe('Example chats loading for new users', () => {
 		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-books-currently-reading'), {
 			waitUntil: 'domcontentloaded'
 		});
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'One-Week Reading Schedule' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('app-settings-memories-summary')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('app-settings-memory-category-badge')).toBeVisible({ timeout: 15000 });
 		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
