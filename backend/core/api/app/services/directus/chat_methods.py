@@ -251,7 +251,7 @@ class ChatMethods:
 
     async def get_chats_metadata_batch(self, chat_ids: List[str]) -> Dict[str, Dict[str, Any]]:
         """
-        Fetches metadata for multiple chats in a single Directus query using filter[id][_in].
+        Fetches metadata for multiple chats using a Directus JSON _in filter.
         Returns a dict mapping chat_id -> metadata dict. Missing chats are omitted.
         """
         import re
@@ -261,17 +261,42 @@ class ChatMethods:
             return {}
 
         logger.info(f"Batch fetching chat metadata for {len(valid_ids)} chats")
-        params = {
-            'filter[id][_in]': ','.join(valid_ids),
-            'fields': CHAT_METADATA_FIELDS,
-            'limit': len(valid_ids)
-        }
+        field_sets = [
+            CHAT_METADATA_FIELDS,
+            CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS,
+            CHAT_METADATA_FIELDS_FALLBACK,
+        ]
+        chunk_size = 25
         try:
-            response = await self.directus_service.get_items('chats', params=params, no_cache=True)
-            if response and isinstance(response, list):
-                result = {item['id']: item for item in response if 'id' in item}
+            for fields in field_sets:
+                result: Dict[str, Dict[str, Any]] = {}
+                permission_denied = False
+
+                for index in range(0, len(valid_ids), chunk_size):
+                    chunk = valid_ids[index:index + chunk_size]
+                    params = {
+                        'filter': {'id': {'_in': chunk}},
+                        'fields': fields,
+                        'limit': len(chunk)
+                    }
+                    response = await self.directus_service.get_items(
+                        'chats',
+                        params=params,
+                        no_cache=True,
+                        return_none_on_403=True,
+                    )
+                    if response is None:
+                        permission_denied = True
+                        break
+                    if isinstance(response, list):
+                        result.update({item['id']: item for item in response if 'id' in item})
+
+                if permission_denied:
+                    continue
+
                 logger.info(f"Batch fetched metadata for {len(result)}/{len(valid_ids)} chats")
                 return result
+
             return {}
         except Exception as e:
             logger.error(f"Error batch fetching chat metadata for {len(valid_ids)} chats: {e}", exc_info=True)

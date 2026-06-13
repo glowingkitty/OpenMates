@@ -978,6 +978,14 @@ async def _handle_phase2_sync(
                 except Exception as e:
                     logger.error(f"Phase 2: Failed to fetch chats from Directus: {e}", exc_info=True)
 
+            if not all_recent_chats and total_chat_count > 0:
+                logger.warning(
+                    "Phase 2: Cached chat IDs produced no metadata despite nonzero total; falling back to user chat list"
+                )
+                all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
+                    user_id, limit=100
+                )
+
         if not all_recent_chats:
             logger.info(f"Phase 2: No chats found for user {user_id}")
             await manager.send_personal_message(
