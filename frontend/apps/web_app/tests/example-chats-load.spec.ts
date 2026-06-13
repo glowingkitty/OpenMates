@@ -252,6 +252,7 @@ test.describe('Example chats loading for new users', () => {
 		const nutritionSearchCardSelector = '[data-testid="embed-preview"][data-app-id="nutrition"][data-skill-id="search_recipes"][data-status="finished"]';
 		const assistantMessageWithNutritionCard = page
 			.getByTestId('message-assistant')
+			.filter({ hasText: 'Here are three delicious' })
 			.filter({ has: page.locator(nutritionSearchCardSelector) })
 			.first();
 		await expect(assistantMessageWithNutritionCard).toBeVisible({ timeout: 15000 });
@@ -261,6 +262,24 @@ test.describe('Example chats loading for new users', () => {
 		await expect(nutritionSearchCard).toContainText('chickpea and spinach dinner');
 		await expect(nutritionSearchCard).toContainText('Edamam');
 		await expect(assistantMessageWithNutritionCard).not.toContainText('"type":"app_skill_use"');
+		expect(
+			await assistantMessageWithNutritionCard.evaluate((message, selector) => {
+				const card = message.querySelector(selector);
+				const walker = document.createTreeWalker(message, NodeFilter.SHOW_TEXT);
+				let answerTextNode: Node | null = null;
+				while (walker.nextNode()) {
+					if (walker.currentNode.textContent?.includes('Here are three delicious')) {
+						answerTextNode = walker.currentNode;
+						break;
+					}
+				}
+				return !!(
+					card &&
+					answerTextNode &&
+					(card.compareDocumentPosition(answerTextNode) & Node.DOCUMENT_POSITION_FOLLOWING)
+				);
+			}, nutritionSearchCardSelector)
+		).toBe(true);
 	});
 
 	test('sidebar example chats show newest first and append older results after show more', async ({

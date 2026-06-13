@@ -253,6 +253,7 @@ def embed_ids_in_source(source: str) -> set[str]:
         embed_id = parse_ts_string_field(block, "embed_id")
         if embed_id:
             ids.add(embed_id)
+    ids.update(re.findall(r'["\']?embed_id["\']?\s*:\s*"((?:\\.|[^"])*)"', source))
     return ids
 
 

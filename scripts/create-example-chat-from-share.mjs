@@ -339,6 +339,72 @@ function sanitizeEmbedContent(content) {
   return publicLines.join('\n');
 }
 
+function parseToonScalar(content, key) {
+  const match = String(content || '').match(new RegExp(`^${key}:\\s*(.+?)\\s*$`, 'm'));
+  if (!match) return null;
+  return match[1].replace(/^"|"$/g, '').trim();
+}
+
+function appSkillExampleKey(embed) {
+  if (embed.type !== 'app_skill_use') return null;
+  const appId = parseToonScalar(embed.content, 'app_id');
+  const skillId = parseToonScalar(embed.content, 'skill_id');
+  return appId && skillId ? `${appId}.${skillId}` : null;
+}
+
+function appSkillUseJsonBlock(embed) {
+  const payload = {
+    type: 'app_skill_use',
+    embed_id: embed.embed_id,
+    app_id: parseToonScalar(embed.content, 'app_id'),
+    skill_id: parseToonScalar(embed.content, 'skill_id'),
+    query: parseToonScalar(embed.content, 'query'),
+    provider: parseToonScalar(embed.content, 'provider'),
+    status: parseToonScalar(embed.content, 'status') || embed.status,
+  };
+  const publicPayload = Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== null && value !== undefined && value !== ''),
+  );
+  return `\`\`\`json\n${JSON.stringify(publicPayload)}\n\`\`\``;
+}
+
+function appSkillUsesNeedingMessageRefs(chat) {
+  const messageText = (chat.messages || []).map((message) => String(message.content || '')).join('\n');
+  return (chat.embeds || []).filter(
+    (embed) => embed.type === 'app_skill_use' && !embed.parent_embed_id && !messageText.includes(embed.embed_id),
+  );
+}
+
+function withPromotedAppSkillUseMessages(chat) {
+  const missingAppSkillUses = appSkillUsesNeedingMessageRefs(chat);
+  if (missingAppSkillUses.length === 0) return chat;
+
+  const firstAssistantIndex = chat.messages.findIndex(
+    (message) => message.role === 'assistant' && typeof message.content === 'string',
+  );
+  if (firstAssistantIndex === -1) return chat;
+
+  const messages = chat.messages.map((message, index) => {
+    if (index !== firstAssistantIndex) return message;
+    const appSkillBlocks = missingAppSkillUses.map(appSkillUseJsonBlock).join('\n\n');
+    return {
+      ...message,
+      content: `${appSkillBlocks}\n\n${message.content || ''}`,
+    };
+  });
+  return { ...chat, messages };
+}
+
+function appSkillExamplesFromEmbeds(embeds) {
+  return [
+    ...new Set(
+      (embeds || [])
+        .map(appSkillExampleKey)
+        .filter(Boolean),
+    ),
+  ].sort();
+}
+
 function validateExtractedChat(chat) {
   const required = ['chat_id', 'messages', 'embeds'];
   for (const key of required) {
@@ -637,7 +703,7 @@ function writeIfChanged(filePath, content, args) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  const chat = loadExtractedChat(args);
+  const chat = withPromotedAppSkillUseMessages(loadExtractedChat(args));
   validateExtractedChat(chat);
 
   const slug = args.slug;
@@ -652,7 +718,7 @@ function main() {
     keywords: args.keywords,
     featured: args.featured,
     followUps: Array.isArray(chat.follow_up_suggestions) ? chat.follow_up_suggestions : [],
-    appSkillExamples: existingMetadata.appSkillExamples,
+    appSkillExamples: [...new Set([...existingMetadata.appSkillExamples, ...appSkillExamplesFromEmbeds(chat.embeds)])].sort(),
     appFocusModeExamples: args.appFocusModeExamples.length > 0
       ? args.appFocusModeExamples
       : existingMetadata.appFocusModeExamples,

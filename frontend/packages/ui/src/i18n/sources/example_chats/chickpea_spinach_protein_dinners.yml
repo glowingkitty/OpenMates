@@ -76,6 +76,10 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Chickpea Spinach Protein Dinners. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -164,6 +168,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -252,6 +260,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -340,6 +352,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -428,6 +444,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -516,6 +536,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -604,6 +628,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -692,6 +720,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -780,6 +812,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -868,6 +904,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -956,6 +996,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1044,6 +1088,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1132,6 +1180,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1220,6 +1272,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1308,6 +1364,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1396,6 +1456,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1484,6 +1548,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1572,6 +1640,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1660,6 +1732,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1748,6 +1824,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry
@@ -1836,6 +1916,10 @@ message_2:
     *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
     *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
+    ```
+
     Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
 
     ### 1. 10-Minute Chickpea and Spinach Curry

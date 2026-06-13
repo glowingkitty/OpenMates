@@ -98,6 +98,75 @@ def test_scaffold_normalizes_home_category_label(tmp_path: Path) -> None:
     assert "category: general_knowledge" in result.stdout
 
 
+def test_scaffold_promotes_app_skill_use_embeds_into_assistant_message(tmp_path: Path) -> None:
+    slug = "scaffold-app-skill-use-test"
+    snake = "scaffold_app_skill_use_test"
+    data_path = REPO_ROOT / "frontend/packages/ui/src/demo_chats/data/example_chats" / f"{slug}.ts"
+    yaml_path = REPO_ROOT / "frontend/packages/ui/src/i18n/sources/example_chats" / f"{snake}.yml"
+    registry_path = REPO_ROOT / "frontend/packages/ui/src/demo_chats/exampleChatData.ts"
+    original_registry = registry_path.read_text(encoding="utf-8")
+    extracted = {
+        "chat_id": "chat-source",
+        "title": "Recipe chat",
+        "summary": "Summary",
+        "icon": "utensils",
+        "category": "Cooking",
+        "follow_up_suggestions": [],
+        "messages": [
+            {
+                "id": "message-1",
+                "role": "user",
+                "content": "Find chickpea recipes",
+                "created_at": 1780000000,
+            },
+            {
+                "id": "message-2",
+                "role": "assistant",
+                "content": "Here are three recipes.",
+                "created_at": 1780000010,
+            },
+        ],
+        "embeds": [
+            {
+                "embed_id": "nutrition-parent-embed",
+                "type": "app_skill_use",
+                "content": "app_id: nutrition\nskill_id: search_recipes\nstatus: finished\nembed_id: nutrition-parent-embed\nquery: chickpea dinner\nprovider: Edamam",
+                "status": "finished",
+                "parent_embed_id": None,
+                "embed_ids": [],
+            }
+        ],
+    }
+    source = tmp_path / "chat.json"
+    source.write_text(json.dumps(extracted), encoding="utf-8")
+
+    try:
+        subprocess.run(
+            [
+                "node",
+                str(SCRIPT),
+                "--from-json",
+                str(source),
+                "--slug",
+                slug,
+                "--force",
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+            text=True,
+            capture_output=True,
+        )
+
+        yaml_source = yaml_path.read_text(encoding="utf-8")
+        assert '{"type":"app_skill_use","embed_id":"nutrition-parent-embed"' in yaml_source
+        assert yaml_source.index('{"type":"app_skill_use"') < yaml_source.index("Here are three recipes.")
+        assert 'app_skill_examples: ["nutrition.search_recipes"]' in data_path.read_text(encoding="utf-8")
+    finally:
+        registry_path.write_text(original_registry, encoding="utf-8")
+        data_path.unlink(missing_ok=True)
+        yaml_path.unlink(missing_ok=True)
+
+
 def test_current_example_chats_pass_audit(tmp_path: Path) -> None:
     audit_script = REPO_ROOT / "scripts" / "audit_example_chats.py"
     spec = importlib.util.spec_from_file_location("audit_example_chats", audit_script)

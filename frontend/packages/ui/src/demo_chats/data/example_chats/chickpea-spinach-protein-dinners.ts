@@ -239,16 +239,6 @@ export const chickpeaSpinachProteinDinnersChat: ExampleChat = {
       category: "cooking_food",
       model_name: "Gemini 3 Flash",
     },
-    {
-      id: "b602ea4d-0b13-4a99-b532-ae68f312298c",
-      role: "assistant",
-      content: `\`\`\`json
-{"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","status":"finished","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam"}
-\`\`\``,
-      created_at: 1781353504,
-      category: "cooking_food",
-      model_name: "OpenMates",
-    },
   ],
   embeds: [...imageEmbeds, ...nutritionEmbeds],
   metadata: {
