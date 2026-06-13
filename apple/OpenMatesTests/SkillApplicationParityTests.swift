@@ -50,6 +50,21 @@ final class SkillApplicationParityTests: XCTestCase {
         }
     }
 
+    func testRelatedEmbedGraphIncludesChildrenForReferencedCompositeParent() throws {
+        let webSearch = try XCTUnwrap(
+            DevEmbedPreviewFixtures.skills(for: .web).first { $0.id == "web-search" }
+        )
+        let shuffled = Array(webSearch.childEmbeds.reversed()) + [webSearch.primaryEmbed]
+
+        let related = EmbedRecord.relatedRecords(
+            referencedIds: [webSearch.primaryEmbed.id],
+            from: shuffled,
+            context: "test.relatedGraph"
+        )
+
+        XCTAssertEqual(Set(related.map(\.id)), Set(webSearch.allRecords.keys))
+    }
+
     func testFileMediaFixturesUseSyntheticPublicPayloads() throws {
         let imageUpload = try XCTUnwrap(
             DevEmbedPreviewFixtures.skills(for: .images).first { $0.id == "images-upload" }?.primaryEmbed

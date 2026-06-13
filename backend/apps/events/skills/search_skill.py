@@ -36,8 +36,10 @@
 # See docs/apis/luma.md for Luma integration details.
 
 import asyncio
+from datetime import datetime
 import logging
 import os
+import re
 import yaml
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -396,6 +398,171 @@ class SearchSkill(BaseSkill):
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _normalize_event_type(value: Any) -> Optional[str]:
+        """Normalize provider-specific event type values to the shared contract."""
+        if not value:
+            return None
+        normalized = str(value).strip().lower().replace("-", "_")
+        if normalized in {"online", "virtual", "virtual_event", "remote"}:
+            return "ONLINE"
+        if normalized in {"physical", "offline", "in_person", "in_person_event", "venue"}:
+            return "PHYSICAL"
+        return str(value).strip().upper()
+
+    @staticmethod
+    def _parse_event_datetime(value: Any) -> Optional[datetime]:
+        if not value or not isinstance(value, str):
+            return None
+        try:
+            return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _parse_money(value: Any) -> Optional[float]:
+        if value in (None, ""):
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        match = re.search(r"\d+(?:[.,]\d+)?", str(value))
+        if not match:
+            return None
+        try:
+            return float(match.group(0).replace(",", "."))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _extract_price_amount(event: Dict[str, Any]) -> Optional[float]:
+        """Extract a comparable event price when provider data exposes one."""
+        for candidate in (event.get("price"), event.get("fee")):
+            if candidate in (None, ""):
+                continue
+            if isinstance(candidate, dict):
+                for key in ("amount", "min", "display"):
+                    amount = SearchSkill._parse_money(candidate.get(key))
+                    if amount is not None:
+                        return amount
+                continue
+            amount = SearchSkill._parse_money(candidate)
+            if amount is not None:
+                return amount
+        if event.get("is_paid") is False:
+            return 0.0
+        return None
+
+    @staticmethod
+    def _has_price_intent(query: Optional[str]) -> bool:
+        if not query:
+            return False
+        lowered = query.lower()
+        return any(term in lowered for term in ("free", "cheap", "budget", "low cost", "low-cost", "affordable"))
+
+    @staticmethod
+    def _has_accessibility_intent(query: Optional[str]) -> bool:
+        if not query:
+            return False
+        lowered = query.lower()
+        return any(term in lowered for term in ("wheelchair", "accessible", "accessibility", "barrier-free", "barrier free"))
+
+    @staticmethod
+    def _accessibility_match(event: Dict[str, Any]) -> str:
+        text_parts = [str(event.get(field) or "") for field in ("title", "description", "location")]
+        venue = event.get("venue")
+        if isinstance(venue, dict):
+            text_parts.extend(str(value or "") for value in venue.values())
+        else:
+            text_parts.append(str(venue or ""))
+        text = " ".join(text_parts).lower()
+        if any(term in text for term in ("wheelchair", "accessible", "barrier-free", "barrier free")):
+            return "mentioned"
+        return "unknown"
+
+    @staticmethod
+    def _apply_quality_filters(
+        events: List[Dict[str, Any]],
+        *,
+        event_type: Optional[str],
+        start_date: Optional[str],
+        end_date: Optional[str],
+        query: Optional[str],
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Apply deterministic post-provider filters and ranking guardrails."""
+        normalized_type = SearchSkill._normalize_event_type(event_type)
+        start_dt = SearchSkill._parse_event_datetime(start_date)
+        end_dt = SearchSkill._parse_event_datetime(end_date)
+        price_intent = SearchSkill._has_price_intent(query)
+        accessibility_intent = SearchSkill._has_accessibility_intent(query)
+        applied_filters: List[str] = []
+        filtered: List[Dict[str, Any]] = []
+        filtered_out_count = 0
+
+        if normalized_type:
+            applied_filters.append("event_type")
+        if start_dt or end_dt:
+            applied_filters.append("date_window")
+
+        for event in events:
+            result = dict(event)
+            result_type = SearchSkill._normalize_event_type(result.get("event_type"))
+            if result_type:
+                result["event_type"] = result_type
+            if normalized_type and result_type and result_type != normalized_type:
+                filtered_out_count += 1
+                continue
+
+            event_start = SearchSkill._parse_event_datetime(result.get("date_start"))
+            if start_dt and event_start and event_start < start_dt:
+                filtered_out_count += 1
+                continue
+            if end_dt and event_start and event_start >= end_dt:
+                filtered_out_count += 1
+                continue
+
+            constraint_matches = dict(result.get("constraint_matches") or {})
+            if price_intent:
+                price = SearchSkill._extract_price_amount(result)
+                if price is None:
+                    constraint_matches["price"] = "unknown"
+                elif price == 0:
+                    constraint_matches["price"] = "free"
+                elif price <= 15:
+                    constraint_matches["price"] = "cheap"
+                else:
+                    constraint_matches["price"] = "paid"
+                result["price_amount"] = price
+            if accessibility_intent:
+                constraint_matches["accessibility"] = SearchSkill._accessibility_match(result)
+            if constraint_matches:
+                result["constraint_matches"] = constraint_matches
+            filtered.append(result)
+
+        if price_intent:
+            def price_rank(event: Dict[str, Any]) -> tuple[int, float]:
+                match = (event.get("constraint_matches") or {}).get("price")
+                rank = {"free": 0, "cheap": 1, "unknown": 2, "paid": 3}.get(match, 4)
+                amount = event.get("price_amount")
+                numeric_amount = float(amount) if isinstance(amount, (int, float)) else float("inf")
+                return rank, numeric_amount
+
+            filtered.sort(key=price_rank)
+
+        metadata: Dict[str, Any] = {
+            "applied_filters": applied_filters,
+            "filtered_out_count": filtered_out_count,
+            "price_intent": "free_or_cheap" if price_intent else None,
+            "accessibility_intent": accessibility_intent,
+            "no_result_reason": "filtered_out" if events and not filtered else None,
+        }
+        if metadata["no_result_reason"]:
+            metadata["suggestions"] = [
+                "Relax one or more filters",
+                "Try a wider date range",
+                "Search another provider or nearby city",
+            ]
+        return filtered, metadata
 
     def _load_config_from_app_yml(self) -> None:
         """Load follow-up suggestions and provider metadata from app.yml."""
@@ -1154,6 +1321,21 @@ class SearchSkill(BaseSkill):
                 event.get("url") or event.get("id") or ""
             )
             results.append(result)
+
+        results, quality_metadata = self._apply_quality_filters(
+            results,
+            event_type=event_type,
+            start_date=start_date,
+            end_date=end_date,
+            query=query,
+        )
+        if quality_metadata.get("filtered_out_count"):
+            logger.info(
+                "Events quality filters removed %d result(s) for request %s: %s",
+                quality_metadata["filtered_out_count"],
+                request_id,
+                quality_metadata.get("applied_filters"),
+            )
 
         try:
             results = await sanitize_long_text_fields_in_payload(

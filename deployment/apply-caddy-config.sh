@@ -34,6 +34,8 @@ CADDY_GANDI_MODULE="dns.providers.gandi"
 CADDY_GANDI_PACKAGE="github.com/caddy-dns/gandi@${OPENMATES_CADDY_GANDI_VERSION:-v1.0.0}"
 CADDY_XCADDY_PACKAGE="github.com/caddyserver/xcaddy/cmd/xcaddy@${OPENMATES_XCADDY_VERSION:-latest}"
 CADDY_DUMMY_GANDI_TOKEN="openmates-caddyfile-syntax-check-token"
+CADDY_SERVICE_ENV_FILE="${OPENMATES_CADDY_SERVICE_ENV_FILE:-/etc/caddy/openmates-gandi.env}"
+CADDY_SERVICE_DROPIN="${OPENMATES_CADDY_SERVICE_DROPIN:-/etc/systemd/system/caddy.service.d/openmates-gandi-token.conf}"
 
 CHECK_ONLY=false
 if [ "${1:-}" = "--check" ]; then
@@ -117,23 +119,12 @@ installed_caddy_version() {
 }
 
 warn_if_gandi_token_not_in_shell() {
-    if [ -n "${GANDI_BEARER_TOKEN:-}" ]; then
+    if [ -n "${GANDI_BEARER_TOKEN:-}" ] || gandi_token_configured_for_service; then
         return 0
     fi
 
-    echo -e "${YELLOW}⚠ Caddyfile requires Gandi DNS-01 and GANDI_BEARER_TOKEN is not available to this shell.${NC}"
-    echo -e "${YELLOW}The syntax check will use a dummy token. The real token must be configured for the Caddy service before reload.${NC}"
-    echo ""
-    echo "  sudo systemctl edit caddy"
-    echo ""
-    echo "Add:"
-    echo "  [Service]"
-    echo "  Environment=GANDI_BEARER_TOKEN=<PASTE_GANDI_BEARER_TOKEN>"
-    echo ""
-    echo "Then run:"
-    echo "  sudo systemctl daemon-reload"
-    echo "  sudo systemctl restart caddy"
-    echo "  sudo deployment/apply-caddy-config.sh $CADDYFILE_PATH"
+    echo -e "${YELLOW}⚠ Caddyfile requires Gandi DNS-01 but no existing Caddy service Gandi token was detected.${NC}"
+    echo -e "${YELLOW}Check mode will use a dummy token for syntax only. Apply mode will request and store the real token.${NC}"
     echo ""
     echo -e "${YELLOW}Do not put the Gandi token in the repository, app .env, or Docker containers.${NC}"
 }
@@ -189,12 +180,93 @@ install_caddy_with_gandi_module() {
     echo -e "${GREEN}✓ Previous Caddy binary backed up at $backup_path${NC}"
 }
 
+gandi_token_configured_for_service() {
+    if [ -f "$CADDY_SERVICE_ENV_FILE" ] && grep -Eq '^GANDI_BEARER_TOKEN=.+$' "$CADDY_SERVICE_ENV_FILE" 2>/dev/null; then
+        return 0
+    fi
+
+    systemctl show caddy --property=Environment --value 2>/dev/null \
+        | tr ' ' '\n' \
+        | grep -Eq '^GANDI_BEARER_TOKEN=.+$'
+}
+
+validate_gandi_token_value() {
+    local token="$1"
+    if [ -z "$token" ]; then
+        echo -e "${RED}✗ Empty Gandi token is not allowed.${NC}"
+        return 1
+    fi
+    if [[ "$token" =~ [[:space:]] ]]; then
+        echo -e "${RED}✗ Gandi token must not contain whitespace or newlines.${NC}"
+        return 1
+    fi
+}
+
+prompt_for_gandi_token() {
+    local token
+    if [ ! -t 0 ] && [ "${OPENMATES_CADDY_APPLY_TEST:-}" != "1" ]; then
+        echo -e "${RED}✗ GANDI_BEARER_TOKEN is not configured for the Caddy service and this shell is non-interactive.${NC}"
+        echo -e "${YELLOW}Run this script from an interactive root shell or pass GANDI_BEARER_TOKEN only for this setup run.${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Enter the Gandi bearer token for Caddy DNS-01 (input hidden):${NC}"
+    if [ -t 0 ]; then
+        read -r -s token
+        echo ""
+    else
+        read -r token
+    fi
+    validate_gandi_token_value "$token" || return 1
+    GANDI_BEARER_TOKEN="$token"
+}
+
+write_gandi_token_for_service() {
+    local token="$1" env_dir dropin_dir tmp_env tmp_dropin
+    validate_gandi_token_value "$token" || return 1
+
+    env_dir="$(dirname "$CADDY_SERVICE_ENV_FILE")"
+    dropin_dir="$(dirname "$CADDY_SERVICE_DROPIN")"
+    mkdir -p "$env_dir" "$dropin_dir"
+
+    tmp_env="$(mktemp "$env_dir/openmates-gandi.env.XXXXXX")"
+    printf 'GANDI_BEARER_TOKEN=%s\n' "$token" >"$tmp_env"
+    chown root:root "$tmp_env"
+    chmod 600 "$tmp_env"
+    mv "$tmp_env" "$CADDY_SERVICE_ENV_FILE"
+
+    tmp_dropin="$(mktemp "$dropin_dir/openmates-gandi-token.conf.XXXXXX")"
+    printf '[Service]\nEnvironmentFile=%s\n' "$CADDY_SERVICE_ENV_FILE" >"$tmp_dropin"
+    chown root:root "$tmp_dropin"
+    chmod 644 "$tmp_dropin"
+    mv "$tmp_dropin" "$CADDY_SERVICE_DROPIN"
+    systemctl daemon-reload
+
+    echo -e "${GREEN}✓ Stored Gandi token for the Caddy service at $CADDY_SERVICE_ENV_FILE${NC}"
+    echo -e "${GREEN}✓ Installed systemd drop-in at $CADDY_SERVICE_DROPIN${NC}"
+}
+
+ensure_gandi_token_for_service() {
+    if gandi_token_configured_for_service; then
+        echo -e "${GREEN}✓ Caddy service already has a Gandi token configured${NC}"
+        return 0
+    fi
+
+    if [ -z "${GANDI_BEARER_TOKEN:-}" ]; then
+        prompt_for_gandi_token || return 1
+    else
+        validate_gandi_token_value "$GANDI_BEARER_TOKEN" || return 1
+        echo -e "${BLUE}Using GANDI_BEARER_TOKEN from this shell for one-time Caddy service setup.${NC}"
+    fi
+
+    write_gandi_token_for_service "$GANDI_BEARER_TOKEN"
+}
+
 # Ensure Caddy can load DNS provider modules before adaptation. This is done
 # before caddy adapt because Caddyfile adaptation fails if the module is missing
 # or if the provider token placeholder expands to an empty value.
 if config_requires_gandi_dns; then
     echo -e "${BLUE}Checking Caddy Gandi DNS provider support...${NC}"
-    warn_if_gandi_token_not_in_shell
     if caddy_has_module "$CADDY_GANDI_MODULE"; then
         echo -e "${GREEN}✓ Caddy has $CADDY_GANDI_MODULE${NC}"
     elif [ "$CHECK_ONLY" = true ]; then
@@ -204,6 +276,12 @@ if config_requires_gandi_dns; then
     else
         echo -e "${YELLOW}Caddy is missing $CADDY_GANDI_MODULE; building and installing a compatible binary.${NC}"
         install_caddy_with_gandi_module || exit 1
+    fi
+
+    if [ "$CHECK_ONLY" = true ]; then
+        warn_if_gandi_token_not_in_shell
+    else
+        ensure_gandi_token_for_service || exit 1
     fi
     echo ""
 fi

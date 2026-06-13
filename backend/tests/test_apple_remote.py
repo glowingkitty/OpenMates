@@ -135,11 +135,30 @@ def test_cleanup_allows_simulator_shutdown_command() -> None:
 
 
 def test_install_ios_device_command_uses_configuration_and_provisioning_flag() -> None:
-    command = apple_remote.install_ios_device_command("Debug", allow_provisioning_updates=True)
+    command = apple_remote.install_ios_device_command(
+        "Debug",
+        allow_provisioning_updates=True,
+        with_associated_domains=False,
+    )
 
     assert "OpenMates_iOS" in command
     assert "Debug" in command
+    assert "com.apple.developer.associated-domains" in command
+    assert "associated_domains=disabled_for_default_device_build" in command
     assert " 1" in command
+    assert command.endswith(" Debug 1 0")
+
+
+def test_install_ios_device_command_can_enable_associated_domains_for_passkeys() -> None:
+    command = apple_remote.install_ios_device_command(
+        "Debug",
+        allow_provisioning_updates=True,
+        with_associated_domains=True,
+    )
+
+    assert "OpenMatesPasskey.entitlements" in command
+    assert "associated_domains=enabled_for_passkey_build" in command
+    assert command.endswith(" Debug 1 1")
 
 
 def test_xcode_cache_clean_rejects_unknown_target() -> None:

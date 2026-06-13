@@ -756,6 +756,8 @@ class SearchConnectionsSkill(BaseSkill):
     def _extract_result_filters(req: Dict[str, Any]) -> Dict[str, Any]:
         """Return only supported result-level filters that were explicitly set."""
         filter_keys = (
+            "max_stops",
+            "max_price",
             "min_departure_time",
             "max_departure_time",
             "min_arrival_time",
@@ -785,6 +787,10 @@ class SearchConnectionsSkill(BaseSkill):
         """Apply cross-provider filters to normalized connection result dicts."""
         filtered: List[Dict[str, Any]] = []
         for result in results:
+            if not self._matches_max_stops(result, result_filters.get("max_stops")):
+                continue
+            if not self._matches_max_price(result, result_filters.get("max_price")):
+                continue
             if not self._matches_time_window(
                 result.get("departure"),
                 result_filters.get("min_departure_time"),
@@ -807,6 +813,33 @@ class SearchConnectionsSkill(BaseSkill):
                 continue
             filtered.append(result)
         return filtered
+
+    @staticmethod
+    def _matches_max_stops(result: Dict[str, Any], max_stops: Any) -> bool:
+        if max_stops in (None, ""):
+            return True
+        try:
+            max_stops_int = int(max_stops)
+        except (TypeError, ValueError):
+            return True
+        stops = result.get("stops")
+        if stops is None:
+            return False
+        try:
+            return int(stops) <= max_stops_int
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _matches_max_price(result: Dict[str, Any], max_price: Any) -> bool:
+        if max_price in (None, ""):
+            return True
+        try:
+            max_price_float = float(max_price)
+            price = float(result.get("total_price"))
+        except (TypeError, ValueError):
+            return False
+        return price <= max_price_float
 
     @staticmethod
     def _matches_time_window(

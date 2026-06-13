@@ -1153,15 +1153,11 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func relatedEmbeds(referencedIds: Set<String>, from embeds: [EmbedRecord]) -> [EmbedRecord] {
-        guard !referencedIds.isEmpty, !embeds.isEmpty else { return [] }
-        let recordsById = EmbedRecord.dictionaryById(embeds, context: "chatViewModel.relatedEmbeds")
-        var included = referencedIds
-        for id in referencedIds {
-            if let parentId = recordsById[id]?.parentEmbedId {
-                included.insert(parentId)
-            }
-        }
-        return embeds.filter { included.contains($0.id) }
+        EmbedRecord.relatedRecords(
+            referencedIds: referencedIds,
+            from: embeds,
+            context: "chatViewModel.relatedEmbeds"
+        )
     }
 
     private func extractFollowUpSuggestions(from messages: [Message]) -> [String] {
@@ -1198,7 +1194,11 @@ final class ChatViewModel: ObservableObject {
     }
 
     func childEmbeds(for embed: EmbedRecord) -> [EmbedRecord] {
-        embed.childEmbedIds.compactMap { embedRecords[$0] }
+        let explicit = embed.childEmbedIds.compactMap { embedRecords[$0] }
+        if !explicit.isEmpty { return explicit }
+        return embedRecords.values
+            .filter { $0.parentEmbedId == embed.id }
+            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
     }
 
     func isStreamingMessage(_ messageId: String) -> Bool {

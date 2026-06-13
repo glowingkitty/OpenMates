@@ -75,7 +75,11 @@ struct EmbedFullscreenContainer: View {
 
     private var childEmbeds: [EmbedRecord] {
         guard let embed = currentEmbed else { return [] }
-        return embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        if !explicit.isEmpty { return explicit }
+        return allEmbedRecords.values
+            .filter { $0.parentEmbedId == embed.id }
+            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
     }
 
     var body: some View {

@@ -233,6 +233,113 @@ async function withCodeRunStreamingMockApi<T>(
   }
 }
 
+async function withSkillFormattingMockApi<T>(
+  run: (params: { apiUrl: string }) => T | Promise<T>,
+): Promise<T> {
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "POST" && request.url === "/v1/apps/events/skills/search") {
+        await readJsonBody(request);
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              id: 1,
+              results: [{
+                type: "event_result",
+                title: "Accessible Tech Meetup",
+                description: "A very long event description that should not dominate default CLI output.",
+                provider: "meetup",
+                date_start: "2026-06-13T14:00:00+02:00",
+                date_end: "2026-06-13T16:00:00+02:00",
+                venue: { name: "Community Hall", city: "Berlin" },
+                fee: { amount: "0.00", currency: "EUR" },
+                hash: "event-hash",
+                image_url: "https://example.test/image.jpg",
+                url: "https://example.test/event",
+              }],
+            }],
+            provider: "auto",
+          },
+          credits_charged: 30,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/travel/skills/search_connections") {
+        await readJsonBody(request);
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              id: 1,
+              results: [{
+                type: "connection",
+                origin: "Berlin (BER)",
+                destination: "Barcelona (BCN)",
+                departure: "2026-07-10 13:50",
+                arrival: "2026-07-10 16:35",
+                duration: "2h 45m",
+                stops: 0,
+                total_price: "192",
+                currency: "EUR",
+                carriers: ["Vueling"],
+                hash: "flight-hash",
+                booking_token: "secret-booking-token",
+                booking_context: { deep: "provider-context" },
+                legs: [{ segments: [{ departure_latitude: 52.36, arrival_latitude: 41.29 }] }],
+              }],
+            }],
+            provider: "Google Flights",
+          },
+          credits_charged: 25,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/travel/skills/search_stays") {
+        await readJsonBody(request);
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              id: 1,
+              results: [{
+                type: "stay",
+                name: "Budget Pool Hotel",
+                overall_rating: 4.4,
+                reviews: 1200,
+                rate_per_night: "€172",
+                amenities: ["Pool", "Free Wi-Fi"],
+                property_token: "secret-property-token",
+                images: [{ thumbnail: "https://example.test/thumb.jpg" }],
+                nearby_places: [{ name: "Beach" }],
+                hash: "stay-hash",
+                link: "https://example.test/hotel",
+              }],
+            }],
+            provider: "Google",
+          },
+          credits_charged: 25,
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}` });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
 describe("SDK entrypoint", () => {
   it("does not run CLI help when imported", () => {
     const output = execFileSync("node", ["--input-type=module", "-e", "import './dist/index.js';"], {
@@ -461,6 +568,63 @@ describe("apps code run command variants", () => {
         "--code", "print('hello')\n",
       ], { HOME: tempHome });
       assert.deepEqual(getStats(), { rejected: 1, accepted: 1 });
+    });
+  });
+});
+
+describe("apps skill formatted output", () => {
+  it("prints concise event cards without raw provider noise by default", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "events", "search",
+        "--input", JSON.stringify({ requests: [{ query: "tech", location: "Berlin" }] }),
+      ]);
+
+      assert.match(output, /Accessible Tech Meetup/);
+      assert.match(output, /2026-06-13T14:00:00\+02:00/);
+      assert.match(output, /Community Hall/);
+      assert.doesNotMatch(output, /event-hash/);
+      assert.doesNotMatch(output, /image_url/);
+      assert.doesNotMatch(output, /very long event description/);
+    });
+  });
+
+  it("prints concise connection cards without booking internals by default", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "travel", "search_connections",
+        "--input", JSON.stringify({ requests: [{ legs: [{ origin: "Berlin", destination: "Barcelona", date: "2026-07-10" }] }] }),
+      ]);
+
+      assert.match(output, /Berlin \(BER\) → Barcelona \(BCN\)/);
+      assert.match(output, /192 EUR · direct · Vueling/);
+      assert.match(output, /Get booking URL/);
+      assert.doesNotMatch(output, /secret-booking-token/);
+      assert.doesNotMatch(output, /booking_context/);
+      assert.doesNotMatch(output, /departure_latitude/);
+      assert.doesNotMatch(output, /flight-hash/);
+    });
+  });
+
+  it("prints concise stay cards without property internals by default", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "travel", "search_stays",
+        "--input", JSON.stringify({ requests: [{ query: "Hotels in Barcelona", check_in_date: "2026-07-10", check_out_date: "2026-07-13" }] }),
+      ]);
+
+      assert.match(output, /Budget Pool Hotel/);
+      assert.match(output, /★ 4.4/);
+      assert.match(output, /€172/);
+      assert.match(output, /Pool/);
+      assert.doesNotMatch(output, /secret-property-token/);
+      assert.doesNotMatch(output, /property_token/);
+      assert.doesNotMatch(output, /images/);
+      assert.doesNotMatch(output, /nearby_places/);
+      assert.doesNotMatch(output, /stay-hash/);
     });
   });
 });

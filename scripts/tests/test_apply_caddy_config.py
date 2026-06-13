@@ -23,11 +23,21 @@ def write_executable(path: Path, content: str) -> None:
     path.chmod(0o755)
 
 
-def run_apply(source: Path, system_caddyfile: Path, fakebin: Path, extra_env: dict[str, str] | None = None):
+def run_apply(
+    source: Path,
+    system_caddyfile: Path,
+    fakebin: Path,
+    extra_env: dict[str, str] | None = None,
+    input_text: str | None = None,
+):
+    service_env_file = system_caddyfile.parent / "openmates-gandi.env"
+    service_dropin = system_caddyfile.parent / "caddy.service.d" / "openmates-gandi-token.conf"
     env = os.environ.copy()
     env.update({
         "OPENMATES_CADDY_APPLY_TEST": "1",
         "OPENMATES_SYSTEM_CADDYFILE": str(system_caddyfile),
+        "OPENMATES_CADDY_SERVICE_ENV_FILE": str(service_env_file),
+        "OPENMATES_CADDY_SERVICE_DROPIN": str(service_dropin),
         "PATH": f"{fakebin}:{env['PATH']}",
     })
     if extra_env:
@@ -38,6 +48,7 @@ def run_apply(source: Path, system_caddyfile: Path, fakebin: Path, extra_env: di
         cwd=PROJECT_ROOT,
         env=env,
         text=True,
+        input=input_text,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         check=False,
@@ -227,20 +238,75 @@ def test_check_mode_runs_without_root_and_does_not_copy_or_reload(tmp_path: Path
     assert "/tmp/openmates-caddy-adapted.json" not in APPLY_SCRIPT.read_text(encoding="utf-8")
 
 
-def test_gandi_dns_config_warns_when_shell_token_missing(tmp_path: Path):
+def test_gandi_dns_config_prompts_and_stores_token_when_missing(tmp_path: Path):
     source = tmp_path / "candidate.Caddyfile"
     source.write_text("*.example.test {\n  tls {\n    dns gandi {env.GANDI_BEARER_TOKEN}\n  }\n}\n", encoding="utf-8")
     system_caddyfile = tmp_path / "system.Caddyfile"
     system_caddyfile.write_text("previous working config\n", encoding="utf-8")
     fakebin = prepare_fakebin(tmp_path, has_gandi_module=True)
+    service_env_file = tmp_path / "openmates-gandi.env"
+    service_dropin = tmp_path / "caddy.service.d" / "openmates-gandi-token.conf"
+
+    result = run_apply(source, system_caddyfile, fakebin, extra_env={"GANDI_BEARER_TOKEN": ""}, input_text="prompt-token\n")
+
+    assert result.returncode == 0
+    assert "Enter the Gandi bearer token" in result.stdout
+    assert "Stored Gandi token for the Caddy service" in result.stdout
+    assert service_env_file.read_text(encoding="utf-8") == "GANDI_BEARER_TOKEN=prompt-token\n"
+    assert service_dropin.read_text(encoding="utf-8") == f"[Service]\nEnvironmentFile={service_env_file}\n"
+    assert system_caddyfile.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
+
+
+def test_gandi_dns_config_uses_existing_service_token_without_prompt(tmp_path: Path):
+    source = tmp_path / "candidate.Caddyfile"
+    source.write_text("*.example.test {\n  tls {\n    dns gandi {env.GANDI_BEARER_TOKEN}\n  }\n}\n", encoding="utf-8")
+    system_caddyfile = tmp_path / "system.Caddyfile"
+    system_caddyfile.write_text("previous working config\n", encoding="utf-8")
+    service_env_file = tmp_path / "openmates-gandi.env"
+    service_env_file.write_text("GANDI_BEARER_TOKEN=existing-token\n", encoding="utf-8")
+    fakebin = prepare_fakebin(tmp_path, has_gandi_module=True)
 
     result = run_apply(source, system_caddyfile, fakebin, extra_env={"GANDI_BEARER_TOKEN": ""})
 
     assert result.returncode == 0
-    assert "GANDI_BEARER_TOKEN is not available to this shell" in result.stdout
-    assert "syntax check will use a dummy token" in result.stdout
-    assert "Do not put the Gandi token" in result.stdout
+    assert "already has a Gandi token configured" in result.stdout
+    assert "Enter the Gandi bearer token" not in result.stdout
+    assert service_env_file.read_text(encoding="utf-8") == "GANDI_BEARER_TOKEN=existing-token\n"
     assert system_caddyfile.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
+
+
+def test_gandi_dns_check_mode_warns_without_prompt_or_secret_write(tmp_path: Path):
+    source = tmp_path / "candidate.Caddyfile"
+    source.write_text("*.example.test {\n  tls {\n    dns gandi {env.GANDI_BEARER_TOKEN}\n  }\n}\n", encoding="utf-8")
+    system_caddyfile = tmp_path / "system.Caddyfile"
+    system_caddyfile.write_text("previous working config\n", encoding="utf-8")
+    fakebin = prepare_fakebin(tmp_path, has_gandi_module=True)
+    service_env_file = tmp_path / "openmates-gandi.env"
+    env = os.environ.copy()
+    env.update({
+        "GANDI_BEARER_TOKEN": "",
+        "OPENMATES_SYSTEM_CADDYFILE": str(system_caddyfile),
+        "OPENMATES_CADDY_SERVICE_ENV_FILE": str(service_env_file),
+        "OPENMATES_CADDY_SERVICE_DROPIN": str(tmp_path / "caddy.service.d" / "openmates-gandi-token.conf"),
+        "PATH": f"{fakebin}:{env['PATH']}",
+    })
+
+    result = subprocess.run(
+        ["bash", str(APPLY_SCRIPT), "--check", str(source)],
+        cwd=PROJECT_ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "no existing Caddy service Gandi token was detected" in result.stdout
+    assert "Apply mode will request and store the real token" in result.stdout
+    assert "Enter the Gandi bearer token" not in result.stdout
+    assert not service_env_file.exists()
+    assert system_caddyfile.read_text(encoding="utf-8") == "previous working config\n"
 
 
 def test_gandi_dns_check_mode_fails_when_module_missing(tmp_path: Path):

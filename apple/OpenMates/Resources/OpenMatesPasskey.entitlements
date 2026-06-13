@@ -11,5 +11,11 @@
 	<array>
 		<string>group.org.openmates.app</string>
 	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>webcredentials:openmates.org</string>
+		<string>$(OPENMATES_DEV_WEBCREDENTIALS)</string>
+		<string>webcredentials:app.openmates.org</string>
+	</array>
 </dict>
 </plist>

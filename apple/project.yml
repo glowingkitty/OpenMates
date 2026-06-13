@@ -90,10 +90,6 @@ targets:
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
           - group.org.openmates.app
-        com.apple.developer.associated-domains:
-          - webcredentials:openmates.org
-          - $(OPENMATES_DEV_WEBCREDENTIALS)
-          - webcredentials:app.openmates.org
     info:
       path: OpenMates/Resources/Info.plist
       properties:

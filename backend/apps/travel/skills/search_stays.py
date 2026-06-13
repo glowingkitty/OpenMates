@@ -122,6 +122,67 @@ class SearchStaysSkill(BaseSkill):
         "Show only hotels with free cancellation",
     ]
 
+    @staticmethod
+    def _has_pool_intent(query: str) -> bool:
+        return "pool" in query.lower()
+
+    @staticmethod
+    def _has_beach_intent(query: str) -> bool:
+        lowered = query.lower()
+        return "beach" in lowered or "beachfront" in lowered or "near beach" in lowered
+
+    @staticmethod
+    def _apply_quality_filters(
+        results: List[Dict[str, Any]],
+        *,
+        max_price: Optional[float],
+        query: str,
+    ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Apply deterministic stay filters and annotate constraint confidence."""
+        filtered: List[Dict[str, Any]] = []
+        filtered_out_count = 0
+        pool_intent = SearchStaysSkill._has_pool_intent(query)
+        beach_intent = SearchStaysSkill._has_beach_intent(query)
+
+        for result in results:
+            copy = dict(result)
+            nightly_price = copy.get("extracted_rate_per_night")
+            if max_price is not None:
+                if not isinstance(nightly_price, (int, float)) or float(nightly_price) > float(max_price):
+                    filtered_out_count += 1
+                    continue
+
+            amenities = " ".join(str(item) for item in copy.get("amenities", [])).lower()
+            description = str(copy.get("description") or "").lower()
+            constraint_matches = dict(copy.get("constraint_matches") or {})
+            if max_price is not None:
+                constraint_matches["budget"] = "matched"
+            if pool_intent:
+                constraint_matches["pool"] = "mentioned" if "pool" in amenities else "unknown"
+            if beach_intent:
+                constraint_matches["beach_proximity"] = (
+                    "mentioned" if "beach" in amenities or "beach" in description else "unknown"
+                )
+            if constraint_matches:
+                copy["constraint_matches"] = constraint_matches
+            filtered.append(copy)
+
+        metadata: Dict[str, Any] = {
+            "filtered_out_count": filtered_out_count,
+            "applied_filters": ["max_price"] if max_price is not None else [],
+            "no_result_reason": "filtered_out" if results and not filtered else None,
+            "pool_intent": pool_intent,
+            "beach_intent": beach_intent,
+        }
+        if metadata["no_result_reason"]:
+            metadata["suggestions"] = [
+                "Increase the nightly budget",
+                "Search farther from the beach",
+                "Include hostels or private rooms",
+                "Try nearby dates",
+            ]
+        return filtered, metadata
+
     async def execute(
         self,
         requests: List[Dict[str, Any]],
@@ -271,6 +332,18 @@ class SearchStaysSkill(BaseSkill):
             # Add a hash for deduplication
             result_dict["hash"] = self._generate_stay_hash(stay)
             results.append(result_dict)
+
+        results, quality_metadata = self._apply_quality_filters(
+            results,
+            max_price=max_price,
+            query=query,
+        )
+        if quality_metadata.get("filtered_out_count"):
+            logger.info(
+                "Stay quality filters removed %d result(s) for request %s",
+                quality_metadata["filtered_out_count"],
+                request_id,
+            )
 
         try:
             results = await sanitize_long_text_fields_in_payload(

@@ -392,6 +392,44 @@ skills:
                 type: boolean
                 description: If true, only return direct/non-stop connections.
                 default: false
+              max_stops:
+                type: integer
+                description: Maximum number of stops allowed. Use 0 for direct/non-stop only, 1 for up to one stop, or 2 for up to two stops.
+              max_price:
+                type: number
+                description: Maximum total price for the connection in the requested currency. Results above this price are filtered from strict matches.
+              include_airlines:
+                type: array
+                description: Only show flights from these airlines. Use IATA carrier codes when known, such as LH, BA, VY, or FR.
+                items:
+                  type: string
+              exclude_airlines:
+                type: array
+                description: Exclude flights from these airlines. Use IATA carrier codes when known. Do not combine with include_airlines.
+                items:
+                  type: string
+              min_departure_time:
+                type: string
+                description: Earliest acceptable local departure time in HH:MM format.
+              max_departure_time:
+                type: string
+                description: Latest acceptable local departure time in HH:MM format.
+              min_arrival_time:
+                type: string
+                description: Earliest acceptable local arrival time in HH:MM format.
+              max_arrival_time:
+                type: string
+                description: Latest acceptable local arrival time in HH:MM format.
+              max_duration_minutes:
+                type: integer
+                description: Maximum total duration for the first leg, in minutes.
+              max_layover_minutes:
+                type: integer
+                description: Maximum allowed layover or transfer duration, in minutes.
+              avoid_overnight_layovers:
+                type: boolean
+                description: If true, remove connections with overnight layovers or transfers.
+                default: false
               currency:
                 type: string
                 description: Preferred currency for prices (ISO 4217 code).

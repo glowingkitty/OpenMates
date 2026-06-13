@@ -90,6 +90,7 @@ sys.exit(0 if wired else 3)
 INSTALL_IOS_DEVICE_SCRIPT = r'''
 import json
 import os
+import plistlib
 import pathlib
 import subprocess
 import sys
@@ -97,6 +98,7 @@ import tempfile
 
 configuration = sys.argv[1]
 allow_provisioning_updates = sys.argv[2] == "1"
+with_associated_domains = sys.argv[3] == "1"
 
 
 def print_tail(label, text, device_id, app_path=None, limit=160):
@@ -138,6 +140,20 @@ if not device_id:
     sys.exit(4)
 
 derived = tempfile.mkdtemp(prefix="openmates-device-build-")
+entitlements_override = None
+if with_associated_domains:
+    entitlements_override = pathlib.Path("apple/OpenMates/Resources/OpenMatesPasskey.entitlements")
+    print("associated_domains=enabled_for_passkey_build")
+else:
+    source_entitlements = pathlib.Path("apple/OpenMates/Resources/OpenMates.entitlements")
+    entitlements_override = pathlib.Path(derived) / "OpenMatesWithoutAssociatedDomains.entitlements"
+    with source_entitlements.open("rb") as handle:
+        entitlements = plistlib.load(handle)
+    entitlements.pop("com.apple.developer.associated-domains", None)
+    with entitlements_override.open("wb") as handle:
+        plistlib.dump(entitlements, handle)
+    print("associated_domains=disabled_for_default_device_build")
+
 build_cmd = [
     "xcodebuild",
     "-project",
@@ -153,6 +169,8 @@ build_cmd = [
 ]
 if allow_provisioning_updates:
     build_cmd.append("-allowProvisioningUpdates")
+if entitlements_override is not None:
+    build_cmd.append(f"CODE_SIGN_ENTITLEMENTS={entitlements_override}")
 build_cmd.append("build")
 
 print("build_status=started")
@@ -449,13 +467,18 @@ def device_status_command() -> str:
     return shell_join(["python3", "-c", DEVICE_STATUS_SCRIPT])
 
 
-def install_ios_device_command(configuration: str, allow_provisioning_updates: bool) -> str:
+def install_ios_device_command(
+    configuration: str,
+    allow_provisioning_updates: bool,
+    with_associated_domains: bool,
+) -> str:
     return shell_join([
         "python3",
         "-c",
         INSTALL_IOS_DEVICE_SCRIPT,
         configuration,
         "1" if allow_provisioning_updates else "0",
+        "1" if with_associated_domains else "0",
     ])
 
 
@@ -505,6 +528,11 @@ def build_parser() -> argparse.ArgumentParser:
     install_parser = subparsers.add_parser("install-ios-device", help="Build and install OpenMates_iOS to a wired iPhone")
     install_parser.add_argument("--configuration", default="Debug", choices=["Debug", "Release"])
     install_parser.add_argument("--allow-provisioning-updates", action="store_true")
+    install_parser.add_argument(
+        "--with-associated-domains",
+        action="store_true",
+        help="Use passkey/webcredentials Associated Domains entitlements for paid-team builds",
+    )
 
     simctl_parser = subparsers.add_parser("simctl", help="Run xcrun simctl remotely")
     simctl_parser.add_argument("simctl_args", nargs=argparse.REMAINDER)
@@ -549,7 +577,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repo_command(config, [
                     "bash",
                     "-lc",
-                    install_ios_device_command(args.configuration, args.allow_provisioning_updates),
+                    install_ios_device_command(
+                        args.configuration,
+                        args.allow_provisioning_updates,
+                        args.with_associated_domains,
+                    ),
                 ]),
             )
         if args.command == "simctl":

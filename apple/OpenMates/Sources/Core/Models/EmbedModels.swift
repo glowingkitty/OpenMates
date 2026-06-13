@@ -90,6 +90,32 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         return orderedIds.compactMap { records[$0] }
     }
 
+    static func relatedRecords(
+        referencedIds: Set<String>,
+        from embeds: [EmbedRecord],
+        context: String
+    ) -> [EmbedRecord] {
+        guard !referencedIds.isEmpty, !embeds.isEmpty else { return [] }
+        _ = dictionaryById(embeds, context: context)
+        var includedIds = referencedIds
+        var changed = true
+        while changed {
+            changed = false
+            for embed in embeds {
+                let referencesIncludedParent = embed.parentEmbedId.map { includedIds.contains($0) } ?? false
+                let referencesIncludedChild = !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
+                if (referencesIncludedParent || referencesIncludedChild), includedIds.insert(embed.id).inserted {
+                    changed = true
+                }
+            }
+        }
+        return embeds.filter { embed in
+            includedIds.contains(embed.id) ||
+            (embed.parentEmbedId.map { includedIds.contains($0) } ?? false) ||
+            !Set(embed.childEmbedIds).isDisjoint(with: includedIds)
+        }
+    }
+
     init(
         id: String,
         type: String,
