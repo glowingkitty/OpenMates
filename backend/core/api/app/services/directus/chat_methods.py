@@ -227,6 +227,16 @@ class ChatMethods:
                     'chats',
                     params=fallback_params,
                     no_cache=True,
+                    return_none_on_403=True,
+                    admin_required=admin_required,
+                )
+            if response is None:
+                fallback_params = dict(params)
+                fallback_params['fields'] = CHAT_METADATA_FIELDS_FALLBACK
+                response = await self.directus_service.get_items(
+                    'chats',
+                    params=fallback_params,
+                    no_cache=True,
                     admin_required=admin_required,
                 )
             if response and isinstance(response, list) and len(response) > 0:
