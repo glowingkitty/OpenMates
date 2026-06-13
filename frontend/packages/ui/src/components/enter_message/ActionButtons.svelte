@@ -43,6 +43,8 @@
         highlightPressHold?: boolean;
         /** Whether the sketch overlay is currently open (highlights the sketch button). */
         isSketchOpen?: boolean;
+        /** Label for the unauthenticated CTA shown instead of the send button. */
+        unauthenticatedCtaLabel?: string;
     }
     let {
         showSendButton = false,
@@ -51,7 +53,8 @@
         hasNoCredits = false,
         micPermissionState = 'unknown',
         highlightPressHold = false,
-        isSketchOpen = false
+        isSketchOpen = false,
+        unauthenticatedCtaLabel = $text('signup.sign_up')
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -168,16 +171,16 @@
                    {$text('enter_message.send')}
                 </button>
             {:else}
-                <!-- Show "Sign up" button for non-authenticated users -->
+                <!-- Show auth CTA button for non-authenticated users -->
                 <button
                     class="send-button"
                     data-action="sign-up-to-send"
                     onclick={handleSignUpClick}
-                    aria-label={$text('signup.sign_up')}
+                    aria-label={unauthenticatedCtaLabel}
                     in:fly={{ x: 40, duration: 200 }}
                     out:fly={{ x: 40, duration: 150 }}
                 >
-                   {$text('signup.sign_up')}
+                   {unauthenticatedCtaLabel}
                 </button>
             {/if}
         {/if}

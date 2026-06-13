@@ -68,6 +68,7 @@
     import { classifyPastedContent, plainTextToDocumentHtml, type PastedContentKind } from './services/pasteClassification';
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
+    import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -1609,6 +1610,18 @@
             : 'max-height: 250px;'
     );
 
+    let lastAuthMethod = $state<LastAuthMethod | null>(null);
+    let unauthenticatedCtaOpensLogin = $derived(!!lastAuthMethod);
+    let unauthenticatedCtaLabel = $derived(
+        unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
+    );
+
+    $effect(() => {
+        if (!$authStore.isAuthenticated) {
+            lastAuthMethod = getLastAuthMethod();
+        }
+    });
+
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
     // Handles embedUpdated events from chatSyncService for in-editor (draft) embeds
@@ -1623,6 +1636,8 @@
     // onMount, onDestroy, editor handlers, setupEventListeners, cleanup remain the same
 
     onMount(() => {
+        lastAuthMethod = getLastAuthMethod();
+
         if (!editorElement) {
             console.error("Editor element not found on mount.");
             return;
@@ -4174,8 +4189,8 @@
     }
 
     /**
-     * Handle "Sign up" button click for non-authenticated users
-     * Saves the current draft message to sessionStorage so it can be restored after signup
+     * Handle auth CTA button click for non-authenticated users.
+     * Saves the current draft message to sessionStorage so it can be restored after signup/login.
      * Clears the editor content after saving to prevent search in new chat suggestions
      */
     /**
@@ -4191,8 +4206,8 @@
     async function handleSignUpClick() {
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
-            // Still open signup interface even if draft can't be saved
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            // Still open the auth interface even if draft can't be saved.
+            window.dispatchEvent(new CustomEvent(unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
             return;
         }
 
@@ -4240,8 +4255,7 @@
         
         console.debug('[MessageInput] Cleared editor content after saving draft for sign-up');
 
-        // Open the signup interface directly with alpha disclaimer
-        window.dispatchEvent(new CustomEvent('openSignupInterface'));
+        window.dispatchEvent(new CustomEvent(unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
     }
 
     function _handleInsertSpace() {
@@ -5063,6 +5077,7 @@
                     showSendButton={hasContent}
                     isAuthenticated={demoVisualAuthenticated}
                     {hasNoCredits}
+                    {unauthenticatedCtaLabel}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
