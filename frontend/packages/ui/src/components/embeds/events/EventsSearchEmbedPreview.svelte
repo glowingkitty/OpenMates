@@ -77,6 +77,10 @@
     results?: EventResult[];
     /** Parent-embed result count used without hydrating child embeds */
     result_count?: number;
+    /** Searched start date/time, echoed from the skill request */
+    start_date?: string;
+    /** Searched end date/time, echoed from the skill request */
+    end_date?: string;
     /** Task ID for cancellation of entire AI response */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill (allows AI to continue) */
@@ -125,6 +129,8 @@
     status: statusProp,
     results: resultsProp = [],
     result_count: resultCountProp = 0,
+    start_date: startDateProp,
+    end_date: endDateProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     isMobile = false,
@@ -139,6 +145,8 @@
   let storeResolved = $state(false);
   let localResults = $state<EventResult[]>([]);
   let localResultCount = $state(0);
+  let localStartDate = $state<string>('');
+  let localEndDate = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
 
@@ -151,6 +159,8 @@
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localResultCount = resultCountProp || resultsProp?.length || 0;
+      localStartDate = startDateProp || '';
+      localEndDate = endDateProp || '';
       localTaskId = taskIdProp;
       localSkillTaskId = skillTaskIdProp;
     }
@@ -162,6 +172,8 @@
   let providers = $derived(localProviders);
   let status = $derived(localStatus);
   let results = $derived(localResults);
+  let startDate = $derived(localStartDate);
+  let endDate = $derived(localEndDate);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
 
@@ -188,6 +200,8 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
+      if (typeof content.start_date === 'string') localStartDate = content.start_date;
+      if (typeof content.end_date === 'string') localEndDate = content.end_date;
       const decodedProviders = parseProviders(content.providers);
       if (decodedProviders.length > 0) localProviders = decodedProviders;
       if (content.results && Array.isArray(content.results)) {
@@ -218,6 +232,23 @@
   const skillIconName = 'search';
 
   let viaProvider = $derived($text('embeds.via'));
+
+  function formatSearchDate(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(date);
+  }
+
+  let searchRange = $derived.by(() => {
+    if (startDate && endDate) return `${formatSearchDate(startDate)} - ${formatSearchDate(endDate)}`;
+    if (startDate) return formatSearchDate(startDate);
+    if (endDate) return formatSearchDate(endDate);
+    return '';
+  });
 
   // Event count for finished state: the total number of results
   let eventCount = $derived(localResultCount || results?.length || 0);
@@ -283,6 +314,10 @@
     <div class="events-search-details" class:mobile={isMobileLayout}>
       <!-- Query text -->
       <div class="ds-search-query">{query}</div>
+
+      {#if searchRange}
+        <div class="events-search-range" data-testid="events-search-range">{searchRange}</div>
+      {/if}
 
       <!-- Provider attribution: text "via" plus icon chips, matching web search previews. -->
       <div class="provider-attribution" aria-label={providerBadges.map((provider) => provider.label).join(', ')}>
@@ -353,6 +388,17 @@
     align-items: center;
     gap: var(--spacing-2);
     min-width: 0;
+  }
+
+  .events-search-range {
+    color: var(--color-grey-70);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .events-search-details.mobile .events-search-range {
+    font-size: var(--font-size-xxs);
   }
 
   .provider-badges {

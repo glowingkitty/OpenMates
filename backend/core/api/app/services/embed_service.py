@@ -461,16 +461,12 @@ class EmbedService:
                 "app_id": app_id,
                 "skill_id": skill_id
             }
-            # Include query and provider from metadata if available
-            # This enables the frontend to display the query text immediately in grouped embeds
-            # without waiting for the embed data to arrive via WebSocket
+            # Include user-visible request metadata so previews can render useful
+            # context immediately, before the embed data arrives via WebSocket.
             if metadata:
-                if metadata.get("query"):
-                    embed_reference_payload["query"] = metadata["query"]
-                if metadata.get("provider"):
-                    embed_reference_payload["provider"] = metadata["provider"]
-                if metadata.get("providers"):
-                    embed_reference_payload["providers"] = metadata["providers"]
+                for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                    if metadata.get(key):
+                        embed_reference_payload[key] = metadata[key]
             embed_reference = json.dumps(embed_reference_payload)
 
             return {
@@ -4453,8 +4449,8 @@ class EmbedService:
                         parent_content["provider"] = request_metadata["provider"]
                     if "providers" in request_metadata:
                         parent_content["providers"] = request_metadata["providers"]
-                    # Add other metadata fields as needed
-                    for key in ["country", "search_lang", "safesearch"]:
+                    # Add other user-visible request metadata needed to distinguish searches.
+                    for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "location"]:
                         if key in request_metadata:
                             parent_content[key] = request_metadata[key]
                 
@@ -4536,10 +4532,9 @@ class EmbedService:
                 # Include query and provider from request_metadata if available
                 # This enables the frontend to display the query text immediately in grouped embeds
                 if request_metadata:
-                    if request_metadata.get("query"):
-                        embed_reference_payload["query"] = request_metadata["query"]
-                    if request_metadata.get("provider"):
-                        embed_reference_payload["provider"] = request_metadata["provider"]
+                    for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                        if request_metadata.get(key):
+                            embed_reference_payload[key] = request_metadata[key]
                 embed_reference = json.dumps(embed_reference_payload)
                 
                 return {
@@ -4577,7 +4572,7 @@ class EmbedService:
                 
                 # Add request metadata if available
                 if request_metadata:
-                    for key in ["query", "expression", "provider", "url", "languages", "country", "search_lang", "safesearch"]:
+                    for key in ["query", "expression", "provider", "providers", "url", "languages", "country", "search_lang", "safesearch", "start_date", "end_date", "location"]:
                         if key in request_metadata:
                             content_with_metadata[key] = request_metadata[key]
                 
@@ -4643,12 +4638,17 @@ class EmbedService:
                 # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
                 # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
                 # Without these, undefined === undefined comparisons incorrectly group different skills
-                embed_reference = json.dumps({
+                embed_reference_payload = {
                     "type": "app_skill_use",
                     "embed_id": embed_id,
                     "app_id": app_id,
                     "skill_id": skill_id
-                })
+                }
+                if request_metadata:
+                    for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                        if request_metadata.get(key):
+                            embed_reference_payload[key] = request_metadata[key]
+                embed_reference = json.dumps(embed_reference_payload)
                 
                 return {
                     "parent_embed_id": embed_id,

@@ -1220,6 +1220,8 @@ export class GroupRenderer implements EmbedRenderer {
     const query = decodedContent?.query || embedData?.query || itemQuery;
     const provider =
       decodedContent?.provider || embedData?.provider || itemProvider;
+    const startDate = decodedContent?.start_date || embedData?.start_date || item.start_date || "";
+    const endDate = decodedContent?.end_date || embedData?.end_date || item.end_date || "";
     const providers = Array.isArray(decodedContent?.providers)
       ? decodedContent.providers
       : Array.isArray(embedData?.providers)
@@ -1323,6 +1325,8 @@ export class GroupRenderer implements EmbedRenderer {
             query: query || "",
             provider: provider || "",
             providers,
+            start_date: startDate,
+            end_date: endDate,
             status,
             results,
             result_count: resultCount || childEmbedIds.length,

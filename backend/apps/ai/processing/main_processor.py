@@ -5084,13 +5084,10 @@ async def handle_main_processing(
                                                     "app_id": app_id,
                                                     "skill_id": skill_id
                                                 }
-                                                # Include query and provider from request_metadata for UI rendering
-                                                if request_metadata_with_provider.get("query"):
-                                                    embed_reference_payload["query"] = request_metadata_with_provider["query"]
-                                                if request_metadata_with_provider.get("provider"):
-                                                    embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
-                                                if request_metadata_with_provider.get("providers"):
-                                                    embed_reference_payload["providers"] = request_metadata_with_provider["providers"]
+                                                # Include user-visible request metadata for UI rendering.
+                                                for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                                                    if request_metadata_with_provider.get(key):
+                                                        embed_reference_payload[key] = request_metadata_with_provider[key]
                                                 updated_error_embed["embed_reference"] = json.dumps(embed_reference_payload)
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
@@ -5189,13 +5186,10 @@ async def handle_main_processing(
                                             "app_id": app_id,
                                             "skill_id": skill_id
                                         }
-                                        # Include query and provider from request_metadata for UI rendering
-                                        if request_metadata_with_provider.get("query"):
-                                            embed_reference_payload["query"] = request_metadata_with_provider["query"]
-                                        if request_metadata_with_provider.get("provider"):
-                                            embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
-                                        if request_metadata_with_provider.get("providers"):
-                                            embed_reference_payload["providers"] = request_metadata_with_provider["providers"]
+                                        # Include user-visible request metadata for UI rendering.
+                                        for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                                            if request_metadata_with_provider.get(key):
+                                                embed_reference_payload[key] = request_metadata_with_provider[key]
                                         updated_embed_data["embed_reference"] = json.dumps(embed_reference_payload)
                                         updated_embed_data["request_id"] = request_id
                                         updated_embed_data["request_metadata"] = request_metadata

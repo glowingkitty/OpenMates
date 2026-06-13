@@ -332,6 +332,7 @@ def test_generic_result_list_parent_preview_metadata_contains_shallow_fields() -
                 "title": "Berlin AI Meetup",
                 "url": "https://example.com/events/berlin-ai",
                 "start_date": "2026-06-20",
+                "end_date": "2026-06-21",
                 "location": "Berlin",
                 "description": "Long child-only details should not be copied into the generic parent preview.",
                 "raw_provider_payload": {"large": "blob"},
@@ -345,6 +346,7 @@ def test_generic_result_list_parent_preview_metadata_contains_shallow_fields() -
                 "title": "Berlin AI Meetup",
                 "url": "https://example.com/events/berlin-ai",
                 "start_date": "2026-06-20",
+                "end_date": "2026-06-21",
                 "location": "Berlin",
             }
         ]

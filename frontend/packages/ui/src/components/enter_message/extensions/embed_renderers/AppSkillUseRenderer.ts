@@ -1726,6 +1726,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
     const provider = decodedContent?.provider || embedData?.provider || (attrs as any).provider || "";
+    const startDate = decodedContent?.start_date || embedData?.start_date || (attrs as any).start_date || "";
+    const endDate = decodedContent?.end_date || embedData?.end_date || (attrs as any).end_date || "";
     const providers: string[] = Array.isArray(decodedContent?.providers)
       ? decodedContent.providers
       : Array.isArray(embedData?.providers)
@@ -1795,6 +1797,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           query,
           provider,
           providers,
+          start_date: startDate,
+          end_date: endDate,
           status: status as "processing" | "finished" | "error" | "cancelled",
           results,
           result_count: resultCount,
