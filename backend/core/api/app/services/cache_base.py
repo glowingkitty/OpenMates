@@ -394,6 +394,9 @@ class CacheServiceBase:
 
             logger.debug(f"Executing {len(operations)} operations in Redis pipeline")
 
+            queued_operations = 0
+            skipped_operations = 0
+
             for operation in operations:
                 method_name = operation[0]
                 args = operation[1:]
@@ -402,56 +405,75 @@ class CacheServiceBase:
                 if method_name == 'add_chat_to_ids_versions':
                     # This is a sorted set operation: ZADD
                     user_id, chat_id, timestamp = args
-                    key = f"{self.USER_CHATS_SET_PREFIX}:{user_id}"
+                    key = self._get_user_chat_ids_versions_key(user_id)
                     pipe.zadd(key, {chat_id: timestamp})
+                    pipe.expire(key, self.CHAT_IDS_VERSIONS_TTL)
+                    queued_operations += 2
 
                 elif method_name == 'set_chat_versions':
-                    # This stores JSON data: HSET
+                    # Keep the pipeline key schema aligned with ChatCacheMixin.
                     user_id, chat_id, versions = args
-                    key = f"chat_versions:{user_id}:{chat_id}"
-                    pipe.hset(key, mapping={
-                        "messages_v": versions.messages_v,
-                        "title_v": versions.title_v
-                    })
+                    key = self._get_chat_versions_key(user_id, chat_id)
+                    data_to_set = versions.model_dump() if hasattr(versions, 'model_dump') else dict(versions)
+                    pipe.hset(key, mapping=data_to_set)
+                    pipe.expire(key, self.CHAT_VERSIONS_TTL)
+                    queued_operations += 2
 
                 elif method_name == 'set_chat_version_component':
-                    # This stores a single field: HSET
                     user_id, chat_id, component_key, version = args
-                    key = f"chat_versions:{user_id}:{chat_id}"
-                    pipe.hset(key, component_key, version)
+                    key = self._get_chat_versions_key(user_id, chat_id)
+                    pipe.eval(self._SET_IF_GREATER_LUA, 1, key, component_key, version)
+                    pipe.hsetnx(key, "messages_v", 0)
+                    pipe.hsetnx(key, "title_v", 0)
+                    pipe.expire(key, self.CHAT_VERSIONS_TTL)
+                    queued_operations += 4
 
                 elif method_name == 'set_chat_list_item' or method_name == 'set_chat_list_item_data':
-                    # This stores JSON data: SET
                     user_id, chat_id, list_item = args
-                    key = f"chat_list:{user_id}:{chat_id}"
-                    pipe.set(key, json.dumps(list_item.model_dump()) if hasattr(list_item, 'model_dump') else json.dumps(list_item.__dict__))
+                    key = self._get_chat_list_item_data_key(user_id, chat_id)
+                    data_to_set = list_item.model_dump(exclude_none=True) if hasattr(list_item, 'model_dump') else dict(list_item)
+                    data_to_set.pop('draft_json', None)
+                    for field_name, value in list(data_to_set.items()):
+                        if isinstance(value, bool):
+                            data_to_set[field_name] = int(value)
+                    if data_to_set:
+                        pipe.hset(key, mapping=data_to_set)
+                        pipe.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
+                        queued_operations += 2
 
                 elif method_name == 'update_user_draft_in_cache':
-                    # This stores draft data: HSET
                     user_id, chat_id, content, version = args
-                    key = f"user_draft:{user_id}:{chat_id}"
+                    key = self._get_user_chat_draft_key(user_id, chat_id)
                     pipe.hset(key, mapping={
-                        "content": content or "",
-                        "version": version
+                        "encrypted_draft_md": content if content is not None else "null",
+                        "encrypted_draft_preview": "null",
+                        "draft_v": version
                     })
+                    pipe.expire(key, self.USER_DRAFT_TTL)
+                    queued_operations += 2
 
                 else:
                     logger.warning(f"Unknown pipeline operation: {method_name}")
+                    skipped_operations += 1
                     continue
 
             # Execute the pipeline
             results = await pipe.execute()
 
-            # Check if all operations succeeded
-            success_count = sum(1 for result in results if result)
-            total_operations = len(operations)
-
-            if success_count == total_operations:
-                logger.debug(f"Redis pipeline completed successfully: {success_count}/{total_operations} operations")
-                return True
-            else:
-                logger.warning(f"Redis pipeline partial success: {success_count}/{total_operations} operations succeeded")
+            if skipped_operations:
+                logger.warning(
+                    f"Redis pipeline skipped {skipped_operations}/{len(operations)} requested operations"
+                )
                 return False
+
+            if len(results) == queued_operations:
+                logger.debug(f"Redis pipeline completed successfully: {len(results)} Redis commands")
+                return True
+
+            logger.warning(
+                f"Redis pipeline command count mismatch: {len(results)}/{queued_operations} Redis commands executed"
+            )
+            return False
 
         except Exception as e:
             logger.error(f"Redis pipeline execution error: {str(e)}", exc_info=True)

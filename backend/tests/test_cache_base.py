@@ -35,3 +35,69 @@ async def test_cache_connection_warning_is_throttled(monkeypatch):
     assert await CacheServiceBase().client is None
 
     assert warning_messages == ["Failed to connect to cache at cache:6379: Timeout connecting to server"]
+
+
+@pytest.mark.anyio
+async def test_pipeline_chat_cache_operations_use_current_key_schema(monkeypatch):
+    class FakePipeline:
+        def __init__(self):
+            self.commands = []
+
+        def zadd(self, key, mapping):
+            self.commands.append(("zadd", key, mapping))
+
+        def expire(self, key, ttl):
+            self.commands.append(("expire", key, ttl))
+
+        def hset(self, key, *args, mapping=None):
+            self.commands.append(("hset", key, args, mapping))
+
+        def hsetnx(self, key, field, value):
+            self.commands.append(("hsetnx", key, field, value))
+
+        def eval(self, script, numkeys, key, field, value):
+            self.commands.append(("eval", key, field, value))
+
+        async def execute(self):
+            return [1] * len(self.commands)
+
+    class FakeClient:
+        def __init__(self):
+            self.pipe = FakePipeline()
+
+        def pipeline(self):
+            return self.pipe
+
+    class Payload:
+        def __init__(self, data):
+            self.data = data
+
+        def model_dump(self, **_kwargs):
+            return dict(self.data)
+
+    service = CacheServiceBase()
+    fake_client = FakeClient()
+    service._client = fake_client
+
+    monkeypatch.setattr(service, "_get_user_chat_ids_versions_key", lambda user_id: f"user:{user_id}:chat_ids_versions", raising=False)
+    monkeypatch.setattr(service, "_get_chat_versions_key", lambda user_id, chat_id: f"user:{user_id}:chat:{chat_id}:versions", raising=False)
+    monkeypatch.setattr(service, "_get_chat_list_item_data_key", lambda user_id, chat_id: f"user:{user_id}:chat:{chat_id}:list_item_data", raising=False)
+    monkeypatch.setattr(service, "_get_user_chat_draft_key", lambda user_id, chat_id: f"user:{user_id}:chat:{chat_id}:draft", raising=False)
+    monkeypatch.setattr(service, "_SET_IF_GREATER_LUA", "return 1", raising=False)
+
+    result = await service.execute_pipeline_operations([
+        ("add_chat_to_ids_versions", "user-1", "chat-1", 123),
+        ("set_chat_versions", "user-1", "chat-1", Payload({"messages_v": 1, "title_v": 2})),
+        ("set_chat_version_component", "user-1", "chat-1", "user_draft_v:user-1", 3),
+        ("set_chat_list_item_data", "user-1", "chat-1", Payload({"title": "enc", "unread_count": 0, "pinned": False})),
+        ("update_user_draft_in_cache", "user-1", "chat-1", None, 4),
+    ])
+
+    assert result is True
+    keys = [command[1] for command in fake_client.pipe.commands]
+    assert "user:user-1:chat_ids_versions" in keys
+    assert "user:user-1:chat:chat-1:versions" in keys
+    assert "user:user-1:chat:chat-1:list_item_data" in keys
+    assert "user:user-1:chat:chat-1:draft" in keys
+    assert not any(key.startswith("chat_versions:") for key in keys)
+    assert not any(key.startswith("chat_list:") for key in keys)
