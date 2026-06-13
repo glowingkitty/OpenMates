@@ -1255,7 +1255,7 @@
                     // Queue for retry if offline or server error
                     // Network errors will be caught in the catch block
                     if (syncShareStatus) {
-                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, shareCtaText, includeSensitiveData, shareHighlights);
+                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, shareCtaText, chat.encrypted_shared_short_url, includeSensitiveData, shareHighlights);
                     }
                     return;
                 }
@@ -1267,14 +1267,14 @@
                     console.warn('[SettingsShare] OG metadata update returned success=false:', data);
                     // Queue for retry even if server returned success=false
                     if (syncShareStatus) {
-                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, shareCtaText, includeSensitiveData, shareHighlights);
+                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary, shareCtaText, chat.encrypted_shared_short_url, includeSensitiveData, shareHighlights);
                     }
                 }
             } catch (fetchError) {
                 // Network error (offline, timeout, etc.) - queue for retry
                 console.debug('[SettingsShare] Network error sending OG metadata update:', fetchError);
                 if (syncShareStatus) {
-                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary, shareCtaText, includeSensitiveData, shareHighlights);
+                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary, shareCtaText, chat.encrypted_shared_short_url, includeSensitiveData, shareHighlights);
                 }
             }
         } catch (error) {

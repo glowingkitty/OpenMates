@@ -223,6 +223,8 @@ test('creates and shares a chat link with QR code and short link', async ({
 	const shortLinkMetadata = await metadataResponse.json();
 	await docAssert('share-link-has-chat-og-metadata', async () => {
 		expect(ogDescription.toLowerCase()).toContain(EXPECTED_CHAT_OG_DESCRIPTION_TERM);
+		expect(shortLinkMetadata.image_text).toBeTruthy();
+		expect(shortLinkMetadata.image_text).not.toBe(ogDescription);
 		expect(ogImage).toContain('/v1/share/short-url/');
 		expect(ogImage).toContain('/og-image.png');
 		expect(metadataResponse.ok()).toBe(true);
