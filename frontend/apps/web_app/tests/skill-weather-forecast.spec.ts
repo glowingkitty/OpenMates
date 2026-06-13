@@ -92,6 +92,12 @@ test.describe('App: Weather / Skill: forecast', () => {
 		expect(response.ok()).toBeTruthy();
 
 		const data = await response.json();
+		const nutrition = data.apps?.nutrition;
+		expect(nutrition, 'nutrition app should appear in app store metadata').toBeTruthy();
+
+		const nutritionSkillIds = (nutrition.skills || []).map((skill: { id: string }) => skill.id);
+		expect(nutritionSkillIds).toContain('search_recipes');
+
 		const weather = data.apps?.weather;
 		expect(weather, 'weather app should appear in app store metadata').toBeTruthy();
 

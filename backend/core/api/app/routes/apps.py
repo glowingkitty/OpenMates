@@ -30,6 +30,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/apps", tags=["Apps"])
 
+EDAMAM_PROVIDER_ID = "edamam"
+EDAMAM_VAULT_SECRET_KEYS = ("app_id", "app_key")
+EDAMAM_ENV_SECRET_KEYS = ("SECRET__EDAMAM__APP_ID", "SECRET__EDAMAM__APP_KEY")
+IMPORTED_TO_VAULT_PLACEHOLDER = "IMPORTED_TO_VAULT"
+
+
+def _has_secret_value(value: Optional[str]) -> bool:
+    return bool(value and value.strip() and value.strip() != IMPORTED_TO_VAULT_PLACEHOLDER)
+
 
 def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     """
@@ -79,6 +88,27 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     Returns:
         True if API key is available, False otherwise
     """
+    if provider_id == EDAMAM_PROVIDER_ID:
+        try:
+            if secrets_manager.vault_token and secrets_manager.vault_url:
+                vault_values = [
+                    await secrets_manager.get_secret(
+                        secret_path="kv/data/providers/edamam",
+                        secret_key=secret_key,
+                    )
+                    for secret_key in EDAMAM_VAULT_SECRET_KEYS
+                ]
+                if all(_has_secret_value(value) for value in vault_values):
+                    logger.debug("Edamam app ID and app key found in Vault")
+                    return True
+        except Exception as e:
+            logger.debug(f"Error checking Vault for provider '{provider_id}' app credentials: {e}")
+
+        env_values = [os.getenv(env_var_name) for env_var_name in EDAMAM_ENV_SECRET_KEYS]
+        if all(_has_secret_value(value) for value in env_values):
+            logger.debug("Edamam app ID and app key found in environment")
+            return True
+
     # Get the Vault path and key name for this provider
     # Standard pattern: kv/data/providers/{provider_id}
     vault_path = f"kv/data/providers/{provider_id}"
@@ -91,7 +121,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
                 secret_path=vault_path,
                 secret_key=vault_key
             )
-            if api_key and api_key.strip():
+            if _has_secret_value(api_key):
                 logger.debug(f"API key found in Vault for provider '{provider_id}'")
                 return True
     except Exception as e:
@@ -101,7 +131,7 @@ async def check_provider_api_key_available(provider_id: str, secrets_manager: Se
     env_var_names = get_provider_api_key_env_vars(provider_id)
     for env_var_name in env_var_names:
         api_key = os.getenv(env_var_name)
-        if api_key and api_key.strip():
+        if _has_secret_value(api_key):
             logger.debug(f"API key found in environment variable '{env_var_name}' for provider '{provider_id}'")
             return True
 
