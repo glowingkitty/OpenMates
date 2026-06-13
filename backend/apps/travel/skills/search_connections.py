@@ -491,6 +491,7 @@ class SearchConnectionsSkill(BaseSkill):
             group["transport_methods"] = transport_methods
             group["providers"] = group_providers
             group["result_count"] = len(group.get("results", []))
+            self._annotate_empty_result_group(group, req)
 
         # 6. Determine provider attribution from searched providers first, falling
         # back to actual results for legacy embeds that lack request metadata.
@@ -526,6 +527,35 @@ class SearchConnectionsSkill(BaseSkill):
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )
+
+    @staticmethod
+    def _annotate_empty_result_group(group: Dict[str, Any], request: Dict[str, Any]) -> None:
+        """Add no-result metadata for successful empty connection groups."""
+        if group.get("results") or group.get("error"):
+            return
+        has_constraints = any(
+            request.get(key) not in (None, "", False)
+            for key in (
+                "non_stop_only",
+                "max_stops",
+                "max_price",
+                "include_airlines",
+                "exclude_airlines",
+                "min_departure_time",
+                "max_departure_time",
+                "min_arrival_time",
+                "max_arrival_time",
+                "max_duration_minutes",
+                "max_layover_minutes",
+                "avoid_overnight_layovers",
+            )
+        )
+        group["no_result_reason"] = "filtered_out" if has_constraints else "no_matches"
+        group["suggestions"] = [
+            "Increase the price limit",
+            "Allow one stop or connection",
+            "Try nearby dates or airports",
+        ]
 
     async def _process_single_request(
         self,

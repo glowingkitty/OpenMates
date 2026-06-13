@@ -1,6 +1,6 @@
 id: app-skill-processing-quality
 title: App Skill Processing Quality
-status: approved
+status: implementing
 
 goal: >
   Make app-skill processing produce trustworthy, user-useful results instead of
@@ -284,16 +284,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py"
+        timestamp: "2026-06-13T08:09:05Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py /app/backend/tests/test_app_skill_json_cleanup.py"
+        timestamp: "2026-06-13T09:20:30Z"
 
   - id: T-PYTEST-002
     type: pytest
@@ -312,16 +312,40 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py"
+        timestamp: "2026-06-13T08:09:05Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py /app/backend/tests/test_app_skill_json_cleanup.py"
+        timestamp: "2026-06-13T09:20:30Z"
+
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_app_skill_json_cleanup.py
+    command: docker exec api python -m pytest /app/backend/tests/test_app_skill_json_cleanup.py
+    covers:
+      - AC-6
+    assertions:
+      - raw fenced app_skill_use JSON blocks are stripped from successful assistant text.
+      - human-readable inline embed links are preserved.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_json_cleanup.py"
+        timestamp: "2026-06-13T08:09:05Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py /app/backend/tests/test_app_skill_json_cleanup.py"
+        timestamp: "2026-06-13T09:20:30Z"
 
   - id: T-CLI-001
     type: unit
@@ -329,26 +353,28 @@ tests:
     command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
     covers:
       - AC-7
+      - AC-9
     assertions:
       - formatted event output prints compact event cards before descriptions.
       - formatted travel connection output hides raw booking context, hashes, coordinates, and segment internals by default.
       - formatted stay output hides property_token, image arrays, and raw nearby_places by default.
+      - no-result output prints clear reasons and suggestions instead of raw grouped payloads.
       - JSON output still includes the full structured payload.
       - verbose/debug output exposes additional fields only when explicitly requested.
     red_phase:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli"
+        timestamp: "2026-06-13T08:05:58Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli"
+        timestamp: "2026-06-13T09:13:59Z"
 
   - id: T-E2E-001
     type: playwright
@@ -520,6 +546,24 @@ implementation_plan:
     - CLI unit tests second for concise default output and full JSON preservation.
     - Playwright event/travel/embed leak specs third against app.dev.openmates.org after deploy.
     - Apple not affected for this first slice.
+  live_cli_verification:
+    timestamp: "2026-06-13T09:20:30Z"
+    api_url: http://localhost:8000
+    commands:
+      - request: Online data-engineering events near Berlin.
+        result: Passed; venue-only physical Eventbrite results were filtered out and only online events remained.
+      - request: Free or cheap electronic music events in Berlin this weekend.
+        result: Passed; date filtering no longer crashes on naive provider dates, all results were inside the requested weekend window, and free/cheap options ranked first.
+      - request: Wheelchair-accessible family events in Berlin this weekend.
+        result: Passed; output labels accessibility as unknown or mentioned instead of presenting unproven accessibility as confirmed.
+      - request: Direct Berlin to Barcelona flights on 2026-07-10 under 200 EUR.
+        result: Passed; only direct flights under 200 EUR were shown and booking internals stayed hidden.
+      - request: Barcelona beach hotels with a pool under 180 EUR per night for 2026-07-10 to 2026-07-13.
+        result: Passed; no-result output shows filtered_out and actionable relaxed-search suggestions.
+      - request: Direct Berlin to Barcelona flights under 50 EUR.
+        result: Passed; no-result output shows filtered_out with price/stops/date relaxation suggestions.
+      - request: Barcelona beach hotels with a pool under 350 EUR per night.
+        result: Passed; successful stay output stays concise while showing rating, price, amenities, and review count.
 
 tasks:
   - id: TASK-1

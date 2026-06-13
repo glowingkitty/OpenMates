@@ -247,6 +247,7 @@ class SearchStaysSkill(BaseSkill):
             invalid_grouped_results,
             requests,
         )
+        self._annotate_empty_result_groups(grouped_results, requests)
 
         # 5. Build and return response
         return self._build_response_with_errors(
@@ -257,6 +258,35 @@ class SearchStaysSkill(BaseSkill):
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )
+
+    @staticmethod
+    def _annotate_empty_result_groups(
+        grouped_results: List[Dict[str, Any]],
+        requests: List[Dict[str, Any]],
+    ) -> None:
+        """Add no-result metadata to successful empty stay groups."""
+        request_by_id = {request.get("id"): request for request in requests}
+        for group in grouped_results:
+            if group.get("results") or group.get("error"):
+                continue
+            request = request_by_id.get(group.get("id"), {})
+            has_explicit_filters = any(
+                request.get(key) is not None
+                for key in ("max_price", "min_price", "hotel_class", "rating")
+            )
+            query = str(request.get("query") or "")
+            has_constraints = (
+                has_explicit_filters
+                or SearchStaysSkill._has_pool_intent(query)
+                or SearchStaysSkill._has_beach_intent(query)
+            )
+            group["no_result_reason"] = "filtered_out" if has_constraints else "no_matches"
+            group["suggestions"] = [
+                "Increase the nightly budget",
+                "Search farther from the beach",
+                "Include hostels or private rooms",
+                "Try nearby dates",
+            ]
 
     async def _process_single_request(
         self,

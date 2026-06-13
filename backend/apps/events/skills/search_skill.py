@@ -412,6 +412,31 @@ class SearchSkill(BaseSkill):
         return str(value).strip().upper()
 
     @staticmethod
+    def _infer_result_event_type(event: Dict[str, Any]) -> Optional[str]:
+        """Infer event type when provider payloads omit the canonical field."""
+        explicit_type = SearchSkill._normalize_event_type(event.get("event_type"))
+        if explicit_type:
+            return explicit_type
+
+        text_parts = [str(event.get("location") or "")]
+        venue = event.get("venue")
+        if isinstance(venue, dict):
+            text_parts.extend(str(value or "") for value in venue.values())
+            has_physical_venue = any(
+                venue.get(key) for key in ("name", "address", "city", "country", "lat", "lon")
+            )
+        else:
+            text_parts.append(str(venue or ""))
+            has_physical_venue = bool(venue)
+
+        text = " ".join(text_parts).lower()
+        if any(term in text for term in ("online", "virtual", "remote", "webinar")):
+            return "ONLINE"
+        if has_physical_venue:
+            return "PHYSICAL"
+        return None
+
+    @staticmethod
     def _parse_event_datetime(value: Any) -> Optional[datetime]:
         if not value or not isinstance(value, str):
             return None
@@ -419,6 +444,15 @@ class SearchSkill(BaseSkill):
             return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
         except ValueError:
             return None
+
+    @staticmethod
+    def _align_event_datetime(value: datetime, reference: datetime) -> datetime:
+        """Avoid naive/aware comparison errors from provider-local date strings."""
+        if value.tzinfo is None and reference.tzinfo is not None:
+            return value.replace(tzinfo=reference.tzinfo)
+        if value.tzinfo is not None and reference.tzinfo is None:
+            return value.replace(tzinfo=None)
+        return value
 
     @staticmethod
     def _parse_money(value: Any) -> Optional[float]:
@@ -506,7 +540,7 @@ class SearchSkill(BaseSkill):
 
         for event in events:
             result = dict(event)
-            result_type = SearchSkill._normalize_event_type(result.get("event_type"))
+            result_type = SearchSkill._infer_result_event_type(result)
             if result_type:
                 result["event_type"] = result_type
             if normalized_type and result_type and result_type != normalized_type:
@@ -514,10 +548,10 @@ class SearchSkill(BaseSkill):
                 continue
 
             event_start = SearchSkill._parse_event_datetime(result.get("date_start"))
-            if start_dt and event_start and event_start < start_dt:
+            if start_dt and event_start and SearchSkill._align_event_datetime(event_start, start_dt) < start_dt:
                 filtered_out_count += 1
                 continue
-            if end_dt and event_start and event_start >= end_dt:
+            if end_dt and event_start and SearchSkill._align_event_datetime(event_start, end_dt) >= end_dt:
                 filtered_out_count += 1
                 continue
 

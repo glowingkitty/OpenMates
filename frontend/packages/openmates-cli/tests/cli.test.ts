@@ -239,7 +239,25 @@ async function withSkillFormattingMockApi<T>(
   const server = createServer(async (request, response) => {
     try {
       if (request.method === "POST" && request.url === "/v1/apps/events/skills/search") {
-        await readJsonBody(request);
+        const body = await readJsonBody(request);
+        const firstRequest = (body.requests as Array<{ query?: string }> | undefined)?.[0];
+        if (firstRequest?.query === "no-match") {
+          writeJson(response, {
+            success: true,
+            data: {
+              results: [{
+                id: 1,
+                results: [],
+                no_result_reason: "filtered_out",
+                suggestions: ["Relax the date window", "Try a nearby city"],
+              }],
+              provider: "auto",
+              error: null,
+            },
+            credits_charged: 0,
+          });
+          return;
+        }
         writeJson(response, {
           success: true,
           data: {
@@ -254,6 +272,7 @@ async function withSkillFormattingMockApi<T>(
                 date_end: "2026-06-13T16:00:00+02:00",
                 venue: { name: "Community Hall", city: "Berlin" },
                 fee: { amount: "0.00", currency: "EUR" },
+                constraint_matches: { accessibility: "unknown" },
                 hash: "event-hash",
                 image_url: "https://example.test/image.jpg",
                 url: "https://example.test/event",
@@ -584,6 +603,8 @@ describe("apps skill formatted output", () => {
       assert.match(output, /Accessible Tech Meetup/);
       assert.match(output, /2026-06-13T14:00:00\+02:00/);
       assert.match(output, /Community Hall/);
+      assert.match(output, /accessibility/);
+      assert.match(output, /unknown/);
       assert.doesNotMatch(output, /event-hash/);
       assert.doesNotMatch(output, /image_url/);
       assert.doesNotMatch(output, /very long event description/);
@@ -625,6 +646,22 @@ describe("apps skill formatted output", () => {
       assert.doesNotMatch(output, /images/);
       assert.doesNotMatch(output, /nearby_places/);
       assert.doesNotMatch(output, /stay-hash/);
+    });
+  });
+
+  it("prints clear no-result reasons and suggestions", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "events", "search",
+        "--input", JSON.stringify({ requests: [{ query: "no-match", location: "Berlin" }] }),
+      ]);
+
+      assert.match(output, /No results found/i);
+      assert.match(output, /filtered_out/);
+      assert.match(output, /Relax the date window/);
+      assert.match(output, /Try a nearby city/);
+      assert.doesNotMatch(output, /\{\s*"results"/);
     });
   });
 });

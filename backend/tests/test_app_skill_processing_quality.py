@@ -13,6 +13,11 @@ from backend.apps.events.skills.search_skill import SearchSkill
 def test_event_quality_filter_excludes_physical_from_online_strict_results() -> None:
     events = [
         {"title": "Venue talk", "event_type": "PHYSICAL", "date_start": "2026-06-13T10:00:00+02:00"},
+        {
+            "title": "Eventbrite venue-only talk",
+            "venue": {"name": "Flutgraben", "city": "Berlin"},
+            "date_start": "2026-06-13T11:00:00+02:00",
+        },
         {"title": "Luma webinar", "event_type": "online", "date_start": "2026-06-13T12:00:00+02:00"},
         {"title": "Meetup webinar", "event_type": "ONLINE", "date_start": "2026-06-13T13:00:00+02:00"},
     ]
@@ -27,7 +32,7 @@ def test_event_quality_filter_excludes_physical_from_online_strict_results() -> 
 
     assert [event["title"] for event in filtered] == ["Luma webinar", "Meetup webinar"]
     assert all(event["event_type"] == "ONLINE" for event in filtered)
-    assert metadata["filtered_out_count"] == 1
+    assert metadata["filtered_out_count"] == 2
     assert metadata["applied_filters"] == ["event_type"]
 
 
@@ -35,6 +40,7 @@ def test_event_quality_filter_excludes_out_of_window_results() -> None:
     events = [
         {"title": "Friday pre-party", "event_type": "PHYSICAL", "date_start": "2026-06-12T22:00:00+02:00"},
         {"title": "Saturday meetup", "event_type": "PHYSICAL", "date_start": "2026-06-13T14:00:00+02:00"},
+        {"title": "Saturday provider-local meetup", "event_type": "PHYSICAL", "date_start": "2026-06-14T14:00:00"},
         {"title": "Monday meetup", "event_type": "PHYSICAL", "date_start": "2026-06-15T10:00:00+02:00"},
     ]
 
@@ -46,7 +52,7 @@ def test_event_quality_filter_excludes_out_of_window_results() -> None:
         query="tech talks",
     )
 
-    assert [event["title"] for event in filtered] == ["Saturday meetup"]
+    assert [event["title"] for event in filtered] == ["Saturday meetup", "Saturday provider-local meetup"]
     assert metadata["filtered_out_count"] == 2
     assert "date_window" in metadata["applied_filters"]
 

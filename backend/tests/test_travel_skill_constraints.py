@@ -51,6 +51,16 @@ def test_travel_app_schema_exposes_supported_flight_constraints() -> None:
         assert field in request_props
 
 
+def test_search_connections_empty_group_metadata_explains_filtered_out() -> None:
+    group = {"id": 1, "results": []}
+    request = {"id": 1, "non_stop_only": True, "max_stops": 0, "max_price": 50}
+
+    SearchConnectionsSkill._annotate_empty_result_group(group, request)
+
+    assert group["no_result_reason"] == "filtered_out"
+    assert "Increase the price limit" in group["suggestions"]
+
+
 def test_search_stays_filters_over_budget_strict_results() -> None:
     results = [
         {"name": "Budget Pool Hotel", "extracted_rate_per_night": 172, "amenities": ["Pool", "Free Wi-Fi"]},
@@ -83,3 +93,13 @@ def test_search_stays_no_result_metadata_explains_filtered_out() -> None:
     assert filtered == []
     assert metadata["no_result_reason"] == "filtered_out"
     assert metadata["suggestions"]
+
+
+def test_search_stays_empty_group_metadata_explains_no_matches() -> None:
+    grouped_results = [{"id": 1, "results": []}]
+    requests = [{"id": 1, "query": "Barcelona beach hotels with pool", "max_price": 180}]
+
+    SearchStaysSkill._annotate_empty_result_groups(grouped_results, requests)
+
+    assert grouped_results[0]["no_result_reason"] == "filtered_out"
+    assert "Increase the nightly budget" in grouped_results[0]["suggestions"]

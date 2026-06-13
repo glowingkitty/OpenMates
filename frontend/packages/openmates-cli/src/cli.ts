@@ -4501,6 +4501,29 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
       const items = group.results as ResultItem[] | undefined;
       if (Array.isArray(items)) totalItems += items.length;
     }
+    if (totalItems === 0) {
+      header(
+        `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${credits !== null ? `${credits} credits` : "no results"})\x1b[0m\n`,
+      );
+      console.log("No results found.");
+      const topLevelReason = str(data.no_result_reason) ?? str(data.error);
+      if (topLevelReason) kv("reason", topLevelReason, 12);
+      for (const group of topResults) {
+        const reason = str(group.no_result_reason) ?? str(group.error);
+        if (reason) kv("reason", reason, 12);
+        const groupSuggestions = group.suggestions;
+        if (Array.isArray(groupSuggestions) && groupSuggestions.length > 0) {
+          kv("try", (groupSuggestions as unknown[]).map((value) => String(value)).join(" · "), 12);
+        }
+      }
+      const responseSuggestions = data.suggestions_follow_up_requests;
+      if (Array.isArray(responseSuggestions) && responseSuggestions.length > 0) {
+        kv("try", (responseSuggestions as unknown[]).map((value) => String(value)).join(" · "), 12);
+      }
+      const provider = str(data.provider);
+      if (provider) console.log(`\x1b[2mProvider: ${provider}\x1b[0m`);
+      return;
+    }
     if (totalItems > 0) {
       header(
         `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${totalItems} result${totalItems !== 1 ? "s" : ""}${credits !== null ? `, ${credits} credits` : ""})\x1b[0m\n`,
@@ -4558,12 +4581,9 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
 /**
  * Print a single skill result item with a numbered header line and full details.
  *
- * For known types (connection, stay, place_result) a compact human-readable
- * header line is printed first, followed by all remaining fields.
+ * For known high-volume search result types a compact human-readable card is
+ * printed by default. Full provider payloads remain available through --json.
  * For unknown types, printGenericObject renders every field.
- *
- * This ensures the CLI always shows the full REST API output — nothing is
- * hidden or summarised away.
  */
 function printSkillResultItem(
   item: Record<string, unknown>,
@@ -4605,18 +4625,11 @@ function printSkillResultItem(
       if (dur) parts.push(`(${dur})`);
       console.log(`  ${parts.join("  ")}`);
     }
-    // Full details — all remaining fields
-    printGenericObject(item, 1);
     // Booking link hint
     if (typeof item.booking_token === "string") {
-      const token = item.booking_token as string;
-      const ctxFlag =
-        item.booking_context && typeof item.booking_context === "object"
-          ? ` --context '${JSON.stringify(item.booking_context)}'`
-          : "";
       console.log(`\x1b[2m  → Get booking URL (25 credits):\x1b[0m`);
       console.log(
-        `\x1b[2m    openmates apps travel booking-link --token "${token}"${ctxFlag}\x1b[0m`,
+        `\x1b[2m    rerun with --json to copy booking_token, then use openmates apps travel booking-link\x1b[0m`,
       );
     }
     console.log("");
@@ -4633,7 +4646,42 @@ function printSkillResultItem(
     if (rating) summary.push(`★ ${rating}`);
     if (price) summary.push(price);
     console.log(`${numLabel}\x1b[1m${name}\x1b[0m  ${summary.join(" · ")}`);
-    printGenericObject(item, 1);
+    const amenities = Array.isArray(item.amenities)
+      ? (item.amenities as unknown[]).map((value) => String(value)).slice(0, 6)
+      : [];
+    if (amenities.length > 0) kv("amenities", amenities.join(", "), 14);
+    const reviews = item.reviews;
+    if (reviews !== undefined && reviews !== null) kv("reviews", String(reviews), 14);
+    const link = str(item.link) ?? str(item.url);
+    if (link) kv("url", link, 14);
+    console.log("");
+    return;
+  }
+
+  // ── Event result ────────────────────────────────────────────────────────
+  if (itemType === "event_result") {
+    const title = str(item.title) ?? str(item.name) ?? "Untitled event";
+    const provider = str(item.provider);
+    const start = str(item.date_start);
+    const end = str(item.date_end);
+    const venue = item.venue as Record<string, unknown> | undefined;
+    const venueName = venue && typeof venue === "object" ? str(venue.name) : null;
+    const city = venue && typeof venue === "object" ? str(venue.city) : null;
+    const price = formatEventPrice(item);
+    const summary = [provider, price].filter(Boolean).join(" · ");
+    console.log(`${numLabel}\x1b[1m${title}\x1b[0m${summary ? `  ${summary}` : ""}`);
+    if (start || end) {
+      console.log(`  ${[start, end ? `→ ${end}` : null].filter(Boolean).join("  ")}`);
+    }
+    if (venueName || city) kv("venue", [venueName, city].filter(Boolean).join(", "), 14);
+    const constraints = item.constraint_matches;
+    if (constraints && typeof constraints === "object") {
+      for (const [key, value] of Object.entries(constraints as Record<string, unknown>)) {
+        if (value !== undefined && value !== null && value !== "") kv(key, String(value), 14);
+      }
+    }
+    const url = str(item.url);
+    if (url) kv("url", url, 14);
     console.log("");
     return;
   }
@@ -4664,6 +4712,20 @@ function printSkillResultItem(
     printGenericObject(item, 1);
   }
   console.log("");
+}
+
+function formatEventPrice(item: Record<string, unknown>): string | null {
+  const fee = item.fee;
+  if (fee && typeof fee === "object") {
+    const feeRecord = fee as Record<string, unknown>;
+    const amount = str(feeRecord.amount) ?? str(feeRecord.display) ?? str(feeRecord.min);
+    const currency = str(feeRecord.currency);
+    if (amount) return currency && !amount.includes(currency) ? `${amount} ${currency}` : amount;
+  }
+  const price = str(item.price);
+  if (price) return price;
+  if (item.is_paid === false) return "free";
+  return null;
 }
 
 // ---------------------------------------------------------------------------
