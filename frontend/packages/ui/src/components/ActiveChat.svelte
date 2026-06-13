@@ -2821,6 +2821,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // during rapid sync events (matching Chats.svelte's 300ms debounce pattern).
     let _carouselRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     let _priorityRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let hasContinueItems = $derived.by(() =>
+        priorityContinueItems.length > 0 ||
+        !!resumeChatData ||
+        ($authStore.isAuthenticated && recentChats.length > 0)
+    );
+    let isContinueChatsLoading = $derived.by(() => {
+        const userHasEncryptedHistory =
+            !!$userProfile.last_opened ||
+            ($userProfile.total_chat_count ?? 0) > 0 ||
+            !!$phasedSyncState.phase1ChatId;
+
+        return showWelcome &&
+            $authStore.isAuthenticated &&
+            !$activeChatStore &&
+            userHasEncryptedHistory &&
+            !$phasedSyncState.initialSyncCompleted &&
+            !hasContinueItems;
+    });
 
     async function buildRecentChatMeta(chat: Chat): Promise<RecentChatMeta> {
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
@@ -10785,9 +10803,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                         {/each}
                                     </h2>
-                                    <!-- Subtitle: "Continue where you left off" when resume chat or recent chats, "Explore OpenMates:" for non-auth scrollable list, else default prompt -->
-                                    {#if priorityContinueItems.length > 0 || resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
-                                        <p>{$text('chats.resume_last_chat.title')}</p>
+                                    <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
+                                    {#if isContinueChatsLoading}
+                                        <p class="decrypting-chats-text" transition:fade={fadeParams}>
+                                            {$text('chats.resume_last_chat.decrypting')}
+                                        </p>
+                                    {:else if hasContinueItems}
+                                        <p transition:fade={fadeParams}>{$text('chats.resume_last_chat.title')}</p>
                                     {:else if !$authStore.isAuthenticated}
                                         <p>{$text('chats.explore_openmates.title')}</p>
                                     {:else}
@@ -10801,11 +10823,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             </div>
 
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
-                            {#if priorityContinueItems.length > 0 || resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
+                            {#if hasContinueItems}
                                 <div
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
+                                    transition:fade={fadeParams}
                                 >
                                     <!-- Reminder/date-priority items outrank the normal last-opened and pinned chat order in this welcome carousel only. -->
                                     {#each priorityContinueItems as item (item.kind === 'chat' ? `chat:${item.chat.chat_id}` : `embed:${item.embedId}`)}
@@ -12354,6 +12377,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         margin: 8px 0 0;
         color: var(--color-grey-60);
         font-size: var(--font-size-p);
+    }
+
+    .welcome-text .decrypting-chats-text {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-60) 0%,
+            var(--color-grey-60) 40%,
+            var(--color-grey-40) 50%,
+            var(--color-grey-60) 60%,
+            var(--color-grey-60) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: decrypting-chats-shimmer 1.5s infinite linear;
+    }
+
+    @keyframes decrypting-chats-shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
     }
 
     .message-input-wrapper {
