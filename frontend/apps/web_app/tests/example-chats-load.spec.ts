@@ -233,6 +233,29 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Have a wonderful weekend' })).toBeVisible({ timeout: 15000 });
 	});
 
+	test('nutrition example renders Edamam recipe search embed card', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-chickpea-spinach-protein-dinners'), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		await expect(page.getByTestId('user-message-content').filter({
+			hasText: 'Find 3 vegetarian chickpea and spinach dinner recipes'
+		})).toBeVisible({ timeout: 15000 });
+
+		const nutritionSearchCard = page
+			.locator('[data-testid="embed-preview"][data-app-id="nutrition"][data-skill-id="search_recipes"][data-status="finished"]')
+			.first();
+		await expect(nutritionSearchCard).toBeVisible({ timeout: 15000 });
+		await expect(nutritionSearchCard).toContainText('chickpea and spinach dinner');
+		await expect(nutritionSearchCard).toContainText('Edamam');
+	});
+
 	test('sidebar example chats show newest first and append older results after show more', async ({
 		page
 	}: {

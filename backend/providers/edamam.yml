@@ -1,0 +1,16 @@
+# backend/providers/edamam.yml
+#
+# Configuration for Edamam provider.
+# Used by the Nutrition app for recipe search through Edamam Recipe Search v2.
+
+provider_id: "edamam"
+name: "Edamam"
+description: "Food and recipe data APIs for recipe search, nutrition analysis, and ingredient metadata."
+logo_svg: "icons/edamam.png"
+region: "US"
+privacy_policy: "https://www.edamam.com/privacy/"
+
+
+# API access
+# Recipe Search v2 credentials are stored in Vault under providers/edamam.
+# See backend/apps/nutrition/providers/edamam_recipe_provider.py for integration details.

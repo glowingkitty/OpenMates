@@ -142,6 +142,7 @@ const nutritionEmbeds = [
     content: `app_id: nutrition
 skill_id: search_recipes
 result_count: 3
+embed_ref: nutrition-search-recipes-chickpea-spinach
 embed_ids: 0a4679f4-b2eb-43df-ac66-30e99a98c66b|67e396cc-2a88-4b9a-abf2-be225cce0f03|ce64916b-7e17-4e01-a972-78231cb11b8c
 status: finished
 embed_id: d7f21a46-8f13-4f14-82c4-d868ba62bb8a
@@ -232,6 +233,14 @@ export const chickpeaSpinachProteinDinnersChat: ExampleChat = {
     },
     {
       id: "dbacf972-09e4-4a86-a30f-f343598986f7",
+      role: "assistant",
+      content: "[!](embed:nutrition-search-recipes-chickpea-spinach)",
+      created_at: 1781353490,
+      category: "cooking_food",
+      model_name: "OpenMates",
+    },
+    {
+      id: "b602ea4d-0b13-4a99-b532-ae68f312298c",
       role: "assistant",
       content: "example_chats.chickpea_spinach_protein_dinners.message_2",
       created_at: 1781353503,
