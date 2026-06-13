@@ -2,22 +2,16 @@
 #
 # Search Recipes skill for the nutrition app.
 #
-# Searches REWE Online (rewe.de/rezepte/) for recipes matching category filters.
-# Uses the free REWE recipe filter API for discovery, then fetches full recipe
-# details via Firecrawl JSON extraction (Cloudflare-protected pages).
+# Searches Edamam Recipe Search v2 for recipes matching free-text queries and
+# optional structured nutrition filters. The provider requests instructionLines
+# directly, filters recipes without steps, and only paginates when needed.
 #
 # Data flow:
-#   1. LLM calls skill with requests=[{filters: ["vegetarisch", "pasta"], max_results: 5}]
-#   2. Skill queries /api/recipe-filter/graphql (free, no auth) to get matching UIDs
-#   3. For each recipe: check Dragonfly cache → Directus cache → Firecrawl scrape
-#   4. Results sanitized via sanitize_long_text_fields_in_payload (prompt injection defense)
+#   1. LLM calls skill with requests=[{query: "quick vegan pasta", max_results: 5}]
+#   2. Skill queries Edamam with explicit fields including instructionLines
+#   3. Provider filters missing instructions and normalizes recipe details
+#   4. Results sanitized via sanitize_long_text_fields_in_payload
 #   5. Grouped results returned as SearchRecipesResponse
-#
-# Pricing: 50 credits per search (per_unit) — covers Firecrawl cost (~5 credits/page
-# on growth plan × 5 results = ~50 raw credits with 3x markup). Cached results are
-# near-free, so this price is profitable at steady state.
-#
-# See: backend/apps/nutrition/providers/rewe_recipe_provider.py
 
 import logging
 from typing import Any, Dict, List, Optional
@@ -26,10 +20,10 @@ from pydantic import BaseModel, Field
 
 from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.base_skill import BaseSkill
-from backend.apps.nutrition.providers.rewe_recipe_provider import (
-    FILTER_TAGS,
-    fetch_recipe_details,
-    search_recipes_by_filter,
+from backend.apps.nutrition.providers.edamam_recipe_provider import (
+    DEFAULT_MAX_RESULTS,
+    EdamamProviderError,
+    search_recipes,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,27 +37,25 @@ logger = logging.getLogger(__name__)
 class SearchRecipesRequestItem(BaseModel):
     """A single recipe search request."""
 
-    filters: List[str] = Field(
+    query: str = Field(
         description=(
-            "List of filter tags to narrow recipes. Available filters: "
-            "Diet: fleisch, fisch, vegetarisch, vegan. "
-            "Ingredient: nudeln/pasta, kartoffeln, reis, gemuese, kuerbis. "
-            "Effort: einfach, mittel, schwer. "
-            "Meal: vorspeise, hauptspeise, dessert, beilagen, fruehstueck, "
-            "suppen, auflauf, snacks, getraenke. "
-            "Diet form: laktosefrei, low-carb, glutenfrei, paleo, wenig-zucker, clean-eating. "
-            "Baking: kuchen, torten, brot, muffins, cupcakes, plaetzchen. "
-            "Occasion: fruehling, grillen, picknick, kindergerichte, geburtstag, guenstig, party."
+            "Free-text recipe query for Edamam Recipe Search, e.g. "
+            "'quick vegan pasta', 'gluten-free pancakes', or 'miso salmon'."
         ),
     )
     max_results: int = Field(
-        default=6,
+        default=DEFAULT_MAX_RESULTS,
         description="Maximum number of recipes to return with full details (1-10, default 6).",
     )
-    page: int = Field(
-        default=1,
-        description="Page number for pagination (1-indexed, 36 results per API page).",
-    )
+    diet: Optional[List[str]] = Field(default=None, description="Optional Edamam diet labels.")
+    health: Optional[List[str]] = Field(default=None, description="Optional Edamam health labels.")
+    cuisine_type: Optional[List[str]] = Field(default=None, description="Optional cuisine types.")
+    meal_type: Optional[List[str]] = Field(default=None, description="Optional meal types.")
+    dish_type: Optional[List[str]] = Field(default=None, description="Optional dish types.")
+    excluded: Optional[List[str]] = Field(default=None, description="Ingredients or terms to exclude.")
+    time: Optional[str] = Field(default=None, description="Optional total time range, e.g. '1-30'.")
+    calories: Optional[str] = Field(default=None, description="Optional calorie range.")
+    ingredients: Optional[str] = Field(default=None, description="Optional ingredient count range.")
 
 
 class SearchRecipesRequest(BaseModel):
@@ -75,9 +67,9 @@ class SearchRecipesRequest(BaseModel):
 
     requests: List[SearchRecipesRequestItem] = Field(
         description=(
-            "Array of recipe search requests. Each request contains 'filters' "
-            "(list of category tags like 'vegetarisch', 'pasta', 'glutenfrei') "
-            "and optionally 'max_results' (1-10)."
+            "Array of recipe search requests. Each request contains a free-text "
+            "'query' and optionally Edamam filters like health, diet, time, "
+            "calories, cuisine_type, meal_type, dish_type, excluded, and max_results."
         ),
     )
 
@@ -89,7 +81,7 @@ class SearchRecipesResponse(BaseModel):
         default_factory=list,
         description="List of result groups, each with 'id' and 'results' array",
     )
-    provider: str = Field(default="REWE")
+    provider: str = Field(default="Edamam")
     total_available: Optional[int] = None
     suggestions_follow_up_requests: Optional[List[str]] = None
     error: Optional[str] = None
@@ -98,8 +90,9 @@ class SearchRecipesResponse(BaseModel):
             "type",
             "uid",
             "image_url",
+            "images",
             "search_rank",
-            "from_cache",
+            "share_url",
         ],
     )
 
@@ -111,24 +104,17 @@ class SearchRecipesResponse(BaseModel):
 
 class SearchRecipesSkill(BaseSkill):
     """
-    Skill that searches REWE Online for recipes matching dietary and category filters.
+    Skill that searches Edamam for recipes matching a query and nutrition filters.
 
     Accepts a 'requests' array where each request contains:
-    - filters: List of category tags (required), e.g. ["vegetarisch", "pasta"]
-    - max_results: Maximum recipes with full details (1-10, default 5)
-    - page: Page number for pagination (default 1)
+    - query: Free-text recipe query (required), e.g. "quick vegan pasta"
+    - max_results: Maximum recipes with full details (1-10, default 6)
+    - optional Edamam filters: health, diet, time, cuisine_type, meal_type, etc.
 
     Returns recipes with full details including:
-    - title, description, image_url, recipe_url
-    - prep_time, cook_time, total_time, difficulty, servings
-    - rating, rating_count, ernaehrwert_score
-    - ingredients[] (amount, unit, name)
-    - instructions[] (step, text)
-    - nutrition (calories, protein, fat, carbs per serving)
-    - dietary_tags[], categories[]
-
-    Uses the free REWE filter API for discovery and Firecrawl for detail extraction.
-    Results are cached in Directus (persistent) + Dragonfly (hot) for 30 days.
+    - title, source, image_url, recipe_url
+    - total_time, servings, ingredients[], instructions[]
+    - nutrition totals/per-serving values and Edamam labels
     """
 
     FOLLOW_UP_SUGGESTIONS = [
@@ -138,8 +124,6 @@ class SearchRecipesSkill(BaseSkill):
         "Find a similar recipe that is gluten-free",
         "Show recipes with fewer calories",
     ]
-
-    AVAILABLE_FILTERS = sorted(FILTER_TAGS.keys())
 
     async def execute(
         self,
@@ -152,9 +136,9 @@ class SearchRecipesSkill(BaseSkill):
         """
         Execute the search recipes skill.
 
-        1. Obtain SecretsManager for Firecrawl API key
-        2. Validate requests (requires 'filters' field)
-        3. For each request: query filter API → fetch details → sanitize
+        1. Obtain SecretsManager for Edamam credentials
+        2. Validate requests (requires 'query' field)
+        3. For each request: query Edamam → filter/normalize → sanitize
         4. Group results by request ID
         5. Return SearchRecipesResponse
         """
@@ -172,8 +156,8 @@ class SearchRecipesSkill(BaseSkill):
 
         validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
             requests=requests,
-            required_fields=["filters"],
-            field_display_names={"filters": "filters"},
+            required_fields=["query"],
+            field_display_names={"query": "query"},
             empty_error_message="No recipe search requests provided",
             logger=logger,
         )
@@ -184,7 +168,7 @@ class SearchRecipesSkill(BaseSkill):
                 response_class=SearchRecipesResponse,
                 grouped_results=invalid_grouped_results,
                 errors=validation_errors,
-                provider="REWE",
+                provider="Edamam",
                 suggestions=self.FOLLOW_UP_SUGGESTIONS,
                 logger=logger,
                 total_available=None,
@@ -197,8 +181,6 @@ class SearchRecipesSkill(BaseSkill):
             skill_name="SearchRecipesSkill",
             logger=logger,
             secrets_manager=secrets_manager,
-            cache_service=cache_service,
-            directus_service=directus_service,
         )
 
         # 4. Group results by request ID
@@ -216,11 +198,15 @@ class SearchRecipesSkill(BaseSkill):
         # Calculate total available from first request
         total_available = None
         if all_results:
-            for _, results_list, _, extra in (
-                r if len(r) == 4 else (*r, {}) for r in all_results
-            ):
-                if isinstance(extra, dict) and "total" in extra:
-                    total_available = extra["total"]
+            for result_item in all_results:
+                if isinstance(result_item, Exception):
+                    continue
+                _, results_list, _ = result_item
+                for item in results_list:
+                    if isinstance(item, dict) and "total_available" in item:
+                        total_available = item["total_available"]
+                        break
+                if total_available is not None:
                     break
 
         # 5. Build response
@@ -228,7 +214,7 @@ class SearchRecipesSkill(BaseSkill):
             response_class=SearchRecipesResponse,
             grouped_results=grouped_results,
             errors=errors,
-            provider="REWE",
+            provider="Edamam",
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
             total_available=total_available,
@@ -244,54 +230,57 @@ class SearchRecipesSkill(BaseSkill):
         Process a single recipe search request.
 
         Args:
-            req: Request dict with 'filters', optional 'max_results', 'page'.
+            req: Request dict with 'query', optional filters and max_results.
             request_id: Unique ID for result grouping.
             **kwargs: Must include 'secrets_manager', optionally 'cache_service',
-                      'directus_service'.
+                      secrets_manager.
 
         Returns:
             Tuple of (request_id, results_list, error_string_or_none).
         """
         secrets_manager = kwargs.get("secrets_manager")
         cache_service = kwargs.get("cache_service")
-        directus_service = kwargs.get("directus_service")
+        query = str(req.get("query") or "").strip()
+        max_results = min(10, max(1, int(req.get("max_results", DEFAULT_MAX_RESULTS))))
 
-        # Extract parameters
-        filters = req.get("filters", [])
-        if isinstance(filters, str):
-            filters = [f.strip() for f in filters.split(",") if f.strip()]
-        max_results = min(10, max(1, int(req.get("max_results", 6))))
-        page = max(1, int(req.get("page", 1)))
-
-        if not filters:
-            return (request_id, [], "Missing 'filters' in request — provide at least one filter tag")
+        if not query:
+            return (request_id, [], "Missing 'query' in request — provide a recipe search query")
 
         try:
-            # Step 1: Search via free filter API
-            recipe_stubs, total = await search_recipes_by_filter(
-                filters=filters,
-                page=page,
+            search_result = await search_recipes(
+                query=query,
                 max_results=max_results,
-            )
-
-            if not recipe_stubs:
-                return (request_id, [], None)
-
-            # Step 2: Fetch full details (from cache or Firecrawl)
-            detailed_recipes = await fetch_recipe_details(
-                recipes=recipe_stubs,
                 secrets_manager=secrets_manager,
-                cache_service=cache_service,
-                directus_service=directus_service,
-                max_results=max_results,
+                diet=req.get("diet"),
+                health=req.get("health"),
+                cuisine_type=req.get("cuisine_type"),
+                meal_type=req.get("meal_type"),
+                dish_type=req.get("dish_type"),
+                excluded=req.get("excluded"),
+                time=req.get("time"),
+                calories=req.get("calories"),
+                ingredients=req.get("ingredients"),
             )
 
-            # Step 3: Convert to result dicts
-            results: List[Dict[str, Any]] = []
-            for recipe in detailed_recipes:
-                result = recipe.to_result_dict()
+            if isinstance(search_result, dict):
+                results = search_result.get("recipes", [])
+                total = search_result.get("total_available")
+                raw_hits_seen = search_result.get("raw_hits_seen")
+                filtered_out = search_result.get("filtered_out_missing_instructions")
+                pages_requested = search_result.get("pages_requested")
+            else:
+                results = [recipe.to_result_dict() for recipe in search_result.recipes]
+                total = search_result.total_available
+                raw_hits_seen = search_result.raw_hits_seen
+                filtered_out = search_result.filtered_out_missing_instructions
+                pages_requested = search_result.pages_requested
+
+            for result in results:
+                result["query"] = query
                 result["total_available"] = total
-                results.append(result)
+                result["raw_hits_seen"] = raw_hits_seen
+                result["filtered_out_missing_instructions"] = filtered_out
+                result["pages_requested"] = pages_requested
 
             try:
                 results = await sanitize_long_text_fields_in_payload(
@@ -312,16 +301,19 @@ class SearchRecipesSkill(BaseSkill):
                 return (request_id, [], "Content sanitization failed")
 
             logger.info(
-                "Recipe search filters=%r → %d recipes (total=%d, %d cached)",
-                filters, len(results), total,
-                sum(1 for r in detailed_recipes if r.from_cache),
+                "Edamam recipe search query=%r → %d recipes (total=%s, raw_hits=%s, filtered_no_steps=%s)",
+                query, len(results), total, raw_hits_seen, filtered_out,
             )
 
             return (request_id, results, None)
 
+        except EdamamProviderError as e:
+            logger.warning("Edamam recipe search failed query=%r: %s", query, e)
+            return (request_id, [], str(e))
+
         except Exception as e:
             logger.error(
-                "Recipe search failed filters=%r: %s",
-                filters, e, exc_info=True,
+                "Recipe search failed query=%r: %s",
+                query, e, exc_info=True,
             )
             return (request_id, [], f"Recipe search failed: {e}")

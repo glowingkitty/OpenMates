@@ -1037,7 +1037,7 @@ videos.get_transcript.3:
   verified_by_human: [en]
 
 nutrition.search_recipes.1:
-  context: Query label for the first nutrition recipe search example in the app store. Shown on a preview card that displays vegetarian pasta recipes from the REWE search skill.
+  context: Query label for the first nutrition recipe search example in the app store. Shown on a preview card that displays vegetarian pasta recipes from the Edamam-backed nutrition recipe search skill.
   en: Vegetarian pasta recipes
   de: Vegetarische Pasta-Rezepte
   zh: 素食意面食谱
@@ -1062,7 +1062,7 @@ nutrition.search_recipes.1:
   verified_by_human: [en]
 
 nutrition.search_recipes.2:
-  context: Query label for the second nutrition recipe search example in the app store. Shown on a preview card that displays easy casserole recipes from the REWE search skill.
+  context: Query label for the second nutrition recipe search example in the app store. Shown on a preview card that displays easy recipe results from the Edamam-backed nutrition recipe search skill.
   en: Easy casserole recipes
   de: Einfache Auflauf-Rezepte
   zh: 快速碗食谱
@@ -1087,7 +1087,7 @@ nutrition.search_recipes.2:
   verified_by_human: [en]
 
 nutrition.search_recipes.3:
-  context: Query label for the third nutrition recipe search example in the app store. Shown on a preview card that displays low-carb dinner recipes from the REWE search skill.
+  context: Query label for the third nutrition recipe search example in the app store. Shown on a preview card that displays low-carb dinner recipes from the Edamam-backed nutrition recipe search skill.
   en: Low carb dinner recipes
   de: Low-Carb-Abendessen-Rezepte
   zh: 低碳晚餐食谱

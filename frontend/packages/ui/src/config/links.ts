@@ -210,21 +210,24 @@ export const privacyPolicyLinks = {
   amazon:
     "https://www.amazon.com/gp/help/customer/display.html?nodeId=GX7NJQ4ZB8MHFRNJ", // verified via official search result 2026-05-24
 
-  // Group K — Electronics
+  // Group K — Nutrition
+  edamam: "https://www.edamam.com/privacy/", // verified 2026-06-13
+
+  // Group L — Electronics
   tiWebench: "https://www.ti.com/legal/terms-conditions/privacy-policy.html",
 
-  // Group L — Mail
+  // Group M — Mail
   protonmail: "https://proton.me/legal/privacy",
 
-  // Group M — Home and housing
+  // Group N — Home and housing
   immoscout24: "https://www.immobilienscout24.de/agb/datenschutz.html",
   kleinanzeigen: "https://themen.kleinanzeigen.de/datenschutzerklaerung/",
   wgGesucht: "https://www.wg-gesucht.de/datenschutz.html",
 
-  // Group N — Community
+  // Group O — Community
   discord: "https://discord.com/privacy",
 
-  // Group O — Social media
+  // Group P — Social media
   reddit: "https://www.reddit.com/policies/privacy-policy",
   bluesky: "https://bsky.social/about/support/privacy-policy",
   mastodon: "https://joinmastodon.org/privacy-policy",

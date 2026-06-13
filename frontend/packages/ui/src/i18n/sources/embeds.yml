@@ -6694,29 +6694,29 @@ nutrition.health_score:
   he: ציון בריאות
   verified_by_human: [en, de]
 
-nutrition.view_on_rewe:
-  context: CTA button label to view recipe on REWE website
-  en: View on REWE
-  de: Auf REWE ansehen
-  zh: 在REWE上查看
-  es: Ver en REWE
-  fr: Voir sur REWE
-  pt: Ver no REWE
-  ru: Смотреть на REWE
-  ja: REWEで見る
-  ko: REWE에서 보기
-  it: Vedi su REWE
-  tr: REWE'de görüntüle
-  vi: Xem trên REWE
-  id: Lihat di REWE
-  pl: Zobacz na REWE
-  nl: Bekijk op REWE
-  ar: عرض على REWE
-  hi: REWE पर देखें
-  th: ดูบน REWE
-  cs: Zobrazit na REWE
-  sv: Visa på REWE
-  he: צפה ב-REWE
+nutrition.view_source:
+  context: CTA button label to view recipe on its original source website
+  en: View source
+  de: Quelle ansehen
+  zh: 查看来源
+  es: Ver fuente
+  fr: Voir la source
+  pt: Ver fonte
+  ru: Смотреть источник
+  ja: ソースを見る
+  ko: 출처 보기
+  it: Vedi fonte
+  tr: Kaynağı görüntüle
+  vi: Xem nguồn
+  id: Lihat sumber
+  pl: Zobacz źródło
+  nl: Bron bekijken
+  ar: عرض المصدر
+  hi: स्रोत देखें
+  th: ดูแหล่งที่มา
+  cs: Zobrazit zdroj
+  sv: Visa källa
+  he: הצג מקור
   verified_by_human: [en, de]
 
 wiki.open_on_wikipedia:

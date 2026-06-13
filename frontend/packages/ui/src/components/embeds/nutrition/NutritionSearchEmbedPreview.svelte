@@ -5,7 +5,7 @@
   Uses UnifiedEmbedPreview as base and provides skill-specific details content.
 
   Details content structure:
-  - Processing: search query + "via REWE"
+  - Processing: search query + provider subtitle
   - Finished: search query + recipe count
   - Error: error title + message
 
@@ -21,7 +21,7 @@
 
   /**
    * A single recipe result from the search_recipes skill.
-   * Matches the fields returned by REWERecipe.to_result_dict().
+   * Matches the fields returned by recipe provider to_result_dict() helpers.
    */
   interface RecipeResult {
     type?: string;
@@ -41,7 +41,7 @@
     id: string;
     /** Search query (e.g., "vegetarische pasta") */
     query?: string;
-    /** Provider name (e.g., 'REWE') */
+    /** Provider name (e.g., 'Edamam') */
     provider?: string;
     /** Processing status */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
@@ -71,7 +71,7 @@
 
   // Local reactive state — updated by handleEmbedDataUpdated when embed streams in
   let localQuery = $state<string>('');
-  let localProvider = $state<string>('REWE');
+  let localProvider = $state<string>('Edamam');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<RecipeResult[]>([]);
@@ -83,7 +83,7 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = queryProp || '';
-      localProvider = providerProp || 'REWE';
+      localProvider = providerProp || 'Edamam';
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
       localTaskId = taskIdProp;
@@ -188,7 +188,7 @@
       <!-- Search query (e.g., "vegetarische pasta") -->
       <div class="ds-search-query">{query || $text('embeds.nutrition.search_recipes')}</div>
 
-      <!-- Provider subtitle (e.g., "via REWE") -->
+      <!-- Provider subtitle (e.g., "via Edamam") -->
       <div class="ds-search-provider">{viaProvider}</div>
 
       <!-- Error state -->

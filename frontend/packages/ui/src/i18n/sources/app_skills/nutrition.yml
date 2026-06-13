@@ -25,8 +25,8 @@ search_recipes:
 
 search_recipes.description:
   context: Description for the recipe search skill in Nutrition app
-  en: Search for recipes by dietary filters and categories.
-  de: Rezepte nach Ernährungsfiltern und Kategorien suchen.
+  en: Search recipes by query, nutrition filters, and step-by-step instructions.
+  de: Rezepte per Suchanfrage, Ernährungsfiltern und Schritt-für-Schritt-Anleitungen suchen.
   zh: 按饮食过滤器和分类搜索食谱。
   es: Busca recetas por filtros dietéticos y categorías.
   fr: Recherchez des recettes par filtres alimentaires et catégories.
@@ -50,8 +50,8 @@ search_recipes.description:
 
 search_recipes.how_to_use.1:
   context: Example instruction for nutrition recipe search skill - vegetarian
-  en: "**Find vegetarian** pasta recipes"
-  de: Finde vegetarische Pasta-Rezepte
+  en: "**Find vegan** pasta recipes with instructions"
+  de: Finde vegane Pasta-Rezepte mit Anleitungen
   zh: 搜索素食意大利面食谱
   es: Busca recetas vegetarianas de pasta
   fr: Trouve des recettes de pâtes végétariennes
@@ -75,8 +75,8 @@ search_recipes.how_to_use.1:
 
 search_recipes.how_to_use.2:
   context: Example instruction for nutrition recipe search skill - quick easy
-  en: "**Search** for quick and easy dinner recipes"
-  de: Suche schnelle und einfache Abendessenrezepte
+  en: "**Search** for quick dinners under 30 minutes"
+  de: Suche schnelle Abendessen unter 30 Minuten
   zh: 搜索快速简单的晚餐食谱
   es: Busca recetas de cena rápidas y fáciles
   fr: Recherche des recettes de dîner rapides et faciles
@@ -100,8 +100,8 @@ search_recipes.how_to_use.2:
 
 search_recipes.how_to_use.3:
   context: Example instruction for nutrition recipe search skill - gluten free
-  en: Show me **gluten-free** dessert ideas
-  de: Zeige mir glutenfreie Dessert-Ideen
+  en: Show me **gluten-free** pancakes with steps
+  de: Zeige mir glutenfreie Pfannkuchen mit Schritten
   zh: 给我看无麸质甜点创意
   es: Muéstrame ideas de postres sin gluten
   fr: Montre-moi des idées de desserts sans gluten

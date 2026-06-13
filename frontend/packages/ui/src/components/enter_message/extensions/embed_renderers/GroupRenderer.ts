@@ -1789,7 +1789,7 @@ export class GroupRenderer implements EmbedRenderer {
           props: {
             id: embedId,
             query: query || "",
-            provider: provider || "REWE",
+            provider: provider || "Edamam",
             status: status as "processing" | "finished" | "error",
             results,
             taskId,

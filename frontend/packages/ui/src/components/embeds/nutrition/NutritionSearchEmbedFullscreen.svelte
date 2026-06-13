@@ -81,7 +81,7 @@
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   let localQuery = $state('');
-  let localProvider = $state('REWE');
+  let localProvider = $state('Edamam');
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
@@ -91,7 +91,7 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
-      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'REWE';
+      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Edamam';
       localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';

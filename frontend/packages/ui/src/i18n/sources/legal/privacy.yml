@@ -7588,6 +7588,108 @@ providers.shopping.amazon.description:
   ko: 실시간 제품 및 가격 데이터를 위해 아마존의 제품 카탈로그를 조회합니다. 아마존은 사용자 식별자 없이 검색 쿼리를 수신합니다.
   ar: يتم الاستعلام في كتالوج منتجات أمازون للحصول على بيانات المنتجات والأسعار المباشرة. تتلقى أمازون استعلامات البحث الخاصة بك دون معرف مستخدم.
   verified_by_human: []
+providers.nutrition.heading:
+  context: Subheading for Nutrition providers
+  en: Nutrition (only when you use the recipe search skill)
+  de: Ernährung (nur wenn du den Rezeptsuche-Skill nutzt)
+  zh: Nutrition (only when you use the recipe search skill)
+  fr: Nutrition (only when you use the recipe search skill)
+  pt: Nutrition (only when you use the recipe search skill)
+  ru: Nutrition (only when you use the recipe search skill)
+  ja: Nutrition (only when you use the recipe search skill)
+  it: Nutrition (only when you use the recipe search skill)
+  tr: Nutrition (only when you use the recipe search skill)
+  vi: Nutrition (only when you use the recipe search skill)
+  id: Nutrition (only when you use the recipe search skill)
+  pl: Nutrition (only when you use the recipe search skill)
+  nl: Nutrition (only when you use the recipe search skill)
+  hi: Nutrition (only when you use the recipe search skill)
+  th: Nutrition (only when you use the recipe search skill)
+  cs: Nutrition (only when you use the recipe search skill)
+  sv: Nutrition (only when you use the recipe search skill)
+  he: Nutrition (only when you use the recipe search skill)
+  es: Nutrition (only when you use the recipe search skill)
+  ko: Nutrition (only when you use the recipe search skill)
+  ar: Nutrition (only when you use the recipe search skill)
+  verified_by_human: []
+providers.nutrition.description:
+  context: Description of Nutrition providers
+  en: >-
+    These providers are only used when you invoke the nutrition recipe search
+    skill. They receive recipe search queries and selected dietary filters
+    without a user identifier.
+  de: Diese Anbieter werden nur genutzt, wenn du den Rezeptsuche-Skill in Ernährung aufrufst. Sie erhalten Rezeptsuchanfragen und ausgewählte Ernährungsfilter ohne eine Benutzerkennung.
+  zh: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  fr: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  pt: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  ru: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  ja: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  it: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  tr: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  vi: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  id: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  pl: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  nl: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  hi: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  th: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  cs: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  sv: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  he: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  es: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  ko: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  ar: These providers are only used when you invoke the nutrition recipe search skill. They receive recipe search queries and selected dietary filters without a user identifier.
+  verified_by_human: []
+providers.nutrition.edamam.heading:
+  context: Heading for Edamam provider entry
+  en: Edamam
+  de: Edamam
+  zh: Edamam
+  fr: Edamam
+  pt: Edamam
+  ru: Edamam
+  ja: Edamam
+  it: Edamam
+  tr: Edamam
+  vi: Edamam
+  id: Edamam
+  pl: Edamam
+  nl: Edamam
+  hi: Edamam
+  th: Edamam
+  cs: Edamam
+  sv: Edamam
+  he: Edamam
+  es: Edamam
+  ko: Edamam
+  ar: Edamam
+  verified_by_human: []
+providers.nutrition.edamam.description:
+  context: Edamam description
+  en: >-
+    Edamam's Recipe Search API is queried when you search for recipes. Edamam
+    receives the recipe query and selected dietary or nutrition filters without
+    a user identifier.
+  de: Die Recipe Search API von Edamam wird abgefragt, wenn du nach Rezepten suchst. Edamam erhält die Rezeptsuchanfrage und ausgewählte Ernährungs- oder Nährwertfilter ohne eine Benutzerkennung.
+  zh: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  fr: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  pt: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  ru: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  ja: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  it: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  tr: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  vi: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  id: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  pl: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  nl: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  hi: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  th: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  cs: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  sv: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  he: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  es: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  ko: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  ar: Edamam's Recipe Search API is queried when you search for recipes. Edamam receives the recipe query and selected dietary or nutrition filters without a user identifier.
+  verified_by_human: []
 providers.electronics.heading:
   context: Subheading for Group J providers (electronics)
   en: Electronics (only when you use the electronics skill)

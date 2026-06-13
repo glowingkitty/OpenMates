@@ -328,21 +328,28 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.shopping.rewe", privacyPolicyLinks.rewe);
   renderProvider("legal.privacy.providers.shopping.amazon", privacyPolicyLinks.amazon);
 
-  // Group J — Electronics
+  // Group K — Nutrition
+  lines.push(`### ${t("legal.privacy.providers.nutrition.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.nutrition.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.nutrition.edamam", privacyPolicyLinks.edamam);
+
+  // Group L — Electronics
   lines.push(`### ${t("legal.privacy.providers.electronics.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.electronics.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.electronics.ti_webench", privacyPolicyLinks.tiWebench);
 
-  // Group L — Mail
+  // Group M — Mail
   lines.push(`### ${t("legal.privacy.providers.mail.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.mail.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.mail.protonmail", privacyPolicyLinks.protonmail);
 
-  // Group M — Home and housing
+  // Group N — Home and housing
   lines.push(`### ${t("legal.privacy.providers.home.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.home.description"));
@@ -351,7 +358,7 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.home.kleinanzeigen", privacyPolicyLinks.kleinanzeigen);
   renderProvider("legal.privacy.providers.home.wg_gesucht", privacyPolicyLinks.wgGesucht);
 
-  // Group N — Community
+  // Group O — Community
   lines.push(`### ${t("legal.privacy.providers.community.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.community.description"));
@@ -360,7 +367,7 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.community.discord.admin_access"));
   lines.push("");
 
-  // Group M — Social media
+  // Group P — Social media
   lines.push(`### ${t("legal.privacy.providers.social_media.heading")}`);
   lines.push("");
   lines.push(t("legal.privacy.providers.social_media.description"));

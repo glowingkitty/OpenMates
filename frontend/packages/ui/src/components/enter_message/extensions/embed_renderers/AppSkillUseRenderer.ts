@@ -3951,7 +3951,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "REWE";
+    const provider = decodedContent?.provider || "Edamam";
     const status =
       decodedContent?.status ||
       embedData?.status ||

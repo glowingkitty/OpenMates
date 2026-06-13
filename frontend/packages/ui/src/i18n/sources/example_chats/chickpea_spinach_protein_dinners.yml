@@ -25,1125 +25,1902 @@ title:
 
 summary:
   context: "Summary of example chat: Chickpea Spinach Protein Dinners"
-  en: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  de: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  zh: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  es: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  fr: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  pt: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  ru: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  ja: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  ko: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  it: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  tr: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  vi: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  id: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  pl: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  nl: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  ar: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  hi: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  th: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  cs: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  sv: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
-  he: "A recipe-search example comparing vegetarian high-protein chickpea and spinach dinners."
+  en: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  de: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  zh: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  es: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  fr: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  pt: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  ru: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  ja: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  ko: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  it: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  tr: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  vi: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  id: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  pl: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  nl: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  ar: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  hi: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  th: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  cs: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  sv: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  he: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
   verified_by_human: []
 
 message_1:
   context: "user message 1 in example chat: Chickpea Spinach Protein Dinners. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  de: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  zh: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  es: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  fr: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  pt: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  ru: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  ja: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  ko: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  it: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  tr: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  vi: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  id: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  pl: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  nl: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  ar: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  hi: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  th: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  cs: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  sv: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
-  he: "Find vegetarian high-protein dinner recipes with chickpeas and spinach, under 35 minutes, and compare the top options for weeknight cooking."
+  en: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  de: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  zh: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  es: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  fr: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  pt: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  ru: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  ja: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  ko: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  it: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  tr: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  vi: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  id: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  pl: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  nl: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  ar: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  hi: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  th: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  cs: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  sv: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  he: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
   verified_by_human: []
 
 message_2:
   context: "assistant message 2 in example chat: Chickpea Spinach Protein Dinners. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   de: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   zh: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   es: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   fr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   pt: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   ru: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   ja: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   ko: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   it: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   tr: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   vi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   id: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   pl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   nl: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   ar: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   hi: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   th: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   cs: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   sv: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   he: |
-    ```json
-    {"type": "app_skill_use", "embed_id": "0f3d4856-52c7-4843-ad65-4bab26269b1e", "app_id": "nutrition", "skill_id": "search_recipes"}
-    ```
-    
-    Finding the perfect high-protein, vegetarian dinner that fits into a busy weeknight schedule is all about balancing speed with nutritional density. [Chickpeas](wiki:Chickpea) (also known as garbanzo beans) are an excellent protein source, offering about 15 grams per cooked cup, while [spinach](wiki:Spinach) adds essential vitamins and iron.
-    
-    Based on these criteria, here are the top three vegetarian chickpea and spinach recipes that can be prepared in under 35 minutes, compared for their suitability for weeknight cooking.
-    
-    ### Comparison of Top Weeknight Options
-    
-    ```json
-    {"type": "sheet", "embed_id": "e6f639a6-5911-461b-8749-9e26874e56b6"}
-    ```
-    
-    
+    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
+
+    ### 1. 10-Minute Chickpea and Spinach Curry
+    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
+
+    [!](embed:thefieryvegetarian.com-3sr)
+    [!](embed:vegancocotte.com-IZt)
+    [!](embed:vegancocotte.com-rFn)
+
+    *   **Total Time:** 10 minutes
+    *   **Protein Content:** ~10.5g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
+    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
+    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
+    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
+    *   3 cups fresh [spinach](wiki:Spinach)
+    *   1 tsp vegetable oil
+
+    **Instructions:**
+    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
+    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
+    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
+    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
+
     ---
-    
-    ### 1. One-Pot Chana Saag (Chickpea & Spinach Curry)
-    This is a simplified version of the classic [Indian](wiki:Indian_cuisine) dish. It’s highly aromatic and uses standard pantry staples.
-    
-    *   **Protein Profile:** High (~18g per serving).
-    *   **Why it works:** Using canned chickpeas and pre-washed baby spinach makes this incredibly fast. It’s a "one-pot" wonder, meaning less cleanup.
-    *   **Quick Tip:** Serve with a dollop of [Greek yogurt](wiki:Strained_yogurt) to boost the protein content even further.
-    
-    ### 2. Creamy Garlicky Chickpea & Spinach Pasta
-    A Mediterranean-inspired dish that feels indulgent but is packed with plant-based power.
-    
-    *   **Protein Profile:** Moderate to High (~22g if using whole-wheat or [chickpea pasta](wiki:Pasta)).
-    *   **Why it works:** You can cook the chickpeas and wilt the spinach in the same pan while the pasta boils. It’s the fastest option on the list.
-    *   **Quick Tip:** Use a splash of pasta water and nutritional yeast or [Parmesan](wiki:Parmesan) to create a "creamy" sauce without heavy cream.
-    
-    ### 3. Mediterranean Chickpea & Spinach Stew with Feta
-    A rustic, chunky stew seasoned with cumin and [smoked paprika](wiki:Paprika).
-    
-    *   **Protein Profile:** High (~20g per serving).
-    *   **Why it works:** It uses fire-roasted tomatoes and chickpeas for a deep, slow-cooked flavor that actually only takes about 20 minutes on the stove.
-    *   **Quick Tip:** Top with crumbled [Feta cheese](wiki:Feta) for a tangy protein boost.
-    
+
+    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
+    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
+
+    [!](embed:runningonrealfood.com-R8H)
+    [!](embed:americanhomecook.com-Alt)
+    [!](embed:shortgirltallorder.com-QXv)
+
+    *   **Total Time:** 15 minutes
+    *   **Protein Content:** ~23.1g per serving
+    *   **Servings:** 2
+
+    **Ingredients:**
+    *   1 (15 oz) can chickpeas (drained and rinsed)
+    *   1 (14.5 oz) can diced tomatoes
+    *   5 oz baby spinach
+    *   1 small onion (diced) & 4 garlic cloves (sliced)
+    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
+    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
+
+    **Instructions:**
+    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
+    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
+    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
+    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
+
     ---
-    
-    ### Colin’s Culinary Advice
-    When cooking with chickpeas on weeknights, I always recommend **rinsing and drying** them thoroughly before sautéing if you want a bit of a "crunch" or **mashing a few** directly in the pot if you want a thicker, creamier sauce.
-    
-    For a sustainable and community-focused approach, try to source your spinach from a local farmers' market when in season. Not only does it support local growers, but fresh spinach also has a much higher nutritional retention than bagged varieties that have traveled long distances.
-    
-    **Would you like a detailed step-by-step recipe for any of these, or perhaps a shopping list for the ingredients?**
-    
-    *   [Check nutritional values](/#settings/apps/nutrition)
-    *   [Add ingredients to your shopping list](/#settings/apps/shopping)
-    *   [Set a reminder to cook tonight](/#settings/apps/reminder)
+
+    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
+    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
+
+    [!](embed:carolinescooking.com-Dy7)
+    [!](embed:simpleveganblog.com-8dt)
+    [!](embed:ourplantbasedworld.com-Krr)
+
+    *   **Total Time:** 20 minutes
+    *   **Protein Content:** ~8.7g per serving
+    *   **Servings:** 4
+
+    **Ingredients:**
+    *   3 cups low-sodium canned chickpeas (drained and rinsed)
+    *   2 cups baby spinach
+    *   2/3 cup diced tomatoes
+    *   ½ large white onion (diced)
+    *   2 tsp minced garlic
+    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
+
+    **Instructions:**
+    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
+    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
+    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
+    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
+    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
+
+    ---
+
+    **Next steps for your meal prep:**
+    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
+    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
   verified_by_human: []

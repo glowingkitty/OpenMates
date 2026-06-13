@@ -1,0 +1,744 @@
+# docs/specs/edamam-nutrition-recipes/spec.yml
+#
+# Executable product contract for replacing the Nutrition recipe provider.
+# The provider change is intentionally specified before code because it changes
+# third-party API usage, app-skill inputs, public docs, CLI verification, and
+# example-chat output quality gates.
+
+id: edamam-nutrition-recipes
+title: Edamam Nutrition Recipe Search
+status: approved
+
+goal: >
+  Replace the unreliable REWE-backed Nutrition recipe search with Edamam Recipe
+  Search so users get English-friendly recipe results with ingredients,
+  images, source links, nutrition metadata, and step-by-step instructions for
+  every returned recipe whenever enough instruction-bearing results exist.
+
+scope:
+  in:
+    - Replace `nutrition/search_recipes` provider implementation with Edamam Recipe Search v2.
+    - Change the skill input contract to require a free-text `query` field.
+    - Support optional structured Edamam filters for diet, health, cuisine, meal, dish, time, calories, ingredients, and excluded terms.
+    - Request Edamam fields explicitly, including `instructionLines`, and filter out recipes without instructions.
+    - Minimize Edamam requests by using the default 20-hit page and requesting additional pages only when needed to fill `max_results`.
+    - Normalize instruction lines enough for readable recipe output without inventing missing steps.
+    - Remove REWE-specific recipe provider code paths, metadata, docs, and user-facing claims from Nutrition.
+    - Verify output quality with five OpenMates CLI recipe searches before creating a real CLI chat.
+    - Create and review one real OpenMates CLI chat before replacing the current Nutrition app-skill example chat.
+  out:
+    - Meal planning memories and saved recipe persistence.
+    - Shopping-cart or ingredient-ordering integration.
+    - Scraping source recipe websites for missing Edamam instructions.
+    - Adding a second recipe provider fallback in the same slice.
+    - Apple-native recipe UI changes beyond impact verification.
+
+context_discovery:
+  github_issues:
+    - "None found via `gh issue list --repo glowingkitty/OpenMates --search \"nutrition recipe Edamam REWE search_recipes\" --state all --limit 10`. GitHub MCP search returned 401, so `gh` fallback was used."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/user-guide/apps/nutrition.md
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/contributing/guides/testing.md
+  code_patterns:
+    - backend/apps/nutrition/skills/search_recipes.py
+    - backend/apps/nutrition/providers/rewe_recipe_provider.py
+    - backend/apps/nutrition/app.yml
+    - backend/shared/python_utils/app_skill_helpers.py
+  tests:
+    - backend/tests/test_skill_preview_metadata.py
+    - scripts/tests/test_user_guide_app_docs_claims.py
+    - scripts/audit_example_chats.py
+  external_research:
+    - "Edamam Recipe Search v2 endpoint verified live: `https://api.edamam.com/api/recipes/v2`."
+    - "Working credential pair verified with sanitized local requests; credentials must be stored in Vault/secrets, not committed."
+    - "OpenAPI schema `https://api.edamam.com/doc/open-api/recipe-search-v2.yaml` defines `instructionLines` on `Recipe`."
+    - "Live API accepts `field=instructionLines`, although the field enum in the OpenAPI query parameter omits it."
+    - "Paced requests under the upgraded plan succeeded; rapid bursts still hit 429 around the fifth immediate request."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Embeds/NutritionRecipeEmbedPreview.swift
+    - apple/OpenMates/Sources/Features/Embeds/NutritionRecipeEmbedFullscreen.swift
+  parity_expectations:
+    - Nutrition recipe embeds should continue rendering title, image, ingredients, instructions, nutrition, and source link fields after provider normalization.
+    - No intentional visual redesign is included in this provider replacement.
+  verification:
+    - Run or attempt `python3 scripts/apple_remote.py status` after implementation.
+    - Run or attempt `python3 scripts/apple_remote.py build-ios` if Apple embed schemas or shared example data change.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: "Should the Edamam replacement change the nutrition `search_recipes` tool schema from required `filters: string[]` to a free-text `query` field with optional structured filters, or preserve the old `filters` field as the LLM-facing input and internally convert it to an Edamam query?"
+      answer: Use `query` as the required field.
+    - question: "Confirm the scope before writing the full spec: replace REWE with Edamam, require `query`, filter out missing instructions, minimize requests, normalize instructions, verify five CLI outputs, create a real CLI chat, then replace the app-skill example."
+      answer: Yes, go ahead.
+  vision_summary: >
+    The Nutrition recipe skill should use Edamam directly and return up to ten
+    high-quality recipe results with usable step-by-step instructions. It should
+    avoid wasting API calls by using Edamam's default page size and only
+    following pagination when instruction filtering leaves too few usable
+    results. Implementation is not complete until CLI quality checks and a real
+    CLI chat demonstrate good output quality before the example chat is
+    replaced.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: User asks for a common recipe search
+    given:
+      - The Nutrition app skill is enabled.
+      - Edamam credentials are available through server-side secrets.
+    when:
+      - "The mate calls `nutrition/search_recipes` with `query: \"edamame\"` and `max_results: 10`."
+    then:
+      - The skill queries Edamam once for the first page of results.
+      - The skill returns ten recipes when at least ten first-page results include `instructionLines`.
+      - Every returned recipe includes title, source URL, image URL, ingredients, and normalized instructions.
+
+  - id: S-2
+    title: User asks for filtered dietary results
+    given:
+      - The user asks for quick vegan pasta recipes.
+    when:
+      - "The mate calls `nutrition/search_recipes` with `query: \"pasta\"`, `health: [\"vegan\"]`, `time: \"1-30\"`, and `max_results: 10`."
+    then:
+      - The Edamam request maps these filters to the corresponding API query parameters.
+      - Returned recipes preserve Edamam diet and health labels for the model and UI.
+      - Recipes without instructions are not returned.
+
+  - id: S-3
+    title: Instruction filtering requires another page
+    given:
+      - The first Edamam page contains fewer usable instruction-bearing recipes than requested.
+    when:
+      - The skill needs more recipes to satisfy `max_results`.
+    then:
+      - The skill follows `_links.next.href` at most until `max_results` is filled or a configured page cap is reached.
+      - The skill preserves the explicit field list on subsequent requests if Edamam's next link omits fields.
+      - The response records how many raw hits were inspected and how many were filtered out for missing instructions.
+
+  - id: S-4
+    title: Edamam has fewer usable recipes than requested
+    given:
+      - The user asks for an obscure query such as `kiwano amaranth toddler breakfast`.
+    when:
+      - Edamam returns zero or fewer instruction-bearing recipes than `max_results`.
+    then:
+      - The skill returns the available usable recipes, or an empty results array if none exist.
+      - The response does not fabricate instructions or scrape external sites.
+      - The mate can explain that fewer instruction-bearing recipes were found.
+
+  - id: S-5
+    title: Edamam rate limit is hit
+    given:
+      - Edamam returns HTTP 429 for a search request.
+    when:
+      - The provider handles the response.
+    then:
+      - The skill returns an explicit typed error message for the affected request.
+      - The error is logged with provider context and without credentials.
+      - The skill does not retry in a tight loop or issue avoidable duplicate requests.
+
+  - id: S-6
+    title: Instruction lines are inconsistent
+    given:
+      - "Some Edamam recipes return one long instruction line containing multiple `Step N:` markers."
+      - Other recipes return already split lines or lines without step prefixes.
+    when:
+      - The provider normalizes instructions.
+    then:
+      - "Obvious combined `Step N:` segments are split into separate ordered steps."
+      - Existing clean line breaks are preserved.
+      - Step prefixes are normalized consistently enough for recipe embeds and model summaries.
+      - The normalizer does not split arbitrary prose in ways that change recipe meaning.
+
+  - id: S-7
+    title: CLI output quality gate passes before example replacement
+    given:
+      - The Edamam provider is implemented locally or on dev.
+    when:
+      - Five different OpenMates CLI recipe searches are run.
+    then:
+      - Each CLI output includes requested result counts when enough usable recipes exist.
+      - Every returned recipe has instructions, image data, source attribution, and ingredients.
+      - The reviewed outputs are good enough to create one real CLI chat for public example replacement.
+
+  - id: S-8
+    title: Public Nutrition example chat is replaced after real output review
+    given:
+      - Five CLI quality checks passed.
+      - One real CLI chat demonstrates Nutrition recipe search naturally.
+    when:
+      - The example-chat workflow runs for the Nutrition app skill.
+    then:
+      - The new example chat is based on real OpenMates CLI/app output, not hand-authored fixtures.
+      - Recipe embeds in the public example include renderable public images and renderable instructions.
+      - Existing example-chat audits pass.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: "`nutrition/search_recipes` uses Edamam Recipe Search v2 and no longer calls the REWE recipe provider for recipe search."
+  - id: AC-2
+    scenario: S-1
+    text: "The skill requires `query` as the primary input and caps `max_results` to 1-10 with a documented default."
+  - id: AC-3
+    scenario: S-1
+    text: "The provider explicitly requests recipe fields required by UI/model output, including `instructionLines`."
+  - id: AC-4
+    scenario: S-2
+    text: Optional filters map to Edamam-supported parameters and invalid values return explicit request-level errors.
+  - id: AC-5
+    scenario: S-3
+    text: The provider uses one Edamam request by default and follows pagination only when needed to fill instruction-bearing results.
+  - id: AC-6
+    scenario: S-4
+    text: "Recipes without non-empty `instructionLines` are filtered out and never returned as normal recipe results."
+  - id: AC-7
+    scenario: S-5
+    text: Edamam HTTP errors and rate limits produce visible request-level errors without exposing credentials.
+  - id: AC-8
+    scenario: S-6
+    text: "Instruction normalization produces a stable `instructions[]` shape with step numbers/text and preserves source text where splitting is uncertain."
+  - id: AC-9
+    scenario: S-7
+    text: Five different OpenMates CLI checks demonstrate good result quality before creating a real chat.
+  - id: AC-10
+    scenario: S-8
+    text: A new real Nutrition example chat replaces the current Nutrition app-skill example only after CLI output quality is approved.
+  - id: AC-11
+    scenario: S-8
+    text: Nutrition docs, app metadata, translations, and example audits no longer make REWE-specific recipe claims after replacement.
+
+contracts:
+  api:
+    - name: Edamam Recipe Search
+      route: GET https://api.edamam.com/api/recipes/v2
+      request: >
+        type=public, q=<query>, app_id=<secret>, app_key=<secret>, repeated
+        field values including instructionLines, optional Edamam filters.
+      response: >
+        Response.hits[].recipe with uri, label, source, url, image/images,
+        ingredientLines, ingredients, instructionLines, yield, totalTime,
+        calories, labels, cautions, cuisine/meal/dish types, nutrients, and
+        optional glycemic/CO2 fields.
+      errors:
+        - 401/403 when credentials are invalid or plan lacks access.
+        - 429 when rate limit is exceeded.
+        - 400 when unsupported filters are sent.
+    - name: Nutrition skill input
+      route: app skill `nutrition/search_recipes`
+      request: >
+        `{ requests: [{ query: string, max_results?: number, health?: string[],
+        diet?: string[], time?: string, calories?: string, cuisine_type?: string[],
+        meal_type?: string[], dish_type?: string[], excluded?: string[],
+        ingredients?: string }] }`
+      response: >
+        `{ provider: "Edamam", results: [{ id, query, results: RecipeResult[],
+        total_available, raw_hits_seen, filtered_out_missing_instructions }] }`
+      errors:
+        - Missing query returns a request-level validation error.
+        - Unsupported filter values return request-level validation errors.
+        - Provider errors return request-level error groups without hiding failure.
+  data:
+    - Recipe results use stable Edamam `uri` or a derived ID as the result UID.
+    - Recipe `url` and `source` are preserved for attribution and fallback.
+    - "`image_url` uses the best available Edamam image URL but is treated as expiring and suitable for proxying, not long-term static storage."
+    - "`instructions` is a normalized array of `{ step: integer, text: string }` derived only from Edamam `instructionLines`."
+    - "`ingredients` preserves both display lines and structured ingredient data where available."
+    - Nutrition values must label whether they are total recipe values or per-serving derived values.
+  ui_states:
+    - Recipe search preview still has parent result-list metadata for up to six preview cards.
+    - Child recipe embeds can render title, source, image, ingredients, instructions, nutrition, labels, and source link.
+    - Empty usable results show a helpful message rather than blank embeds.
+  privacy_security:
+    - Edamam app ID/key are server-only secrets and never sent to the frontend, CLI output, logs, examples, docs, or committed fixtures.
+    - Source recipe text is external content and remains subject to prompt-injection sanitization before model inference.
+    - Logs include status codes and request context but not credentials or full signed image URLs.
+    - Public example chat data must not contain private credentials, account IDs, raw share keys, or private user data.
+  rate_limits:
+    - One Edamam request returns up to 20 raw hits by default; do not reduce page size if the API default already returns 20.
+    - Do not issue per-result lookup calls for normal search output because search responses include required fields when requested.
+    - Follow pagination only when instruction filtering leaves fewer usable results than `max_results`.
+    - Use a small page cap, initially 3 pages / 60 raw hits, to prevent runaway API use.
+    - On 429, surface an explicit rate-limit error; do not tight-loop retries.
+  docs_i18n:
+    - Update `backend/apps/nutrition/app.yml` from REWE/filter-tag claims to Edamam/free-text query claims.
+    - Update `docs/user-guide/apps/nutrition.md` claims and source descriptions.
+    - Update i18n YAML sources for Nutrition skill examples/descriptions; do not edit generated JSON directly.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_edamam_recipe_provider.py
+    command: python3 -m pytest backend/tests/test_edamam_recipe_provider.py
+    covers:
+      - AC-3
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+    assertions:
+      - Provider builds one Edamam search request with explicit fields including `instructionLines`.
+      - Provider filters out recipes with empty or missing `instructionLines`.
+      - Provider follows `_links.next.href` only when needed to fill `max_results`.
+      - Provider preserves explicit fields when following a next link that omits them.
+      - Provider normalizes combined `Step N:` instruction lines into stable step objects.
+      - Provider maps 429 and auth errors to explicit typed errors without credentials.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 -m pytest backend/tests/test_edamam_recipe_provider.py / ImportError missing edamam_recipe_provider"
+        timestamp: "2026-06-13T10:27:15Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest backend/tests/test_edamam_recipe_provider.py backend/tests/test_nutrition_search_recipes_skill.py / 7 passed"
+        timestamp: "2026-06-13T10:58:26Z"
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_nutrition_search_recipes_skill.py
+    command: python3 -m pytest backend/tests/test_nutrition_search_recipes_skill.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-6
+      - AC-11
+    assertions:
+      - Skill validates required `query` and rejects missing query.
+      - Skill no longer imports or calls REWE recipe search helpers.
+      - Skill response provider is `Edamam`.
+      - Skill caps `max_results` to 10 and default remains documented.
+      - Skill sanitizes returned recipe text before inference.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "red phase blocked before implementation by host pytest missing celery/docker api; behavior not available before Edamam provider slice"
+        timestamp: "2026-06-13T10:27:15Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest backend/tests/test_edamam_recipe_provider.py backend/tests/test_nutrition_search_recipes_skill.py / 7 passed"
+        timestamp: "2026-06-13T10:58:26Z"
+
+  - id: T-PYTEST-003
+    type: pytest
+    file: scripts/tests/test_user_guide_app_docs_claims.py
+    command: python3 -m pytest scripts/tests/test_user_guide_app_docs_claims.py
+    covers:
+      - AC-11
+    assertions:
+      - Nutrition user guide remains grounded in app metadata.
+      - Nutrition guide no longer claims REWE is the recipe source after metadata changes.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: metadata_claim_regression_existing
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest scripts/tests/test_user_guide_app_docs_claims.py / 1 passed"
+        timestamp: "2026-06-13T10:58:26Z"
+
+  - id: T-CLI-001
+    type: manual
+    file: frontend/packages/openmates-cli
+    command: openmates chats new "@Nutrition-Search-Recipes Find 10 edamame recipes with step-by-step instructions"
+    covers:
+      - AC-9
+    assertions:
+      - Output includes recipe results from Edamam.
+      - Each shown recipe includes instructions, source attribution, image-backed embed data, and ingredients.
+      - The mate does not mention REWE as the recipe provider.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: provider_replacement_quality_gate
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "openmates chats new '@Nutrition-Search-Recipes Find 5 edamame recipes with step-by-step instructions' / Edamam-backed recipe embeds with instructions"
+        timestamp: "2026-06-13T12:57:19Z"
+
+  - id: T-CLI-002
+    type: manual
+    file: frontend/packages/openmates-cli
+    command: openmates chats new "@Nutrition-Search-Recipes Find quick vegan pasta recipes under 30 minutes"
+    covers:
+      - AC-4
+      - AC-9
+    assertions:
+      - Output uses dietary/time constraints.
+      - Returned recipes include instructions and ingredients.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: provider_replacement_quality_gate
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "openmates chats new 'Find 5 vegan pasta recipes under 30 minutes with step-by-step instructions' / Edamam-backed recipe embeds with instructions"
+        timestamp: "2026-06-13T12:57:19Z"
+
+  - id: T-CLI-003
+    type: manual
+    file: frontend/packages/openmates-cli
+    command: openmates chats new "@Nutrition-Search-Recipes Find gluten-free pancake recipes with instructions"
+    covers:
+      - AC-9
+    assertions:
+      - Output includes gluten-free recipe candidates with instructions.
+      - Ingredient and instruction sections are readable.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: provider_replacement_quality_gate
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "openmates chats new 'Find 5 gluten-free pancake recipes with instructions' / Edamam-backed recipe embeds with instructions"
+        timestamp: "2026-06-13T12:57:19Z"
+
+  - id: T-CLI-004
+    type: manual
+    file: frontend/packages/openmates-cli
+    command: openmates chats new "@Nutrition-Search-Recipes Find low-carb dinner recipes and include steps"
+    covers:
+      - AC-9
+    assertions:
+      - Output includes low-carb dinner-oriented recipes with instructions.
+      - Nutrition labels or macros are useful and not misleading.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: provider_replacement_quality_gate
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "openmates chats new 'Find 5 low-carb dinner recipes and include steps' / Edamam-backed recipe embeds with instructions"
+        timestamp: "2026-06-13T12:57:19Z"
+
+  - id: T-CLI-005
+    type: manual
+    file: frontend/packages/openmates-cli
+    command: openmates chats new "@Nutrition-Search-Recipes Find miso salmon recipes with full instructions"
+    covers:
+      - AC-9
+    assertions:
+      - Output includes multiple salmon recipes with source links and instructions.
+      - No recipe without instructions appears as a normal result.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: provider_replacement_quality_gate
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "openmates chats new 'Find 5 miso salmon recipes with full instructions' / Edamam-backed recipe embeds with instructions"
+        timestamp: "2026-06-13T12:57:19Z"
+
+  - id: T-CLI-006
+    type: manual
+    file: frontend/packages/openmates-cli
+    command: openmates chats new "@Nutrition-Search-Recipes Help me choose an easy vegan dinner recipe and show the recipe details"
+    covers:
+      - AC-10
+    assertions:
+      - A real CLI chat demonstrates the Nutrition app skill naturally.
+      - The resulting transcript is suitable as the source for a public example chat after review.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: real_chat_gate_after_five_quality_checks
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "openmates chats new 'Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details' / chat 91e57096-c6fc-45cc-9a1a-bea822ee968a used as public example source"
+        timestamp: "2026-06-13T12:57:19Z"
+
+  - id: T-AUDIT-001
+    type: unit
+    file: scripts/audit_example_chats.py
+    command: python3 scripts/audit_example_chats.py
+    covers:
+      - AC-10
+      - AC-11
+    assertions:
+      - Nutrition replacement example includes renderable instructions and public recipe image URLs.
+      - Public example data contains no secrets, raw share keys, private URLs, or stale REWE-only claims.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: example_chat_followup_after_provider_quality
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/audit_example_chats.py / Nutrition recipe image and instruction issues resolved; 8 unrelated memory-example issues remain"
+        timestamp: "2026-06-13T12:57:19Z"
+
+  - id: T-APPLE-001
+    type: manual
+    file: scripts/apple_remote.py
+    command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+    covers:
+      - AC-10
+      - AC-11
+    assertions:
+      - Apple project remains buildable after recipe schema/example data changes, or records a sanitized remote/build failure class.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: provider_schema_change_static_only
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_remote.py status / ssh_reachable=True; python3 scripts/apple_remote.py build-ios / BUILD SUCCEEDED"
+        timestamp: "2026-06-13T10:58:26Z"
+
+implementation_plan:
+  existing_patterns:
+    - backend/apps/nutrition/skills/search_recipes.py contains grouped app-skill request orchestration and output sanitization patterns.
+    - backend/tests/test_skill_preview_metadata.py protects nutrition parent-preview metadata behavior.
+    - docs/specs/example-chat-public-quality/spec.yml already requires recipe examples to include image URLs and renderable instructions.
+  architecture: >
+    Introduce a pure Edamam provider for Nutrition recipe search, keep skill
+    orchestration in `SearchRecipesSkill`, and remove REWE-specific fetch and
+    Firecrawl-detail logic. The provider performs one search request with an
+    explicit field list, filters instructionless recipes, follows pagination
+    only if needed, and normalizes recipes into the existing embed-friendly
+    result shape. Secrets are retrieved server-side through the existing
+    secrets manager pattern.
+  data_flow:
+    - LLM calls Nutrition `search_recipes` with `query` and optional filters.
+    - Skill validates request and clamps `max_results`.
+    - Provider builds Edamam search URL with explicit fields and server-side credentials.
+    - Provider collects raw hits, filters missing instructions, deduplicates obvious duplicate URLs/URIs, and follows pagination only if needed.
+    - Provider normalizes instructions, ingredients, nutrition, image URLs, labels, and attribution into result dictionaries.
+    - Skill sanitizes long external text fields and returns grouped results with provider `Edamam`.
+    - CLI quality checks should validate real model/tool behavior before using a fresh transcript as the example-chat source.
+  affected_files:
+    - path: backend/apps/nutrition/providers/edamam_recipe_provider.py
+      reason: New Edamam provider wrapper and normalizer.
+    - path: backend/apps/nutrition/providers/rewe_recipe_provider.py
+      reason: Remove or obsolete unreliable REWE recipe provider.
+    - path: backend/apps/nutrition/skills/search_recipes.py
+      reason: Switch request schema and provider orchestration from REWE filters to Edamam query.
+    - path: backend/apps/nutrition/app.yml
+      reason: Update tool schema, provider metadata, pricing/provider claims, and examples.
+    - path: frontend/packages/ui/src/i18n/sources/app_skills/nutrition.yml
+      reason: Update user-facing skill description and examples.
+    - path: frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+      reason: Remove REWE-specific Nutrition preview claims if present.
+    - path: frontend/packages/ui/src/components/embeds/nutrition/NutritionSearchEmbedPreview.examples.ts
+      reason: Replace REWE app-store recipe fixtures with Edamam-shaped sample data.
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/chickpea-spinach-protein-dinners.ts
+      reason: Remove stale REWE Nutrition recipe embeds from the public example chat.
+    - path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+      reason: Default Nutrition recipe-search provider previews to Edamam when legacy embed data omits provider.
+    - path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+      reason: Default grouped Nutrition recipe-search provider previews to Edamam when legacy embed data omits provider.
+    - path: shared/docs/privacy_policy.yml
+      reason: Disclose Edamam as a Nutrition recipe-search data provider.
+    - path: docs/user-guide/apps/nutrition.md
+      reason: Update source, filters, and usage docs.
+    - path: backend/tests/test_edamam_recipe_provider.py
+      reason: Add provider contract tests.
+    - path: backend/tests/test_nutrition_search_recipes_skill.py
+      reason: Add skill contract tests.
+    - path: scripts/audit_example_chats.py
+      reason: Update only if needed to recognize new normalized instruction/image fields.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/edamam-nutrition-recipes/spec.yml
+    - python3 -m pytest backend/tests/test_edamam_recipe_provider.py
+    - python3 -m pytest backend/tests/test_nutrition_search_recipes_skill.py
+    - python3 -m pytest scripts/tests/test_user_guide_app_docs_claims.py
+    - Five OpenMates CLI recipe quality checks T-CLI-001 through T-CLI-005.
+    - One real OpenMates CLI chat T-CLI-006 after five quality checks pass.
+    - python3 scripts/audit_example_chats.py after replacing or refreshing the Nutrition example chat.
+    - python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios or sanitized failure class.
+  rollout:
+    - Deploy provider replacement only after backend contract tests pass locally.
+    - Verify CLI quality against the deployed dev environment before using a fresh public example chat transcript.
+    - Keep fresh example-chat replacement gated by real output review; current checked-in example data is Edamam-shaped sample content to remove stale REWE claims.
+  observability:
+    - Log Edamam request count per skill request, pages fetched, raw hits seen, returned recipes, and instructionless recipes filtered.
+    - Log Edamam HTTP status and request context on errors without app credentials or full signed image URLs.
+    - Record rate-limit failures as explicit request-level skill errors so they are visible in CLI and debug logs.
+  verification_order:
+    - Backend/provider contract tests first.
+    - OpenMates CLI quality checks second.
+    - Real CLI chat third.
+    - Example-chat audit fourth.
+    - Apple remote build/status fifth when schema/example data changes.
+
+tasks:
+  - id: TASK-1
+    title: Add Edamam provider contracts
+    depends_on: []
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+    expected_files:
+      - backend/tests/test_edamam_recipe_provider.py
+      - backend/apps/nutrition/providers/edamam_recipe_provider.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Switch Nutrition skill contract from REWE filters to Edamam query
+    depends_on:
+      - TASK-1
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-6
+    expected_files:
+      - backend/apps/nutrition/skills/search_recipes.py
+      - backend/apps/nutrition/app.yml
+      - backend/tests/test_nutrition_search_recipes_skill.py
+    verification:
+      - T-PYTEST-002
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Remove REWE recipe claims and update docs/i18n
+    depends_on:
+      - TASK-2
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-11
+    expected_files:
+      - docs/user-guide/apps/nutrition.md
+      - frontend/packages/ui/src/i18n/sources/app_skills/nutrition.yml
+      - frontend/packages/ui/src/i18n/sources/settings/app_store_examples.yml
+      - backend/apps/nutrition/app.yml
+    verification:
+      - T-PYTEST-003
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Verify real CLI output quality
+    depends_on:
+      - TASK-1
+      - TASK-2
+      - TASK-3
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-9
+    expected_files: []
+    verification:
+      - T-CLI-001
+      - T-CLI-002
+      - T-CLI-003
+      - T-CLI-004
+      - T-CLI-005
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Create real chat and replace Nutrition example chat
+    depends_on:
+      - TASK-4
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-10
+        - AC-11
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      - scripts/audit_example_chats.py
+    verification:
+      - T-CLI-006
+      - T-AUDIT-001
+      - T-APPLE-001
+    independently_deployable: false
+
+risks:
+  - Edamam `instructionLines` is present in the OpenAPI Recipe schema and live responses but is omitted from the documented `field` enum; provider tests must catch regressions if the field becomes unavailable.
+  - Edamam signed image URLs may expire, so persistent public examples may need stable proxied or fixture images rather than raw signed URLs.
+  - Some Edamam instruction lines are low quality or combine many steps; normalization must improve readability without inventing content.
+  - Edamam rate limits still reject bursts, so implementation must avoid parallel per-result calls and unnecessary pagination.
+  - Removing REWE may break German filter-tag prompts unless prompt/tool descriptions clearly teach free-text query and Edamam filters.
+
+open_questions:
+  - Should persistent example chats use proxied/stabilized recipe images rather than Edamam signed image URLs if the raw URLs expire quickly?
+  - Should duplicate recipes from syndicated sources be deduplicated by source URL, Edamam URI, normalized title, or a combination?
