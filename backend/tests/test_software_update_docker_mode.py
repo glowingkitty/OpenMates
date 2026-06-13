@@ -84,7 +84,7 @@ def test_current_commit_info_uses_build_metadata(monkeypatch):
     monkeypatch.setenv("BUILD_COMMIT_SHA", "1234567890abcdef")
     monkeypatch.setenv("BUILD_COMMIT_MESSAGE", "feat: publish self-host images")
     monkeypatch.setenv("BUILD_TIMESTAMP", "2026-06-08T13:00:00Z")
-    monkeypatch.setenv("BUILD_VERSION_TAG", "v0.11.0-alpha.0")
+    monkeypatch.setenv("BUILD_VERSION_TAG", "v0.12.0-alpha.0")
 
     commit = asyncio.run(update_route._get_current_commit_info())
 
@@ -93,5 +93,5 @@ def test_current_commit_info_uses_build_metadata(monkeypatch):
     assert commit.short_sha == "1234567"
     assert commit.message == "feat: publish self-host images"
     assert commit.date == "2026-06-08T13:00:00Z"
-    assert commit.tag == "v0.11.0-alpha.0"
-    assert commit.tag_url.endswith("/releases/tag/v0.11.0-alpha.0")
+    assert commit.tag == "v0.12.0-alpha.0"
+    assert commit.tag_url.endswith("/releases/tag/v0.12.0-alpha.0")

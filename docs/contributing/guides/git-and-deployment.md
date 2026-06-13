@@ -295,7 +295,7 @@ OpenMates uses **semantic versioning** in the format `vMAJOR.MINOR.PATCH-phase`:
 | Beta   | `v1.0.0-beta`  | Core features complete; usable for a wider audience; known bugs being fixed             |
 | Stable | `v1.0.0`       | Production-ready; all major user flows work reliably                                    |
 
-**Current phase:** Alpha — the app is currently at **v0.11 alpha** (user-facing version string). The next release tag should be `v0.12.0-alpha` (or a patch like `v0.11.1-alpha` for fix-only releases).
+**Current phase:** Alpha — the app is currently at **v0.12 alpha** (user-facing version string). The next release tag should be `v0.13.0-alpha` (or a patch like `v0.12.1-alpha` for fix-only releases).
 
 **How to bump the version:**
 
@@ -319,7 +319,7 @@ Inspect the commits going into the PR and decide:
 - Any `feat:` commits → minor bump (e.g. `v0.4.1-alpha` → `v0.5.0-alpha`)
 - Major milestone reached → consult the user before bumping major or changing phase
 
-**Note:** Also update `shared/config/product_version.json` when bumping the minor version. The user-facing `userFacing` value should stay short for the web UI, e.g. `v0.11 alpha`, while the CLI `prereleaseBase` controls npm versions like `0.11.0-alpha.N`. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
+**Note:** Also update `shared/config/product_version.json` when bumping the minor version. The user-facing `userFacing` value should stay short for the web UI, e.g. `v0.12 alpha`, while the CLI `prereleaseBase` controls npm versions like `0.12.0-alpha.N`. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
 
 ### Release Workflow
 

@@ -74,7 +74,7 @@ The installer prepares a lightweight runtime directory, writes the image-mode Do
 
 The installer also stores the self-host API target in `~/.openmates/server.json`. Fresh CLI commands such as `openmates login`, `openmates signup`, and `openmates chats list` will use `http://localhost:8000` instead of the OpenMates cloud API unless you already have a saved login session, set `OPENMATES_API_URL`, or pass `--api-url`.
 
-By default the stack pulls OpenMates images from `ghcr.io/glowingkitty` using the CLI version tag, for example `v0.11.0-alpha.0`. Expect the first start to download several GB of compressed images; later updates reuse Docker's image cache.
+By default the stack pulls OpenMates images from `ghcr.io/glowingkitty` using the CLI version tag, for example `v0.12.0-alpha.0`. Expect the first start to download several GB of compressed images; later updates reuse Docker's image cache.
 
 Image-mode install defaults to invite codes only. You can edit `~/openmates/.env` before starting if you want a different signup mode:
 
