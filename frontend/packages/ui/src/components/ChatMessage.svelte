@@ -1156,13 +1156,18 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       // We queue the pulse in a rAF so that the highlight $effect has a chance to
       // run first (it also uses rAF internally).
       let rafHandle: number | null = null;
+      let timerHandle: ReturnType<typeof setTimeout> | null = null;
       rafHandle = requestAnimationFrame(() => {
+        if (!container.isConnected) return;
+
         const marks = Array.from(container.querySelectorAll('mark.search-match'));
         for (const mark of marks) {
           mark.classList.add('search-match-active');
         }
         // Remove the active class after animation completes
-        const timer = setTimeout(() => {
+        timerHandle = setTimeout(() => {
+          if (!container.isConnected) return;
+
           const activeMarks = Array.from(container.querySelectorAll('mark.search-match-active'));
           for (const mark of activeMarks) {
             mark.classList.remove('search-match-active');
@@ -1174,10 +1179,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             messageHighlightStore.set(null);
           }
         }, 1200);
-        return () => clearTimeout(timer);
       });
       return () => {
         if (rafHandle !== null) cancelAnimationFrame(rafHandle);
+        if (timerHandle !== null) clearTimeout(timerHandle);
       };
     }
   });
