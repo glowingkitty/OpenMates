@@ -242,8 +242,10 @@
     });
 
     // Derive button text based on viewport size
+    let ctaOpensLogin = $derived(!!lastAuthMethod);
+
     let loginButtonText = $derived.by(() => {
-        if (lastAuthMethod) {
+        if (ctaOpensLogin) {
             return $text('login.login');
         }
 
@@ -470,8 +472,7 @@
                             data-testid="header-login-signup-btn"
                             onclick={(e) => {
                                 e.preventDefault();
-                                // Dispatch event to open signup interface (shows signup tab by default)
-                                window.dispatchEvent(new CustomEvent('openSignupInterface'));
+                                window.dispatchEvent(new CustomEvent(ctaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
                             }}
                             aria-label={loginButtonText}
                         >
