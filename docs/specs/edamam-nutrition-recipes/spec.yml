@@ -7,7 +7,7 @@
 
 id: edamam-nutrition-recipes
 title: Edamam Nutrition Recipe Search
-status: approved
+status: verified
 
 goal: >
   Replace the unreliable REWE-backed Nutrition recipe search with Edamam Recipe
@@ -527,8 +527,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "python3 scripts/audit_example_chats.py / Nutrition recipe image and instruction issues resolved; 8 unrelated memory-example issues remain"
-        timestamp: "2026-06-13T12:57:19Z"
+        run_id: "python3 scripts/audit_example_chats.py / Nutrition recipe image and instruction issues resolved; live Firecrawl check on https://open-mates-webapp-dsetkz8gp-marcos-projects-e740a395.vercel.app/example/chickpea-spinach-protein-dinners returned 200, rendered public transcript, found clickable recipe/image links, and found no X-Amz/Security-Token/ASIA/app_settings_memories/system text; 8 unrelated memory-example issues remain"
+        timestamp: "2026-06-13T13:14:43Z"
 
   - id: T-APPLE-001
     type: manual
