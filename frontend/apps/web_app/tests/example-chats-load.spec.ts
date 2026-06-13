@@ -224,13 +224,14 @@ test.describe('Example chats loading for new users', () => {
 		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-mail-writing-styles'), {
 			waitUntil: 'domcontentloaded'
 		});
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Weekly Update - [Project Name]' })).toBeVisible({ timeout: 15000 });
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Friday Update - [Project Name]' })).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('app-settings-memories-summary')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('app-settings-memory-category-badge')).toBeVisible({ timeout: 15000 });
 		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
 		await expect(page.locator('body')).not.toContainText('app_settings_memories_request');
 		await expect(page.locator('body')).not.toContainText('app_settings_memories_response');
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Have a wonderful weekend' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Best, Alex' })).toBeVisible({ timeout: 15000 });
 	});
 
 	test('nutrition example renders Edamam recipe search embed card', async ({
