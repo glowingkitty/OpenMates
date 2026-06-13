@@ -2770,29 +2770,29 @@ ai.skill.ask.model.devstral_2512:
   he: Devstral 2
   verified_by_human: []
 
-ai.skill.ask.model.kimi_k2.5:
-  context: Display name for the Kimi K2.5 AI model, shown as the settings page title when navigating directly to this model
-  en: Kimi K2.5
-  de: Kimi K2.5
-  zh: Kimi K2.5
-  es: Kimi K2.5
-  fr: Kimi K2.5
-  pt: Kimi K2.5
-  ru: Kimi K2.5
-  ja: Kimi K2.5
-  ko: Kimi K2.5
-  it: Kimi K2.5
-  tr: Kimi K2.5
-  vi: Kimi K2.5
-  id: Kimi K2.5
-  pl: Kimi K2.5
-  nl: Kimi K2.5
-  ar: Kimi K2.5
-  hi: Kimi K2.5
-  th: Kimi K2.5
-  cs: Kimi K2.5
-  sv: Kimi K2.5
-  he: Kimi K2.5
+ai.skill.ask.model.kimi_k2.7_code:
+  context: Display name for the Kimi K2.7 Code AI model, shown as the settings page title when navigating directly to this model
+  en: Kimi K2.7 Code
+  de: Kimi K2.7 Code
+  zh: Kimi K2.7 Code
+  es: Kimi K2.7 Code
+  fr: Kimi K2.7 Code
+  pt: Kimi K2.7 Code
+  ru: Kimi K2.7 Code
+  ja: Kimi K2.7 Code
+  ko: Kimi K2.7 Code
+  it: Kimi K2.7 Code
+  tr: Kimi K2.7 Code
+  vi: Kimi K2.7 Code
+  id: Kimi K2.7 Code
+  pl: Kimi K2.7 Code
+  nl: Kimi K2.7 Code
+  ar: Kimi K2.7 Code
+  hi: Kimi K2.7 Code
+  th: Kimi K2.7 Code
+  cs: Kimi K2.7 Code
+  sv: Kimi K2.7 Code
+  he: Kimi K2.7 Code
   verified_by_human: []
 
 ai.skill.ask.model.gpt_5.4:

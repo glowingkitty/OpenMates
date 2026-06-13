@@ -306,7 +306,7 @@ provider_groups:
         privacy_policy: https://www.together.ai/privacy
         location: US
         used_for:
-          - inference for models hosted on Together AI (for example Kimi K2.5)
+          - inference for models hosted on Together AI (for example Kimi K2.6)
         data_shared:
           - Chat messages with PII placeholders substituted client-side
       groq:

@@ -409,7 +409,7 @@ async def _stream_together_response(
                         chunk = json.loads(line)
                         
                         # Update usage if present - process BEFORE the choices check because
-                        # some providers (e.g. Together AI for Kimi K2.5) send usage data in
+                        # some providers (e.g. Together AI for Kimi K2.6) send usage data in
                         # chunks with empty choices, or in the final chunk without choices.
                         try:
                             usage_chunk = chunk.get("usage")
