@@ -249,12 +249,18 @@ test.describe('Example chats loading for new users', () => {
 			hasText: 'Find 3 vegetarian chickpea and spinach dinner recipes'
 		})).toBeVisible({ timeout: 15000 });
 
-		const nutritionSearchCard = page
-			.locator('[data-testid="embed-preview"][data-app-id="nutrition"][data-skill-id="search_recipes"][data-status="finished"]')
+		const nutritionSearchCardSelector = '[data-testid="embed-preview"][data-app-id="nutrition"][data-skill-id="search_recipes"][data-status="finished"]';
+		const assistantMessageWithNutritionCard = page
+			.getByTestId('message-assistant')
+			.filter({ has: page.locator(nutritionSearchCardSelector) })
 			.first();
+		await expect(assistantMessageWithNutritionCard).toBeVisible({ timeout: 15000 });
+
+		const nutritionSearchCard = assistantMessageWithNutritionCard.locator(nutritionSearchCardSelector);
 		await expect(nutritionSearchCard).toBeVisible({ timeout: 15000 });
 		await expect(nutritionSearchCard).toContainText('chickpea and spinach dinner');
 		await expect(nutritionSearchCard).toContainText('Edamam');
+		await expect(assistantMessageWithNutritionCard).not.toContainText('"type":"app_skill_use"');
 	});
 
 	test('sidebar example chats show newest first and append older results after show more', async ({
