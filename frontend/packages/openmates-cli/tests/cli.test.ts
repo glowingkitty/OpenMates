@@ -327,7 +327,7 @@ describe("deriveAppUrl", () => {
 
 describe("defaultCloneBranchForVersion", () => {
   it("uses dev for prerelease CLI versions", () => {
-    assert.strictEqual(defaultCloneBranchForVersion("0.11.0-alpha.12"), "dev");
+    assert.strictEqual(defaultCloneBranchForVersion("0.12.0-alpha.12"), "dev");
     assert.strictEqual(defaultCloneBranchForVersion("0.12.0-beta.1"), "dev");
     assert.strictEqual(defaultCloneBranchForVersion("1.0.0-rc.1"), "dev");
   });

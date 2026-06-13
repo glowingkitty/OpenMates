@@ -51,7 +51,7 @@ claims:
 
 # CLI Package
 
-> npm package (`openmates`, v0.11.0-alpha.0) providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, bank-transfer billing, and self-hosted server management.
+> npm package (`openmates`, v0.12.0-alpha.0) providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, bank-transfer billing, and self-hosted server management.
 
 ## Why This Exists
 

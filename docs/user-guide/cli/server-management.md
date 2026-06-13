@@ -70,7 +70,7 @@ Then run the installer:
 openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
-openmates server install --image-tag v0.11.0-alpha.0
+openmates server install --image-tag v0.12.0-alpha.0
 openmates server install --from-source --path /opt/openmates-source
 openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-selfhost
 ```

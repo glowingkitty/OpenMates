@@ -8,7 +8,7 @@
  * Tests: frontend/packages/openmates-cli/tests/server.test.ts
  */
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -25,7 +25,7 @@ export interface ServerConfig {
   composeProfile: "core" | "full";
   /** Distribution mode: prebuilt images by default, source builds for contributors/forks. */
   installMode?: "image" | "source";
-  /** OpenMates image tag used by image-mode installs, e.g. v0.11.0-alpha.0. */
+  /** OpenMates image tag used by image-mode installs, e.g. v0.12.0-alpha.0. */
   imageTag?: string;
   /** API URL regular CLI commands should default to for this self-host install. */
   apiUrl?: string;
