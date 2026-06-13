@@ -1380,34 +1380,6 @@ def _fix_backticked_inline_embed_references(aggregated_response: str, log_prefix
     return modified
 
 
-def _strip_successful_app_skill_json_blocks(aggregated_response: str, log_prefix: str = "") -> str:
-    """Remove raw app_skill_use JSON code blocks from persisted user-visible text."""
-    if not aggregated_response or "app_skill_use" not in aggregated_response:
-        return aggregated_response
-
-    pattern = re.compile(r"```json\s*\n(.*?)\n\s*```\s*\n*", re.DOTALL)
-    replacements_made = 0
-
-    def replace_if_app_skill(match: re.Match[str]) -> str:
-        nonlocal replacements_made
-        try:
-            payload = json.loads(match.group(1))
-        except (TypeError, json.JSONDecodeError):
-            return match.group(0)
-        if isinstance(payload, dict) and payload.get("type") == "app_skill_use":
-            replacements_made += 1
-            return ""
-        return match.group(0)
-
-    cleaned = pattern.sub(replace_if_app_skill, aggregated_response)
-    if replacements_made > 0:
-        logger.info(
-            f"{log_prefix} [APP_SKILL_JSON_CLEANUP] Stripped "
-            f"{replacements_made} raw app_skill_use JSON block(s) from final text"
-        )
-    return cleaned
-
-
 def _create_redis_payload(
     task_id: str,
     request_data: AskSkillRequest,
@@ -6135,18 +6107,6 @@ async def _consume_main_processing_stream(
                 f"{log_prefix} Stripped {stripped_count} failed embed reference(s) from message content. "
                 f"Failed embed IDs: {failed_embed_ids}"
             )
-
-    # Successful app-skill embeds are carried through structured embed metadata.
-    # Raw fenced JSON placeholders are implementation details and should not be
-    # persisted as visible assistant text.
-    if aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
-        cleaned_response = _strip_successful_app_skill_json_blocks(
-            aggregated_response,
-            log_prefix,
-        )
-        if cleaned_response != aggregated_response:
-            aggregated_response = cleaned_response
-            final_response_chunks = [aggregated_response]
 
     # --- Backticked Inline Embed Reference Fix ---
     # Detect and rewrite patterns where the LLM wrapped a correct embed markdown
