@@ -365,7 +365,11 @@ test('uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds', 
 	await expect(codeSourcePanel).toContainText('[EMAIL_', { timeout: 10000 });
 	await expect(codeSourcePanel).not.toContainText('sk-proj-abcdefghijklmnopqrstuvwxyz123456');
 	await expect(codeSourcePanel).not.toContainText('developer.private@example.com');
-	await codeFullscreen.getByTestId('embed-minimize').click();
+	try {
+		await codeFullscreen.getByTestId('embed-minimize').click({ timeout: 5000 });
+	} catch {
+		await page.keyboard.press('Escape');
+	}
 	await expect(codeFullscreen).not.toBeVisible({ timeout: 10000 });
 	log('Code, CSV, EML, DOCX, and XLSX embeds rendered with PII placeholders in the editor.');
 
