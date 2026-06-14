@@ -23,6 +23,7 @@
 import logging
 import uuid
 import asyncio
+import os
 from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -235,6 +236,9 @@ async def execute_skill(
         request_body["_user_id"] = user_id
 
     registry = get_global_registry()
+    if not registry.has_app(app_id) or not registry.is_skill_available(app_id, skill_id):
+        registry = _refresh_skill_registry_for_missing_skill(app_id, skill_id, registry)
+
     if not registry.has_app(app_id):
         # Worker registry didn't load this app — almost certainly an init bug.
         # Don't retry; raise loudly so the caller surfaces the misconfiguration.
@@ -339,6 +343,54 @@ async def execute_skill(
     if last_exception:
         raise last_exception
     raise RuntimeError(f"Skill '{app_id}.{skill_id}' failed after {total_attempts} attempts")
+
+
+def _refresh_skill_registry_for_missing_skill(app_id: str, skill_id: str, registry: Any) -> Any:
+    """Rebuild stale worker registries once when a deployed skill is missing."""
+    if registry.has_app(app_id) and registry.is_skill_available(app_id, skill_id):
+        return registry
+
+    from backend.core.api.app.services.skill_registry import build_skill_registry, set_global_registry
+    from backend.core.api.app.utils.config_manager import ConfigManager
+
+    disabled_apps: list = []
+    try:
+        disabled_apps = ConfigManager().get_disabled_apps() or []
+    except Exception as exc:
+        logger.warning(
+            "[SkillRegistry] Could not read disabled_apps while refreshing missing skill %s.%s: %s. "
+            "Continuing with empty disabled list.",
+            app_id,
+            skill_id,
+            exc,
+        )
+
+    logger.warning(
+        "[SkillRegistry] Missing skill '%s.%s' in worker registry; rebuilding registry once before dispatch.",
+        app_id,
+        skill_id,
+    )
+    refreshed_registry, metadata = build_skill_registry(
+        disabled_app_ids=disabled_apps,
+        server_environment=os.getenv("SERVER_ENVIRONMENT", "development").lower(),
+    )
+    set_global_registry(refreshed_registry)
+
+    if refreshed_registry.has_app(app_id) and refreshed_registry.is_skill_available(app_id, skill_id):
+        logger.info(
+            "[SkillRegistry] Refreshed worker registry resolved missing skill '%s.%s' (%d app(s) loaded).",
+            app_id,
+            skill_id,
+            len(metadata),
+        )
+    else:
+        logger.warning(
+            "[SkillRegistry] Refreshed worker registry still does not contain skill '%s.%s' (%d app(s) loaded).",
+            app_id,
+            skill_id,
+            len(metadata),
+        )
+    return refreshed_registry
 
 
 async def execute_skill_with_multiple_requests(
@@ -512,6 +564,5 @@ def _extract_multiple_requests(arguments: Dict[str, Any]) -> Optional[List[Dict[
     
     # If no multiple requests pattern found, return None to indicate single request
     return None
-
 
 
