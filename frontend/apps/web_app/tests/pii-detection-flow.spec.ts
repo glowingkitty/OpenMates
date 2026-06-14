@@ -101,7 +101,23 @@ async function insertComposerText(
 				throw new Error('Message editor contenteditable target was not found.');
 			}
 			editableElement.focus();
-			document.execCommand('insertText', false, insertedText);
+			const range = document.createRange();
+			range.selectNodeContents(editableElement);
+			range.collapse(false);
+			const selection = window.getSelection();
+			selection?.removeAllRanges();
+			selection?.addRange(range);
+
+			const inserted = document.execCommand('insertText', false, insertedText);
+			if (!inserted || !editableElement.textContent?.includes(insertedText)) {
+				editableElement.textContent = insertedText;
+				editableElement.dispatchEvent(new InputEvent('input', {
+					bubbles: true,
+					cancelable: true,
+					data: insertedText,
+					inputType: 'insertText'
+				}));
+			}
 		}, text);
 	}
 
