@@ -67,7 +67,17 @@ async function insertComposerText(
 	text: string,
 	requiredNeedles: string[]
 ): Promise<void> {
-	await messageEditor.click();
+	await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
+	await messageEditor.focus();
+	await expect
+		.poll(
+			async () => messageEditor.evaluate((element: HTMLElement) => {
+				const activeElement = document.activeElement;
+				return activeElement === element || (activeElement ? element.contains(activeElement) : false);
+			}),
+			{ timeout: 5000 }
+		)
+		.toBeTruthy();
 	await page.keyboard.insertText(text);
 
 	await expect
