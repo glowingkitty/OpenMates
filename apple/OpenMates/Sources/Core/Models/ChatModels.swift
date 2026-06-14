@@ -287,6 +287,12 @@ struct SubChatSettings: Codable, Equatable, Sendable {
     }
 }
 
+struct PIIMapping: Codable, Equatable, Sendable {
+    let placeholder: String
+    let original: String
+    let type: String
+}
+
 struct Message: Identifiable, Decodable, Sendable {
     let id: String
     let chatId: String
@@ -299,6 +305,8 @@ struct Message: Identifiable, Decodable, Sendable {
     let isStreaming: Bool?
     let embedRefs: [EmbedRef]?
     let modelName: String?
+    var piiMappings: [PIIMapping]?
+    let encryptedPIIMappings: String?
 
     init(
         id: String,
@@ -311,7 +319,9 @@ struct Message: Identifiable, Decodable, Sendable {
         appId: String?,
         isStreaming: Bool?,
         embedRefs: [EmbedRef]?,
-        modelName: String? = nil
+        modelName: String? = nil,
+        piiMappings: [PIIMapping]? = nil,
+        encryptedPIIMappings: String? = nil
     ) {
         self.id = id
         self.chatId = chatId
@@ -324,6 +334,8 @@ struct Message: Identifiable, Decodable, Sendable {
         self.isStreaming = isStreaming
         self.embedRefs = embedRefs
         self.modelName = modelName
+        self.piiMappings = piiMappings
+        self.encryptedPIIMappings = encryptedPIIMappings
     }
 
     init(from decoder: Decoder) throws {
@@ -349,6 +361,10 @@ struct Message: Identifiable, Decodable, Sendable {
             ?? container.decodeIfPresent([EmbedRef].self, forKey: .embedRefsSnake)
         modelName = try container.decodeIfPresent(String.self, forKey: .modelName)
             ?? container.decodeIfPresent(String.self, forKey: .modelNameSnake)
+        piiMappings = try container.decodeIfPresent([PIIMapping].self, forKey: .piiMappings)
+            ?? container.decodeIfPresent([PIIMapping].self, forKey: .piiMappingsSnake)
+        encryptedPIIMappings = try container.decodeIfPresent(String.self, forKey: .encryptedPIIMappings)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedPIIMappingsSnake)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -372,6 +388,10 @@ struct Message: Identifiable, Decodable, Sendable {
         case embedRefsSnake = "embed_refs"
         case modelName
         case modelNameSnake = "model_name"
+        case piiMappings
+        case piiMappingsSnake = "pii_mappings"
+        case encryptedPIIMappings
+        case encryptedPIIMappingsSnake = "encrypted_pii_mappings"
     }
 
     private static func decodeFlexibleDateString(

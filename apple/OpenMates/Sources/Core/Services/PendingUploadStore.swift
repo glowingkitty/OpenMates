@@ -47,6 +47,7 @@ final class PendingUploadStore: ObservableObject {
         let id = UUID().uuidString
         let chatId: String
         let messageContent: String
+        let piiMappings: [PIIMapping]
         let blockingUploadIds: Set<String>
         let dispatchThroughActiveComposer: Bool
         let createdAt: Date
@@ -99,11 +100,13 @@ final class PendingUploadStore: ObservableObject {
     func addPendingSend(
         chatId: String,
         content: String,
+        piiMappings: [PIIMapping] = [],
         blockingUploadIds: Set<String>,
         dispatchThroughActiveComposer: Bool = false
     ) {
         let context = PendingSendContext(
             chatId: chatId, messageContent: content,
+            piiMappings: piiMappings,
             blockingUploadIds: blockingUploadIds,
             dispatchThroughActiveComposer: dispatchThroughActiveComposer,
             createdAt: Date()
@@ -141,6 +144,7 @@ final class PendingUploadStore: ObservableObject {
             userInfo: [
                 "chatId": context.chatId,
                 "content": context.messageContent,
+                "piiMappings": context.piiMappings,
                 "dispatchThroughActiveComposer": context.dispatchThroughActiveComposer
             ]
         )

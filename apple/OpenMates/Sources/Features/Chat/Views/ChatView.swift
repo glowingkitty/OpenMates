@@ -1545,11 +1545,13 @@ struct ChatView: View {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty || viewModel.hasPendingComposerEmbeds else { return }
         let sanitizedText = PIIDetector.redactedText(text, matches: detectedPIIMatches, excludedIds: piiExclusions)
+        let piiMappings = PIIDetector.mappings(for: detectedPIIMatches, excludedIds: piiExclusions)
         if let chatId = viewModel.chat?.id, pendingUploads.hasActiveUploads(chatId: chatId) {
             let blockingIds = Set(pendingUploads.uploadsForChat(chatId).map(\.id))
             pendingUploads.addPendingSend(
                 chatId: chatId,
                 content: sanitizedText,
+                piiMappings: piiMappings,
                 blockingUploadIds: blockingIds,
                 dispatchThroughActiveComposer: true
             )
@@ -1562,7 +1564,11 @@ struct ChatView: View {
         mentionQuery = nil
 
         Task {
-            await viewModel.sendMessage(sanitizedText, broadcastToSiblings: broadcastToSiblingSubChats)
+            await viewModel.sendMessage(
+                sanitizedText,
+                piiMappings: piiMappings,
+                broadcastToSiblings: broadcastToSiblingSubChats
+            )
         }
     }
 
@@ -1572,8 +1578,13 @@ struct ChatView: View {
               let deferredChatId = notification.userInfo?["chatId"] as? String,
               deferredChatId == viewModel.chat?.id,
               let content = notification.userInfo?["content"] as? String else { return }
+        let piiMappings = notification.userInfo?["piiMappings"] as? [PIIMapping] ?? []
         Task {
-            await viewModel.sendMessage(content, broadcastToSiblings: broadcastToSiblingSubChats)
+            await viewModel.sendMessage(
+                content,
+                piiMappings: piiMappings,
+                broadcastToSiblings: broadcastToSiblingSubChats
+            )
         }
     }
 

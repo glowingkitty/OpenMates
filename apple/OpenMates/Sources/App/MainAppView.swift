@@ -1998,7 +1998,8 @@ struct MainAppView: View {
             updatedAt: nil,
             appId: payload.role == "assistant" ? (chat.category ?? chat.appId) : nil,
             isStreaming: false,
-            embedRefs: nil
+            embedRefs: nil,
+            encryptedPIIMappings: payload.encryptedPiiMappings
         )
         chatStore.appendMessage(message, to: payload.chatId)
         NativeSyncPerfLog.info("phase=newChatMessageSync chat=\(payload.chatId.prefix(8)) message=\(payload.messageId.prefix(8))")
@@ -2835,6 +2836,7 @@ private struct NewChatMessagePayload: Decodable {
     let encryptedChatKey: String?
     let encryptedTitle: String?
     let encryptedCategory: String?
+    let encryptedPiiMappings: String?
     let parentId: String?
     let isSubChat: Bool?
 }

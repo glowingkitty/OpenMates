@@ -1,0 +1,323 @@
+id: text-file-pii-redaction-parity
+title: Text File PII Redaction Parity
+status: approved
+
+goal: >
+  Ensure web and Apple redact PII from supported text/code file uploads before
+  content leaves the device, while preserving owner-only encrypted PII mappings
+  and keeping message text PII behavior consistent across clients.
+
+scope:
+  in:
+    - Web app text/code file upload PII scanning before upload.
+    - Apple app full regex PII parity with the web detector for message input.
+    - Apple app encrypted PII mappings for sent messages, matching web storage and sync semantics.
+    - Apple app text/code file upload PII scanning before upload after web behavior is implemented and tested.
+    - Common UTF-8 text/code files such as .txt, .md, .csv, .json, .xml, .html, .log, source files, and config files.
+  out:
+    - PDF, DOCX, XLSX, binary, image, audio, and presentation text extraction.
+    - Local AI PII model integration; tracked separately in GitHub issue #464.
+    - Server-side parsing of original personal data from uploaded files.
+    - Uploading original text/code file contents when PII is detected unless a future explicit user opt-in is specified.
+
+context_discovery:
+  github_issues:
+    - "#464: Consider local AI model for Apple PII detection"
+  docs:
+    - docs/architecture/privacy/pii-protection.md
+    - docs/architecture/privacy/sensitive-data-redaction.md
+    - docs/architecture/apple/parity-matrix.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/services/uploadService.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/codeEmbedService.ts
+    - frontend/packages/ui/src/stores/embedPIIStore.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+  tests:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+  parity_expectations:
+    - Apple and web use the same deterministic regex categories and placeholder semantics for message text.
+    - Apple stores encrypted PII mappings on messages so owner devices can restore placeholders in assistant replies like web.
+    - Apple redacts supported text/code file uploads before upload, after the web implementation is verified.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+  intentional_native_differences:
+    - File picker UI remains OS-owned.
+    - Local AI model detection remains a follow-up and is not required for this parity slice.
+
+clarification:
+  rounds:
+    - question: Should text-file PII scanning be included or left to follow-up?
+      answer: Include text-file scanning, and implement/test it in web before Apple.
+    - question: Should uploads redact by default or ask before upload?
+      answer: Redact by default.
+    - question: Which uploaded file types are in scope first?
+      answer: Common text/code files only.
+  vision_summary: >
+    Text/code file uploads should get the same privacy protection as typed
+    messages: detect PII locally, replace it with placeholders before upload,
+    and preserve encrypted mappings for owner-only reveal/restore. Web is the
+    source of truth and must be implemented and tested before Apple parity.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Web redacts PII from supported text file before upload
+    given:
+      - Alice is signed in on web.
+      - Alice selects a UTF-8 markdown file containing an email, phone number, and API key.
+    when:
+      - The file is attached to a chat.
+    then:
+      - The browser detects PII before calling the upload endpoint.
+      - The uploaded file content contains placeholders instead of original values.
+      - Owner-only encrypted mappings are available for reveal/restore behavior.
+  - id: S-2
+    title: Web leaves unsupported or binary files unchanged
+    given:
+      - Alice selects a PDF or image file.
+    when:
+      - The file is attached to a chat.
+    then:
+      - The existing upload flow is preserved.
+      - No lossy text rewrite is attempted on unsupported formats.
+  - id: S-3
+    title: Apple message text PII matches web semantics
+    given:
+      - Alice types message text containing web-supported PII categories.
+    when:
+      - Alice sends the message from Apple.
+    then:
+      - Apple replaces the same deterministic regex categories with compatible placeholders.
+      - Apple encrypts PII mappings with the chat key and syncs them with the message.
+      - The server and AI providers receive placeholders, not originals.
+  - id: S-4
+    title: Apple redacts supported text file before upload
+    given:
+      - Alice selects a UTF-8 text/code file containing PII in the Apple file picker.
+    when:
+      - The file is attached to a chat.
+    then:
+      - Apple redacts the file content before upload.
+      - Apple preserves owner-only mappings for reveal/restore parity where the embed renderer supports it.
+      - Unsupported file types keep the existing upload path.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Web text/code uploads are locally scanned and redacted before upload, with encrypted mappings preserved for owner-only restore.
+  - id: AC-2
+    scenario: S-2
+    text: Unsupported or binary files are not decoded or rewritten by the text-file PII path.
+  - id: AC-3
+    scenario: S-3
+    text: Apple message text PII detection, placeholders, exclusions, encrypted mappings, and sync metadata match web semantics.
+  - id: AC-4
+    scenario: S-4
+    text: Apple text/code uploads are locally scanned and redacted before upload after web behavior is verified.
+
+contracts:
+  data:
+    - Message-level PII mappings contain placeholder, original, and type.
+    - Mappings are encrypted with the chat key before they are sent or persisted remotely.
+    - Redacted uploaded text/code files replace original values with placeholders before upload.
+  ui_states:
+    - Existing PII warning banners remain visible for typed message text.
+    - Upload progress and pending embed previews continue to work for redacted text files.
+    - Unsupported files keep the existing upload UX.
+  privacy_security:
+    - Original PII from supported text/code uploads must not be sent to the upload service.
+    - Detection runs locally on the client.
+    - Local AI model support is explicitly out of scope for this spec.
+
+tests:
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec file-attachment-code-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - A supported text/code upload containing PII is redacted before upload.
+      - The uploaded/redacted content shows placeholders where originals were present.
+      - Existing unsupported upload behavior remains unchanged.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec pii-detection-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-3
+    assertions:
+      - Existing message text PII placeholders and reveal/hide behavior remain unchanged on web.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+  - id: T-APPLE-001
+    type: build
+    file: apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    covers:
+      - AC-3
+      - AC-4
+    assertions:
+      - Apple project compiles after PII model/message/upload changes.
+      - Apple parity tests or build evidence use sanitized data only.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/services/uploadService.ts
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+  architecture: >
+    Add a shared web helper that detects supported text/code files, redacts a
+    replacement File before upload, and records PII mappings using the same
+    mapping format as message text. Port the full regex detector and mapping
+    payload through Apple's message send pipeline, then apply the same redacted
+    upload rule to Apple text/code file URLs before upload.
+  data_flow:
+    - User chooses a file.
+    - Client checks whether the filename/MIME is supported UTF-8 text/code.
+    - Client decodes text and runs local PII detection using current privacy settings.
+    - Client creates a redacted File/Data when matches exist.
+    - Client uploads only redacted bytes and stores encrypted owner-only mappings.
+  affected_files:
+    - path: frontend/packages/ui/src/components/enter_message/services/uploadService.ts
+      reason: Redact supported text/code files before upload.
+    - path: frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+      reason: Reuse detection and mappings for file upload redaction.
+    - path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+      reason: Verify web text-file redaction first.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+      reason: Port web regex coverage and placeholders.
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Carry encrypted PII mappings and redact supported file uploads.
+    - path: apple/OpenMates/Sources/Core/Models/ChatModels.swift
+      reason: Add PII mapping fields to native message model.
+    - path: apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      reason: Persist encrypted PII mapping metadata offline.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/text-file-pii-redaction-parity/spec.yml
+    - python3 scripts/run_tests.py --spec file-attachment-code-flow.spec.ts
+    - python3 scripts/run_tests.py --spec pii-detection-flow.spec.ts
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+  verification_order:
+    - Web implementation and Playwright red/green evidence first.
+    - Apple implementation and remote build second.
+
+tasks:
+  - id: TASK-1
+    title: Implement web text/code upload redaction
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - frontend/packages/ui/src/components/enter_message/services/uploadService.ts
+      - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement Apple message PII mapping parity
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+      - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    verification:
+      - T-APPLE-001
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement Apple text/code upload redaction
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-4
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+    verification:
+      - T-APPLE-001
+    independently_deployable: false
+
+risks:
+  - Text-file redaction changes uploaded bytes and hashes, so deduplication and previews must tolerate redacted content.
+  - PII mappings for file embeds may need renderer support beyond the first slice.
+  - Apple encrypted mapping parity may require matching existing WebSocket metadata contracts exactly.
+
+open_questions:
+  - Whether owner reveal of original uploaded text/code file content should be exposed immediately in all renderers or staged after mappings are stored.

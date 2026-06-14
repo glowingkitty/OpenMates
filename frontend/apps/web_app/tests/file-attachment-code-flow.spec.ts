@@ -262,7 +262,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
 
-test('uploaded CSV, EML, DOCX, and XLSX files render as redacted embeds', async ({
+test('uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds', async ({
 	page
 }: {
 	page: any;
@@ -287,6 +287,14 @@ test('uploaded CSV, EML, DOCX, and XLSX files render as redacted embeds', async 
 	await attachFiles(
 		page,
 		[
+			{
+				name: 'secret-config.py',
+				mimeType: 'text/x-python',
+				buffer: Buffer.from([
+					'OPENAI_API_KEY="sk-proj-abcdefghijklmnopqrstuvwxyz123456"',
+					'OWNER_EMAIL="developer.private@example.com"'
+				].join('\n'))
+			},
 			{
 				name: 'contacts.csv',
 				mimeType: 'text/csv',
@@ -335,17 +343,31 @@ test('uploaded CSV, EML, DOCX, and XLSX files render as redacted embeds', async 
 	const docEmbed = page.locator(
 		'[data-testid="embed-full-width-wrapper"][data-embed-type="docs-doc"]'
 	).first();
+	const codeEmbed = page.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
+	).first();
+	await expect(codeEmbed).toBeVisible({ timeout: 20000 });
 	await expect(sheetEmbed).toBeVisible({ timeout: 20000 });
 	await expect(mailEmbed).toBeVisible({ timeout: 20000 });
 	await expect(docEmbed).toBeVisible({ timeout: 20000 });
 	await expect(page.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="sheets-sheet"]')).toHaveCount(2, { timeout: 20000 });
+	await expect(editor).not.toContainText('sk-proj-abcdefghijklmnopqrstuvwxyz123456');
+	await expect(editor).not.toContainText('developer.private@example.com');
 	await expect(editor).not.toContainText('ada.private@example.com');
 	await expect(editor).not.toContainText('grace.secret@example.com');
 	await expect(editor).not.toContainText('receiver.include@example.com');
 	await expect(editor).not.toContainText('docx.private@example.com');
 	await expect(editor).not.toContainText('xlsx.private@example.com');
 	await expect(editor).toContainText('[EMAIL_');
-	log('CSV, EML, DOCX, and XLSX embeds rendered with email placeholders in the editor.');
+	const codeFullscreen = await openEmbedFullscreen(page, codeEmbed);
+	const codeSourcePanel = codeFullscreen.getByTestId('code-source-panel');
+	await expect(codeSourcePanel).toContainText('[OPENAI_KEY_', { timeout: 10000 });
+	await expect(codeSourcePanel).toContainText('[EMAIL_', { timeout: 10000 });
+	await expect(codeSourcePanel).not.toContainText('sk-proj-abcdefghijklmnopqrstuvwxyz123456');
+	await expect(codeSourcePanel).not.toContainText('developer.private@example.com');
+	await codeFullscreen.getByTestId('embed-minimize').click();
+	await expect(codeFullscreen).not.toBeVisible({ timeout: 10000 });
+	log('Code, CSV, EML, DOCX, and XLSX embeds rendered with PII placeholders in the editor.');
 
 	await mailEmbed.click();
 	const includeOriginalButton = page.getByTestId('embed-pii-include-original');

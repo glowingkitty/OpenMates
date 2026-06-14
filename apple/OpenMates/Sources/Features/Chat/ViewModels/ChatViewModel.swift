@@ -384,6 +384,16 @@ final class ChatViewModel: ObservableObject {
                     msg.content = decrypted
                 }
             }
+            if msg.piiMappings == nil,
+               let encryptedMappings = msg.encryptedPIIMappings,
+               let decryptedMappings = await ChatKeyManager.shared.decryptMessageContent(
+                    chatId: chatId,
+                    encryptedContent: encryptedMappings
+               ),
+               let mappingsData = decryptedMappings.data(using: .utf8),
+               let mappings = try? JSONDecoder().decode([PIIMapping].self, from: mappingsData) {
+                msg.piiMappings = mappings
+            }
             result.append(msg)
         }
         return result
@@ -514,7 +524,11 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Send message
 
-    func sendMessage(_ content: String, broadcastToSiblings: Bool = false) async {
+    func sendMessage(
+        _ content: String,
+        piiMappings: [PIIMapping] = [],
+        broadcastToSiblings: Bool = false
+    ) async {
         guard let currentChat = chat else { return }
         do {
             let composerEmbeds = pendingComposerEmbeds
@@ -525,13 +539,14 @@ final class ChatViewModel: ObservableObject {
                 wsManager: wsManager,
                 chatStore: chatStore,
                 composerEmbeds: composerEmbeds,
+                piiMappings: piiMappings,
                 broadcastToSiblings: broadcastToSiblings
             )
             chat = result.chat
             pendingUserMessagesById[result.message.id] = result.message
             appendOrReplaceLocalMessage(result.message)
             if broadcastToSiblings {
-                await broadcastMessageToSiblingSubChats(content)
+                await broadcastMessageToSiblingSubChats(content, piiMappings: piiMappings)
             }
             pendingComposerEmbeds.removeAll()
             isStreaming = true
@@ -542,7 +557,7 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    private func broadcastMessageToSiblingSubChats(_ content: String) async {
+    private func broadcastMessageToSiblingSubChats(_ content: String, piiMappings: [PIIMapping]) async {
         guard let currentChat = chat,
               let parentId = currentChat.parentId,
               let chatStore else { return }
@@ -560,6 +575,7 @@ final class ChatViewModel: ObservableObject {
                     activateChat: false,
                     waitForRemoteSend: true,
                     composerEmbeds: [],
+                    piiMappings: piiMappings,
                     broadcastToSiblings: false
                 )
             } catch {
@@ -1210,19 +1226,42 @@ final class ChatViewModel: ObservableObject {
     @discardableResult
     func uploadAttachment(data: Data, filename: String) async -> UploadFileResponse? {
         guard let chatId = chat?.id else { return nil }
+        let safeData = redactedUploadDataIfNeeded(data, filename: filename)
         let uploadId = UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
 
         guard let upload = await uploadData(
-            data,
+            safeData,
             filename: filename,
             uploadId: uploadId,
             contentType: "application/octet-stream",
             markFinishedOnSuccess: false
         ) else { return nil }
-        registerPendingComposerEmbed(upload, localData: data, transcript: nil, duration: nil)
+        registerPendingComposerEmbed(upload, localData: safeData, transcript: nil, duration: nil)
         PendingUploadStore.shared.markFinished(id: uploadId)
         return upload
+    }
+
+    private func redactedUploadDataIfNeeded(_ data: Data, filename: String) -> Data {
+        guard isSupportedPIIRedactableTextFile(filename),
+              let text = String(data: data, encoding: .utf8) else { return data }
+        let matches = PIIDetector.detect(in: text)
+        guard !matches.isEmpty else { return data }
+        let redacted = PIIDetector.redactedText(text, matches: matches, excludedIds: [])
+        print("[Chat] Redacted \(matches.count) PII item(s) before uploading supported text attachment")
+        return redacted.data(using: .utf8) ?? data
+    }
+
+    private func isSupportedPIIRedactableTextFile(_ filename: String) -> Bool {
+        let supportedExtensions: Set<String> = [
+            "txt", "md", "markdown", "csv", "tsv", "json", "jsonl", "xml", "html", "htm", "log",
+            "yaml", "yml", "toml", "ini", "env", "conf", "config", "properties",
+            "js", "jsx", "ts", "tsx", "svelte", "css", "scss", "sass", "less",
+            "py", "rb", "php", "java", "kt", "kts", "swift", "go", "rs", "c", "h", "cpp", "hpp",
+            "cs", "m", "mm", "sh", "bash", "zsh", "fish", "ps1", "sql", "r", "lua", "dart"
+        ]
+        let ext = URL(fileURLWithPath: filename).pathExtension.lowercased()
+        return supportedExtensions.contains(ext)
     }
 
     func uploadRecording(url: URL, duration: TimeInterval) async -> String? {
@@ -2410,6 +2449,7 @@ final class ChatSendPipeline {
         activateChat: Bool = true,
         waitForRemoteSend: Bool = true,
         composerEmbeds: [ComposerPendingEmbed] = [],
+        piiMappings: [PIIMapping] = [],
         broadcastToSiblings: Bool = false
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
@@ -2419,6 +2459,7 @@ final class ChatSendPipeline {
         let messageId = "\(chat.id.suffix(10))-\(UUID().uuidString)"
         let keyMaterial = try await ensureChatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
         let encryptedContent = try await crypto.encryptContent(content, key: keyMaterial.key)
+        let encryptedPIIMappings = try await encryptPIIMappings(piiMappings, key: keyMaterial.key)
         let encryptedEmbedPayloads = try await encryptedEmbeds(
             composerEmbeds,
             chatId: chat.id,
@@ -2445,7 +2486,9 @@ final class ChatSendPipeline {
             isStreaming: nil,
             embedRefs: composerEmbeds.isEmpty ? nil : composerEmbeds.map { embed in
                 EmbedRef(id: embed.id, type: embed.type, status: embed.status, data: nil)
-            }
+            },
+            piiMappings: piiMappings.isEmpty ? nil : piiMappings,
+            encryptedPIIMappings: encryptedPIIMappings
         )
 
         chatStore?.upsertChat(updatedChat)
@@ -2503,6 +2546,9 @@ final class ChatSendPipeline {
         }
         if !encryptedEmbedPayloads.isEmpty {
             outboundPayload["encrypted_embeds"] = encryptedEmbedPayloads
+        }
+        if let encryptedPIIMappings {
+            outboundPayload["encrypted_pii_mappings"] = encryptedPIIMappings
         }
 
         if waitForRemoteSend {
@@ -2636,6 +2682,12 @@ final class ChatSendPipeline {
         } else {
             encryptedContent = try await crypto.encryptContent(content, key: keyMaterial.key)
         }
+        let encryptedPIIMappings: String?
+        if let existing = userMessage.encryptedPIIMappings {
+            encryptedPIIMappings = existing
+        } else {
+            encryptedPIIMappings = try await encryptPIIMappings(userMessage.piiMappings ?? [], key: keyMaterial.key)
+        }
         let isNewChatMetadata = (chat.titleV ?? 0) == 0
         let encryptedTitle = isNewChatMetadata ? try await encryptOptional(metadata.title, key: keyMaterial.key) : nil
         let icon = isNewChatMetadata ? preferredIcon(from: metadata.iconNames, category: metadata.category) : nil
@@ -2675,6 +2727,7 @@ final class ChatSendPipeline {
         if let encryptedTitle { payload["encrypted_title"] = encryptedTitle }
         if let encryptedIcon { payload["encrypted_icon"] = encryptedIcon }
         if let encryptedCategory { payload["encrypted_chat_category"] = encryptedCategory }
+        if let encryptedPIIMappings { payload["encrypted_pii_mappings"] = encryptedPIIMappings }
         payload["encrypted_sender_name"] = encryptedSenderName
         if let encryptedUserCategory { payload["encrypted_category"] = encryptedUserCategory }
 
@@ -2712,7 +2765,9 @@ final class ChatSendPipeline {
             appId: message.appId,
             isStreaming: false,
             embedRefs: message.embedRefs,
-            modelName: message.modelName
+            modelName: message.modelName,
+            piiMappings: message.piiMappings,
+            encryptedPIIMappings: message.encryptedPIIMappings
         )
 
         chatStore?.appendMessage(persisted, to: message.chatId)
@@ -2949,6 +3004,13 @@ final class ChatSendPipeline {
     private func encryptOptional(_ value: String?, key: SymmetricKey) async throws -> String? {
         guard let value, !value.isEmpty else { return nil }
         return try await crypto.encryptContent(value, key: key)
+    }
+
+    private func encryptPIIMappings(_ mappings: [PIIMapping], key: SymmetricKey) async throws -> String? {
+        guard !mappings.isEmpty else { return nil }
+        let data = try JSONEncoder().encode(mappings)
+        let json = String(data: data, encoding: .utf8) ?? "[]"
+        return try await crypto.encryptContent(json, key: key)
     }
 
     private func encryptStringArray(_ values: [String], key: SymmetricKey) async throws -> String {

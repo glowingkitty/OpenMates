@@ -229,7 +229,9 @@ final class ChatStore: ObservableObject {
             createdAt: old.createdAt,
             updatedAt: ISO8601DateFormatter().string(from: Date()),
             appId: old.appId, isStreaming: false, embedRefs: old.embedRefs,
-            modelName: old.modelName
+            modelName: old.modelName,
+            piiMappings: old.piiMappings,
+            encryptedPIIMappings: old.encryptedPIIMappings
         )
         msgs[index] = updated
         messagesByChat[chatId] = msgs
