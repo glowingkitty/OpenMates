@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 // @privacy-promise: pii-placeholder-substitution
 export {};
@@ -31,7 +30,6 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -62,6 +60,27 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
  */
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+
+async function insertComposerText(
+	page: any,
+	messageEditor: any,
+	text: string,
+	requiredNeedles: string[]
+): Promise<void> {
+	await messageEditor.click();
+	await page.keyboard.insertText(text);
+
+	await expect
+		.poll(
+			async () => (await messageEditor.textContent().catch(() => '')) ?? '',
+			{ timeout: 10000 }
+		)
+		.toContain(requiredNeedles[0]);
+
+	for (const needle of requiredNeedles.slice(1)) {
+		await expect(messageEditor).toContainText(needle, { timeout: 10000 });
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Test: PII detection, click-to-undo, undo all, send, show/hide toggle
@@ -122,9 +141,11 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 		'Write an email draft from max@posteo.de to sarah@proton.com about the broken heater ' +
 		'in the building and when it will be fixed. My phone number is +49 170 1234567 for callbacks.';
 
-	await messageEditor.click();
-	// Type slowly enough for PII detection to process but not too slowly
-	await page.keyboard.type(withMockMarker(piiText, 'pii_detection_check'), { delay: 5 });
+	await insertComposerText(page, messageEditor, withMockMarker(piiText, 'pii_detection_check'), [
+		'max@posteo.de',
+		'sarah@proton.com',
+		'+49 170 1234567'
+	]);
 	logCheckpoint(`Typed PII text (${piiText.length} chars).`);
 
 	// PII detection triggers on delimiters (space, period, etc.) or after 800ms debounce.
@@ -476,8 +497,7 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 		`Write an email draft from ${senderEmail} to ${receiverEmail} to ask for an update about the broken heater in the house.`;
 
 	logCheckpoint('Typing mail draft prompt with two PII emails…');
-	await messageEditor.click();
-	await page.keyboard.type(draftPrompt, { delay: 5 });
+	await insertComposerText(page, messageEditor, draftPrompt, [senderEmail, receiverEmail]);
 	await page.waitForTimeout(1500);
 
 	// Confirm BOTH emails are detected as PII in the editor before sending
