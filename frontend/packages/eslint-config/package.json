@@ -9,9 +9,9 @@
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^9.19.0",
     "eslint-config-prettier": "^10.0.1",
-    "eslint-config-turbo": "^2.9.16",
+    "eslint-config-turbo": "^2.9.18",
     "eslint-plugin-svelte": "^2.46.1",
     "globals": "^15.14.0",
-    "typescript-eslint": "^8.60.1"
+    "typescript-eslint": "^8.61.0"
   }
 }
