@@ -359,6 +359,91 @@ async function withSkillFormattingMockApi<T>(
   }
 }
 
+async function withFlatWeatherSkillMockApi<T>(
+  run: (params: { apiUrl: string; requests: Record<string, unknown>[] }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Record<string, unknown>[] = [];
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "GET" && request.url === "/openapi.json") {
+        writeJson(response, {
+          paths: {
+            "/v1/apps/weather/skills/rain_radar": {
+              post: {
+                requestBody: {
+                  content: {
+                    "application/json": {
+                      schema: { $ref: "#/components/schemas/RainRadarRequest" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          components: {
+            schemas: {
+              RainRadarRequest: {
+                type: "object",
+                properties: {
+                  location: { type: "string", description: "German place name for the radar." },
+                  radius_km: { type: "integer", default: 5 },
+                },
+              },
+            },
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/apps/weather/skills/rain_radar") {
+        writeJson(response, {
+          id: "rain_radar",
+          name: "Rain radar",
+          description: "Get nearby German rain radar.",
+          providers: [{ provider: "dwd", name: "Deutscher Wetterdienst (DWD)" }],
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/weather/skills/rain_radar") {
+        const body = await readJsonBody(request);
+        requests.push(body);
+        if (body.location !== "Berlin") {
+          response.writeHead(422, { "Content-Type": "application/json" });
+          response.end(JSON.stringify({ detail: "location missing" }));
+          return;
+        }
+        writeJson(response, {
+          success: true,
+          data: {
+            type: "rain_radar",
+            provider: "Deutscher Wetterdienst (DWD) via Bright Sky",
+            location: { name: "Berlin", country_code: "DE" },
+            coverage: { status: "available", radius_km: body.radius_km ?? 5 },
+            summary: { in_10_min: "No rain visible near Berlin." },
+            timeline: [],
+            rendering: { mode: "external_radar_blob", frame_count: 0 },
+          },
+          credits_charged: 1,
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
 describe("SDK entrypoint", () => {
   it("does not run CLI help when imported", () => {
     const output = execFileSync("node", ["--input-type=module", "-e", "import './dist/index.js';"], {
@@ -592,6 +677,38 @@ describe("apps code run command variants", () => {
 });
 
 describe("apps skill formatted output", () => {
+  it("maps flat weather rain radar schemas to direct CLI app-skill input", async () => {
+    await withFlatWeatherSkillMockApi(async ({ apiUrl, requests }) => {
+      const inlineOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "weather", "rain_radar", "Berlin",
+        "--json",
+      ]);
+      const inlineResult = JSON.parse(inlineOutput) as { data: { type: string } };
+      assert.equal(inlineResult.data.type, "rain_radar");
+      assert.deepEqual(requests[0], { location: "Berlin" });
+
+      await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "weather", "rain_radar",
+        "--input", JSON.stringify({ requests: [{ location: "Berlin", radius_km: 10 }] }),
+        "--json",
+      ]);
+      assert.deepEqual(requests[1], { location: "Berlin", radius_km: 10 });
+    });
+  });
+
+  it("prints flat weather rain radar help without a requests wrapper", async () => {
+    await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "weather", "rain_radar", "--help",
+      ]);
+      assert.match(output, /"location": "Berlin, Germany"/);
+      assert.doesNotMatch(output, /"requests"/);
+    });
+  });
+
   it("prints concise event cards without raw provider noise by default", async () => {
     await withSkillFormattingMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([

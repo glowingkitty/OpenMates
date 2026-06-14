@@ -78,6 +78,18 @@ FINANCIAL_REPO_PATTERN = re.compile(
     r"\b(repo\s+rate|reverse\s+repo|repurchase\s+agreement)\b",
     re.IGNORECASE,
 )
+RAIN_RADAR_EXPLICIT_PATTERN = re.compile(
+    r"\b(?:rain|precipitation|weather)\s+radar\b|\bradar\s+(?:for|of|near|around)?\s*(?:rain|precipitation|weather)?\b",
+    re.IGNORECASE,
+)
+RAIN_RADAR_RAIN_PATTERN = re.compile(
+    r"\b(?:will|is|does|do|check|show|tell|see|expect|expected|visible)\b[^.?!]{0,80}\b(?:rain|raining|precipitation|drizzle|shower|showers)\b|\b(?:rain|raining|precipitation|drizzle|shower|showers)\b[^.?!]{0,80}\b(?:soon|now|nearby|around|next|upcoming|minutes?|mins?)\b",
+    re.IGNORECASE,
+)
+RAIN_RADAR_TIME_PATTERN = re.compile(
+    r"\b(?:soon|now|nearby|around|next\s+\d{1,3}\s*(?:minutes?|mins?)|in\s+\d{1,3}\s*(?:minutes?|mins?))\b",
+    re.IGNORECASE,
+)
 
 SAME_TOPIC_SHIFT_VALUES = {"same_topic", "unclear"}
 
@@ -547,6 +559,31 @@ def _contains_repo_search_intent_in_user_history(message_history: List[AIHistory
             continue
 
         if REPO_SEARCH_ACTION_PATTERN.search(content) and REPO_SEARCH_TARGET_PATTERN.search(content):
+            return True
+
+    return False
+
+
+def _contains_rain_radar_intent_in_user_history(message_history: List[AIHistoryMessage]) -> bool:
+    """
+    Return True when user text asks for rain radar or immediate hyperlocal rain.
+
+    The radar skill is intentionally narrower than the regular forecast skill:
+    it should win for explicit radar wording and short-horizon rain questions,
+    while normal daily forecast questions remain on weather-forecast.
+    """
+    for message in message_history:
+        role = message.role if hasattr(message, "role") else (message.get("role") if isinstance(message, dict) else None)
+        if role != USER_ROLE:
+            continue
+
+        content = message.content if hasattr(message, "content") else (message.get("content") if isinstance(message, dict) else None)
+        if not isinstance(content, str):
+            continue
+
+        if RAIN_RADAR_EXPLICIT_PATTERN.search(content):
+            return True
+        if RAIN_RADAR_RAIN_PATTERN.search(content) and RAIN_RADAR_TIME_PATTERN.search(content):
             return True
 
     return False
@@ -3001,6 +3038,26 @@ async def handle_preprocessing(
             else:
                 logger.debug(
                     f"{log_prefix} [RULE_BASED] 'code-search_repos' already preselected by LLM — no override needed."
+                )
+
+        # --- weather-rain_radar ---
+        # Explicit rain-radar and minute-scale rain questions are often phrased
+        # like web searches. Force the weather radar skill so the main LLM gets
+        # the DWD radar schema/embed instead of answering via generic search.
+        if (
+            "weather-rain_radar" in available_skill_ids
+            and _contains_rain_radar_intent_in_user_history(request_data.message_history)
+        ):
+            if "weather-rain_radar" not in validated_relevant_skills:
+                validated_relevant_skills = ["weather-rain_radar"] + validated_relevant_skills
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced 'weather-rain_radar' into preselected skills: "
+                    f"detected rain radar or immediate rain intent in user message. "
+                    f"(Prevents generic web-search from handling DWD radar requests.)"
+                )
+            else:
+                logger.debug(
+                    f"{log_prefix} [RULE_BASED] 'weather-rain_radar' already preselected by LLM — no override needed."
                 )
 
         # --- videos-get_transcript ---

@@ -11,6 +11,7 @@ import pytest
 try:
     from backend.apps.ai.processing.preprocessor import (
         _contains_onboarding_trigger_in_user_history,
+        _contains_rain_radar_intent_in_user_history,
         _contains_repo_search_intent_in_user_history,
         _normalize_topic_area,
         _resolve_category_from_topic_area,
@@ -178,6 +179,35 @@ class TestContainsRepoSearchIntent:
             _user_msg("Thanks"),
         ]
         assert _contains_repo_search_intent_in_user_history(history) is False
+
+
+# ===========================================================================
+# _contains_rain_radar_intent_in_user_history
+# ===========================================================================
+
+class TestContainsRainRadarIntent:
+    def test_detects_explicit_rain_radar_request(self):
+        history = [_user_msg("Will it rain in Berlin in the next 10 minutes? Show me the rain radar.")]
+
+        assert _contains_rain_radar_intent_in_user_history(history) is True
+
+    def test_detects_hyperlocal_immediate_rain_request(self):
+        history = [_user_msg("Will it rain near Hamburg in the next 15 minutes?")]
+
+        assert _contains_rain_radar_intent_in_user_history(history) is True
+
+    def test_ignores_regular_forecast_request(self):
+        history = [_user_msg("What's the weather forecast for Berlin this weekend?")]
+
+        assert _contains_rain_radar_intent_in_user_history(history) is False
+
+    def test_only_user_messages_checked(self):
+        history = [
+            _assistant_msg("Show me the rain radar."),
+            _user_msg("Thanks"),
+        ]
+
+        assert _contains_rain_radar_intent_in_user_history(history) is False
 
 
 # ===========================================================================

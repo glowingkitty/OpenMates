@@ -694,6 +694,7 @@ export interface SkillParam {
   description: string;
   required: boolean;
   default?: unknown;
+  inputShape?: "requests" | "flat";
 }
 
 export interface ChatListPage {
@@ -2950,15 +2951,16 @@ export class OpenMatesClient {
         : (bodySchema as Record<string, unknown>);
     if (!topSchema) return [];
 
-    // The top-level schema has a "requests" array with items $ref →
-    // navigate to the RequestItem_* schema which has the actual params.
+    // Most app skills use a top-level "requests" array. Some older skills use
+    // a flat object schema directly, so fall back to the top-level properties.
     const requestsProp = (
       topSchema.properties as
         | Record<string, Record<string, unknown>>
         | undefined
     )?.requests;
     const itemsRef = requestsProp?.items as Record<string, unknown> | undefined;
-    const itemSchema = itemsRef ? resolveSchema(itemsRef) : null;
+    const itemSchema = itemsRef ? resolveSchema(itemsRef) : topSchema;
+    const inputShape: "requests" | "flat" = itemsRef ? "requests" : "flat";
 
     if (!itemSchema?.properties) return [];
 
@@ -3011,6 +3013,7 @@ export class OpenMatesClient {
         description: (resolved.description as string | undefined) ?? "",
         required: required.has(name),
         default: resolved.default,
+        inputShape,
       };
     });
   }

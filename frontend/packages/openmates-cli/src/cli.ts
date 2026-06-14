@@ -1143,7 +1143,7 @@ async function handleApps(
       process.exit(1);
     }
     // Silently forward to the sugar alias execution path
-    let runSchemaParams: Array<{ name: string; type: string; description: string; required: boolean; default?: unknown }> = [];
+    let runSchemaParams: Array<{ name: string; type: string; description: string; required: boolean; default?: unknown; inputShape?: "requests" | "flat" }> = [];
     try { runSchemaParams = await client.getSkillSchema(app, skill); } catch { /* best-effort */ }
     try {
       const inputData = buildSkillInput(flags, inlineTokens, runSchemaParams);
@@ -1252,6 +1252,7 @@ async function handleApps(
       description: string;
       required: boolean;
       default?: unknown;
+      inputShape?: "requests" | "flat";
     }> = [];
     try {
       schemaParams = await client.getSkillSchema(app, skill);
@@ -1262,7 +1263,7 @@ async function handleApps(
     // No args, no --input, and the skill has required params →
     // show skill help instead of sending an empty/partial request that 422s.
     if (!hasExplicitInput && inlineTokens.length === 0) {
-      const required = schemaParams.filter((p) => p.required);
+      const required = getEffectiveRequiredParams(schemaParams);
       if (required.length > 0) {
         const data = await client.getSkillInfo(app, skill, apiKey);
         await printSkillInfo(client, app, data as SkillMetadata);
@@ -1277,14 +1278,14 @@ async function handleApps(
       inlineTokens.length > 0 &&
       schemaParams.length > 0
     ) {
-      const required = schemaParams.filter((p) => p.required);
+      const required = getEffectiveRequiredParams(schemaParams);
       if (required.length > 1) {
         const example: Record<string, unknown> = {};
         for (const p of required) example[p.name] = `<${p.name}>`;
         console.error(
           `This skill requires ${required.length} fields: ${required.map((p) => p.name).join(", ")}\n\n` +
             `Use --input to provide all fields:\n` +
-            `  openmates apps ${app} ${skill} --input '{"requests": [${JSON.stringify(example)}]}'\n\n` +
+            `  openmates apps ${app} ${skill} --input '${buildInputUsageExample(schemaParams, example)}'\n\n` +
             `Run with --help for full parameter details:\n` +
             `  openmates apps ${app} ${skill} --help\n`,
         );
@@ -1334,7 +1335,7 @@ async function handleApps(
           console.error(
             `\nUsage:\n` +
               `  openmates apps ${app} ${skill} <value>\n` +
-              `  openmates apps ${app} ${skill} --input '{"requests": [{"${schemaParams[0]?.name ?? "query"}": "..."}]}'`,
+              `  openmates apps ${app} ${skill} --input '${buildInputUsageExample(schemaParams)}'`,
           );
         } else {
           console.error(
@@ -1522,19 +1523,49 @@ async function pollCodeRunStatus(
 function buildSkillInput(
   flags: Record<string, string | boolean>,
   inlineTokens: string[],
-  schemaParams?: Array<{ name: string; required: boolean }>,
+  schemaParams?: Array<{ name: string; required: boolean; inputShape?: "requests" | "flat" }>,
 ): Record<string, unknown> {
+  const usesFlatInput = schemaParams?.some((p) => p.inputShape === "flat") ?? false;
   if (typeof flags.input === "string") {
-    return JSON.parse(flags.input) as Record<string, unknown>;
+    const parsed = JSON.parse(flags.input) as Record<string, unknown>;
+    if (usesFlatInput && Array.isArray(parsed.requests) && parsed.requests.length === 1) {
+      const firstRequest = parsed.requests[0];
+      if (firstRequest && typeof firstRequest === "object") {
+        return firstRequest as Record<string, unknown>;
+      }
+    }
+    return parsed;
   }
   const inlineText = inlineTokens.join(" ").trim();
   if (inlineText) {
     // Use the actual param name when the skill has a single required field
-    const required = (schemaParams ?? []).filter((p) => p.required);
-    const paramName = required.length === 1 ? required[0].name : "query";
+    const required = getEffectiveRequiredParams(schemaParams ?? []);
+    const flatLocationParam = usesFlatInput
+      ? (schemaParams ?? []).find((p) => p.name === "location")
+      : undefined;
+    const paramName = required.length === 1 ? required[0].name : (flatLocationParam?.name ?? "query");
+    if (usesFlatInput) return { [paramName]: inlineText };
     return { requests: [{ [paramName]: inlineText }] };
   }
   return {};
+}
+
+function getEffectiveRequiredParams<T extends { name: string; required: boolean; inputShape?: "requests" | "flat" }>(
+  schemaParams: T[],
+): T[] {
+  const required = schemaParams.filter((p) => p.required);
+  if (required.length > 0) return required;
+  const flatLocationParam = schemaParams.find((p) => p.inputShape === "flat" && p.name === "location");
+  return flatLocationParam ? [flatLocationParam] : [];
+}
+
+function buildInputUsageExample(
+  schemaParams: Array<{ name: string; inputShape?: "requests" | "flat" }>,
+  exampleItem?: Record<string, unknown>,
+): string {
+  const item = exampleItem ?? { [schemaParams[0]?.name ?? "query"]: "..." };
+  if (schemaParams.some((p) => p.inputShape === "flat")) return JSON.stringify(item);
+  return JSON.stringify({ requests: [item] });
 }
 
 /**
@@ -4400,7 +4431,9 @@ async function printSkillInfo(
         p.default ?? buildExampleValue(p.name, p.type, p.description);
     }
     process.stdout.write(`\x1b[1mExample\x1b[0m\n`);
-    const exampleJson = JSON.stringify({ requests: [exampleItem] }, null, 2)
+    const usesFlatInput = params.some((p) => p.inputShape === "flat");
+    const examplePayload = usesFlatInput ? exampleItem : { requests: [exampleItem] };
+    const exampleJson = JSON.stringify(examplePayload, null, 2)
       .split("\n")
       .map((l) => `  ${l}`)
       .join("\n");
