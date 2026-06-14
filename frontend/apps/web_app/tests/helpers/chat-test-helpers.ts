@@ -602,7 +602,11 @@ async function startNewChat(
 	if (!clicked) {
 		const messageEditor = page.getByTestId('message-editor');
 		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
-			logCheckpoint('New Chat button not visible; editor is already ready, treating page as new chat.');
+			await expect(async () => {
+				expect(page.url()).not.toMatch(/chat-id=/);
+				expect(await messageInput.getAttribute('data-current-chat-id')).toBe('new-chat');
+			}).toPass({ timeout: 10000 });
+			logCheckpoint('New Chat button not visible; editor is stably bound to new chat.');
 		} else {
 			logCheckpoint('WARNING: Could not find New Chat button or ready message editor.');
 		}
