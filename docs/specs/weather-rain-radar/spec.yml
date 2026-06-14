@@ -1,6 +1,6 @@
 id: weather-rain-radar
 title: Weather Rain Radar
-status: implementing
+status: verified
 
 goal: >
   Add a Germany-first rain radar skill to the Weather app that gives the LLM a
@@ -226,16 +226,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "python3 scripts/run_tests.py --spec skill-weather-rain-radar.spec.ts / playwright 27504776758"
+        timestamp: "2026-06-14T16:12:53Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/run_tests.py --spec skill-weather-rain-radar.spec.ts / playwright 27505283976"
+        timestamp: "2026-06-14T16:32:54Z"
 
   - id: T-PYTEST-002
     type: pytest
@@ -302,6 +302,8 @@ implementation_plan:
       reason: Rain radar embed labels.
     - path: frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts
       reason: Web app metadata and embed rendering coverage.
+    - path: frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+      reason: Retry transient Vite preload failures that can otherwise mask component preview results after deploy.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/weather-rain-radar/spec.yml
     - python3 -m pytest backend/tests/test_weather_rain_radar_skill.py
