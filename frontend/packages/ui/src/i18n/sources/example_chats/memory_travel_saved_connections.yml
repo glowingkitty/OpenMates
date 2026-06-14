@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Travel Saved Connections"
   en: "Memory Travel Saved Connections"
-  de: "Memory Travel Saved Connections"
+  de: Gespeicherte Reiseverbindungen (Memory)
   zh: "Memory Travel Saved Connections"
   es: "Memory Travel Saved Connections"
   fr: "Memory Travel Saved Connections"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Travel Saved Connections"
   en: "OpenMates uses saved travel saved_connections memory in a real chat."
-  de: "OpenMates uses saved travel saved_connections memory in a real chat."
+  de: OpenMates nutzt gespeicherte Erinnerungen zu Reiseverbindungen in einem echten Chat.
   zh: "OpenMates uses saved travel saved_connections memory in a real chat."
   es: "OpenMates uses saved travel saved_connections memory in a real chat."
   fr: "OpenMates uses saved travel saved_connections memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Travel Saved Connections. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved travel connection memory to suggest what I should prepare before my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved travel connection memory to suggest what I should prepare before my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meine gespeicherten Erinnerungen zu Reiseverbindungen, um mir vorzuschlagen, was ich vor meiner gespeicherten Reise vorbereiten sollte. Du kannst diese gespeicherten Erinnerungen anfordern und verwenden. Nachdem du die gespeicherten Erinnerungen verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved travel connection memory to suggest what I should prepare before my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved travel connection memory to suggest what I should prepare before my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved travel connection memory to suggest what I should prepare before my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -85,14 +85,14 @@ message_2:
     *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
     *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
   de: |
-    Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
-
-    Here is what you should prepare based on the specific notes you've saved:
-
-    *   **Seat Reservations:** For your [EuroCity](wiki:EuroCity) trip on July 4th, you explicitly noted the need to check for **mandatory summer seat reservation rules**. Since you also prefer a **window seat**, it would be wise to book this immediately to ensure you get your preferred spot and comply with seasonal requirements. For your July 12th trip, remember to specifically select the **quiet car** during booking.
-    *   **Catering:** You reminded yourself to **bring lunch** for the July 4th journey. You might want to plan a quick stop at a bakery or grocery store in Berlin the evening before or at the station on the morning of your 09:16 departure.
-    *   **Arrival and Transfer:** Your July 4th train arrives at 13:24, and your July 12th train arrives at 12:35. Since both arrive at Praha hlavní nádraží, you may want to have your local transport app or some Czech Koruna ready for your final destination in the city.
-    *   **Timing:** Your July 12th departure is an hour earlier (08:16) than your July 4th trip (09:16). Make sure to adjust your morning routine and transit to [Berlin Hauptbahnhof](wiki:Berlin_Hauptbahnhof) accordingly for that second trip.
+    Basierend auf den in deinen Erinnerungen gespeicherten Reiseverbindungen hast du zwei anstehende Reisen von [Berlin](wiki:Berlin) nach [Prag](wiki:Prague), die für den 4. Juli und den 12. Juli 2026 geplant sind.
+    
+    Hier ist, was du basierend auf deinen spezifischen Notizen vorbereiten solltest:
+    
+    *   **Sitzplatzreservierungen:** Für deine [EuroCity](wiki:EuroCity)-Reise am 4. Juli hast du explizit notiert, dass die **obligatorischen Reservierungsregeln für den Sommer** zu prüfen sind. Da du außerdem einen **Fensterplatz** bevorzugst, wäre es ratsam, diesen sofort zu buchen, um deinen Wunschplatz zu sichern und die saisonalen Anforderungen zu erfüllen. Denke für deine Reise am 12. Juli daran, bei der Buchung gezielt den **Ruhewagen** auszuwählen.
+    *   **Verpflegung:** Du hast dich selbst daran erinnert, für die Fahrt am 4. Juli **Mittagessen mitzubringen**. Vielleicht möchtest du am Vorabend in Berlin oder am Morgen deiner Abfahrt um 09:16 Uhr am Bahnhof einen kurzen Stopp bei einer Bäckerei oder einem Lebensmittelgeschäft einplanen.
+    *   **Ankunft und Transfer:** Dein Zug am 4. Juli kommt um 13:24 Uhr an, und dein Zug am 12. Juli um 12:35 Uhr. Da beide am Hauptbahnhof Prag (Praha hlavní nádraží) ankommen, solltest du deine lokale Transport-App oder einige Tschechische Kronen für dein endgültiges Ziel in der Stadt bereithalten.
+    *   **Timing:** Deine Abfahrt am 12. Juli ist eine Stunde früher (08:16 Uhr) als bei deiner Reise am 4. Juli (09:16 Uhr). Achte darauf, deine Morgenroutine und die Fahrt zum [Berliner Hauptbahnhof](wiki:Berlin_Hauptbahnhof) für diese zweite Reise entsprechend anzupassen.
   zh: |
     Based on the travel connections saved in your memories, you have two upcoming trips from [Berlin](wiki:Berlin) to [Prague](wiki:Prague) scheduled for July 4th and July 12th, 2026.
 

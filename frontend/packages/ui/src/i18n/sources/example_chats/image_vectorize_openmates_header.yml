@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Vectorize an image to SVG"
   en: "Vectorize an image to SVG"
-  de: "Vectorize an image to SVG"
+  de: Bild in SVG vektorisieren
   zh: "Vectorize an image to SVG"
   es: "Vectorize an image to SVG"
   fr: "Vectorize an image to SVG"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Vectorize an image to SVG"
   en: "Convert an uploaded raster image into a scalable SVG vector graphic."
-  de: "Convert an uploaded raster image into a scalable SVG vector graphic."
+  de: Konvertiere ein hochgeladenes Rasterbild in eine skalierbare SVG-Vektorgrafik.
   zh: "Convert an uploaded raster image into a scalable SVG vector graphic."
   es: "Convert an uploaded raster image into a scalable SVG vector graphic."
   fr: "Convert an uploaded raster image into a scalable SVG vector graphic."
@@ -59,7 +59,7 @@ message_1:
     }
     ```
   de: |
-    Use images.vectorize once on the uploaded image named openmates_header.png. Convert it to SVG. After starting the conversion, briefly say the SVG vectorization is processing:
+    Verwende images.vectorize einmal auf dem hochgeladenen Bild namens openmates_header.png. Konvertiere es in SVG. Sage nach dem Start der Konvertierung kurz, dass die SVG-Vektorisierung verarbeitet wird:
     ```json
     {
       "type": "image",
@@ -233,7 +233,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}
     ```
     
-    I'll convert that image to SVG for you now.Your SVG vectorization is processing! The conversion is underway and I'll update you once it's complete. This typically takes a moment as the system traces the raster image and converts it into scalable vector paths.
+    Ich werde dieses Bild jetzt für dich in SVG konvertieren. Deine SVG-Vektorisierung wird verarbeitet! Die Konvertierung ist im Gange und ich werde dich informieren, sobald sie abgeschlossen ist. Dies dauert normalerweise einen Moment, da das System das Rasterbild nachzeichnet und in skalierbare Vektorpfade umwandelt.
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "3a8114d9-0472-4627-9a73-8d331bef481f", "app_id": "images", "skill_id": "vectorize"}

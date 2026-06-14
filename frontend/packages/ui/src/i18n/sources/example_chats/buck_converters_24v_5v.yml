@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Buck converters for 24V to 5V"
   en: "Buck converters for 24V to 5V"
-  de: "Buck converters for 24V to 5V"
+  de: Abwärtswandler von 24 V auf 5 V
   zh: "Buck converters for 24V to 5V"
   es: "Buck converters for 24V to 5V"
   fr: "Buck converters for 24V to 5V"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Buck converters for 24V to 5V"
   en: "Find TI buck converter options for a 24V-to-5V electronics project."
-  de: "Find TI buck converter options for a 24V-to-5V electronics project."
+  de: Finde TI-Abwärtswandler für ein 24-V-auf-5-V-Elektronikprojekt.
   zh: "Find TI buck converter options for a 24V-to-5V electronics project."
   es: "Find TI buck converter options for a 24V-to-5V electronics project."
   fr: "Find TI buck converter options for a 24V-to-5V electronics project."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Buck converters for 24V to 5V. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
-  de: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
+  de: Finde passende Texas Instruments Abwärtswandler für 24 Volt Eingang auf 5 Volt Ausgang bei 3 Ampere.
   zh: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
   es: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
   fr: "Find matching Texas Instruments buck converters for 24 volts input to 5 volts output at 3 amps."
@@ -115,38 +115,38 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}
     ```
-
-    For your 24V to 5V, 3A design, several [Texas Instruments](wiki:Texas_Instruments) buck converters are suitable. Since 24V is a common industrial rail that can sometimes fluctuate, I've selected parts that offer varying degrees of input voltage margin and design simplicity.
-
-    ### Top Recommendations
-
+    
+    Für dein 24V-auf-5V-Design mit 3A sind mehrere Abwärtswandler von [Texas Instruments](wiki:Texas_Instruments) geeignet. Da 24V eine gängige Industriespannung ist, die manchmal schwanken kann, habe ich Bauteile ausgewählt, die unterschiedliche Eingangsspannungsreserven und Design-Einfachheit bieten.
+    
+    ### Top-Empfehlungen
+    
     ```json
     {"type": "sheet", "embed_id": "b3f95aa4-ddc7-4bff-b878-381c47a7c9fd"}
     ```
-
-
+    
+    
     ---
-
-    ### Detailed Options
-
+    
+    ### Detaillierte Optionen
+    
     [!](embed:tps543021drlr-buck-zO8)
-    The TPS543021 is a highly cost-effective synchronous buck converter. It operates at 500kHz and is optimized for low external component counts, making it great for general-purpose 24V industrial or consumer electronics.
-
+    Der TPS543021 ist ein äußerst kosteneffizienter synchroner Abwärtswandler. Er arbeitet mit 500 kHz und ist für eine geringe Anzahl externer Komponenten optimiert, was ihn ideal für allgemeine 24V-Industrie- oder Unterhaltungselektronik macht.
+    
     [!](embed:lmr604303srakr-buck-XEz)
-    If your input supply isn't perfectly regulated, the LMR60430 is a safer bet. Its 36V rating provides a significant safety buffer over a nominal 24V input. It also features [power good](wiki:Power_good_signal) and soft-start capabilities.
-
+    Wenn deine Eingangsspannung nicht perfekt geregelt ist, ist der LMR60430 die sicherere Wahl. Seine 36V-Spezifikation bietet einen erheblichen Sicherheitspuffer gegenüber einer nominalen 24V-Eingangsspannung. Er verfügt außerdem über [Power-Good](wiki:Power_good_signal)- und Soft-Start-Funktionen.
+    
     [!](embed:tpsm84338rcjr-buck-Swx)
-    For rapid prototyping where you want to minimize layout complexity and electromagnetic interference (EMI), the TPSM84338 is a **power module**. It integrates the inductor into the package, significantly reducing the design effort and PCB area.
-
-    ### Design Considerations
-    *   **Voltage Margin:** If your "24V" supply comes from a battery or a noisy industrial transformer, avoid parts rated exactly at 24V (like the `TPS56339`). Stick to 28V or 36V rated parts to prevent [overvoltage](wiki:Overvoltage) damage.
-    *   **Thermal Management:** At 3A, even a 92% efficient converter will dissipate about 1.2W of heat. Ensure your PCB has adequate copper pouring for the thermal pad.
-
-    Which of these factors is most important for your project: cost, ease of assembly, or high reliability?
-
-    **Next Steps:**
-    *   Would you like to see a reference schematic for one of these parts?
-    *   Do you need help calculating the inductor and capacitor values for the discrete options?
+    Für schnelles Prototyping, bei dem du die Layout-Komplexität und elektromagnetische Störungen (EMI) minimieren möchtest, ist der TPSM84338 ein **Power-Modul**. Er integriert die Induktivität in das Gehäuse, was den Designaufwand und die Leiterplattenfläche erheblich reduziert.
+    
+    ### Design-Überlegungen
+    *   **Spannungsreserve:** Wenn deine „24V“-Versorgung von einer Batterie oder einem rauschbehafteten Industrietransformator kommt, solltest du Bauteile vermeiden, die genau für 24V ausgelegt sind (wie der `TPS56339`). Halte dich an Bauteile mit 28V oder 36V Nennspannung, um Schäden durch [Überspannung](wiki:Overvoltage) zu vermeiden.
+    *   **Thermomanagement:** Bei 3A gibt selbst ein Wandler mit 92 % Wirkungsgrad etwa 1,2 W Wärme ab. Stelle sicher, dass deine Leiterplatte über ausreichend Kupferflächen für das Thermal Pad verfügt.
+    
+    Welcher dieser Faktoren ist für dein Projekt am wichtigsten: Kosten, einfache Montage oder hohe Zuverlässigkeit?
+    
+    **Nächste Schritte:**
+    *   Möchtest du einen Referenzschaltplan für eines dieser Bauteile sehen?
+    *   Benötigst du Hilfe bei der Berechnung der Induktivitäts- und Kondensatorwerte für die diskreten Optionen?
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "bf56c645-032a-431d-91ae-8e562b5c2ab0", "app_id": "electronics", "skill_id": "search_components"}

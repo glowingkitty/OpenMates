@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Habit Garden Vite App"
   en: "Habit Garden Vite App"
-  de: "Habit Garden Vite App"
+  de: Habit-Garden-Vite-App
   zh: "Habit Garden Vite App"
   es: "Habit Garden Vite App"
   fr: "Habit Garden Vite App"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Habit Garden Vite App"
   en: "Build a runnable habit-tracking garden app from generated Vite project files."
-  de: "Build a runnable habit-tracking garden app from generated Vite project files."
+  de: Erstelle eine ausführbare Habit-Tracker-Garten-App aus generierten Vite-Projektdateien.
   zh: "Build a runnable habit-tracking garden app from generated Vite project files."
   es: "Build a runnable habit-tracking garden app from generated Vite project files."
   fr: "Build a runnable habit-tracking garden app from generated Vite project files."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Habit Garden Vite App. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
-  de: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
+  de: Erstelle eine vollständige, ausführbare Vite-Browser-App namens Habit Garden als Multi-Datei-Projekt. Füge package.json, index.html, src/main.js, src/style.css und alle anderen benötigten Dateien hinzu. Die App soll es mir ermöglichen, Gewohnheiten hinzuzufügen, den heutigen Fortschritt zu markieren und eine wöchentliche Garten-Visualisierung anzuzeigen. Bitte gib die vollständigen Projektdateien zurück, damit OpenMates sie als Anwendung in der Vorschau anzeigen kann.
   zh: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
   es: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
   fr: "Create a complete runnable Vite browser app called Habit Garden as a multi-file project. Include package.json, index.html, src/main.js, src/style.css, and any other needed files. The app should let me add habits, mark today's progress, and show a weekly garden visualization. Please return the full project files so OpenMates can preview it as an application."
@@ -116,9 +116,9 @@ message_2:
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   de: |
-    Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
+    Hier ist ein vollständiges, ausführbares Vite-Projekt für deinen **Habit Garden**. Es verwendet Vanilla JavaScript, CSS und HTML. Die App speichert deine Gewohnheiten im `localStorage` des Browsers, damit dein Fortschritt beim Aktualisieren nicht verloren geht. 
     
-    Every habit you add gets assigned a unique flower. When you complete a habit for the day, that flower blooms in your garden grid; if you miss it, it stays a tiny sprout.
+    Jeder Gewohnheit, die du hinzufügst, wird eine einzigartige Blume zugewiesen. Wenn du eine Gewohnheit für den Tag abschließt, blüht diese Blume in deinem Garten-Raster auf; wenn du sie verpasst, bleibt sie ein winziger Sprössling.
     
     ### `package.json`
     ```json
@@ -152,9 +152,9 @@ message_2:
     
     
     
-    Enjoy building and watering your digital habits! Let me know if you'd like to extend it further, for example by adding streaks or customizing the flower types.
+    Viel Spaß beim Aufbauen und Gießen deiner digitalen Gewohnheiten! Lass mich wissen, wenn du sie weiter ausbauen möchtest, zum Beispiel durch Hinzufügen von Streaks oder Anpassen der Blumentypen.
     ---
-    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+    *⚠️ Dies sind ausschließlich Bildungsinformationen und keine professionelle psychologische Beratung. Bei psychischen Problemen wende dich bitte an einen qualifizierten Therapeuten oder Berater. Wenn du dich in einer Krise befindest, kontaktiere sofort den Notruf oder eine Krisen-Hotline.*
   zh: |
     Here is a complete, runnable Vite project for your **Habit Garden**. It uses vanilla JavaScript, CSS, and HTML. The app stores your habits in the browser's `localStorage` so you won't lose your progress when you refresh. 
     
@@ -916,4 +916,3 @@ message_2:
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   verified_by_human: []
-

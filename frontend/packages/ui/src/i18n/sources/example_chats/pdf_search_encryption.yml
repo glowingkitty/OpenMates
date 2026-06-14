@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Search inside a PDF"
   en: "Search inside a PDF"
-  de: "Search inside a PDF"
+  de: In einer PDF suchen
   zh: "Search inside a PDF"
   es: "Search inside a PDF"
   fr: "Search inside a PDF"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Search inside a PDF"
   en: "Search an uploaded PDF for a term and inspect the matching page context."
-  de: "Search an uploaded PDF for a term and inspect the matching page context."
+  de: Durchsuche eine hochgeladene PDF nach einem Begriff und prüfe den Kontext der entsprechenden Seite.
   zh: "Search an uploaded PDF for a term and inspect the matching page context."
   es: "Search an uploaded PDF for a term and inspect the matching page context."
   fr: "Search an uploaded PDF for a term and inspect the matching page context."
@@ -59,7 +59,7 @@ message_1:
     }
     ```
   de: |
-    I uploaded test_document.pdf for a later PDF search example. Do not call any PDF tools yet. Just acknowledge that the file is uploaded and processing:
+    Ich habe test_document.pdf für ein späteres PDF-Suchbeispiel hochgeladen. Rufe noch keine PDF-Tools auf. Bestätige nur, dass die Datei hochgeladen wurde und verarbeitet wird:
     ```json
     {
       "type": "pdf",
@@ -231,13 +231,13 @@ message_2:
     - You can ask me to search for specific keywords or topics within the PDF.
     - I can also summarize the contents of the document for you once it's finished processing.
   de: |
-    I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
+    Ich habe deine hochgeladene Datei test_document.pdf erhalten. Sie wird derzeit verarbeitet und steht für unsere Suche bereit, sobald du so weit bist.
     
-    What kind of information are you planning to look for in this document later?
+    Nach welcher Art von Informationen möchtest du später in diesem Dokument suchen?
     
-    **Next steps:**
-    - You can ask me to search for specific keywords or topics within the PDF.
-    - I can also summarize the contents of the document for you once it's finished processing.
+    **Nächste Schritte:**
+    - Du kannst mich bitten, nach bestimmten Schlüsselwörtern oder Themen innerhalb der PDF zu suchen.
+    - Ich kann auch den Inhalt des Dokuments für dich zusammenfassen, sobald die Verarbeitung abgeschlossen ist.
   zh: |
     I've received your uploaded file test_document.pdf. It's currently being processed and will be ready for us to search through whenever you're ready.
     
@@ -395,7 +395,7 @@ message_2:
 message_3:
   context: "user message 3 in example chat: Search inside a PDF. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
-  de: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
+  de: Verwende pdf.search einmal mit file_path test_document.pdf und der Suchanfrage encryption. Antworte mit der passenden Seitenzahl und einem kurzen Zitat.
   zh: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
   es: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
   fr: "Use pdf.search once with file_path test_document.pdf and query encryption. Answer with the matching page number and one short quote."
@@ -434,11 +434,11 @@ message_4:
     {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}
     ```
     
-    On page 1 of the document, the search for "encryption" returned the following:
+    Auf Seite 1 des Dokuments ergab die Suche nach „encryption“ Folgendes:
     
-    **Next steps:**
-    - Would you like me to check page 2 for more technical details on its architecture?
-    - I can also search for other terms like "FastAPI" or "PostgreSQL" mentioned in the document.
+    **Nächste Schritte:**
+    - Soll ich Seite 2 nach weiteren technischen Details zur Architektur durchsuchen?
+    - Ich kann auch nach anderen im Dokument erwähnten Begriffen wie „FastAPI“ oder „PostgreSQL“ suchen.
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "cc204c60-3b41-4ea6-ae58-52212bf841b8", "app_id": "pdf", "skill_id": "search", "query": "encryption"}

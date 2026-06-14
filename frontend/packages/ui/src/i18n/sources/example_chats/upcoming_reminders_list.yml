@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Upcoming Reminders List"
   en: "Upcoming Reminders List"
-  de: "Upcoming Reminders List"
+  de: Liste anstehender Erinnerungen
   zh: "Upcoming Reminders List"
   es: "Upcoming Reminders List"
   fr: "Upcoming Reminders List"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Upcoming Reminders List"
   en: "A reminder listing example that groups upcoming reminders by due date."
-  de: "A reminder listing example that groups upcoming reminders by due date."
+  de: Ein Beispiel für eine Erinnerungsliste, die anstehende Erinnerungen nach Fälligkeitsdatum gruppiert.
   zh: "A reminder listing example that groups upcoming reminders by due date."
   es: "A reminder listing example that groups upcoming reminders by due date."
   fr: "A reminder listing example that groups upcoming reminders by due date."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Upcoming Reminders List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
-  de: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  de: "@skill:reminder:list-reminders Liste meine anstehenden Erinnerungen auf und gruppiere sie nach ihrer Fälligkeit."
   zh: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
   es: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
   fr: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
@@ -94,15 +94,15 @@ message_2:
     {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
     ```
     
-    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    Es sieht so aus, als wäre dein Zeitplan völlig leer – du hast momentan keine anstehenden [Erinnerungen](/#settings/apps/reminder) festgelegt.
     
-    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    Da wir bei Null anfangen: Gibt es etwas, das du aus dem Kopf und auf eine Liste bringen möchtest? Ich kann dir dabei helfen, eine [Erinnerung festzulegen](/#settings/apps/reminder) für eine bestimmte Aufgabe, eine tägliche Gewohnheit, die du entwickelst, oder einfach einen kleinen Anstoß später in dieser Woche.
     
-    **What would you like to do next?**
-    *   **Set a new reminder?** Just let me know what it's for and when.
-    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    **Was möchtest du als Nächstes tun?**
+    *   **Eine neue Erinnerung festlegen?** Sag mir einfach, wofür und wann.
+    *   **Gewohnheitstracking ausprobieren?** Wir könnten eine wiederkehrende Erinnerung für etwas einrichten, an dem du gerade arbeitest.
     ---
-    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+    *⚠️ Dies dient ausschließlich zu Bildungszwecken und stellt keine professionelle psychologische Beratung dar. Bei psychischen Problemen wende dich bitte an einen qualifizierten Therapeuten oder Berater. Wenn du dich in einer Krise befindest, kontaktiere umgehend den Notruf oder eine Krisen-Hotline.*
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}

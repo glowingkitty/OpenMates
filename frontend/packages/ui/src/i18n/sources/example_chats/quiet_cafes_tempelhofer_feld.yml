@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Quiet Cafés Near Tempelhofer Feld"
   en: "Quiet Cafés Near Tempelhofer Feld"
-  de: "Quiet Cafés Near Tempelhofer Feld"
+  de: Ruhige Cafés am Tempelhofer Feld
   zh: "Quiet Cafés Near Tempelhofer Feld"
   es: "Quiet Cafés Near Tempelhofer Feld"
   fr: "Quiet Cafés Near Tempelhofer Feld"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Quiet Cafés Near Tempelhofer Feld"
   en: "Find quiet Berlin cafés near Tempelhofer Feld for a focused two-hour work session."
-  de: "Find quiet Berlin cafés near Tempelhofer Feld for a focused two-hour work session."
+  de: Finde ruhige Berliner Cafés in der Nähe des Tempelhofer Feldes für eine konzentrierte zweistündige Arbeitssitzung.
   zh: "Find quiet Berlin cafés near Tempelhofer Feld for a focused two-hour work session."
   es: "Find quiet Berlin cafés near Tempelhofer Feld for a focused two-hour work session."
   fr: "Find quiet Berlin cafés near Tempelhofer Feld for a focused two-hour work session."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Quiet Cafés Near Tempelhofer Feld. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Find a few quiet cafés near Tempelhofer Feld in Berlin where I could work for two hours, and include practical details like location and why each one is a good fit."
-  de: "Find a few quiet cafés near Tempelhofer Feld in Berlin where I could work for two hours, and include practical details like location and why each one is a good fit."
+  de: Finde ein paar ruhige Cafés in der Nähe des Tempelhofer Feldes in Berlin, in denen ich zwei Stunden lang arbeiten kann, und nenne praktische Details wie den Standort und warum das jeweilige Café gut geeignet ist.
   zh: "Find a few quiet cafés near Tempelhofer Feld in Berlin where I could work for two hours, and include practical details like location and why each one is a good fit."
   es: "Find a few quiet cafés near Tempelhofer Feld in Berlin where I could work for two hours, and include practical details like location and why each one is a good fit."
   fr: "Find a few quiet cafés near Tempelhofer Feld in Berlin where I could work for two hours, and include practical details like location and why each one is a good fit."
@@ -139,62 +139,62 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "abfa724c-84e1-45a4-9303-ead85ed4056c", "app_id": "web", "skill_id": "search", "query": "quiet laptop friendly cafes near Tempelhofer Feld Berlin work", "provider": "Brave"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "5944ab59-f0d3-4553-abf3-b6047b1c4022", "app_id": "maps", "skill_id": "search", "query": "laptop friendly cafes near Tempelhofer Feld Berlin", "provider": "Google"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "32f64c82-933d-48ec-876c-bb574ec77561", "app_id": "web", "skill_id": "search", "query": "Citykillerz blog favorite coffee shop Tempelhofer Feld laptop friendly name", "provider": "Brave"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "763d279c-fe9f-42a1-8f6f-7fc485558d69", "app_id": "web", "skill_id": "search", "query": "Sankt Oberholz Tempelhof location laptop friendly", "provider": "Brave"}
     ```
-
-    Finding a quiet spot to focus for a few hours near [Tempelhofer Feld](wiki:Tempelhofer_Feld) is quite easy if you know where the "work-friendly" hubs are. The area has evolved into a popular base for freelancers, offering a mix of dedicated coworking cafés and laptop-friendly local spots.
-
-    Based on your need for a quiet atmosphere and a two-hour window, here are the best fits:
-
+    
+    Einen ruhigen Ort zu finden, um sich für ein paar Stunden in der Nähe des [Tempelhofer Felds](wiki:Tempelhofer_Feld) zu konzentrieren, ist ziemlich einfach, wenn man weiß, wo die „arbeitsfreundlichen“ Hotspots sind. Die Gegend hat sich zu einem beliebten Stützpunkt für Freelancer entwickelt und bietet eine Mischung aus speziellen Coworking-Cafés und laptop-freundlichen lokalen Spots.
+    
+    Basierend auf deinem Wunsch nach einer ruhigen Atmosphäre und einem Zeitfenster von zwei Stunden sind dies die besten Optionen:
+    
     ### 1. St. Ringbahn (Sankt Oberholz)
-    This is likely the most professional option for focused work. Located directly at the southern edge of the field, it is part of the famous Sankt Oberholz network, which pioneered the "laptop café" culture in Berlin.
-    *   **Why it's a good fit:** It is specifically designed for productivity. The space is divided into a general café area and a dedicated **laptop-friendly zone** that stays much quieter than a standard bistro.
-    *   **Practical Details:**
-        *   **Location:** Ringbahnstraße 34, 12099 Berlin (near S+U Tempelhof).
-        *   **Amenities:** High-speed WiFi, power outlets, and a very "office-like" focus.
-        *   **Proximity:** Less than a 5-minute walk to the Tempelhofer Damm entrance.
-        *   [More info](/#settings/apps/web)
-
+    Dies ist wahrscheinlich die professionellste Option für konzentriertes Arbeiten. Es liegt direkt am Südrand des Feldes und ist Teil des berühmten Sankt-Oberholz-Netzwerks, das die „Laptop-Café“-Kultur in Berlin mitbegründet hat.
+    *   **Warum es gut passt:** Es ist speziell auf Produktivität ausgelegt. Der Raum ist in einen allgemeinen Café-Bereich und eine spezielle **laptop-freundliche Zone** unterteilt, in der es viel ruhiger zugeht als in einem Standard-Bistro.
+    *   **Praktische Details:**
+        *   **Standort:** Ringbahnstraße 34, 12099 Berlin (nahe S+U Tempelhof).
+        *   **Ausstattung:** Highspeed-WLAN, Steckdosen und ein sehr „büroähnlicher“ Fokus.
+        *   **Nähe:** Weniger als 5 Minuten Fußweg zum Eingang Tempelhofer Damm.
+        *   [Mehr Infos](/#settings/apps/web)
+    
     ### 2. UMA Hub Coworking & Cafe
-    Located just west of the field, [UMA Hub](embed:uma-hub-coworking-ySk) is a hybrid space that balances a cozy café feel with the infrastructure of a coworking space.
-    *   **Why it's a good fit:** It’s quieter than most nearby cafés because many patrons are there for the same reason you are—to work. It has a bright, airy atmosphere that is perfect for a mid-day two-hour session.
-    *   **Practical Details:**
-        *   **Location:** Großbeerenstraße 60, 10965 Berlin.
-        *   **Amenities:** Reliable WiFi and plenty of table space.
-        *   **Proximity:** About a 10-minute walk from the western edge of the park.
+    Direkt westlich des Feldes gelegen, ist das [UMA Hub](embed:uma-hub-coworking-ySk) ein Hybrid-Space, der eine gemütliche Café-Atmosphäre mit der Infrastruktur eines Coworking-Spaces verbindet.
+    *   **Warum es gut passt:** Es ist ruhiger als die meisten Cafés in der Nähe, da viele Gäste aus demselben Grund dort sind wie du – zum Arbeiten. Es herrscht eine helle, luftige Atmosphäre, die perfekt für eine zweistündige Session am Mittag ist.
+    *   **Praktische Details:**
+        *   **Standort:** Großbeerenstraße 60, 10965 Berlin.
+        *   **Ausstattung:** Zuverlässiges WLAN und viel Platz an den Tischen.
+        *   **Nähe:** Etwa 10 Minuten Fußweg vom westlichen Rand des Parks.
         *   [!](embed:uma-hub-coworking-ySk)
-
+    
     ### 3. Engels (Schillerkiez)
-    If you prefer the vibrant [Neukölln](wiki:Neukölln) side of the field (the eastern edge), **Engels** is a local favorite. It is frequently cited as one of the best "laptop cafés" in the area.
-    *   **Why it's a good fit:** It has a dedicated back section that is often filled with people working on laptops. While it can get busy during lunch, the "work vibe" is well-established, and the staff are generally very welcoming to laptop users.
-    *   **Practical Details:**
-        *   **Location:** Herrfurthstraße 21, 12049 Berlin.
-        *   **Amenities:** Free WiFi and a great selection of healthy food if you get hungry during your session.
-        *   **Proximity:** Right at the entrance to the "Schillerpromenade" gate of the field.
-        *   > [The back is the perfect place to work everyday at every hour. It's a lovely place, good food, free wifi and friendly staff.](embed:de.foursquare.com-jFz)
-
+    Wenn du die lebendige [Neuköllner](wiki:Neukölln) Seite des Feldes (den östlichen Rand) bevorzugst, ist das **Engels** ein lokaler Favorit. Es wird häufig als eines der besten „Laptop-Cafés“ in der Gegend genannt.
+    *   **Warum es gut passt:** Es gibt einen speziellen hinteren Bereich, in dem oft viele Leute an Laptops arbeiten. Obwohl es zur Mittagszeit voll werden kann, ist der „Work-Vibe“ etabliert und das Personal ist Laptop-Nutzern gegenüber meist sehr aufgeschlossen.
+    *   **Praktische Details:**
+        *   **Standort:** Herrfurthstraße 21, 12049 Berlin.
+        *   **Ausstattung:** Kostenloses WLAN und eine große Auswahl an gesundem Essen, falls du während deiner Session Hunger bekommst.
+        *   **Nähe:** Direkt am Eingang „Schillerpromenade“ des Feldes.
+        *   > [Der hintere Bereich ist der perfekte Ort, um jeden Tag zu jeder Zeit zu arbeiten. Es ist ein schöner Ort, gutes Essen, kostenloses WLAN und freundliches Personal.](embed:de.foursquare.com-jFz)
+    
     ### 4. PAUS COFFEE am Tempelhofer Feld
-    For a more casual, "neighborhood" feel, [PAUS COFFEE](embed:paus-coffee-am-QY1) is located in the Manfred-von-Richthofen-Kiez.
-    *   **Why it's a good fit:** It’s a smaller, specialty coffee shop. While not a dedicated "office space" like Sankt Oberholz, it's usually peaceful during weekday mornings and early afternoons, making it a great spot for a shorter, two-hour stint.
-    *   **Practical Details:**
-        *   **Location:** Manfred-von-Richthofen-Straße 6, 12101 Berlin.
-        *   **Amenities:** Excellent specialty coffee and a relaxed, minimalist interior.
-        *   **Proximity:** Just a few steps away from the western entrance of the park.
+    Für ein entspannteres „Kiez-Gefühl“ liegt das [PAUS COFFEE](embed:paus-coffee-am-QY1) im Manfred-von-Richthofen-Kiez.
+    *   **Warum es gut passt:** Es ist ein kleineres Specialty-Coffee-Geschäft. Es ist zwar kein spezieller „Büroraum“ wie das Sankt Oberholz, aber an Wochentagen vormittags und am frühen Nachmittag ist es meist ruhig, was es zu einem tollen Ort für einen kürzeren, zweistündigen Aufenthalt macht.
+    *   **Praktische Details:**
+        *   **Standort:** Manfred-von-Richthofen-Straße 6, 12101 Berlin.
+        *   **Ausstattung:** Exzellenter Specialty Coffee und ein entspanntes, minimalistisches Interieur.
+        *   **Nähe:** Nur ein paar Schritte vom Westeingang des Parks entfernt.
         *   [!](embed:paus-coffee-am-QY1)
-
-    **Pro-tip:** In Berlin, it’s always good form to check for "No Laptop" signs or stickers on tables, especially during peak lunch hours (12:00–14:00) or weekends, when many cafés prefer to keep tables open for diners.
-
-    How are you planning to get to the field? I can help you find the best [public transport](/#settings/apps/travel) route or a nearby [bike rental](/#settings/apps/maps) if you're coming from another district.
+    
+    **Pro-Tipp:** In Berlin gehört es zum guten Ton, auf „Laptop-Verbot“-Schilder oder Aufkleber an den Tischen zu achten, besonders während der Stoßzeiten am Mittag (12:00–14:00 Uhr) oder am Wochenende, wenn viele Cafés die Tische lieber für Gäste freihalten, die essen möchten.
+    
+    Wie planst du, zum Feld zu kommen? Ich kann dir helfen, die beste Route mit [öffentlichen Verkehrsmitteln](/#settings/apps/travel) oder einen [Fahrradverleih](/#settings/apps/maps) in der Nähe zu finden, falls du aus einem anderen Bezirk kommst.
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "abfa724c-84e1-45a4-9303-ead85ed4056c", "app_id": "web", "skill_id": "search", "query": "quiet laptop friendly cafes near Tempelhofer Feld Berlin work", "provider": "Brave"}

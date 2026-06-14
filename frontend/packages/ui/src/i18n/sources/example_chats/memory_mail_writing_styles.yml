@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Mail Writing Styles"
   en: "Memory Mail Writing Styles"
-  de: "Memory Mail Writing Styles"
+  de: "Memory: E-Mail-Schreibstile"
   zh: "Memory Mail Writing Styles"
   es: "Memory Mail Writing Styles"
   fr: "Memory Mail Writing Styles"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Mail Writing Styles"
   en: "OpenMates uses saved mail writing_styles memory in a real chat."
-  de: "OpenMates uses saved mail writing_styles memory in a real chat."
+  de: OpenMates nutzt den gespeicherten Memory-Eintrag „writing_styles“ für E-Mails in einem echten Chat.
   zh: "OpenMates uses saved mail writing_styles memory in a real chat."
   es: "OpenMates uses saved mail writing_styles memory in a real chat."
   fr: "OpenMates uses saved mail writing_styles memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Mail Writing Styles. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved email writing style memory to draft a short Friday progress update to a client. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved email writing style memory to draft a short Friday progress update to a client. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen gespeicherten Memory-Eintrag für E-Mail-Schreibstile, um ein kurzes Freitags-Update zum Fortschritt für einen Kunden zu entwerfen. Du darfst diesen gespeicherten Memory-Eintrag anfordern und verwenden. Suche nach der Verwendung des Memory-Eintrags nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved email writing style memory to draft a short Friday progress update to a client. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved email writing style memory to draft a short Friday progress update to a client. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved email writing style memory to draft a short Friday progress update to a client. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -90,19 +90,19 @@ message_2:
 
     Best, Alex
   de: |
-    Subject: Friday Update - [Project Name]
-
-    Hi [Client Name],
-
-    I hope you’ve had a productive week. Here is a concise update on our progress for [Project Name]:
-
-    * **[Milestone 1]**: Completed the [Specific Task] and confirmed the [Specific Result].
-    * **[Milestone 2]**: Finalized the draft for [Specific Deliverable], which is now ready for your review.
-    * **[Milestone 3]**: Initiated the [Current Phase] to ensure we remain on track for our [Date] deadline.
-
-    We are currently [Status, e.g., on schedule] and will prioritize [Upcoming Task] starting Monday.
-
-    Best, Alex
+    Betreff: Freitags-Update – [Projektname]
+    
+    Hallo [Name des Kunden],
+    
+    ich hoffe, du hattest eine produktive Woche. Hier ist ein kurzes Update zu unserem Fortschritt für [Projektname]:
+    
+    * **[Meilenstein 1]**: [Spezifische Aufgabe] abgeschlossen und [spezifisches Ergebnis] bestätigt.
+    * **[Meilenstein 2]**: Entwurf für [spezifisches Ergebnis] fertiggestellt, der nun zur Überprüfung bereitsteht.
+    * **[Meilenstein 3]**: [Aktuelle Phase] eingeleitet, um sicherzustellen, dass wir unseren Zeitplan für die Frist am [Datum] einhalten.
+    
+    Wir liegen derzeit [Status, z. B. im Zeitplan] und werden ab Montag [kommende Aufgabe] priorisieren.
+    
+    Beste Grüße, Alex
   zh: |
     Subject: Friday Update - [Project Name]
 

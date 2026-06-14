@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Family Stays In Kyoto"
   en: "Family Stays In Kyoto"
-  de: "Family Stays In Kyoto"
+  de: Familienunterkünfte in Kyoto
   zh: "Family Stays In Kyoto"
   es: "Family Stays In Kyoto"
   fr: "Family Stays In Kyoto"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Family Stays In Kyoto"
   en: "Find family-friendly Kyoto stays near public transit and compare location, price, and ratings."
-  de: "Find family-friendly Kyoto stays near public transit and compare location, price, and ratings."
+  de: Finde familienfreundliche Unterkünfte in Kyoto in der Nähe öffentlicher Verkehrsmittel und vergleiche Lage, Preis und Bewertungen.
   zh: "Find family-friendly Kyoto stays near public transit and compare location, price, and ratings."
   es: "Find family-friendly Kyoto stays near public transit and compare location, price, and ratings."
   fr: "Find family-friendly Kyoto stays near public transit and compare location, price, and ratings."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Family Stays In Kyoto. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Find family-friendly stays in Kyoto for two adults and one child for five nights in October, preferably near public transit, and compare price, location, and guest rating."
-  de: "Find family-friendly stays in Kyoto for two adults and one child for five nights in October, preferably near public transit, and compare price, location, and guest rating."
+  de: Finde familienfreundliche Unterkünfte in Kyoto für zwei Erwachsene und ein Kind für fünf Nächte im Oktober, vorzugsweise in der Nähe öffentlicher Verkehrsmittel, und vergleiche Preis, Lage und Gästebewertung.
   zh: "Find family-friendly stays in Kyoto for two adults and one child for five nights in October, preferably near public transit, and compare price, location, and guest rating."
   es: "Find family-friendly stays in Kyoto for two adults and one child for five nights in October, preferably near public transit, and compare price, location, and guest rating."
   fr: "Find family-friendly stays in Kyoto for two adults and one child for five nights in October, preferably near public transit, and compare price, location, and guest rating."
@@ -146,69 +146,69 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "c5e222f6-b05e-4c6f-8874-7b595604d7ce", "app_id": "travel", "skill_id": "search_stays", "query": "Family friendly hotels near public transit in Kyoto"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "ab6a375c-d92a-42fb-a6f0-b1c2456f1199", "app_id": "travel", "skill_id": "search_stays", "query": "Hotels in Kyoto"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "c90ccab0-0788-4e41-a49f-bc359016aa2e", "app_id": "travel", "skill_id": "search_stays", "query": "Hotels near Kyoto Station"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "48320665-f5ea-4c75-9b79-8e01f1b602ae", "app_id": "travel", "skill_id": "search_stays", "query": "Kyoto"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "7a6cfd2a-6000-4686-ae1e-c0360b46c752", "app_id": "travel", "skill_id": "search_stays", "query": "Kyoto"}
     ```
-
-    While I am unable to pull live, real-time pricing for your exact dates right this second, I can provide a highly reliable comparison of the absolute best family-friendly hotels in Kyoto based on historical October pricing, locations, and consistent guest ratings.
-
-    October is a peak travel month in Kyoto as the weather cools down and autumn foliage begins, so family rooms at these transit-friendly properties book up quickly!
-
-    Here is a comparison of four fantastic options for 2 adults and 1 child:
-
-    ### 1. Mimaru Kyoto Station (The "Home Away From Home")
-    Mimaru is a beloved apartment-style hotel chain in Japan designed specifically with families in mind.
-    *   **Location:** Outstanding. It's just a 3 to 5-minute walk from Kyoto Station. This is perfect for quick access to the Shinkansen (bullet train), local subways, and the main bus terminal.
-    *   **Family Friendliness:** Excellent. They offer spacious rooms with small kitchenettes, dining tables, and even fun bunk-bed layouts which kids love.
-    *   **Typical October Price:** **$$$** (Usually between $250 - $400 USD / night)
-    *   **Guest Rating:** ⭐️⭐️⭐️⭐️⭐️ **(4.8 / 5)** – Families consistently rate this as the best due to the sheer size of the rooms (a rarity in Japan).
-
-    ### 2. Hotel Granvia Kyoto (The "Maximum Convenience")
-    If you want to completely eliminate transit stress, this is the place.
-    *   **Location:** Unbeatable. The hotel is literally integrated *inside* the massive Kyoto Station complex. You can step off your train and be in the lobby in minutes without ever stepping outside—ideal when traveling with a child and luggage.
-    *   **Family Friendliness:** Great. It's a large, traditional full-service luxury hotel. They offer larger family rooms and have plenty of dining options right downstairs in the station complex.
-    *   **Typical October Price:** **$$$$** (Usually between $350 - $600+ USD / night)
-    *   **Guest Rating:** ⭐️⭐️⭐️⭐️½ **(4.5 / 5)** – Rated very highly for its world-class service and unmatched convenience.
-
-    ### 3. Cross Hotel Kyoto (The "Downtown Explorer")
-    If you prefer being near the lively cultural heart of the city rather than the main train station, this is a stylish option.
-    *   **Location:** Fantastic. Located near Sanjo Station and Kawaramachi. You have easy access to the subway and Keihan rail line, but you are also within walking distance of the famous Gion district, Pontocho Alley, and the Kamo River.
-    *   **Family Friendliness:** Very good. They offer spacious family rooms, and the location means you can easily take a family stroll for dinner without needing to hop on a train at the end of the day.
-    *   **Typical October Price:** **$$$** (Usually between $200 - $350 USD / night)
-    *   **Guest Rating:** ⭐️⭐️⭐️⭐️⭐️ **(4.7 / 5)** – Highly praised for its beautiful modern design, superb breakfast, and quiet rooms despite the central location.
-
-    ### 4. Karaksa Hotel Kyoto I (The "Budget-Friendly Connector")
-    Designed to be a modern, highly functional base camp for groups and families.
-    *   **Location:** Great. Located near Karasuma and Shijo subway stations (right in the middle of the city), giving you easy access to both the Kyoto Station area and the cultural sights in the north and east.
-    *   **Family Friendliness:** Excellent. They specialize in "connecting rooms," meaning you can book two adjoining rooms for extra space and privacy at a reasonable price, which is perfect for parents and an older child.
-    *   **Typical October Price:** **$$** (Usually between $150 - $250 USD / night)
-    *   **Guest Rating:** ⭐️⭐️⭐️⭐️½ **(4.5 / 5)** – Loved for its value, cleanliness, and thoughtful family-oriented layouts.
-
+    
+    Auch wenn ich gerade keine Live-Preise in Echtzeit für deine genauen Daten abrufen kann, kann ich dir einen sehr verlässlichen Vergleich der absolut besten familienfreundlichen Hotels in Kyoto bieten, basierend auf historischen Preisen für Oktober, der Lage und konsistenten Gästebewertungen.
+    
+    Der Oktober ist ein Hauptreisemonat in Kyoto, da das Wetter kühler wird und die Herbstfärbung beginnt. Familienzimmer in diesen verkehrsgünstig gelegenen Unterkünften sind daher schnell ausgebucht!
+    
+    Hier ist ein Vergleich von vier fantastischen Optionen für 2 Erwachsene und 1 Kind:
+    
+    ### 1. Mimaru Kyoto Station (Das „Zuhause fern von zu Hause“)
+    Mimaru ist eine beliebte Apartment-Hotelkette in Japan, die speziell für Familien konzipiert wurde.
+    *   **Lage:** Hervorragend. Nur 3 bis 5 Gehminuten vom Bahnhof Kyoto entfernt. Perfekt für den schnellen Zugang zum Shinkansen (Hochgeschwindigkeitszug), den lokalen U-Bahnen und dem Hauptbusbahnhof.
+    *   **Familienfreundlichkeit:** Ausgezeichnet. Es gibt geräumige Zimmer mit kleinen Kochnischen, Esstischen und sogar lustigen Etagenbetten, die Kinder lieben.
+    *   **Typischer Preis im Oktober:** **$$$** (Normalerweise zwischen 250 - 400 USD / Nacht)
+    *   **Gästebewertung:** ⭐️⭐️⭐️⭐️⭐️ **(4,8 / 5)** – Familien bewerten dieses Hotel aufgrund der Größe der Zimmer (eine Seltenheit in Japan) durchweg als das beste.
+    
+    ### 2. Hotel Granvia Kyoto (Das „Maximum an Komfort“)
+    Wenn du jeglichen Stress beim Umsteigen vermeiden willst, ist dies der richtige Ort.
+    *   **Lage:** Unschlagbar. Das Hotel ist direkt in den riesigen Bahnhofskomplex von Kyoto integriert. Du kannst aus dem Zug steigen und bist in wenigen Minuten in der Lobby, ohne das Gebäude verlassen zu müssen – ideal, wenn man mit Kind und Gepäck reist.
+    *   **Familienfreundlichkeit:** Großartig. Es ist ein großes, traditionelles Full-Service-Luxushotel. Es bietet größere Familienzimmer und zahlreiche Verpflegungsmöglichkeiten direkt unten im Bahnhofskomplex.
+    *   **Typischer Preis im Oktober:** **$$$$** (Normalerweise zwischen 350 - 600+ USD / Nacht)
+    *   **Gästebewertung:** ⭐️⭐️⭐️⭐️½ **(4,5 / 5)** – Sehr hoch bewertet für seinen erstklassigen Service und den unübertroffenen Komfort.
+    
+    ### 3. Cross Hotel Kyoto (Der „Innenstadt-Entdecker“)
+    Wenn du lieber in der Nähe des lebendigen kulturellen Herzens der Stadt wohnst als am Hauptbahnhof, ist dies eine stilvolle Option.
+    *   **Lage:** Fantastisch. In der Nähe der Stationen Sanjo und Kawaramachi gelegen. Du hast einfachen Zugang zur U-Bahn und zur Keihan-Bahnlinie, bist aber auch in Gehweite zum berühmten Gion-Viertel, der Pontocho-Gasse und dem Kamo-Fluss.
+    *   **Familienfreundlichkeit:** Sehr gut. Es werden geräumige Familienzimmer angeboten, und dank der Lage könnt ihr abends problemlos einen Familienspaziergang zum Abendessen machen, ohne am Ende des Tages in einen Zug steigen zu müssen.
+    *   **Typischer Preis im Oktober:** **$$$** (Normalerweise zwischen 200 - 350 USD / Nacht)
+    *   **Gästebewertung:** ⭐️⭐️⭐️⭐️⭐️ **(4,7 / 5)** – Hochgelobt für sein schönes modernes Design, das hervorragende Frühstück und die ruhigen Zimmer trotz der zentralen Lage.
+    
+    ### 4. Karaksa Hotel Kyoto I (Die „preiswerte Verbindung“)
+    Konzipiert als moderne, hochfunktionale Basis für Gruppen und Familien.
+    *   **Lage:** Großartig. In der Nähe der U-Bahn-Stationen Karasuma und Shijo (mitten in der Stadt) gelegen, was einen einfachen Zugang sowohl zum Bahnhofsviertel als auch zu den kulturellen Sehenswürdigkeiten im Norden und Osten ermöglicht.
+    *   **Familienfreundlichkeit:** Ausgezeichnet. Das Hotel ist auf „Zimmer mit Verbindungstür“ spezialisiert, was bedeutet, dass man zwei nebeneinander liegende Zimmer für mehr Platz und Privatsphäre zu einem angemessenen Preis buchen kann – perfekt für Eltern mit einem älteren Kind.
+    *   **Typischer Preis im Oktober:** **$$** (Normalerweise zwischen 150 - 250 USD / Nacht)
+    *   **Gästebewertung:** ⭐️⭐️⭐️⭐️½ **(4,5 / 5)** – Beliebt für sein Preis-Leistungs-Verhältnis, die Sauberkeit und die durchdachten, familienorientierten Grundrisse.
+    
     ***
-
-    ### Summary Comparison
-
-    *   **Best for Budget:** Karaksa Hotel
-    *   **Best for Transit & Day Trips:** Hotel Granvia & Mimaru Kyoto Station
-    *   **Best for Space & Amenities (Kitchen):** Mimaru Kyoto Station
-    *   **Best for Evening Strolls & Dining:** Cross Hotel Kyoto
-
-    Since I cannot browse the live October rates for you right now, I'd highly recommend plugging your exact 5 nights into a search engine soon, as October is high-season.
-
-    To help narrow it down: **Do you prefer having a kitchenette to prepare quick meals for your child (like Mimaru), or would you rather have the traditional full-service hotel experience (like Granvia/Cross Hotel)?**
+    
+    ### Zusammenfassender Vergleich
+    
+    *   **Am besten für das Budget:** Karaksa Hotel
+    *   **Am besten für Verkehrsanbindung & Tagesausflüge:** Hotel Granvia & Mimaru Kyoto Station
+    *   **Am besten für Platz & Ausstattung (Küche):** Mimaru Kyoto Station
+    *   **Am besten für Abendspaziergänge & Gastronomie:** Cross Hotel Kyoto
+    
+    Da ich die Live-Preise für Oktober derzeit nicht für dich abrufen kann, empfehle ich dir dringend, deine genauen 5 Nächte bald in eine Suchmaschine einzugeben, da der Oktober Hochsaison ist.
+    
+    Um die Auswahl einzugrenzen: **Bevorzugst du eine Kochnische, um schnelle Mahlzeiten für dein Kind zuzubereiten (wie im Mimaru), oder möchtest du lieber das traditionelle Full-Service-Hotelerlebnis (wie im Granvia/Cross Hotel)?**
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "c5e222f6-b05e-4c6f-8874-7b595604d7ce", "app_id": "travel", "skill_id": "search_stays", "query": "Family friendly hotels near public transit in Kyoto"}

@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Berlin Dermatology Appointments"
   en: "Berlin Dermatology Appointments"
-  de: "Berlin Dermatology Appointments"
+  de: Dermatologie-Termine in Berlin
   zh: "Berlin Dermatology Appointments"
   es: "Berlin Dermatology Appointments"
   fr: "Berlin Dermatology Appointments"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Berlin Dermatology Appointments"
   en: "A health appointment search example for English-speaking dermatology appointments in Berlin."
-  de: "A health appointment search example for English-speaking dermatology appointments in Berlin."
+  de: Ein Beispiel für die Suche nach englischsprachigen Terminen in der Dermatologie in Berlin.
   zh: "A health appointment search example for English-speaking dermatology appointments in Berlin."
   es: "A health appointment search example for English-speaking dermatology appointments in Berlin."
   fr: "A health appointment search example for English-speaking dermatology appointments in Berlin."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Berlin Dermatology Appointments. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
-  de: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
+  de: "@skill:health:search_appointments Finde englischsprachige Dermatologie-Termine in Berlin Mitte für eine Routine-Hautuntersuchung, vorzugsweise innerhalb der nächsten zwei Wochen, und fasse die besten Optionen zusammen."
   zh: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
   es: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
   fr: "@skill:health:search_appointments Find English-speaking dermatology appointments in Berlin Mitte for a routine skin check, preferably within the next two weeks, and summarize the best options."
@@ -107,28 +107,28 @@ message_2:
     {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}
     ```
     
-    I found several excellent options for an English-speaking [dermatology](wiki:Dermatology) routine skin check (Hautkrebsvorsorge) in [Berlin Mitte](wiki:Mitte_(locality)) with immediate availability.
+    Ich habe mehrere hervorragende Optionen für eine englischsprachige [dermatologische](wiki:Dermatology) Hautkrebsvorsorge in [Berlin Mitte](wiki:Mitte_(locality)) mit sofortiger Verfügbarkeit gefunden.
     
-    Based on your request for English-speaking doctors in Mitte, here are the best options for a routine skin cancer screening:
+    Basierend auf deiner Anfrage nach englischsprachigen Ärzten in Mitte sind hier die besten Optionen für eine routinemäßige Hautkrebsvorsorge:
     
-    ### **Top Recommendations in Berlin Mitte**
+    ### **Top-Empfehlungen in Berlin Mitte**
     
     ```json
     {"type": "sheet", "embed_id": "08e6061c-e224-46d4-8ac7-7318d0279b57"}
     ```
     
     
-    ### **Additional Options (Nearby)**
-    If those do not suit your schedule, there are also appointments available slightly outside of Mitte:
-    *   **HLCP Haut- und Lasercentrum**: Located at Kurfürstendamm 96 (Charlottenburg). They speak several languages including English and have slots starting tomorrow, June 9th.
-    *   **Meike Schröder**: Located at Clayallee 343 (Zehlendorf). They have slots available on June 9th and June 11th.
+    ### **Weitere Optionen (in der Nähe)**
+    Falls diese nicht in deinen Zeitplan passen, gibt es auch Termine etwas außerhalb von Mitte:
+    *   **HLCP Haut- und Lasercentrum**: Am Kurfürstendamm 96 (Charlottenburg) gelegen. Sie sprechen mehrere Sprachen, einschließlich Englisch, und haben freie Termine ab morgen, dem 9. Juni.
+    *   **Meike Schröder**: In der Clayallee 343 (Zehlendorf). Dort sind Termine am 9. Juni und 11. Juni verfügbar.
     
-    **Important Note on Insurance:**
-    Most of the immediate appointments found are in private practices or for "self-paying" patients. If you have public health insurance (GKV), please confirm during booking if the screening is covered or if it is a private service (IGeL).
+    **Wichtiger Hinweis zur Versicherung:**
+    Die meisten der gefundenen sofortigen Termine sind in Privatpraxen oder für Selbstzahler. Wenn du gesetzlich krankenversichert bist (GKV), kläre bitte bei der Buchung ab, ob die Vorsorge übernommen wird oder ob es sich um eine Privatleistung (IGeL) handelt.
     
-    Would you like me to help you [set a reminder](/#settings/apps/reminder) to follow up on this appointment, or should I search for more options further into next week?
+    Möchtest du, dass ich dir helfe, eine [Erinnerung einzurichten](/#settings/apps/reminder), um diesen Termin nachzuverfolgen, oder soll ich nach weiteren Optionen für die nächste Woche suchen?
     ---
-    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+    *⚠️ Dies dient nur zu Informationszwecken und ist keine medizinische Beratung. Konsultiere für medizinische Entscheidungen deinen Arzt.*
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "7fbf38fc-1126-46b3-bdf4-60bfb1e3197f", "app_id": "health", "skill_id": "search_appointments"}

@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Nonprofit Event Planning Use Case"
   en: "Nonprofit Event Planning Use Case"
-  de: "Nonprofit Event Planning Use Case"
+  de: "Anwendungsfall: Eventplanung für Non-Profit-Organisationen"
   zh: "Nonprofit Event Planning Use Case"
   es: "Nonprofit Event Planning Use Case"
   fr: "Nonprofit Event Planning Use Case"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Nonprofit Event Planning Use Case"
   en: "An OpenMates use-case example for nonprofit event planning with research, reminders, and shared summaries."
-  de: "An OpenMates use-case example for nonprofit event planning with research, reminders, and shared summaries."
+  de: Ein OpenMates-Anwendungsbeispiel für die Eventplanung in Non-Profit-Organisationen mit Recherche, Erinnerungen und geteilten Zusammenfassungen.
   zh: "An OpenMates use-case example for nonprofit event planning with research, reminders, and shared summaries."
   es: "An OpenMates use-case example for nonprofit event planning with research, reminders, and shared summaries."
   fr: "An OpenMates use-case example for nonprofit event planning with research, reminders, and shared summaries."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Nonprofit Event Planning Use Case. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@skill:openmates:share-usecase Draft a concise use case for OpenMates: a small nonprofit coordinates event planning with web research, reminders, and shared source-backed summaries. Make it suitable for the public use-case gallery."
-  de: "@skill:openmates:share-usecase Draft a concise use case for OpenMates: a small nonprofit coordinates event planning with web research, reminders, and shared source-backed summaries. Make it suitable for the public use-case gallery."
+  de: "@skill:openmates:share-usecase Entwirf einen prägnanten Anwendungsfall für OpenMates: Eine kleine Non-Profit-Organisation koordiniert die Eventplanung mit Web-Recherche, Erinnerungen und geteilten, quellenbasierten Zusammenfassungen. Erstelle ihn passend für die öffentliche Use-Case-Galerie."
   zh: "@skill:openmates:share-usecase Draft a concise use case for OpenMates: a small nonprofit coordinates event planning with web research, reminders, and shared source-backed summaries. Make it suitable for the public use-case gallery."
   es: "@skill:openmates:share-usecase Draft a concise use case for OpenMates: a small nonprofit coordinates event planning with web research, reminders, and shared source-backed summaries. Make it suitable for the public use-case gallery."
   fr: "@skill:openmates:share-usecase Draft a concise use case for OpenMates: a small nonprofit coordinates event planning with web research, reminders, and shared source-backed summaries. Make it suitable for the public use-case gallery."
@@ -95,16 +95,16 @@ message_2:
     {"type": "app_skill_use", "embed_id": "bbd60a9e-95f4-491e-8cfc-70888ca110a6", "app_id": "openmates", "skill_id": "share-usecase"}
     ```
     
-    That is a fantastic use case! It highlights exactly how OpenMates can help teams collaborate more effectively by handling the information-heavy side of planning.
+    Das ist ein fantastischer Anwendungsfall! Er verdeutlicht genau, wie OpenMates Teams dabei helfen kann, effektiver zusammenzuarbeiten, indem es den informationsintensiven Teil der Planung übernimmt.
     
-    Here is the drafted summary for the public use-case gallery:
+    Hier ist der Entwurf der Zusammenfassung für die öffentliche Use-Case-Galerie:
     
-    **Nonprofit Event Coordination**
-    > "Small nonprofit organizations use OpenMates to streamline event planning and coordination. By leveraging [web research](/#settings/apps/web) for venues and vendors, setting automated [reminders](/#settings/apps/reminder) for team deadlines, and generating shared summaries backed by verified sources, teams can stay aligned and efficient. This collaborative approach ensures all members have access to the same source-backed information, allowing the organization to focus more on its community mission."
+    **Event-Koordination für Non-Profit-Organisationen**
+    > "Kleine Non-Profit-Organisationen nutzen OpenMates, um die Eventplanung und -koordination zu optimieren. Durch die Nutzung von [Web-Recherche](/#settings/apps/web) für Veranstaltungsorte und Dienstleister, das Einrichten automatisierter [Erinnerungen](/#settings/apps/reminder) für Team-Fristen und das Erstellen geteilter, durch verifizierte Quellen gestützter Zusammenfassungen können Teams abgestimmt und effizient arbeiten. Dieser kollaborative Ansatz stellt sicher, dass alle Mitglieder Zugriff auf dieselben quellenbasierten Informationen haben, sodass sich die Organisation stärker auf ihre gemeinnützige Mission konzentrieren kann."
     
-    I've shared this anonymously with the OpenMates team to help showcase how the platform is being used in the real world.
+    Ich habe dies anonym mit dem OpenMates-Team geteilt, um zu zeigen, wie die Plattform in der Praxis eingesetzt wird.
     
-    Would you like to explore how to set up [automated reminders](/#settings/apps/reminder) for your team, or should we look into how to [share summaries](/#settings/apps/docs) effectively?
+    Möchtest du erfahren, wie du [automatisierte Erinnerungen](/#settings/apps/reminder) für dein Team einrichtest, oder sollen wir uns ansehen, wie man [Zusammenfassungen effektiv teilt](/#settings/apps/docs)?
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "bbd60a9e-95f4-491e-8cfc-70888ca110a6", "app_id": "openmates", "skill_id": "share-usecase"}

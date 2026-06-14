@@ -52,6 +52,10 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
+import yaml
+
+
+FENCED_CODE_BLOCK_RE = re.compile(r"```[a-zA-Z0-9_-]*\n[\s\S]*?```", re.MULTILINE)
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -280,6 +284,19 @@ def source_text(value) -> str:
     return str(value)
 
 
+def output_key_for_record(record: dict, index: int) -> str:
+    """Create a unique Gemini function field name for a file/key record."""
+    stem = Path(record["file"]).stem
+    raw = f"{stem}__{record['key']}__{index}"
+    return re.sub(r"[^A-Za-z0-9_]", "_", raw)
+
+
+def strip_output_key_prefix(value: str, output_key: str) -> str:
+    """Remove model echoes like `generated_field_name: translated text`."""
+    prefix = f"{output_key}:"
+    return value.removeprefix(prefix).lstrip()
+
+
 def build_batches(records: list[dict]) -> list[list[dict]]:
     """
     Split a list of missing-key records into batches for Gemini.
@@ -362,7 +379,7 @@ def _yaml_value_lines(lang: str, value: str, indent: str = "  ") -> list[str]:
     return [f"{indent}{lang}: {value}\n"]
 
 
-def write_translation_to_file(file_path: Path, key: str, lang: str, value: str) -> bool:
+def write_translation_to_file(file_path: Path, key: str, lang: str, value: str, overwrite_existing: bool = False) -> bool:
     """
     Insert a translated value for `key` + `lang` into the YAML source file.
 
@@ -429,12 +446,19 @@ def write_translation_to_file(file_path: Path, key: str, lang: str, value: str) 
     for j in range(key_line_idx + 1, insert_idx):
         if lang_pattern.match(lines[j]):
             existing_value = lines[j].split(":", 1)[1].strip().strip('"').strip("'")
-            if existing_value:
+            if existing_value and not overwrite_existing:
                 # Already exists — skip (don't overwrite)
                 return False
 
             new_lines = _yaml_value_lines(lang, value, indent=entry_indent)
-            lines[j:j + 1] = new_lines
+            replace_end = j + 1
+            if lines[j].split(":", 1)[1].strip().startswith(("|", ">")):
+                while replace_end < insert_idx:
+                    candidate = lines[replace_end]
+                    if candidate.strip() and candidate.startswith(entry_indent) and not candidate.startswith(entry_indent + " "):
+                        break
+                    replace_end += 1
+            lines[j:replace_end] = new_lines
             file_path.write_text("".join(lines), encoding="utf-8")
             return True
 
@@ -454,7 +478,45 @@ def write_translation_to_file(file_path: Path, key: str, lang: str, value: str) 
 # ---------------------------------------------------------------------------
 
 
-def translate_missing(lang: str, file_pattern: Optional[str], count: Optional[int], dry_run: bool) -> int:
+def collect_identical_english_records(lang: str, file_pattern: Optional[str]) -> list[dict[str, str]]:
+    """Return records where a non-empty target translation exactly copies English."""
+    patterns = [file_pattern] if file_pattern else ["**/*.yml"]
+    records: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    for pattern in patterns:
+        for file_path in sorted(I18N_SOURCES_DIR.glob(pattern)):
+            if not file_path.is_file():
+                continue
+            data = yaml.safe_load(file_path.read_text(encoding="utf-8")) or {}
+            for key, entry in data.items():
+                if not isinstance(entry, dict):
+                    continue
+                en = entry.get("en")
+                target = entry.get(lang)
+                if not isinstance(en, str) or not isinstance(target, str):
+                    continue
+                if not en.strip() or en.strip() != target.strip():
+                    continue
+                if not FENCED_CODE_BLOCK_RE.sub("", en).strip():
+                    continue
+                record_id = (str(file_path.relative_to(REPO_ROOT)), str(key))
+                if record_id in seen:
+                    continue
+                seen.add(record_id)
+                records.append({
+                    "file": record_id[0],
+                    "key": str(key),
+                    "context": str(entry.get("context") or ""),
+                    "en": en,
+                    lang: target,
+                    "replace_existing": True,
+                })
+
+    return records
+
+
+def translate_missing(lang: str, file_pattern: Optional[str], count: Optional[int], dry_run: bool, replace_identical_english: bool = False) -> int:
     """
     Find missing translations, call Gemini, write results back.
 
@@ -501,16 +563,33 @@ def translate_missing(lang: str, file_pattern: Optional[str], count: Optional[in
     start = raw.find("[")
     end = raw.rfind("]")
     if start == -1 or end == -1:
-        print(f"{GREEN}No missing translations for '{lang}'" + (f" in '{file_pattern}'" if file_pattern else "") + f".{RESET}")
-        return 0
-    raw = raw[start : end + 1]
+        if replace_identical_english:
+            records = []
+        else:
+            print(f"{GREEN}No missing translations for '{lang}'" + (f" in '{file_pattern}'" if file_pattern else "") + f".{RESET}")
+            return 0
+    else:
+        raw = raw[start : end + 1]
 
-    try:
-        records = json.loads(raw)
-    except json.JSONDecodeError as e:
-        print(f"{RED}Could not parse export-missing output: {e}{RESET}", file=sys.stderr)
-        print(f"Raw output (first 500 chars):\n{raw[:500]}", file=sys.stderr)
-        sys.exit(1)
+        try:
+            records = json.loads(raw)
+        except json.JSONDecodeError as e:
+            print(f"{RED}Could not parse export-missing output: {e}{RESET}", file=sys.stderr)
+            print(f"Raw output (first 500 chars):\n{raw[:500]}", file=sys.stderr)
+            sys.exit(1)
+
+    if not records:
+        records = []
+
+    if replace_identical_english:
+        existing_ids = {(r["file"], r["key"]) for r in records}
+        for record in collect_identical_english_records(lang, file_pattern):
+            record_id = (record["file"], record["key"])
+            if record_id not in existing_ids:
+                records.append(record)
+                existing_ids.add(record_id)
+
+    records = [r for r in records if str(r.get("en") or "").strip()]
 
     if not records:
         print(f"{GREEN}No missing translations for '{lang}'" + (f" in '{file_pattern}'" if file_pattern else "") + f".{RESET}")
@@ -520,8 +599,12 @@ def translate_missing(lang: str, file_pattern: Optional[str], count: Optional[in
     if count and count > 0:
         records = records[:count]
 
+    for index, record in enumerate(records, start=1):
+        record["_output_key"] = output_key_for_record(record, index)
+
     total = len(records)
-    print(f"\n{BOLD}Translating {total} missing '{lang}' key(s)" + (f" in '{file_pattern}'" if file_pattern else "") + f"...{RESET}\n")
+    label = "missing or English-fallback" if replace_identical_english else "missing"
+    print(f"\n{BOLD}Translating {total} {label} '{lang}' key(s)" + (f" in '{file_pattern}'" if file_pattern else "") + f"...{RESET}\n")
 
     # --- Step 2: Build system prompt ---
     system_prompt = (
@@ -538,17 +621,19 @@ def translate_missing(lang: str, file_pattern: Optional[str], count: Optional[in
 
     # --- Step 3: Batch and translate ---
     batches = build_batches(records)
-    translated: dict[str, str] = {}  # key → translated value
+    translated: dict[str, str] = {}  # unique output key → translated value
 
     for batch_num, batch in enumerate(batches, 1):
-        keys = [r["key"] for r in batch]
-        print(f"  Batch {batch_num}/{len(batches)}: {len(keys)} key(s)  [{', '.join(keys[:3])}{'...' if len(keys) > 3 else ''}]")
+        output_keys = [r["_output_key"] for r in batch]
+        display_keys = [f"{Path(r['file']).name}:{r['key']}" for r in batch]
+        print(f"  Batch {batch_num}/{len(batches)}: {len(output_keys)} key(s)  [{', '.join(display_keys[:3])}{'...' if len(output_keys) > 3 else ''}]")
 
         # Build a clear user message listing each key with its context and English value
         items = []
         for r in batch:
             items.append(
-                f"Key: {r['key']}\n"
+                f"Key: {r['_output_key']}\n"
+                f"Source: {Path(r['file']).name}:{r['key']}\n"
                 f"Context: {r['context']}\n"
                 f"English: {source_text(r['en'])}"
             )
@@ -561,15 +646,16 @@ def translate_missing(lang: str, file_pattern: Optional[str], count: Optional[in
             print(f"  {DIM}[dry-run] Would call Gemini for batch {batch_num}{RESET}")
             continue
 
-        result_map = call_gemini(api_key, system_prompt, user_message, lang, keys)
+        result_map = call_gemini(api_key, system_prompt, user_message, lang, output_keys)
 
-        for key in keys:
-            val = result_map.get(key, "").strip()
+        for record in batch:
+            output_key = record["_output_key"]
+            val = strip_output_key_prefix(result_map.get(output_key, "").strip(), output_key)
             if val:
-                translated[key] = val
-                print(f"    {GREEN}✓{RESET} {key}: {val[:60]}{'...' if len(val) > 60 else ''}")
+                translated[output_key] = val
+                print(f"    {GREEN}✓{RESET} {Path(record['file']).name}:{record['key']}: {val[:60]}{'...' if len(val) > 60 else ''}")
             else:
-                print(f"    {YELLOW}⚠{RESET} {key}: no translation returned — skipping")
+                print(f"    {YELLOW}⚠{RESET} {Path(record['file']).name}:{record['key']}: no translation returned — skipping")
 
     if dry_run:
         print(f"\n{DIM}[dry-run] No files written.{RESET}")
@@ -580,16 +666,22 @@ def translate_missing(lang: str, file_pattern: Optional[str], count: Optional[in
     written = 0
     skipped = 0
 
-    # Build a map from key → file path
-    key_to_file: dict[str, Path] = {}
+    # Build a map from (file, key) → file path. Keys like `title` repeat across files.
+    key_to_file: dict[tuple[str, str], Path] = {}
     for r in records:
-        key_to_file[r["key"]] = REPO_ROOT / r["file"]
+        record_id = (r["file"], r["key"])
+        key_to_file[record_id] = REPO_ROOT / r["file"]
 
-    for key, value in translated.items():
-        file_path = key_to_file.get(key)
+    for record in records:
+        key = record["key"]
+        value = translated.get(record["_output_key"])
+        if not value:
+            continue
+        record_id = (record["file"], key)
+        file_path = key_to_file.get(record_id)
         if not file_path:
             continue
-        if write_translation_to_file(file_path, key, lang, value):
+        if write_translation_to_file(file_path, key, lang, value, overwrite_existing=bool(record.get("replace_existing"))):
             written += 1
         else:
             skipped += 1
@@ -655,9 +747,14 @@ def main():
         action="store_true",
         help="Show what would be translated without calling the API or writing files",
     )
+    parser.add_argument(
+        "--replace-identical-english",
+        action="store_true",
+        help="Also translate non-empty target values that exactly duplicate English",
+    )
 
     args = parser.parse_args()
-    n = translate_missing(args.lang, args.file, args.count, args.dry_run)
+    n = translate_missing(args.lang, args.file, args.count, args.dry_run, args.replace_identical_english)
 
     if n > 0:
         print(

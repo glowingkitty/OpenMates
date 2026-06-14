@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Books To Read List"
   en: "Memory Books To Read List"
-  de: "Memory Books To Read List"
+  de: "Gedächtnis: Leseliste"
   zh: "Memory Books To Read List"
   es: "Memory Books To Read List"
   fr: "Memory Books To Read List"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Books To Read List"
   en: "OpenMates uses saved books to_read_list memory in a real chat."
-  de: "OpenMates uses saved books to_read_list memory in a real chat."
+  de: OpenMates nutzt das Gedächtnis für die Leseliste in einem echten Chat.
   zh: "OpenMates uses saved books to_read_list memory in a real chat."
   es: "OpenMates uses saved books to_read_list memory in a real chat."
   fr: "OpenMates uses saved books to_read_list memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Books To Read List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze mein gespeichertes Leselisten-Gedächtnis, um mir bei der Auswahl eines Buches für eine lange Zugfahrt in dieser Woche zu helfen. Du darfst dieses gespeicherte Gedächtnis anfordern und verwenden. Nachdem du das gespeicherte Gedächtnis verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -80,9 +80,9 @@ message_2:
 
     Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
   de: |
-    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
-
-    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+    Basierend auf den Büchern in deiner Leseliste empfehle ich dir, [Dune](wiki:Dune_(novel)) von [Frank Herbert](wiki:Frank_Herbert) für deine lange Zugfahrt diese Woche anzufangen.
+    
+    In deinen Notizen wird es ausdrücklich als „großes, fesselndes Buch für eine ruhige Reise“ und als „hohe Priorität“ bezeichnet, was es zur perfekten Wahl für eine lange Reise macht, bei der du die Zeit hast, in seinen tiefgreifenden Weltenbau einzutauchen. Während [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) von [Becky Chambers](wiki:Becky_Chambers) eine tolle Option für eine „sanfte Wochenendlektüre“ ist, wird der Umfang von [Dune](wiki:Dune_(novel)) dazu beitragen, dass die Stunden im Zug wie im Flug vergehen.
   zh: |
     Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
 

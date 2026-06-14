@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Ai Learning Preferences"
   en: "Memory Ai Learning Preferences"
-  de: "Memory Ai Learning Preferences"
+  de: "Gedächtnis: KI-Lernpräferenzen"
   zh: "Memory Ai Learning Preferences"
   es: "Memory Ai Learning Preferences"
   fr: "Memory Ai Learning Preferences"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Ai Learning Preferences"
   en: "OpenMates uses saved AI learning preferences in a real chat."
-  de: "OpenMates uses saved AI learning preferences in a real chat."
+  de: OpenMates nutzt gespeicherte KI-Lernpräferenzen in einem echten Chat.
   zh: "OpenMates uses saved AI learning preferences in a real chat."
   es: "OpenMates uses saved AI learning preferences in a real chat."
   fr: "OpenMates uses saved AI learning preferences in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Ai Learning Preferences. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
-  de: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
+  de: "Nutze mein gespeichertes KI-Lernpräferenzen-Gedächtnis, um einen 30-minütigen Übungsplan zum Verständnis von JavaScript-Promises zu entwerfen. Du darfst dieses gespeicherte Gedächtnis anfordern und verwenden. Halte die Antwort nur in reinem Text: keine Code-Blöcke, kein JSON, keine Markdown-Tabellen, keine App-Skills, keine Embeds, keine Websuche, keine Dokumente und keine Folgefrage. Füge ein winziges Inline-Beispiel und zwei Übungen hinzu."
   zh: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
   es: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
   fr: "Use my saved AI learning preferences memory to design a 30-minute practice plan for understanding JavaScript promises. You may request and use that saved memory. Keep the answer plain text only: no fenced code blocks, no JSON, no markdown tables, no app skills, no embeds, no web search, no documents, and no follow-up question. Include one tiny inline example and two exercises."
@@ -98,27 +98,27 @@ message_2:
     Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
     Objective: Practice handling different Promise states and error flows.
   de: |
-    Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
-
-    PRACTICE PLAN: UNDERSTANDING PROMISES (30 MINUTES)
-
-    00:00 - 05:00 PHASE 1: THE TINY START
-    A Promise is an object representing the eventual completion of an asynchronous operation.
-    Tiny Example: const p = new Promise(res => res('Ready')); p.then(v => console.log(v));
-
-    05:00 - 15:00 PHASE 2: EXERCISE 1 - TIME DELAYS
-    Task: Create a Promise that resolves with the string 'Success' after exactly 2 seconds. Use setTimeout inside the Promise to handle the delay, then log the result using .then().
-    Objective: Understand how Promises wait for tasks to finish.
-
-    15:00 - 20:00 PHASE 3: THE PROMISE CHECKLIST
-    - Initialize using: new Promise((resolve, reject) => { ... })
-    - Success path: call resolve(data) to trigger .then()
-    - Error path: call reject(error) to trigger .catch()
-    - Handling: .then() receives the resolved value; .catch() receives the rejection reason.
-
-    20:00 - 30:00 PHASE 4: EXERCISE 2 - LOGIC AND REJECTION
-    Task: Write a function called validate(num) that returns a Promise. If num is even, resolve with 'Even number'. If num is odd, reject with 'Odd number'. Call the function with an odd number and ensure you use .catch() to log the error message.
-    Objective: Practice handling different Promise states and error flows.
+    Basierend auf deiner gespeicherten Vorliebe für praxisnahes Lernen anhand von Beispielen ist hier dein 30-minütiger Übungsplan für JavaScript-Promises.
+    
+    ÜBUNGSPLAN: PROMISES VERSTEHEN (30 MINUTEN)
+    
+    00:00 - 05:00 PHASE 1: DER KLEINE START
+    Ein Promise ist ein Objekt, das den eventuellen Abschluss einer asynchronen Operation darstellt.
+    Kleines Beispiel: const p = new Promise(res => res('Bereit')); p.then(v => console.log(v));
+    
+    05:00 - 15:00 PHASE 2: ÜBUNG 1 - ZEITVERZÖGERUNGEN
+    Aufgabe: Erstelle ein Promise, das nach genau 2 Sekunden mit dem String 'Erfolg' aufgelöst wird. Verwende setTimeout innerhalb des Promise, um die Verzögerung zu handhaben, und logge das Ergebnis dann mit .then().
+    Ziel: Verstehen, wie Promises auf den Abschluss von Aufgaben warten.
+    
+    15:00 - 20:00 PHASE 3: DIE PROMISE-CHECKLISTE
+    - Initialisierung mit: new Promise((resolve, reject) => { ... })
+    - Erfolgsfall: resolve(data) aufrufen, um .then() auszulösen
+    - Fehlerfall: reject(error) aufrufen, um .catch() auszulösen
+    - Handhabung: .then() erhält den aufgelösten Wert; .catch() erhält den Grund der Ablehnung.
+    
+    20:00 - 30:00 PHASE 4: ÜBUNG 2 - LOGIK UND ABLEHNUNG
+    Aufgabe: Schreibe eine Funktion namens validate(num), die ein Promise zurückgibt. Wenn num gerade ist, löse es mit 'Gerade Zahl' auf. Wenn num ungerade ist, lehne es mit 'Ungerade Zahl' ab. Rufe die Funktion mit einer ungeraden Zahl auf und stelle sicher, dass du .catch() verwendest, um die Fehlermeldung zu loggen.
+    Ziel: Den Umgang mit verschiedenen Promise-Zuständen und Fehlerflüssen üben.
   zh: |
     Based on your saved preference for hands-on, example-first learning, here is your 30-minute practice plan for JavaScript Promises.
 

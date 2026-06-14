@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Run a Python Squares Snippet"
   en: "Run a Python Squares Snippet"
-  de: "Run a Python Squares Snippet"
+  de: Python-Quadratzahlen-Snippet ausführen
   zh: "Run a Python Squares Snippet"
   es: "Run a Python Squares Snippet"
   fr: "Run a Python Squares Snippet"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Run a Python Squares Snippet"
   en: "A code execution example that runs a tiny Python loop and explains its output."
-  de: "A code execution example that runs a tiny Python loop and explains its output."
+  de: Ein Beispiel für die Code-Ausführung, das eine kleine Python-Schleife ausführt und deren Ausgabe erklärt.
   zh: "A code execution example that runs a tiny Python loop and explains its output."
   es: "A code execution example that runs a tiny Python loop and explains its output."
   fr: "A code execution example that runs a tiny Python loop and explains its output."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Run a Python Squares Snippet. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@skill:code:run Run this small Python snippet and explain the output: for n in range(1, 8): print(n, n*n, 'even' if n % 2 == 0 else 'odd')"
-  de: "@skill:code:run Run this small Python snippet and explain the output: for n in range(1, 8): print(n, n*n, 'even' if n % 2 == 0 else 'odd')"
+  de: "@skill:code:run Führe dieses kleine Python-Snippet aus und erkläre die Ausgabe: for n in range(1, 8): print(n, n*n, 'even' if n % 2 == 0 else 'odd')"
   zh: "@skill:code:run Run this small Python snippet and explain the output: for n in range(1, 8): print(n, n*n, 'even' if n % 2 == 0 else 'odd')"
   es: "@skill:code:run Run this small Python snippet and explain the output: for n in range(1, 8): print(n, n*n, 'even' if n % 2 == 0 else 'odd')"
   fr: "@skill:code:run Run this small Python snippet and explain the output: for n in range(1, 8): print(n, n*n, 'even' if n % 2 == 0 else 'odd')"
@@ -118,7 +118,7 @@ message_2:
     {"type": "app_skill_use", "embed_id": "5fc00e79-43bc-4343-b965-4452d79e8fb8", "app_id": "code", "skill_id": "run"}
     ```
     
-    Here is the execution and explanation of the [Python](wiki:Python_(programming_language)) snippet you provided.
+    Hier ist die Ausführung und Erklärung des von dir bereitgestellten [Python](wiki:Python_(programming_language))-Snippets.
     
     ```json
     {"type": "code", "embed_id": "df9131ca-18fb-4f9b-9063-23e6abead1ff"}
@@ -126,31 +126,31 @@ message_2:
     
     
     
-    ### Output
+    ### Ausgabe
     ```json
     {"type": "code", "embed_id": "a6cf69a2-a9cc-41d5-9317-826b02fbfa16"}
     ```
     
     
     
-    ### Explanation
-    The code uses a `for` loop to iterate through a sequence of numbers and prints three values for each iteration:
+    ### Erklärung
+    Der Code verwendet eine `for`-Schleife, um eine Zahlenfolge zu durchlaufen, und gibt bei jeder Iteration drei Werte aus:
     
-    1.  **`range(1, 8)`**: This generates a sequence starting at **1** and ending at **7** (the stop value, 8, is exclusive).
-    2.  **`n`**: The first column prints the current number in the loop.
-    3.  **`n*n`**: The second column calculates and prints the **square** of the number.
-    4.  **`'even' if n % 2 == 0 else 'odd'`**: This is a conditional expression (ternary operator).
-        *   It checks if `n` is divisible by 2 using the modulo operator (`%`).
-        *   If the remainder is `0`, it prints "even".
-        *   Otherwise, it prints "odd".
+    1.  **`range(1, 8)`**: Dies erzeugt eine Sequenz, die bei **1** beginnt und bei **7** endet (der Endwert 8 ist exklusiv).
+    2.  **`n`**: Die erste Spalte gibt die aktuelle Zahl in der Schleife aus.
+    3.  **`n*n`**: Die zweite Spalte berechnet und gibt das **Quadrat** der Zahl aus.
+    4.  **`'even' if n % 2 == 0 else 'odd'`**: Dies ist ein bedingter Ausdruck (Ternärer Operator).
+        *   Er prüft mit dem Modulo-Operator (`%`), ob `n` durch 2 teilbar ist.
+        *   Wenn der Rest `0` ist, wird „even“ ausgegeben.
+        *   Andernfalls wird „odd“ ausgegeben.
     
-    This snippet is a concise way to demonstrate basic iteration, arithmetic, and inline conditional logic in Python.
+    Dieses Snippet ist eine prägnante Art, grundlegende Iteration, Arithmetik und Inline-Bedingungslogik in Python zu demonstrieren.
     
-    **What would you like to do next?**
-    - Would you like to see how to rewrite this using a **List Comprehension**?
-    - Should we modify the code to handle a larger range or different mathematical operations?
+    **Was möchtest du als Nächstes tun?**
+    - Möchtest du sehen, wie man dies mit einer **List Comprehension** umschreibt?
+    - Sollen wir den Code ändern, um einen größeren Bereich oder andere mathematische Operationen zu verarbeiten?
     
-    Learn more about Python Control Flow
+    Erfahre mehr über Python Control Flow
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "5fc00e79-43bc-4343-b965-4452d79e8fb8", "app_id": "code", "skill_id": "run"}

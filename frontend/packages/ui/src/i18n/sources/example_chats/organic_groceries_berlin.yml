@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Organic Grocery Delivery in Berlin"
   en: "Organic Grocery Delivery in Berlin"
-  de: "Organic Grocery Delivery in Berlin"
+  de: Bio-Lebensmittellieferung in Berlin
   zh: "Organic Grocery Delivery in Berlin"
   es: "Organic Grocery Delivery in Berlin"
   fr: "Organic Grocery Delivery in Berlin"
@@ -25,7 +25,7 @@ title:
 summary:
   context: "Summary of example chat: Organic Grocery Delivery in Berlin"
   en: "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
-  de: "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
+  de: Vergleich von Berliner Bio-Lieferdiensten für Hafermilch und Bananen unter Verwendung lokaler Lieferquellen und Produktergebnisse.
   zh: "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
   es: "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
   fr: "Compared Berlin organic grocery delivery options for oat milk and bananas using local delivery sources and product results."
@@ -50,7 +50,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Organic Grocery Delivery in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
-  de: "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
+  de: "Kannst du Bio-Lieferoptionen in Berlin für Hafermilch und Bananen finden, einige zuverlässige lokale Anbieter vergleichen und eine Empfehlung aussprechen?"
   zh: "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
   es: "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
   fr: "Can you find organic grocery delivery options in Berlin for oat milk and bananas, compare a few reliable local options, and recommend which one to use?"
@@ -131,55 +131,55 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "91a1a938-12c3-47f9-a00b-e9a59d2a8ad2", "app_id": "web", "skill_id": "search", "query": "organic grocery delivery Berlin", "provider": "Brave"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "cf2504cb-56b5-4ea3-89d5-4cf9cc732911", "app_id": "web", "skill_id": "search", "query": "Bio Lebensmittel Lieferservice Berlin Hafermilch Bananen", "provider": "Brave"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "5cdfdced-0921-47ed-a351-a0d19ccbb8e2", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Hafermilch", "provider": "REWE", "providers": ["REWE"]}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "b6f64bdd-2b32-4623-83eb-8cf57975ba70", "app_id": "shopping", "skill_id": "search_products", "query": "Bio Bananen", "provider": "REWE", "providers": ["REWE"]}
     ```
-
-    Berlin has an excellent ecosystem for organic groceries, offering everything from traditional farm-to-door "Biokisten" (organic boxes) to ultra-fast delivery apps. Since you are specifically looking for organic oat milk (*Bio Hafermilch*) and organic bananas (*Bio Bananen*), these are staple items available almost everywhere.
-
-    Here is a comparison of the most reliable local options, categorized by how they operate:
-
-    ### 1. The Local "Biokiste" Services (Best for Sustainability & Regionality)
-    These are local, dedicated organic delivery services that have been operating in Berlin for years. They focus heavily on sustainability, fair trade, and regional farming.
+    
+    Berlin hat ein hervorragendes Ökosystem für Bio-Lebensmittel und bietet alles von traditionellen „Biokisten“ bis hin zu ultraschnellen Liefer-Apps. Da du gezielt nach Bio-Hafermilch und Bio-Bananen suchst: Das sind Grundnahrungsmittel, die fast überall erhältlich sind.
+    
+    Hier ist ein Vergleich der zuverlässigsten lokalen Optionen, kategorisiert nach ihrer Funktionsweise:
+    
+    ### 1. Lokale „Biokisten“-Dienste (Am besten für Nachhaltigkeit & Regionalität)
+    Diese lokalen, spezialisierten Bio-Lieferdienste sind seit Jahren in Berlin tätig. Sie legen großen Wert auf Nachhaltigkeit, fairen Handel und regionale Landwirtschaft.
     *   **[LogischBIO](embed:logisch-bio.de-eeO):**
-        *   **The Vibe:** A true online organic supermarket with a local heart. They've been operating in Berlin since 1998.
-        *   **Pros:** They offer over 5,000 organic items. Crucially, they require **no subscription** (*kein Abo*), which makes them incredibly flexible if you just want to do a one-off grocery haul.
-        *   **Cons:** You need to plan a day or two ahead for your delivery slot.
+        *   **Der Vibe:** Ein echter Online-Bio-Supermarkt mit lokalem Herz. Sie sind seit 1998 in Berlin aktiv.
+        *   **Vorteile:** Sie bieten über 5.000 Bio-Artikel an. Entscheidend ist, dass sie **kein Abo** erfordern, was sie unglaublich flexibel macht, wenn du nur einen einmaligen Einkauf tätigen möchtest.
+        *   **Nachteile:** Du musst dein Lieferzeitfenster ein oder zwei Tage im Voraus planen.
     *   **[Märkische Kiste](embed:maerkischekiste.de-fJw) & [Landkorb](embed:landkorb.de-Ze3):**
-        *   **The Vibe:** Classic "Ökokiste" (Eco-box) providers. They deliver in reusable boxes straight to your door.
-        *   **Pros:** Excellent for supporting regional Brandenburg farmers. You can either subscribe to a pre-made seasonal box or build your own custom box with exact items like oat milk and bananas.
-        *   **Cons:** Often heavily subscription-based (though you can pause/customize easily). Delivery days are sometimes restricted based on your specific Berlin postal code.
-
-    ### 2. Quick Commerce (Best for Urgent Needs)
-    If you need your oat milk for tomorrow morning's coffee and can't wait for a scheduled delivery slot:
+        *   **Der Vibe:** Klassische „Ökokisten“-Anbieter. Sie liefern in Mehrwegkisten direkt an deine Haustür.
+        *   **Vorteile:** Hervorragend geeignet, um regionale Brandenburger Landwirte zu unterstützen. Du kannst entweder eine vorgefertigte Saisonkiste abonnieren oder deine eigene Kiste mit genau den Artikeln zusammenstellen, die du brauchst, wie Hafermilch und Bananen.
+        *   **Nachteile:** Oft stark abonnementbasiert (obwohl man diese leicht pausieren oder anpassen kann). Die Liefertage sind manchmal abhängig von deiner spezifischen Berliner Postleitzahl eingeschränkt.
+    
+    ### 2. Quick Commerce (Am besten für dringende Bedürfnisse)
+    Wenn du deine Hafermilch für den Kaffee morgen früh brauchst und nicht auf ein geplantes Lieferzeitfenster warten kannst:
     *   **Alnatura via [Wolt](embed:wolt.com-UR8) / UberEats:**
-        *   **The Vibe:** Ultra-fast delivery from one of Germany's most popular organic supermarket chains.
-        *   **Pros:** Delivery in roughly 30 minutes. You get access to the high-quality Alnatura brand products.
-        *   **Cons:** Higher delivery fees, and the couriers are gig-economy workers, which lacks the community/sustainability ethos of the dedicated farm boxes.
-
-    ### 3. Mainstream Supermarket Delivery (Best for General Shopping)
-    If you want to combine your organic basics with a regular grocery order:
+        *   **Der Vibe:** Ultraschnelle Lieferung von einer der beliebtesten Bio-Supermarktketten Deutschlands.
+        *   **Vorteile:** Lieferung in etwa 30 Minuten. Du hast Zugriff auf die hochwertigen Produkte der Marke Alnatura.
+        *   **Nachteile:** Höhere Liefergebühren, und die Kuriere sind Gig-Economy-Arbeiter, was nicht ganz dem Gemeinschafts- und Nachhaltigkeitsgedanken der spezialisierten Biokisten entspricht.
+    
+    ### 3. Klassische Supermarkt-Lieferung (Am besten für den allgemeinen Einkauf)
+    Wenn du deine Bio-Basics mit einem regulären Lebensmitteleinkauf kombinieren möchtest:
     *   **REWE Lieferservice:**
-        *   They have a very reliable scheduled delivery network in Berlin and a massive organic ("REWE Bio") range.
-        *   For example, you can easily grab [REWE Bio Vegan Oat Drink](embed:rewe-bio-pflanzlich-Q5w) or [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI), alongside [Organic Bananas](embed:bio-banane-ca-GZn).
-
+        *   Sie verfügen über ein sehr zuverlässiges Liefernetzwerk in Berlin und ein riesiges Bio-Sortiment („REWE Bio“).
+        *   Zum Beispiel kannst du ganz einfach [REWE Bio Veganer Haferdrink](embed:rewe-bio-pflanzlich-Q5w) oder [Oatly Bio Barista](embed:oatly-bio-haferdrink-cdI) zusammen mit [Bio-Bananen](embed:bio-banane-ca-GZn) bestellen.
+    
     ---
-
-    ### 🏆 Recommendation: Which one should you use?
-
-    **Go with LogischBIO.**
-    If you want a reliable, Berlin-based company that specializes entirely in organic food, they are the best all-rounder. Because they don't lock you into a subscription box model, you can just treat them like a regular online supermarket. You can easily stock up on a whole carton of oat milk and a bunch of bananas without having to commit to a weekly vegetable box you might not have time to cook.
-
-    **However, if you are in a rush right now:** Open the Wolt app and see if the **Alnatura Brand Store** delivers to your specific neighborhood (they cover most of the Ringbahn area). You'll have your organic bananas and oat milk at your door in 30 minutes.
+    
+    ### 🏆 Empfehlung: Welchen Dienst solltest du nutzen?
+    
+    **Wähle LogischBIO.**
+    Wenn du ein zuverlässiges, in Berlin ansässiges Unternehmen suchst, das sich ganz auf Bio-Lebensmittel spezialisiert hat, sind sie der beste Allrounder. Da sie dich nicht an ein Abo-Modell binden, kannst du sie wie einen ganz normalen Online-Supermarkt nutzen. Du kannst dich problemlos mit einem ganzen Karton Hafermilch und einem Bund Bananen eindecken, ohne dich auf eine wöchentliche Gemüsekiste festlegen zu müssen, für deren Zubereitung du vielleicht keine Zeit hast.
+    
+    **Wenn es jedoch schnell gehen muss:** Öffne die Wolt-App und schau nach, ob der **Alnatura Brand Store** in dein Viertel liefert (sie decken den Großteil des S-Bahn-Rings ab). Dann hast du deine Bio-Bananen und Hafermilch in 30 Minuten an der Tür.
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "91a1a938-12c3-47f9-a00b-e9a59d2a8ad2", "app_id": "web", "skill_id": "search", "query": "organic grocery delivery Berlin", "provider": "Brave"}

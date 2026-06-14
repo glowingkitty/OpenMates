@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Home Saved Listings"
   en: "Memory Home Saved Listings"
-  de: "Memory Home Saved Listings"
+  de: Memory Gespeicherte Immobilienanzeigen
   zh: "Memory Home Saved Listings"
   es: "Memory Home Saved Listings"
   fr: "Memory Home Saved Listings"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Home Saved Listings"
   en: "OpenMates uses saved home saved_listings memory in a real chat."
-  de: "OpenMates uses saved home saved_listings memory in a real chat."
+  de: OpenMates nutzt gespeicherte Immobilienanzeigen aus dem Home-Memory in einem echten Chat.
   zh: "OpenMates uses saved home saved_listings memory in a real chat."
   es: "OpenMates uses saved home saved_listings memory in a real chat."
   fr: "OpenMates uses saved home saved_listings memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Home Saved Listings. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze mein Memory für Immobilienanzeigen, um Fragen zu entwerfen, die ich vor der Besichtigung der gespeicherten Wohnung stellen sollte. Du kannst dieses gespeicherte Memory anfordern und verwenden. Suche nach der Verwendung des Memorys nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Rückfragen.
   zh: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved home listings memory to draft questions I should ask before viewing the apartment I saved. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -94,23 +94,23 @@ message_2:
     *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
     *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
   de: |
-    Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
-
-    ### Questions for the Sunny two-room flat near [Tempelhofer Feld](wiki:Tempelhofer_Feld)
-    *   **Cellar Storage:** "Could you provide more details about the cellar storage space? Specifically, I'd like to know its approximate size, if it is dry and secure, and how easily it can be accessed."
-    *   **Balcony & Sunlight:** "You mentioned the flat is 'sunny'; which direction does the balcony face, and does it receive direct sunlight for most of the afternoon?"
-    *   **Commute Logistics:** "Is there a secure place to store a bicycle within the building to support the 25-minute commute mentioned?"
-
-    ### Questions for the [Neukölln](wiki:Berlin-Neukölln) canal studio
-    *   **Noise & Insulation:** "Given the proximity to the bars on Weserstraße, how effective is the insulation of the canal-facing windows against evening noise? Are they double or triple-glazed?"
-    *   **Connectivity:** "What are the exact internet speeds currently available at this address, and which providers are already connected to the building?"
-    *   **Heating & Energy:** "How are the heating costs calculated—is it based on individual consumption (metered) or a flat rate for the building? Could you also share the Energy Performance Certificate (Energieausweis)?"
-    *   **Environment:** "Does the proximity to the canal impact humidity levels in the studio, and are there specific ventilation practices recommended for this unit?"
-
-    ### General Questions for Both Listings
-    *   **Warm Rent Breakdown:** "The rent is listed as 'warm'; could you provide a breakdown of what exactly is included in the Nebenkosten (e.g., water, trash, stairwell cleaning) and if there have been recent adjustments due to energy price changes?"
-    *   **Lease Terms:** "Is there a minimum rental period (Mindestmietdauer) or a 'Staffelmiete' (staggered rent increase) clause in the contract?"
-    *   **Deposit:** "How should the security deposit be provided (e.g., bank transfer or a rental deposit Bürgschaft), and which bank will hold it in a separate escrow account?"
+    Basierend auf deinen gespeicherten Anzeigen für [Berlin](wiki:Berlin) sind hier Fragenentwürfe, die auf deine Notizen und die jeweiligen Standorte zugeschnitten sind:
+    
+    ### Fragen zur sonnigen Zwei-Zimmer-Wohnung am [Tempelhofer Feld](wiki:Tempelhofer_Feld)
+    *   **Kellerabteil:** „Könnten Sie nähere Angaben zum Kellerabteil machen? Mich würde vor allem die ungefähre Größe interessieren, ob es trocken und sicher ist und wie leicht es zugänglich ist.“
+    *   **Balkon & Sonnenlicht:** „Sie haben erwähnt, dass die Wohnung ‚sonnig‘ ist; in welche Richtung ist der Balkon ausgerichtet und bekommt er den Großteil des Nachmittags direktes Sonnenlicht?“
+    *   **Arbeitsweg-Logistik:** „Gibt es im Gebäude einen sicheren Abstellplatz für ein Fahrrad, um den erwähnten 25-minütigen Arbeitsweg zu unterstützen?“
+    
+    ### Fragen zum Kanal-Studio in [Neukölln](wiki:Berlin-Neukölln)
+    *   **Lärm & Isolierung:** „Wie effektiv ist angesichts der Nähe zu den Bars in der Weserstraße die Isolierung der zum Kanal ausgerichteten Fenster gegen Abendlärm? Sind sie doppelt oder dreifach verglast?“
+    *   **Konnektivität:** „Welche Internetgeschwindigkeiten sind an dieser Adresse aktuell verfügbar und welche Anbieter sind bereits an das Gebäude angeschlossen?“
+    *   **Heizung & Energie:** „Wie werden die Heizkosten berechnet – basiert dies auf dem individuellen Verbrauch (Zähler) oder einer Pauschale für das Gebäude? Könnten Sie mir auch den Energieausweis (Energy Performance Certificate) zukommen lassen?“
+    *   **Umgebung:** „Hat die Nähe zum Kanal Auswirkungen auf die Luftfeuchtigkeit im Studio und gibt es spezielle Empfehlungen zum Lüften für diese Einheit?“
+    
+    ### Allgemeine Fragen zu beiden Anzeigen
+    *   **Aufschlüsselung der Warmmiete:** „Die Miete ist als ‚warm‘ angegeben; könnten Sie eine Aufschlüsselung geben, was genau in den Nebenkosten (z. B. Wasser, Müll, Treppenhausreinigung) enthalten ist und ob es aufgrund der Energiepreisentwicklung kürzlich Anpassungen gab?“
+    *   **Mietbedingungen:** „Gibt es im Vertrag eine Mindestmietdauer (minimum rental period) oder eine Klausel zur „Staffelmiete“ (staggered rent increase)?“
+    *   **Kaution:** „Wie soll die Mietkaution hinterlegt werden (z. B. Banküberweisung oder Mietkautionsbürgschaft) und bei welcher Bank wird sie auf einem separaten Treuhandkonto geführt?“
   zh: |
     Based on your saved listings for [Berlin](wiki:Berlin), here are drafted questions tailored to the specific notes and locations you've recorded:
 

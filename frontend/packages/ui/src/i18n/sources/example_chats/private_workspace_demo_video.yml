@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Private Workspace Demo Video"
   en: "Private Workspace Demo Video"
-  de: "Private Workspace Demo Video"
+  de: Demovideo für privaten Arbeitsbereich
   zh: "Private Workspace Demo Video"
   es: "Private Workspace Demo Video"
   fr: "Private Workspace Demo Video"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Private Workspace Demo Video"
   en: "A video generation example for an abstract privacy-focused product demo animation."
-  de: "A video generation example for an abstract privacy-focused product demo animation."
+  de: Ein Videogenerierungs-Beispiel für eine abstrakte, auf Privatsphäre ausgerichtete Produktdemo-Animation.
   zh: "A video generation example for an abstract privacy-focused product demo animation."
   es: "A video generation example for an abstract privacy-focused product demo animation."
   fr: "A video generation example for an abstract privacy-focused product demo animation."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Private Workspace Demo Video. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@skill:videos:generate Create a short product demo video concept: a calm 5-second animation of encrypted messages flowing into a private workspace dashboard, abstract UI style, no logos, no people, no text."
-  de: "@skill:videos:generate Create a short product demo video concept: a calm 5-second animation of encrypted messages flowing into a private workspace dashboard, abstract UI style, no logos, no people, no text."
+  de: "@skill:videos:generate Erstelle ein kurzes Produktdemo-Videokonzept: eine ruhige 5-sekündige Animation von verschlüsselten Nachrichten, die in ein Dashboard eines privaten Arbeitsbereichs fließen, abstrakter UI-Stil, keine Logos, keine Personen, kein Text."
   zh: "@skill:videos:generate Create a short product demo video concept: a calm 5-second animation of encrypted messages flowing into a private workspace dashboard, abstract UI style, no logos, no people, no text."
   es: "@skill:videos:generate Create a short product demo video concept: a calm 5-second animation of encrypted messages flowing into a private workspace dashboard, abstract UI style, no logos, no people, no text."
   fr: "@skill:videos:generate Create a short product demo video concept: a calm 5-second animation of encrypted messages flowing into a private workspace dashboard, abstract UI style, no logos, no people, no text."
@@ -105,26 +105,26 @@ message_2:
     {"type": "app_skill_use", "embed_id": "57274061-04d4-43a4-958f-fd56bc22f20a", "app_id": "videos", "skill_id": "generate"}
     ```
     
-    The generation of your abstract product demo video is now underway. I've designed the prompt to focus on a "glassmorphism" aesthetic with soft, pulsing light elements to represent the data flow, ensuring it remains calm and professional without any distracting text or logos.
+    Die Erstellung deines abstrakten Produkt-Demovideos läuft. Ich habe den Prompt so gestaltet, dass er sich auf eine „Glassmorphism“-Ästhetik mit weichen, pulsierenden Lichtelementen konzentriert, um den Datenfluss darzustellen. So bleibt es ruhig und professionell, ohne ablenkende Texte oder Logos.
     
-    While the AI works on that, here is a bit of design theory behind this "Abstract UI" approach:
+    Während die KI daran arbeitet, findest du hier ein wenig Designtheorie hinter diesem „Abstract UI“-Ansatz:
     
-    ### Why Abstract UI Works for Tech Demos
-    In motion design, using abstract representations of complex tech (like [Encryption](wiki:Encryption)) allows the viewer to focus on the *feeling* of the product—in this case, security and organization—rather than trying to read specific data. This is often referred to as FUI (Fictional User Interface).
+    ### Warum Abstract UI für Tech-Demos funktioniert
+    Im Motion Design ermöglicht die Verwendung abstrakter Darstellungen komplexer Technik (wie [Encryption](wiki:Encryption)) dem Betrachter, sich auf das *Gefühl* des Produkts zu konzentrieren – in diesem Fall Sicherheit und Organisation –, anstatt zu versuchen, spezifische Daten zu lesen. Dies wird oft als FUI (Fictional User Interface) bezeichnet.
     
-    **Design Tips for a "Calm" Aesthetic:**
-    *   **Color Palette:** Stick to low-contrast Monochromatic or analogous schemes. Deep slates and soft cyans are excellent for conveying trust and stability.
-    *   **Motion Curves:** Use slow "ease-in-out" transitions. Sudden movements create tension, while gradual acceleration and deceleration feel organic and peaceful.
-    *   **Blur & Depth:** Utilizing [Depth of field](wiki:Depth_of_field) and blurred "glass" layers (Glassmorphism) adds a sense of physical space and premium quality.
+    **Designtipps für eine „ruhige“ Ästhetik:**
+    *   **Farbpalette:** Halte dich an kontrastarme monochrome oder analoge Farbschemata. Dunkles Schiefergrau und sanftes Cyan eignen sich hervorragend, um Vertrauen und Stabilität zu vermitteln.
+    *   **Bewegungskurven:** Verwende langsame „Ease-in-out“-Übergänge. Plötzliche Bewegungen erzeugen Spannung, während allmähliches Beschleunigen und Abbremsen organisch und friedlich wirken.
+    *   **Unschärfe & Tiefe:** Die Nutzung von [Depth of field](wiki:Depth_of_field) und verschwommenen „Glas“-Ebenen (Glassmorphism) verleiht ein Gefühl von physischem Raum und Premium-Qualität.
     
-    ### Refining the Workflow
-    Once you have this base animation, a great next step is to combine it with your own hand-crafted assets. You could:
-    1.  **Overlay Vector Art:** Draw specific minimalist icons in a tool like [Adobe Illustrator](wiki:Adobe_Illustrator) and overlay them in [After Effects](wiki:Adobe_After_Effects) to give the abstract shapes more context.
-    2.  **Sound Design:** Add a subtle, ambient [Soundscape](wiki:Soundscape) with soft "pings" for the message arrivals to complete the sensory experience.
+    ### Den Workflow verfeinern
+    Sobald du diese Basisanimation hast, ist ein toller nächster Schritt, sie mit deinen eigenen handgefertigten Assets zu kombinieren. Du könntest:
+    1.  **Vektorgrafiken überlagern:** Zeichne spezifische minimalistische Icons in einem Tool wie [Adobe Illustrator](wiki:Adobe_Illustrator) und lege sie in [After Effects](wiki:Adobe_After_Effects) darüber, um den abstrakten Formen mehr Kontext zu geben.
+    2.  **Sounddesign:** Füge eine subtile, atmosphärische [Soundscape](wiki:Soundscape) mit sanften „Pings“ für eingehende Nachrichten hinzu, um das sensorische Erlebnis abzurunden.
     
-    **What platform or context is this demo intended for?** (e.g., a landing page hero, a social media ad, or an internal presentation?) Knowing this can help me suggest how to frame the final composition.
+    **Für welche Plattform oder welchen Kontext ist diese Demo gedacht?** (z. B. ein Landingpage-Hero, eine Social-Media-Anzeige oder eine interne Präsentation?) Wenn ich das weiß, kann ich dir helfen, die finale Komposition passend zu gestalten.
     
-    *The video will appear here as soon as it's ready.*
+    *Das Video wird hier erscheinen, sobald es fertig ist.*
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "57274061-04d4-43a4-958f-fd56bc22f20a", "app_id": "videos", "skill_id": "generate"}

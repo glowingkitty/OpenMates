@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Launch readiness checklist document"
   en: "Launch readiness checklist document"
-  de: "Launch readiness checklist document"
+  de: "Dokument: Checkliste Markteinführung"
   zh: "Launch readiness checklist document"
   es: "Launch readiness checklist document"
   fr: "Launch readiness checklist document"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Launch readiness checklist document"
   en: "See OpenMates create a formatted launch checklist as a document embed."
-  de: "See OpenMates create a formatted launch checklist as a document embed."
+  de: Erlebe, wie OpenMates eine formatierte Launch-Checkliste als eingebettetes Dokument erstellt.
   zh: "See OpenMates create a formatted launch checklist as a document embed."
   es: "See OpenMates create a formatted launch checklist as a document embed."
   fr: "See OpenMates create a formatted launch checklist as a document embed."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Launch readiness checklist document. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@mate:general_knowledge Create a short formatted document titled 'Launch Readiness Checklist' for a small product launch. Include a heading, a short intro paragraph, and a bullet list of exactly five practical launch tasks. Please create it as a document artifact, then summarize in one sentence what the document contains."
-  de: "@mate:general_knowledge Create a short formatted document titled 'Launch Readiness Checklist' for a small product launch. Include a heading, a short intro paragraph, and a bullet list of exactly five practical launch tasks. Please create it as a document artifact, then summarize in one sentence what the document contains."
+  de: "@mate:general_knowledge Erstelle ein kurzes, formatiertes Dokument mit dem Titel „Checkliste für die Markteinführung“ für einen kleinen Produktlaunch. Füge eine Überschrift, einen kurzen Einleitungsparagraphen und eine Aufzählung von genau fünf praktischen Launch-Aufgaben hinzu. Bitte erstelle es als Dokument-Artefakt und fasse dann in einem Satz zusammen, was das Dokument enthält."
   zh: "@mate:general_knowledge Create a short formatted document titled 'Launch Readiness Checklist' for a small product launch. Include a heading, a short intro paragraph, and a bullet list of exactly five practical launch tasks. Please create it as a document artifact, then summarize in one sentence what the document contains."
   es: "@mate:general_knowledge Create a short formatted document titled 'Launch Readiness Checklist' for a small product launch. Include a heading, a short intro paragraph, and a bullet list of exactly five practical launch tasks. Please create it as a document artifact, then summarize in one sentence what the document contains."
   fr: "@mate:general_knowledge Create a short formatted document titled 'Launch Readiness Checklist' for a small product launch. Include a heading, a short intro paragraph, and a bullet list of exactly five practical launch tasks. Please create it as a document artifact, then summarize in one sentence what the document contains."
@@ -94,11 +94,11 @@ message_2:
     
     
     
-    This document provides a concise five-step framework to ensure all technical, marketing, and operational bases are covered before a small product goes live.
+    Dieses Dokument bietet einen prägnanten fünfstufigen Rahmen, um sicherzustellen, dass alle technischen, marketingbezogenen und operativen Grundlagen abgedeckt sind, bevor ein kleines Produkt live geht.
     
-    **Next steps:**
-    * Would you like me to expand any of these tasks into a more detailed [project plan](/#settings/apps/docs)?
-    * I can also help you [generate an image](/#settings/apps/images) for your launch announcement if you have a theme in mind.
+    **Nächste Schritte:**
+    * Möchtest du, dass ich eine dieser Aufgaben zu einem detaillierteren [Projektplan](/#settings/apps/docs) ausbaue?
+    * Ich kann dir auch helfen, [ein Bild zu generieren](/#settings/apps/images) für deine Launch-Ankündigung, falls du ein Thema im Kopf hast.
   zh: |
     ```json
     {"type": "document", "embed_id": "a0f880c3-d136-41e5-8c37-bfe0f8d36c2e"}

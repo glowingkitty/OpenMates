@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Health Medical History"
   en: "Memory Health Medical History"
-  de: "Memory Health Medical History"
+  de: Memory Krankengeschichte
   zh: "Memory Health Medical History"
   es: "Memory Health Medical History"
   fr: "Memory Health Medical History"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Health Medical History"
   en: "OpenMates uses saved health medical_history memory in a real chat."
-  de: "OpenMates uses saved health medical_history memory in a real chat."
+  de: OpenMates nutzt die gespeicherte Krankengeschichte aus dem Gesundheits-Memory in einem echten Chat.
   zh: "OpenMates uses saved health medical_history memory in a real chat."
   es: "OpenMates uses saved health medical_history memory in a real chat."
   fr: "OpenMates uses saved health medical_history memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Health Medical History. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved medical history memory to list what I should remember to tell a new doctor. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved medical history memory to list what I should remember to tell a new doctor. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze mein Memory zur Krankengeschichte, um aufzulisten, was ich einem neuen Arzt sagen sollte. Du kannst dieses gespeicherte Memory anfordern und verwenden. Suche nach der Verwendung des Memorys nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Rückfragen.
   zh: "Use my saved medical history memory to list what I should remember to tell a new doctor. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved medical history memory to list what I should remember to tell a new doctor. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved medical history memory to list what I should remember to tell a new doctor. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -83,12 +83,12 @@ message_2:
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   de: |
-    Based on your saved medical history, here are the key details you should share with a new doctor:
-
-    *   **Penicillin Allergy:** You have a documented allergy to [Penicillin](wiki:Penicillin) (noted June 2020) that causes hives. It is important to mention this specifically before any antibiotics are prescribed.
-    *   **Pollen Allergy:** You experience seasonal [pollen](wiki:Pollen) allergies (noted April 2021). These typically cause symptoms during the spring.
+    Basierend auf deiner gespeicherten Krankengeschichte sind hier die wichtigsten Details, die du einem neuen Arzt mitteilen solltest:
+    
+    *   **Penicillin-Allergie:** Du hast eine dokumentierte Allergie gegen [Penicillin](wiki:Penicillin) (notiert im Juni 2020), die Nesselsucht verursacht. Es ist wichtig, dies explizit zu erwähnen, bevor Antibiotika verschrieben werden.
+    *   **Pollenallergie:** Du leidest unter saisonalen [Pollenallergien](wiki:Pollen) (notiert im April 2021). Diese verursachen typischerweise Symptome im Frühjahr.
     ---
-    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+    *⚠️ Dies dient nur zu Informationszwecken und ist keine medizinische Beratung. Konsultiere für medizinische Entscheidungen deinen Arzt.*
   zh: |
     Based on your saved medical history, here are the key details you should share with a new doctor:
 

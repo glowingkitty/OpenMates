@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Books Favorite Books"
   en: "Memory Books Favorite Books"
-  de: "Memory Books Favorite Books"
+  de: "Gedächtnis: Lieblingsbücher"
   zh: "Memory Books Favorite Books"
   es: "Memory Books Favorite Books"
   fr: "Memory Books Favorite Books"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Books Favorite Books"
   en: "OpenMates uses saved books favorite_books memory in a real chat."
-  de: "OpenMates uses saved books favorite_books memory in a real chat."
+  de: OpenMates nutzt das Gedächtnis für Lieblingsbücher in einem echten Chat.
   zh: "OpenMates uses saved books favorite_books memory in a real chat."
   es: "OpenMates uses saved books favorite_books memory in a real chat."
   fr: "OpenMates uses saved books favorite_books memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Books Favorite Books. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved favorite books memory to recommend one novel I should read next and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved favorite books memory to recommend one novel I should read next and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze mein gespeichertes Lieblingsbücher-Gedächtnis, um einen Roman zu empfehlen, den ich als Nächstes lesen sollte, und erkläre, warum. Du darfst dieses gespeicherte Gedächtnis anfordern und verwenden. Nachdem du das gespeicherte Gedächtnis verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved favorite books memory to recommend one novel I should read next and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved favorite books memory to recommend one novel I should read next and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved favorite books memory to recommend one novel I should read next and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -80,9 +80,9 @@ message_2:
 
     Your memories indicate that you value "thoughtful worldbuilding," "humane political themes," and "restrained pacing." *The Dispossessed* is a perfect follow-up because it explores a complex, dual-world society through the eyes of a deeply humane protagonist, Shevek. Much like your favorite book, it prioritizes philosophical depth and the exploration of identity—in this case, through the lens of anarchism versus capitalism—rather than fast-paced action. It offers the same reflective atmosphere and meticulous cultural detail that you appreciated in your previous reading.
   de: |
-    Based on your saved preference for [The Left Hand of Darkness](wiki:The_Left_Hand_of_Darkness) by [Ursula K. Le Guin](wiki:Ursula_K._Le_Guin), I recommend you read **[The Dispossessed](wiki:The_Dispossessed)**, also by Le Guin.
-
-    Your memories indicate that you value "thoughtful worldbuilding," "humane political themes," and "restrained pacing." *The Dispossessed* is a perfect follow-up because it explores a complex, dual-world society through the eyes of a deeply humane protagonist, Shevek. Much like your favorite book, it prioritizes philosophical depth and the exploration of identity—in this case, through the lens of anarchism versus capitalism—rather than fast-paced action. It offers the same reflective atmosphere and meticulous cultural detail that you appreciated in your previous reading.
+    Basierend auf deiner gespeicherten Vorliebe für [Die linke Hand der Dunkelheit](wiki:The_Left_Hand_of_Darkness) von [Ursula K. Le Guin](wiki:Ursula_K._Le_Guin) empfehle ich dir **[Die Enteigneten](wiki:The_Dispossessed)**, ebenfalls von Le Guin.
+    
+    Deine Erinnerungen zeigen, dass du Wert auf „durchdachtes Worldbuilding“, „humane politische Themen“ und ein „ruhiges Erzähltempo“ legst. *Die Enteigneten* ist eine perfekte Fortsetzung, da es eine komplexe Gesellschaft auf zwei Welten durch die Augen eines zutiefst humanen Protagonisten, Shevek, erkundet. Ähnlich wie dein Lieblingsbuch priorisiert es philosophische Tiefe und die Erforschung von Identität – in diesem Fall durch das Prisma von Anarchismus versus Kapitalismus – anstatt rasanter Action. Es bietet die gleiche reflektierte Atmosphäre und die akribischen kulturellen Details, die du bei deiner vorherigen Lektüre geschätzt hast.
   zh: |
     Based on your saved preference for [The Left Hand of Darkness](wiki:The_Left_Hand_of_Darkness) by [Ursula K. Le Guin](wiki:Ursula_K._Le_Guin), I recommend you read **[The Dispossessed](wiki:The_Dispossessed)**, also by Le Guin.
 
