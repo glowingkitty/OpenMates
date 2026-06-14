@@ -311,13 +311,148 @@ function extractEmbedRefsFromEmbeds(embeds) {
   return refs;
 }
 
-function sanitizeEmbedContent(content) {
+function parseLooseToonScalar(content, key) {
+  const match = String(content || '').match(new RegExp(`^\\s*${key}:\\s*(.+?)\\s*$`, 'm'));
+  if (!match) return null;
+  return match[1].replace(/^"|"$/g, '').trim();
+}
+
+function parseLooseToonNumber(content, key) {
+  const value = parseLooseToonScalar(content, key);
+  if (value === null) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function parseLooseToonBoolean(content, key) {
+  const value = parseLooseToonScalar(content, key);
+  if (value === null) return null;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return null;
+}
+
+function splitCsvLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  values.push(current.trim());
+  return values;
+}
+
+function extractRainRadarTimelineRows(content) {
+  const lines = String(content || '').split('\n');
+  const headerIndex = lines.findIndex((line) => /^\s*timeline\[\d+\]\{[^}]+\}:\s*$/.test(line));
+  if (headerIndex === -1) return null;
+
+  const headerLine = lines[headerIndex];
+  const fieldsMatch = headerLine.match(/\{([^}]+)\}/);
+  if (!fieldsMatch) return null;
+
+  const indent = headerLine.match(/^\s*/)?.[0].length ?? 0;
+  const fields = fieldsMatch[1].split(',').map((field) => field.trim()).filter(Boolean);
+  const rows = [];
+  for (const line of lines.slice(headerIndex + 1)) {
+    if (!line.trim()) continue;
+    const lineIndent = line.match(/^\s*/)?.[0].length ?? 0;
+    if (lineIndent <= indent) break;
+    const values = splitCsvLine(line.trim());
+    if (values.length !== fields.length) break;
+    rows.push(values);
+  }
+
+  return rows.length > 0 ? { fields, rows } : null;
+}
+
+function toonScalarLine(key, value, indent = '') {
+  if (value === null || value === undefined || value === '') return null;
+  return `${indent}${key}: ${value}`;
+}
+
+function normalizeRainRadarEmbedContent(content) {
+  const source = String(content || '');
+  const appId = parseLooseToonScalar(source, 'app_id');
+  const skillId = parseLooseToonScalar(source, 'skill_id');
+  if (appId !== 'weather' || skillId !== 'rain_radar') return null;
+  if (/^summary:\s*$/m.test(source) || /^status:\s*finished\s*$/m.test(source)) return null;
+
+  const timeline = extractRainRadarTimelineRows(source);
+  const lines = [
+    'app_id: weather',
+    'skill_id: rain_radar',
+    'status: finished',
+  ];
+  for (const line of [
+    toonScalarLine('embed_id', parseLooseToonScalar(source, 'embed_id')),
+    toonScalarLine('query', parseLooseToonScalar(source, 'query')),
+    toonScalarLine('provider', parseLooseToonScalar(source, 'provider')),
+  ]) {
+    if (line) lines.push(line);
+  }
+
+  lines.push('location:');
+  for (const line of [
+    toonScalarLine('name', parseLooseToonScalar(source, 'location_name'), '  '),
+    toonScalarLine('country', parseLooseToonScalar(source, 'location_country'), '  '),
+    toonScalarLine('country_code', parseLooseToonScalar(source, 'location_country_code'), '  '),
+    toonScalarLine('admin1', parseLooseToonScalar(source, 'location_admin1'), '  '),
+    toonScalarLine('latitude', parseLooseToonNumber(source, 'location_latitude'), '  '),
+    toonScalarLine('longitude', parseLooseToonNumber(source, 'location_longitude'), '  '),
+    toonScalarLine('timezone', parseLooseToonScalar(source, 'location_timezone'), '  '),
+  ]) {
+    if (line) lines.push(line);
+  }
+
+  lines.push('coverage:');
+  for (const line of [
+    toonScalarLine('status', parseLooseToonScalar(source, 'coverage_status'), '  '),
+    toonScalarLine('radius_km', parseLooseToonNumber(source, 'coverage_radius_km'), '  '),
+  ]) {
+    if (line) lines.push(line);
+  }
+
+  lines.push('summary:');
+  for (const line of [
+    toonScalarLine('rain_expected', parseLooseToonBoolean(source, 'summary_rain_expected'), '  '),
+    toonScalarLine('in_10_min', parseLooseToonScalar(source, 'summary_in_10_min'), '  '),
+    toonScalarLine('next_2_hours', parseLooseToonScalar(source, 'summary_next_2_hours'), '  '),
+    toonScalarLine('peak_intensity', parseLooseToonScalar(source, 'summary_peak_intensity'), '  '),
+    toonScalarLine('preview_frame_id', parseLooseToonScalar(source, 'summary_preview_frame_id'), '  '),
+  ]) {
+    if (line) lines.push(line);
+  }
+
+  if (timeline) {
+    lines.push(`timeline[${timeline.rows.length}]{${timeline.fields.join(',')}}:`);
+    for (const row of timeline.rows) {
+      lines.push(`  ${row.map((value) => (value.includes(',') ? `"${value}"` : value)).join(',')}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+export function sanitizeEmbedContent(content) {
+  const source = normalizeRainRadarEmbedContent(content) || String(content || '');
   const privateFieldPattern = /^(vault_key_id|user_id|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys):\s*/;
   const blockFieldPattern = /^(files|screenshots):\s*/;
   const publicLines = [];
   let skippingPrivateBlock = false;
 
-  for (const line of String(content || '').split('\n')) {
+  for (const line of source.split('\n')) {
     if (privateFieldPattern.test(line)) {
       skippingPrivateBlock = false;
       continue;
@@ -758,4 +893,6 @@ function main() {
   writeIfChanged(DATA_REGISTRY_PATH, updatedDataRegistry, { ...args, force: true });
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}

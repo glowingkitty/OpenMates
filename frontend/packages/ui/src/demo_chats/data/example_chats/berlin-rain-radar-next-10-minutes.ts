@@ -17,29 +17,77 @@ export const berlinRainRadarNext10MinutesChat: ExampleChat = {
   follow_up_suggestions: [],
   messages: [
     {
-        "id": "4ae4309a-6f6e-420c-a5f4-29af8816f724",
-        "role": "user",
-        "content": "example_chats.berlin_rain_radar_next_10_minutes.message_1",
-        "created_at": 1781458405
+      id: "4ae4309a-6f6e-420c-a5f4-29af8816f724",
+      role: "user",
+      content: "example_chats.berlin_rain_radar_next_10_minutes.message_1",
+      created_at: 1781458405,
     },
     {
-        "id": "d4943f88-877d-4201-8d12-335d520cd610",
-        "role": "assistant",
-        "content": "example_chats.berlin_rain_radar_next_10_minutes.message_2",
-        "created_at": 1781458435,
-        "category": "general_knowledge",
-        "model_name": "Gemini 3 Flash"
-    }
-],
+      id: "d4943f88-877d-4201-8d12-335d520cd610",
+      role: "assistant",
+      content: "example_chats.berlin_rain_radar_next_10_minutes.message_2",
+      created_at: 1781458435,
+      category: "general_knowledge",
+      model_name: "Gemini 3 Flash",
+    },
+  ],
   embeds: [
     {
-        "embed_id": "935fef42-7368-4449-9309-f632e8f1343b",
-        "type": "app_skill_use",
-        "content": "app_id: weather\nskill_id: rain_radar\nresults[1]:\n  - type: rain_radar\n    provider: Deutscher Wetterdienst (DWD) via Bright Sky\n    location_name: Berlin\n    location_country: Germany\n    location_country_code: DE\n    location_admin1: State of Berlin\n    location_latitude: 52.52437\n    location_longitude: 13.41053\n    location_timezone: Europe/Berlin\n    coverage_status: available\n    coverage_radius_km: 5\n    summary_rain_expected: false\n    summary_in_10_min: No rain visible near Berlin.\n    summary_next_2_hours: No rain is visible near Berlin in the radar timeline.\n    summary_peak_intensity: none\n    summary_preview_frame_id: frame-16\n    timeline[25]{frame_id,timestamp,kind,label,rain_at_location_mm_5min,max_intensity,rain_area_pct}:\n      frame-0,\"2026-06-14T18:25:00+02:00\",past,\"-69 min\",0,none,0\n      frame-1,\"2026-06-14T18:30:00+02:00\",past,\"-64 min\",0,none,0\n      frame-2,\"2026-06-14T18:35:00+02:00\",past,\"-59 min\",0,none,0\n      frame-3,\"2026-06-14T18:40:00+02:00\",past,\"-54 min\",0,none,0\n      frame-4,\"2026-06-14T18:45:00+02:00\",past,\"-49 min\",0,none,0\n      frame-5,\"2026-06-14T18:50:00+02:00\",past,\"-44 min\",0,none,0\n      frame-6,\"2026-06-14T18:55:00+02:00\",past,\"-39 min\",0,none,0\n      frame-7,\"2026-06-14T19:00:00+02:00\",past,\"-34 min\",0,none,0\n      frame-8,\"2026-06-14T19:05:00+02:00\",past,\"-29 min\",0,none,0\n      frame-9,\"2026-06-14T19:10:00+02:00\",past,\"-24 min\",0,none,0\n      frame-10,\"2026-06-14T19:15:00+02:00\",past,\"-19 min\",0,none,0\n      frame-11,\"2026-06-14T19:20:00+02:00\",past,\"-14 min\",0,none,0\n      frame-12,\"2026-06-14T19:25:00+02:00\",past,\"-9 min\",0,none,0\n      frame-13,\"2026-06-14T19:30:00+02:00\",past,\"-4 min\",0,none,0\n      frame-14,\"2026-06-14T19:35:00+02:00\",forecast,+1 min,0,none,0\n      frame-15,\"2026-06-14T19:40:00+02:00\",forecast,+6 min,0,none,0\n      frame-16,\"2026-06-14T19:45:00+02:00\",forecast,+11 min,0,none,0\n      frame-17,\"2026-06-14T19:50:00+02:00\",forecast,+16 min,0,none,0\n      frame-18,\"2026-06-14T19:55:00+02:00\",forecast,+21 min,0,none,0\n      frame-19,\"2026-06-14T20:00:00+02:00\",forecast,+26 min,0,none,0\n      frame-20,\"2026-06-14T20:05:00+02:00\",forecast,+31 min,0,none,0\n      frame-21,\"2026-06-14T20:10:00+02:00\",forecast,+36 min,0,none,0\n      frame-22,\"2026-06-14T20:15:00+02:00\",forecast,+41 min,0,none,0\n      frame-23,\"2026-06-14T20:20:00+02:00\",forecast,+46 min,0,none,0\n      frame-24,\"2026-06-14T20:25:00+02:00\",forecast,+51 min,0,none,0\n    rendering_mode: external_radar_blob\n    rendering_preview_frame_id: frame-16\n    rendering_bounds: null\n    rendering_frame_count: 25\n    rendering_grid_resolution_km: 1\n    rendering_radius_km: 5\n    suggestions_follow_up_requests: Show the regular forecast|Will it rain at my exact location?|Check a larger radar radius\n    ignore_fields_for_inference: files|s3_base_url|aes_key|aes_nonce|vault_wrapped_aes_key|radar_blob_b64|provider_raw\n    radar_blob_b64: null\n    files_preview_s3_key: 8881f651-dcaf-4809-8f06-a8e8796f7486/1781458414_2b5948a232f5fd03_rain_radar_preview.webp\n    files_preview_format: webp\n    files_preview_width: 640\n    files_preview_height: 360\n    files_preview_size_bytes: 492\n    files_radar_blob_s3_key: 8881f651-dcaf-4809-8f06-a8e8796f7486/1781458414_2b5948a232f5fd03_rain_radar_blob.zlib\n    files_radar_blob_format: radar-grid-v1.zlib\n    files_radar_blob_size_bytes: 381\n    s3_base_url: \"https://dev-openmates-chatfiles.nbg1.your-objectstorage.com\"\n    aes_key: U8DpiTEy0u/6JcizNzs+qm4sNWBkVtKrI0XfSdtJHRE=\n    aes_nonce: \"\"\n    error: null\nresult_count: 1\nstatus: finished\nembed_ref: rain_radar-YZO\nembed_id: 935fef42-7368-4449-9309-f632e8f1343b\nradius_km: 5\nlocation: Berlin\nquery: Berlin rain radar\nprovider: Deutscher Wetterdienst (DWD) via Bright Sky",
-        "parent_embed_id": null,
-        "embed_ids": null
-    }
-],
+      embed_id: "935fef42-7368-4449-9309-f632e8f1343b",
+      type: "app_skill_use",
+      content: `app_id: weather
+skill_id: rain_radar
+status: finished
+embed_id: 935fef42-7368-4449-9309-f632e8f1343b
+query: Berlin rain radar
+provider: Deutscher Wetterdienst (DWD) via Bright Sky
+location:
+  name: Berlin
+  country: Germany
+  country_code: DE
+  admin1: State of Berlin
+  latitude: 52.52437
+  longitude: 13.41053
+  timezone: Europe/Berlin
+coverage:
+  status: available
+  radius_km: 5
+summary:
+  rain_expected: false
+  in_10_min: No rain visible near Berlin.
+  next_2_hours: No rain is visible near Berlin in the radar timeline.
+  peak_intensity: none
+  preview_frame_id: frame-16
+timeline[25]{frame_id,timestamp,kind,label,rain_at_location_mm_5min,max_intensity,rain_area_pct}:
+  frame-0,"2026-06-14T18:25:00+02:00",past,"-69 min",0,none,0
+  frame-1,"2026-06-14T18:30:00+02:00",past,"-64 min",0,none,0
+  frame-2,"2026-06-14T18:35:00+02:00",past,"-59 min",0,none,0
+  frame-3,"2026-06-14T18:40:00+02:00",past,"-54 min",0,none,0
+  frame-4,"2026-06-14T18:45:00+02:00",past,"-49 min",0,none,0
+  frame-5,"2026-06-14T18:50:00+02:00",past,"-44 min",0,none,0
+  frame-6,"2026-06-14T18:55:00+02:00",past,"-39 min",0,none,0
+  frame-7,"2026-06-14T19:00:00+02:00",past,"-34 min",0,none,0
+  frame-8,"2026-06-14T19:05:00+02:00",past,"-29 min",0,none,0
+  frame-9,"2026-06-14T19:10:00+02:00",past,"-24 min",0,none,0
+  frame-10,"2026-06-14T19:15:00+02:00",past,"-19 min",0,none,0
+  frame-11,"2026-06-14T19:20:00+02:00",past,"-14 min",0,none,0
+  frame-12,"2026-06-14T19:25:00+02:00",past,"-9 min",0,none,0
+  frame-13,"2026-06-14T19:30:00+02:00",past,"-4 min",0,none,0
+  frame-14,"2026-06-14T19:35:00+02:00",forecast,+1 min,0,none,0
+  frame-15,"2026-06-14T19:40:00+02:00",forecast,+6 min,0,none,0
+  frame-16,"2026-06-14T19:45:00+02:00",forecast,+11 min,0,none,0
+  frame-17,"2026-06-14T19:50:00+02:00",forecast,+16 min,0,none,0
+  frame-18,"2026-06-14T19:55:00+02:00",forecast,+21 min,0,none,0
+  frame-19,"2026-06-14T20:00:00+02:00",forecast,+26 min,0,none,0
+  frame-20,"2026-06-14T20:05:00+02:00",forecast,+31 min,0,none,0
+  frame-21,"2026-06-14T20:10:00+02:00",forecast,+36 min,0,none,0
+  frame-22,"2026-06-14T20:15:00+02:00",forecast,+41 min,0,none,0
+  frame-23,"2026-06-14T20:20:00+02:00",forecast,+46 min,0,none,0
+  frame-24,"2026-06-14T20:25:00+02:00",forecast,+51 min,0,none,0`,
+      parent_embed_id: null,
+      embed_ids: null,
+    },
+  ],
   metadata: {
     featured: true,
     order: 100,
