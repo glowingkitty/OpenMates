@@ -26,6 +26,12 @@
     import { onDestroy } from 'svelte';
     import { pendingMentionStore } from '../../stores/pendingMentionStore';
     import { panelState } from '../../stores/panelStateStore';
+    import ChatPreviewCard from './ChatPreviewCard.svelte';
+    import { activeChatStore } from '../../stores/activeChatStore';
+    import { isMobileView } from '../../stores/uiStateStore';
+    import { getExampleChatsForFocusMode } from '../../demo_chats';
+    import type { Chat } from '../../types/chat';
+    import { get } from 'svelte/store';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -128,6 +134,8 @@
             : []
     );
 
+    let chatExamples = $derived(getExampleChatsForFocusMode(appId, focusModeId));
+
     /**
      * Whether the instructions section has any content to show:
      * either process bullets or a system prompt.
@@ -212,15 +220,38 @@
         pendingMentionStore.set(`@focus:${appId}:${focusModeId}`);
         panelState.closeSettings();
     }
+
+    function openExampleChat(chat: Chat) {
+        const shouldCloseSettings = get(isMobileView);
+        activeChatStore.setActiveChat(chat.chat_id);
+        dispatch('chatSelected', { chat });
+        window.dispatchEvent(new CustomEvent('globalChatSelected', { detail: { chat } }));
+        // Wide viewports keep settings open so users can inspect the app while the chat loads beside or behind it.
+        if (shouldCloseSettings) {
+            dispatch('closeSettings');
+        }
+    }
 </script>
 
-<div class="focus-mode-details">
+<div class="focus-mode-details" data-testid="focus-mode-details">
     {#if !app || !focusMode}
         <div class="error">
             <p>{$text('settings.app_store.focus_mode_not_found')}</p>
             <button class="back-button" onclick={goBack}>← {$text('settings.app_store.back_to_app')}</button>
         </div>
     {:else}
+        {#if chatExamples.length > 0}
+            <div class="section examples-section">
+                <SettingsSectionHeading title={$text('settings.app_store.skills.examples')} icon="chat" />
+                <p class="examples-prefix">{$text('settings.app_store.skills.examples_prefix')}</p>
+                <div class="recent-chats-scroll-container" data-testid="app-store-focus-mode-example-chats">
+                    {#each chatExamples as chat (chat.chat_id)}
+                        <ChatPreviewCard {chat} {appId} skillId={focusModeId} onOpen={openExampleChat} />
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
         <!-- How to use section: scrollable example prompts, only shown if translations exist -->
         {#if howToUseExamples.length > 0}
             <div class="section how-to-use-section">
@@ -321,6 +352,46 @@
 
     .section {
         margin-top: 2rem;
+    }
+
+    .examples-section {
+        margin-top: 1.5rem;
+    }
+
+    .examples-prefix {
+        margin: 0.5rem 0 0 0;
+        padding: 0;
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.5;
+        color: var(--color-grey-100);
+    }
+
+    .recent-chats-scroll-container {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--spacing-8);
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        visibility: visible;
+        padding: 0.75rem 0 0.5rem 0;
+        box-sizing: border-box;
+        pointer-events: auto;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .recent-chats-scroll-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .recent-chats-scroll-container :global(.resume-chat-large-card) {
+        flex: 0 0 300px;
     }
 
     /* How to use section */

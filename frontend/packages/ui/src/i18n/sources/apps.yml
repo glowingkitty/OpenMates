@@ -670,6 +670,54 @@ electronics.description:
   sv: Find components and design electronic circuits.
   he: Find components and design electronic circuits.
   verified_by_human: [en, de]
+pcb_design:
+  context: App name for the PCB Design app
+  en: PCB Design
+  de: PCB-Design
+  zh: PCB Design
+  es: PCB Design
+  fr: PCB Design
+  pt: PCB Design
+  ru: PCB Design
+  ja: PCB Design
+  ko: PCB Design
+  it: PCB Design
+  tr: PCB Design
+  vi: PCB Design
+  id: PCB Design
+  pl: PCB Design
+  nl: PCB Design
+  ar: PCB Design
+  hi: PCB Design
+  th: PCB Design
+  cs: PCB Design
+  sv: PCB Design
+  he: PCB Design
+  verified_by_human: [en]
+pcb_design.description:
+  context: Description for the PCB Design app
+  en: Plan schematics and layouts for printed circuit boards.
+  de: Plane Schaltpläne und Layouts für Leiterplatten.
+  zh: Plan schematics and layouts for printed circuit boards.
+  es: Plan schematics and layouts for printed circuit boards.
+  fr: Plan schematics and layouts for printed circuit boards.
+  pt: Plan schematics and layouts for printed circuit boards.
+  ru: Plan schematics and layouts for printed circuit boards.
+  ja: Plan schematics and layouts for printed circuit boards.
+  ko: Plan schematics and layouts for printed circuit boards.
+  it: Plan schematics and layouts for printed circuit boards.
+  tr: Plan schematics and layouts for printed circuit boards.
+  vi: Plan schematics and layouts for printed circuit boards.
+  id: Plan schematics and layouts for printed circuit boards.
+  pl: Plan schematics and layouts for printed circuit boards.
+  nl: Plan schematics and layouts for printed circuit boards.
+  ar: Plan schematics and layouts for printed circuit boards.
+  hi: Plan schematics and layouts for printed circuit boards.
+  th: Plan schematics and layouts for printed circuit boards.
+  cs: Plan schematics and layouts for printed circuit boards.
+  sv: Plan schematics and layouts for printed circuit boards.
+  he: Plan schematics and layouts for printed circuit boards.
+  verified_by_human: [en]
 nutrition:
   context: App name for the Nutrition app
   en: Nutrition

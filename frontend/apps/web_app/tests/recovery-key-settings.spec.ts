@@ -36,7 +36,7 @@ const {
 	setToggleChecked,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
+	getIsolatedTestAccount,
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
@@ -46,7 +46,7 @@ const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/c
  * in Settings > Account > Security > Recovery Key.
  *
  * ARCHITECTURE NOTES:
- * - Uses the existing test account (must have password + 2FA configured).
+ * - Uses isolated account slot 18 because this flow regenerates the recovery key.
  * - Phase 1: Logs in with password + OTP.
  * - Phase 2: Navigates to Settings > Security > Recovery Key.
  * - Phase 3: Clicks "Regenerate", authenticates via SecurityAuth.
@@ -57,12 +57,16 @@ const { openSignupInterface, submitPasswordAndHandleOtp } = require('./helpers/c
  * This does NOT test login with recovery key (see recovery-key-login-flow.spec.ts).
  *
  * REQUIRED ENV VARS:
- * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of the existing test account.
- * - OPENMATES_TEST_ACCOUNT_PASSWORD: Password for the test account.
- * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
+ * - Isolated slot 18 credentials, routed by scripts/run_tests.py.
  */
 
-const { email: OPENMATES_TEST_ACCOUNT_EMAIL, password: OPENMATES_TEST_ACCOUNT_PASSWORD, otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY } = getTestAccount();
+const {
+	email: OPENMATES_TEST_ACCOUNT_EMAIL,
+	password: OPENMATES_TEST_ACCOUNT_PASSWORD,
+	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
+} = getIsolatedTestAccount('recovery-key-settings.spec.ts');
+
+test.describe.configure({ mode: 'serial' });
 
 test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	page,

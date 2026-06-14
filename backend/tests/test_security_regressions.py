@@ -179,7 +179,9 @@ async def test_store_account_lifecycle_contact_email_uses_vault_encryption():
     from backend.core.api.app.routes.auth_routes.auth_utils import store_account_lifecycle_contact_email
 
     directus_service = AsyncMock()
+    directus_service.get_items = AsyncMock(return_value=[])
     directus_service.create_item = AsyncMock(return_value=(True, {"id": "bed33190-7517-5958-9b7f-bc9fd4e7cb2a"}))
+    directus_service.update_item = AsyncMock()
     encryption_service = AsyncMock()
     encryption_service.encrypt_account_contact_email = AsyncMock(return_value="vault:v1:encrypted-email")
 
@@ -204,6 +206,62 @@ async def test_store_account_lifecycle_contact_email_uses_vault_encryption():
     assert payload["source"] == "signup"
     assert payload["verified_at"] == 1234567890
     assert directus_service.create_item.call_args.kwargs["admin_required"] is True
+    directus_service.update_item.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_store_account_lifecycle_contact_email_updates_existing_record():
+    from backend.core.api.app.routes.auth_routes.auth_utils import store_account_lifecycle_contact_email
+
+    directus_service = AsyncMock()
+    directus_service.get_items = AsyncMock(return_value=[{"id": "bed33190-7517-5958-9b7f-bc9fd4e7cb2a"}])
+    directus_service.create_item = AsyncMock()
+    directus_service.update_item = AsyncMock(return_value={"id": "bed33190-7517-5958-9b7f-bc9fd4e7cb2a"})
+    encryption_service = AsyncMock()
+    encryption_service.encrypt_account_contact_email = AsyncMock(return_value="vault:v1:new-email")
+
+    stored = await store_account_lifecycle_contact_email(
+        directus_service,
+        encryption_service,
+        user_id="user-1",
+        hashed_email="new-hashed-email",
+        email="new@example.com",
+        verified_at=1234567890,
+    )
+
+    assert stored is True
+    directus_service.create_item.assert_not_called()
+    collection, item_id, payload = directus_service.update_item.call_args.args[:3]
+    assert collection == "account_contact_emails"
+    assert item_id == "bed33190-7517-5958-9b7f-bc9fd4e7cb2a"
+    assert payload["hashed_email"] == "new-hashed-email"
+    assert payload["encrypted_email_address"] == "vault:v1:new-email"
+    assert directus_service.update_item.call_args.kwargs["admin_required"] is True
+
+
+@pytest.mark.anyio
+async def test_store_account_lifecycle_contact_email_updates_after_duplicate_create():
+    from backend.core.api.app.routes.auth_routes.auth_utils import store_account_lifecycle_contact_email
+
+    directus_service = AsyncMock()
+    directus_service.get_items = AsyncMock(return_value=[])
+    directus_service.create_item = AsyncMock(return_value=(False, {"status_code": 400, "text": "RECORD_NOT_UNIQUE"}))
+    directus_service.update_item = AsyncMock(return_value={"id": "bed33190-7517-5958-9b7f-bc9fd4e7cb2a"})
+    encryption_service = AsyncMock()
+    encryption_service.encrypt_account_contact_email = AsyncMock(return_value="vault:v1:race-email")
+
+    stored = await store_account_lifecycle_contact_email(
+        directus_service,
+        encryption_service,
+        user_id="user-1",
+        hashed_email="race-hashed-email",
+        email="race@example.com",
+        verified_at=1234567890,
+    )
+
+    assert stored is True
+    directus_service.create_item.assert_awaited_once()
+    directus_service.update_item.assert_awaited_once()
 
 
 @pytest.mark.anyio

@@ -1,0 +1,373 @@
+title:
+  context: "Title of example chat: Upcoming Reminders List"
+  en: "Upcoming Reminders List"
+  de: "Upcoming Reminders List"
+  zh: "Upcoming Reminders List"
+  es: "Upcoming Reminders List"
+  fr: "Upcoming Reminders List"
+  pt: "Upcoming Reminders List"
+  ru: "Upcoming Reminders List"
+  ja: "Upcoming Reminders List"
+  ko: "Upcoming Reminders List"
+  it: "Upcoming Reminders List"
+  tr: "Upcoming Reminders List"
+  vi: "Upcoming Reminders List"
+  id: "Upcoming Reminders List"
+  pl: "Upcoming Reminders List"
+  nl: "Upcoming Reminders List"
+  ar: "Upcoming Reminders List"
+  hi: "Upcoming Reminders List"
+  th: "Upcoming Reminders List"
+  cs: "Upcoming Reminders List"
+  sv: "Upcoming Reminders List"
+  he: "Upcoming Reminders List"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Upcoming Reminders List"
+  en: "A reminder listing example that groups upcoming reminders by due date."
+  de: "A reminder listing example that groups upcoming reminders by due date."
+  zh: "A reminder listing example that groups upcoming reminders by due date."
+  es: "A reminder listing example that groups upcoming reminders by due date."
+  fr: "A reminder listing example that groups upcoming reminders by due date."
+  pt: "A reminder listing example that groups upcoming reminders by due date."
+  ru: "A reminder listing example that groups upcoming reminders by due date."
+  ja: "A reminder listing example that groups upcoming reminders by due date."
+  ko: "A reminder listing example that groups upcoming reminders by due date."
+  it: "A reminder listing example that groups upcoming reminders by due date."
+  tr: "A reminder listing example that groups upcoming reminders by due date."
+  vi: "A reminder listing example that groups upcoming reminders by due date."
+  id: "A reminder listing example that groups upcoming reminders by due date."
+  pl: "A reminder listing example that groups upcoming reminders by due date."
+  nl: "A reminder listing example that groups upcoming reminders by due date."
+  ar: "A reminder listing example that groups upcoming reminders by due date."
+  hi: "A reminder listing example that groups upcoming reminders by due date."
+  th: "A reminder listing example that groups upcoming reminders by due date."
+  cs: "A reminder listing example that groups upcoming reminders by due date."
+  sv: "A reminder listing example that groups upcoming reminders by due date."
+  he: "A reminder listing example that groups upcoming reminders by due date."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Upcoming Reminders List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  de: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  zh: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  es: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  fr: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  pt: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  ru: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  ja: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  ko: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  it: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  tr: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  vi: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  id: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  pl: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  nl: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  ar: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  hi: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  th: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  cs: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  sv: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  he: "@skill:reminder:list-reminders List my upcoming reminders and group them by when they are due."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Upcoming Reminders List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "3640d177-a970-4f2e-bf5f-16eed4c34db5", "app_id": "reminder", "skill_id": "list-reminders"}
+    ```
+    
+    It looks like your schedule is completely clear—you don't have any upcoming [reminders](/#settings/apps/reminder) set at the moment.
+    
+    Since we're starting with a blank slate, is there anything you'd like to get off your mind and onto a list? I can help you [set a reminder](/#settings/apps/reminder) for a specific task, a daily habit you're building, or even a random nudge later this week.
+    
+    **What would you like to do next?**
+    *   **Set a new reminder?** Just let me know what it's for and when.
+    *   **Explore habit tracking?** We could set up a recurring reminder for something you're working on.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  verified_by_human: []
+

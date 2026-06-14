@@ -1,382 +1,285 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: how-to
+audience:
+  - technical-users
+last_verified: 2026-06-08
+claims:
+  - id: self-hosting-cli-detects-openmates-installation-path
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    assertion: cli-server-path-resolution-validates-installation
+  - id: self-hosting-cli-detects-real-llm-api-key
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    assertion: cli-server-requires-real-llm-api-key
+  - id: self-hosting-cli-starts-without-provider-keys
+    type: e2e
+    file: .github/workflows/selfhost-smoke.yml
+    assertion: self-host install smoke passes without provider API keys
+  - id: self-hosting-signup-admin-smoke
+    type: e2e
+    file: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    assertion: invite signup creates a normal user and make-admin promotes that user
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
 ---
 
 # OpenMates Self-Hosting Edition
 
-This guide provides comprehensive instructions for setting up and running OpenMates on your own infrastructure.
+## Summary
 
-> **Note:** The self-hosting edition currently only supports API-based AI models (requiring internet connection to external AI providers). Offline model support is planned for 2026.
+- Use `openmates server` for the default install, start, stop, status, logs, update, reset, and uninstall flow.
+- Default installs use prebuilt GHCR images and do not require Git or a source checkout.
+- `openmates server start` brings up the backend and the web app. Open the app at `http://localhost:5173`.
+- Default installs generate an invite-only signup configuration; edit `.env` if you want a domain allowlist or invite-plus-domain mode.
+- The first invite creates a normal user. Promote your account separately with `openmates server make-admin <email>`.
+- A fresh self-hosted install can start without provider API keys. AI chat and model processing stay unavailable until you add at least one real LLM provider key.
+- The no-key startup path is verified by the GitHub Actions self-host install smoke workflow.
 
-## Prerequisites
+The self-hosted edition currently uses API-based AI providers. Offline model support is planned but is not part of this setup path yet.
 
-Before starting, ensure your system has:
+## Requirements
 
-- Linux (Ubuntu/Debian recommended) or macOS
-- At least 4GB RAM (8GB+ recommended)
-- 20GB+ available disk space
-- Internet connection for downloading dependencies
+- Linux server or workstation. Ubuntu/Debian is recommended.
+- Docker with Docker Compose support.
+- Node.js/npm.
+- 4 GB RAM minimum. 8 GB or more is recommended.
+- 20 GB or more free disk space.
+- Internet access for Docker images, package installs, and any external AI providers you enable.
+
+Git is only required when you explicitly choose source mode with `--from-source` or `--source-path`.
+
+Provider API keys are optional for installation and startup. Add them when you want AI chat, model processing, or provider-backed skills to work.
 
 ## Quick Start
 
-### 1. Clone the Repository
+### 1. Install the CLI from npm
 
 ```bash
-git clone https://github.com/glowingkitty/OpenMates
-cd OpenMates
+npm install -g openmates
 ```
 
-### 2. Run the Setup Script
-
-The setup script automatically installs dependencies and configures your environment:
+### 2. Run the installer
 
 ```bash
-chmod +x setup.sh
-./setup.sh
+openmates server install --path ~/openmates
 ```
 
-**What the setup script does:**
+The installer prepares a lightweight runtime directory, writes the image-mode Docker Compose file, creates `.env`, generates local secrets, and prints the next command to start the server. It does not clone the OpenMates repository.
 
-- Checks for Docker, Docker Compose, and pnpm
-- Installs missing dependencies (requires sudo)
-- Creates your `.env` configuration file
-- Generates necessary security secrets
-- Sets up Docker network configuration
+The installer also stores the self-host API target in `~/.openmates/server.json`. Fresh CLI commands such as `openmates login`, `openmates signup`, and `openmates chats list` will use `http://localhost:8000` instead of the OpenMates cloud API unless you already have a saved login session, set `OPENMATES_API_URL`, or pass `--api-url`.
 
-_Note: Designed for Debian-based systems. For other OS, install dependencies manually._
+By default the stack pulls OpenMates images from `ghcr.io/glowingkitty` using the CLI version tag, for example `v0.12.0-alpha.0`. Expect the first start to download several GB of compressed images; later updates reuse Docker's image cache.
 
-### 3. Configure API Keys
+Image-mode install defaults to invite codes only. You can edit `~/openmates/.env` before starting if you want a different signup mode:
 
-Edit the generated `.env` file to add your API keys:
+| Mode | Best for | Signup requirement |
+| --- | --- | --- |
+| Invite codes only | Individuals and private servers | Valid invite code |
+| Email domain allowlist | Teams with a shared email domain | Allowed email domain |
+| Invite code + email domain | More restrictive team/private servers | Both invite code and allowed email domain |
+
+Setup generates and prints the first signup invite code. This invite code creates a normal user, not an admin.
+
+For contributors testing an existing checkout, use source mode:
 
 ```bash
-nano .env
+openmates server install --from-source --path ~/openmates-source
+openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-selfhost
 ```
 
-Add keys for services you want to use. See the [.env.example](../.env.example) file for the complete list of available API keys.
+Source mode clones or copies a repository, requires Git for clone-based installs and updates, and rebuilds Docker images locally.
 
-### 4. Start Backend Services
-
-Start all backend services (API, database, etc.):
+### 3. Start the Server
 
 ```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml up -d
+openmates server start --path ~/openmates
 ```
 
-**For development with admin UIs** (includes Directus CMS and Grafana monitoring):
+Startup without LLM keys is allowed. If no key is present, the CLI prints a warning and starts the stack anyway. The web app and backend should still be reachable, but AI model features remain unavailable.
+
+The default self-host stack exposes:
+
+| Service | URL |
+| --- | --- |
+| Web app | `http://localhost:5173` |
+| Backend API | `http://localhost:8000` |
+
+To include admin UIs such as Directus CMS and Grafana, start with overrides:
 
 ```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
+openmates server start --path ~/openmates --with-overrides
 ```
 
-Admin interfaces will be available at:
-
-- **Directus CMS**: http://localhost:8055
-- **Grafana Monitoring**: http://localhost:3000
-
-### 5. Verify Secret Import
-
-Check that your API keys were imported successfully:
+### 4. Verify the install
 
 ```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml logs vault-setup
+openmates server status --path ~/openmates
+curl http://localhost:8000/health
+curl http://localhost:8000/v1/settings/server-status
 ```
 
-If import was successful, replace actual keys in `.env` with `IMPORTED_TO_VAULT`:
+For a fresh no-key install, `/v1/settings/server-status` should include:
+
+```json
+{
+  "is_self_hosted": true,
+  "ai_models_configured": false
+}
+```
+
+### 5. Create your first user and promote admin
+
+Open `http://localhost:5173` in your browser.
+
+If your signup mode uses invite codes, sign up with the first signup invite code printed by `openmates server install`. It is also available in `~/openmates/.env` as `SELF_HOST_FIRST_INVITE_CODE`.
+
+The first signup creates a normal user. After signup, grant admin privileges to your user from the server terminal:
+
+```bash
+openmates server make-admin your@email.com --path ~/openmates
+```
+
+Keep the browser session open or refresh the app. The `Server` and `Logs` settings entries should appear after the next auth check.
+
+## Adding AI Provider Keys
+
+Edit the generated `.env` file in your install directory:
+
+```bash
+nano ~/openmates/.env
+```
+
+Add at least one real LLM provider key:
 
 ```env
-SECRET__MAILJET__API_KEY=IMPORTED_TO_VAULT
+SECRET__OPENAI__API_KEY=sk-...
+SECRET__ANTHROPIC__API_KEY=sk-ant-...
+SECRET__GOOGLE_AI_STUDIO__API_KEY=...
 ```
 
-### 6. Start Frontend
-
-You have two options for running the frontend:
-
-#### Option A: Development Mode (Recommended for Testing)
-
-For development/testing, run the frontend in dev mode with a custom API URL:
+Then restart:
 
 ```bash
-VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app dev --host 0.0.0.0 --port 5173
+openmates server restart --path ~/openmates
 ```
 
-Replace `YOUR_SERVER_IP` with your actual server IP address (e.g., `192.168.1.100`).
+Provider keys for non-model features, such as search or mail providers, enable only those specific integrations. They do not make AI model processing available.
 
-_Note: First load may take up to a minute while Svelte builds files._
-
-#### Option B: Production Build (Recommended for Deployment)
-
-For production deployments, build the webapp with your API URL baked in:
+## Common Management Commands
 
 ```bash
-# Build the webapp Docker image with your API URL
-docker compose --env-file .env -f backend/core/docker-compose.yml build webapp \
-  --build-arg VITE_API_URL=http://YOUR_SERVER_IP:8000
-
-# Or build directly with pnpm (without Docker)
-VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app build
+openmates server status --path ~/openmates
+openmates server logs --path ~/openmates --tail 200
+openmates server logs --path ~/openmates --container api --follow
+openmates server restart --path ~/openmates
+openmates server stop --path ~/openmates
+openmates server update --path ~/openmates
+openmates server uninstall --path ~/openmates --yes
 ```
 
-**Important**: `VITE_API_URL` must be set at **build time** because Vite embeds environment variables into the JavaScript bundle during compilation.
+For image-mode installs, `openmates server update` pulls newer images and restarts the stack. For source-mode installs, it runs `git pull --ff-only`, rebuilds images, and restarts containers.
 
-To enable the webapp service, uncomment it in `backend/core/docker-compose.yml` and run:
+See [CLI server management](../user-guide/cli/server-management.md) for the full command reference.
 
-```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml up -d webapp
+## Images and Runtime Containers
+
+The GHCR package list is shorter than the runtime container list. OpenMates publishes a small set of reusable images, then Docker Compose starts multiple containers from those images with different commands and Celery queues.
+
+| GHCR image | Runtime role |
+| --- | --- |
+| `openmates-api` | API server plus most worker containers, including AI, images, music, videos, PDF, code, social media, task worker, and scheduler queues. |
+| `openmates-docs-worker` | Document-processing worker with extra document tooling such as LibreOffice, kept separate so the main API image stays smaller. |
+| `openmates-webapp` | SvelteKit web app served on `http://localhost:5173`. |
+| `openmates-cms-setup` | One-shot Directus schema/setup container. |
+| `openmates-vault-setup` | One-shot Vault initialization, unseal, policy, token, and secret import container. |
+| `openmates-admin-sidecar` | Local admin helper with host-level access isolated from the main API container. |
+
+Other OpenMates apps are not missing. They are Python app modules inside the shared API image and are loaded by the API/worker registry at startup. Dedicated containers exist only where separate queues, memory limits, or system dependencies are useful.
+
+## Production Notes
+
+### Domains and HTTPS
+
+For public deployments, put OpenMates behind a reverse proxy such as Caddy, Traefik, or Nginx.
+
+Example Caddy shape:
+
+```caddyfile
+api.example.com {
+    reverse_proxy localhost:8000
+}
+
+app.example.com {
+    reverse_proxy localhost:5173
+}
 ```
 
-### 7. Get Your Invite Code
-
-Find the initial signup invite code:
-
-```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml logs cms-setup
-```
-
-### 8. Access OpenMates
-
-Open http://localhost:5173 in your browser and sign up using the invite code.
-
-<!--
-## Admin Account Setup
-
-After setting up OpenMates, you'll want to create an admin account to manage server settings and community features.
-
-### Creating an Admin Account
-
-1. **Generate an admin token** (30-second expiration for security):
-   ```bash
-   docker exec -it openmates-api python /app/scripts/create_admin_token.py
-   ```
-
-   This will output:
-   ```
-   Admin token created successfully!
-   Token: abc123xyz (expires in 30 seconds)
-
-   To use this token:
-   1. Log into OpenMates at http://localhost:5173
-   2. Go to Settings
-   3. Navigate to: settings/server/become-admin
-   4. Enter the token within 30 seconds
-   ```
-
-2. **Use the token immediately**:
-   - Log into OpenMates
-   - Open Settings
-   - Navigate directly to the become-admin page by visiting:
-     `http://localhost:5173/settings/server/become-admin`
-   - Enter the token within 30 seconds
-   - You'll be granted admin privileges
-
-3. **Access server settings**:
-   - After becoming admin, you'll see "Server" in your Settings menu
-   - Server settings include:
-     - **Community Suggestions**: Manage demo chats shared by users
-     - **Software Updates**: Update OpenMates to newer versions
-     - **Admin Management**: Create additional admin tokens
-
-### Admin Features
-
-Once you have admin access, you can:
-
-- **Manage community content**: Review and approve shared chats for demo use
-- **Monitor system health**: Access detailed logs and metrics
-- **Update software**: Install updates through the web interface
-- **Manage users**: Create additional admin accounts when needed
--->
-
-## Production Deployment
-
-For production use, consider these additional steps:
-
-### Reverse Proxy Setup (Caddy)
-
-1. **Copy configuration template**:
-
-   ```bash
-   cp deployment/Caddyfile.example deployment/prod/Caddyfile.prod
-   ```
-
-2. **Configure domains and TLS**:
-
-   ```caddyfile
-   api.yourdomain.com {
-       reverse_proxy api:8000
-       header {
-           Access-Control-Allow-Origin https://app.yourdomain.com
-       }
-   }
-
-   app.yourdomain.com {
-       reverse_proxy webapp:5173
-       tls your-email@example.com
-   }
-   ```
-
-3. **Use the configuration**:
-   See [deployment/README.md](../architecture/core/servers.md) for detailed instructions.
-
-### Security Considerations
-
-- **Change default secrets**: Regenerate all secrets in production
-- **Use HTTPS**: Configure proper TLS certificates
-- **Network security**: Use Docker networks to isolate services
-- **Regular updates**: Keep OpenMates and dependencies updated
-- **Backup data**: Regular backups of database and user data
-<!-- - **Admin token security**: Admin tokens expire after 30 seconds for security -->
-
-### Environment Variables
-
-Key production environment variables:
+Set production origins and domains in `~/openmates/.env` before restarting. `PRODUCTION_URL` is the backend CORS allowlist used when `SERVER_ENVIRONMENT=production`; for the default local install it is generated as `http://localhost:5173`. For a public instance, replace it with your HTTPS web app origin, or comma-separate multiple trusted web origins:
 
 ```env
-# Domain configuration
-FRONTEND_ORIGIN=https://app.yourdomain.com
-API_DOMAIN=api.yourdomain.com
-
-# Database (consider external database for production)
-DB_HOST=your-production-db-host
-DB_NAME=openmates_prod
-DB_USER=openmates_user
-DB_PASSWORD=secure-password
-
-# Cache configuration
-REDIS_URL=redis://your-redis-host:6379
-
-# Email configuration (required for admin notifications)
-SECRET__MAILJET__API_KEY=your_production_mailjet_key
-SECRET__MAILJET__SECRET_KEY=your_production_mailjet_secret
+PRODUCTION_URL="https://app.example.com"
 ```
 
-### Frontend API URL Configuration
+Use HTTPS for any public instance.
 
-The frontend needs to know where to reach the backend API. For self-hosted deployments, you **must** set `VITE_API_URL` at build time:
+### Security checklist
 
-| Variable       | Description                                         | Example                     |
-| -------------- | --------------------------------------------------- | --------------------------- |
-| `VITE_API_URL` | Full URL to your API server (for self-hosted)       | `http://192.168.1.100:8000` |
-| `VITE_ENV`     | Optional: Set to `production` for cloud deployments | `production`                |
-
-**Why build time?** Vite is a build-time bundler that replaces `import.meta.env.VITE_*` with actual values during compilation. Unlike server-side environment variables, these cannot be changed at runtime.
-
-**Options for different setups:**
-
-1. **Direct IP access**: `VITE_API_URL=http://192.168.1.100:8000`
-2. **Hostname access**: `VITE_API_URL=http://myserver.local:8000`
-3. **Reverse proxy with same origin**: `VITE_API_URL=` (empty, uses relative URLs - requires proxy config)
-4. **Reverse proxy with different subdomain**: `VITE_API_URL=https://api.yourdomain.com`
-
-## Management Commands
-
-### Service Management
-
-**View logs**:
-
-```bash
-# All services
-docker compose --env-file .env -f backend/core/docker-compose.yml logs -f
-
-# Specific service
-docker compose --env-file .env -f backend/core/docker-compose.yml logs -f api
-```
-
-**Restart services**:
-
-```bash
-# All services
-docker compose --env-file .env -f backend/core/docker-compose.yml restart
-
-# Specific service
-docker compose --env-file .env -f backend/core/docker-compose.yml restart api
-```
-
-**Stop services**:
-
-```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml down
-```
-
-### Development Workflow
-
-**Restart backend for development** (excludes webapp for hot-reload):
-
-```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
-docker volume rm openmates-cache-data && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor openobserve promtail && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d --scale webapp=0
-```
-
-**Start frontend development server**:
-
-```bash
-pnpm --filter web_app dev --host 0.0.0.0 --port 5173
-```
+- Keep Docker and the host OS updated.
+- Use real random secrets generated by setup; do not commit `.env`.
+- Restrict database, Redis, Directus, and monitoring ports to trusted networks.
+- Back up Docker volumes before updates.
+- Rotate provider API keys if the `.env` file is exposed.
 
 ## Troubleshooting
 
-### Complete System Reset
+### Server does not start
 
-If you encounter persistent issues:
+- Check Docker is running: `docker info`.
+- Check port conflicts: `lsof -i :5173` and `lsof -i :8000`.
+- Inspect logs: `openmates server logs --path ~/openmates --tail 200`.
 
-```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && \
-docker volume rm openmates-cache-data && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build && \
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
+### Web app loads but AI chat does not work
+
+- Check server status: `curl http://localhost:8000/v1/settings/server-status`.
+- If `ai_models_configured` is `false`, add an LLM provider API key and restart.
+- Placeholder values such as `IMPORTED_TO_VAULT` do not count as runnable LLM keys.
+
+### Signup mode needs to change
+
+Edit `~/openmates/.env`, then restart:
+
+```env
+SELF_HOST_SIGNUP_MODE=invite_only
+SELF_HOST_SIGNUP_ALLOWED_DOMAINS=
+SELF_HOST_FIRST_INVITE_CODE=1234-5678-9012
 ```
 
-This will:
+Supported signup modes are `invite_only`, `domain_allowlist`, and `invite_and_domain`.
 
-- Stop all services
-- Clear cached data
-- Rebuild all containers
-- Start with fresh state
+### Backend is unreachable from the browser
 
-### Common Issues
+- Confirm the API health endpoint: `curl http://localhost:8000/health`.
+- If serving from another domain, configure your reverse proxy, frontend API URL, and `PRODUCTION_URL` consistently.
+- Check browser console errors for blocked CORS or mixed-content requests.
 
-**Services won't start**:
+### Complete reset
 
-- Check Docker is running: `docker info`
-- Verify ports aren't in use: `lsof -i :8000` (API port)
-- Check disk space: `df -h`
+This deletes server data unless `--keep-data` is used during uninstall:
 
-**Frontend won't load**:
-
-- Ensure backend is running: `docker compose ps`
-- Check API health: `curl http://localhost:8000/health`
-- Verify pnpm dependencies: `pnpm install`
-
-**Frontend shows "localhost:8000" connection errors when accessing from network**:
-
-- The frontend API URL is baked in at build time
-- Rebuild with your server's IP: `VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app build`
-- Or for development: `VITE_API_URL=http://YOUR_SERVER_IP:8000 pnpm --filter web_app dev --host 0.0.0.0`
-- Check browser console for the actual API URLs being requested
-- Ensure CORS is configured on the backend to allow your frontend origin
-
-<!--
-**Admin token issues**:
-- Tokens expire after 30 seconds - generate a new one
-- Ensure you're logged in before using the token
-- Check container is running: `docker ps | grep openmates-api`
--->
-
-**Database connection errors**:
-
-- Check database container: `docker compose logs cms-database`
-- Verify network connectivity: `docker network ls`
-- Reset database if needed: `docker volume rm openmates-cms-database-data`
+```bash
+openmates server uninstall --path ~/openmates --yes
+openmates server install --path ~/openmates
+openmates server start --path ~/openmates
+```
 
 ## Getting Help
 
-- **GitHub Issues**: Report bugs and feature requests
-- **Documentation**: Check other files in `/docs` directory
-- **Community**: Join our Discord for community support
-- **Logs**: Always check service logs when troubleshooting
-
-## License & Contributing
-
-OpenMates is licensed under AGPL v3. Contributions welcome! See [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines.
+- GitHub Issues: report bugs and feature requests.
+- Logs: include relevant `openmates server logs` output when asking for help.
+- Documentation: see the rest of `docs/self-hosting/` and `docs/user-guide/cli/`.

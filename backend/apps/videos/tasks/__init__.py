@@ -1,1 +1,2 @@
 from .generate_task import generate_video_task as generate_video_task
+from .render_remotion_task import render_remotion_task as render_remotion_task

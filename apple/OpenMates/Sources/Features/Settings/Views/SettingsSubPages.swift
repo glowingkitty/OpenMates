@@ -839,6 +839,7 @@ struct SettingsLanguageView: View {
                             if locManager.currentLanguage == language {
                                 Icon("check", size: 16)
                                     .foregroundStyle(Color.buttonPrimary)
+                                    .accessibilityIdentifier("settings-language-option-\(language.code)-selected")
                             }
                         }
                         .padding(.horizontal, .spacing6)
@@ -846,9 +847,11 @@ struct SettingsLanguageView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings-language-option-\(language.code)")
                 }
             }
         }
+        .accessibilityIdentifier("settings-language-page")
         .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
     }
 

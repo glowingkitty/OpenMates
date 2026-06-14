@@ -1,0 +1,505 @@
+id: cli-sub-chat-deep-research
+title: CLI Sub-Chat Parity And Deep Research Focus Mode
+status: verified
+
+goal: >
+  Make the OpenMates CLI support the same zero-knowledge sub-chat orchestration
+  contract as the web app so the Deep research focus mode can delegate separate
+  research angles to parallel child chats and synthesize a higher-quality final
+  report. Add a reusable focus-mode example-chat contract, but only show a
+  linked example on a focus-mode page after a real high-quality example clearly
+  demonstrates that focus mode's value over normal prompting.
+
+scope:
+  in:
+    - CLI handling for backend sub-chat WebSocket lifecycle events emitted during a parent chat response.
+    - CLI creation and encrypted sync of sub-chat shells and their first user messages using the parent chat key.
+    - CLI support for server confirmation/progress events, including safe auto-approval only within server limits.
+    - Deep research prompt updates that instruct the model to use sub-chats for separate hypotheses, incentives, counterarguments, and source-quality checks when the request is complex.
+    - Real CLI quality checks against dev that verify Deep research activation, sub-chat spawning, and structured final synthesis.
+    - Focus-mode example-chat metadata and app-store page rendering that stays hidden until a focus mode has an approved example chat.
+  out:
+    - Creating the permanent Deep research example chat before quality checks pass.
+    - Changing backend sub-chat limits or nesting depth.
+    - Adding a new runtime focus mode ID; the unified web focus mode remains `research` and user-facing name remains `Deep research`.
+    - Adding browser-only account/security operations to the CLI.
+    - Reworking the web sub-chat UI beyond parity references needed for the CLI.
+
+context_discovery:
+  github_issues:
+    - "gh search found no direct sub-chat/focus-mode-example issue; closest adjacent issues include #442 multi-step chat plan view and #447 agentic coding planning/permissions."
+    - "GitHub MCP issue search returned 401 bad credentials; `gh issue list --repo glowingkitty/OpenMates --search \"subchat OR sub-chat OR focus mode OR example chat\" --state all --limit 10` was used instead."
+  docs:
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/architecture/platforms/cli-package.md
+    - docs/contributing/standards/cli.md
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts:handleSpawnSubChatsImpl
+    - frontend/packages/ui/src/services/sendersSync.ts:sendSubChatConfirmationImpl
+    - frontend/packages/openmates-cli/src/ws.ts:collectAiResponse
+    - frontend/packages/openmates-cli/src/client.ts:sendChatMessage flow in OpenMatesClient
+    - backend/apps/ai/processing/main_processor.py:start_sub_chats tool handling
+    - backend/core/api/app/routes/websockets.py:sub-chat event forwarding and confirmation handler
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts:getExampleChatsForSkill
+    - frontend/packages/ui/src/demo_chats/types.ts:ExampleChat metadata app_skill_examples
+  tests:
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - backend/tests/test_sub_chat_confirmation_handler.py
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This change targets the Node.js CLI, backend prompt metadata, and web app-store focus-mode detail pages. No Apple counterpart currently renders the app-store focus-mode detail example-chat section or uses the CLI WebSocket transport.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should focus modes expose example chats like app skills?
+      answer: "Yes. Each focus mode should have an example chat linked in the app focus mode page, but only once there is a high-quality example that clearly shows how the focus mode is more useful than regular prompting."
+    - question: Should implementation continue or stop for clarification?
+      answer: Continue if there are next steps; stop only if unsure how to proceed.
+    - question: How should the CLI handle sub-chat approval and focus-mode example wording?
+      answer: "If the web app asks for approval, the CLI should also ask in the terminal for approval. The exception is when the user explicitly uses `--auto-approve`. Focus-mode example sections should reuse wording similar to app-skill examples."
+  vision_summary: >
+    Deep research should not merely run a few web searches in one parent turn; it
+    should use sub-chats to investigate distinct angles in parallel, then synthesize
+    a structured report with evidence, incentives, counterarguments, and uncertainty.
+    The CLI must mirror the web zero-knowledge sub-chat contract before CLI quality
+    tests can validate this behavior. Focus-mode example links are a quality-gated
+    product contract: infrastructure may be added now, but no example should be shown
+    until a real candidate demonstrates the focus mode better than normal prompting.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: CLI initializes server-spawned sub-chats securely
+    given:
+      - Alice is logged in through the OpenMates CLI.
+      - Alice sends a non-incognito parent chat message that the backend processes with sub-chats enabled.
+      - The backend emits `spawn_sub_chats` for two child chats, each with an id, prompt, and first user_message_id.
+    when:
+      - The CLI receives the `spawn_sub_chats` frame before the parent final response.
+    then:
+      - The CLI creates or recognizes each child chat as `is_sub_chat` with `parent_id` equal to the parent chat id.
+      - Each child chat uses the parent chat key; no new independent child key is generated.
+      - The CLI stores and syncs each child chat's first user message encrypted with the parent chat key.
+      - The parent response collector remains active until the final parent synthesis is received.
+
+  - id: S-2
+    title: CLI handles sub-chat progress and bounded confirmation
+    given:
+      - Alice sends a CLI chat request that triggers a sub-chat batch.
+      - The backend emits `sub_chat_progress` frames while child chats run.
+    when:
+      - The backend requests explicit approval for a sub-chat batch.
+    then:
+      - The CLI shows concise progress in human-readable mode without polluting `--json` output.
+      - The CLI asks for terminal approval before sending `sub_chat_confirmation`.
+      - The CLI only sends approval automatically when the user explicitly passed `--auto-approve` and the request remains within server-provided limits.
+      - If the user rejects or the batch is over server-provided limits, the CLI sends or reports cancellation clearly and the parent response does not continue as if the batch had been approved.
+
+  - id: S-3
+    title: Deep research uses child chats for separate research angles
+    given:
+      - Alice asks a complex political, economic, market, geopolitical, policy, or news question from the CLI.
+      - No focus mode is manually mentioned.
+    when:
+      - The backend preprocessor selects `web-research` and activates Deep research.
+    then:
+      - The parent turn uses `start_sub_chats` for distinct research angles when the question benefits from parallel investigation.
+      - Child prompts are specific and independent, such as surface explanation, incentive analysis, counterarguments, regulatory history, or source-quality checks.
+      - The final parent response uses the Deep research structure: Short Answer, Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, Bottom Line.
+      - The final answer distinguishes confirmed evidence, strong inference, plausible interpretation, and unsupported speculation.
+
+  - id: S-4
+    title: Focus-mode pages link only approved example chats
+    given:
+      - A focus mode has no approved example chat metadata.
+    when:
+      - Alice opens that focus mode's app-store detail page.
+    then:
+      - The page does not show an empty or placeholder examples section.
+      - The page still shows how-to-use prompts and instructions normally.
+    and:
+      - When a future example chat includes metadata linking it to `web.research`, the Deep research focus-mode detail page shows a real example chat card that opens the example chat.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: CLI sub-chat shell creation mirrors the web zero-knowledge contract by reusing the parent chat key and syncing encrypted child chat/user-message metadata.
+  - id: AC-2
+    scenario: S-1
+    text: CLI parent response collection does not resolve early when sub-chat lifecycle events arrive before final parent synthesis.
+  - id: AC-3
+    scenario: S-2
+    text: CLI handles `sub_chat_progress`, `sub_chat_confirmation_required`, and `sub_chat_confirmation_resolved` frames without crashing or corrupting JSON output.
+  - id: AC-4
+    scenario: S-2
+    text: CLI asks for terminal approval whenever the web app would ask for approval; `--auto-approve` is the only opt-in path for automatic approval and still never bypasses backend capacity validation.
+  - id: AC-5
+    scenario: S-3
+    text: Deep research instructs the model to use sub-chats for separate research angles on complex requests and to spawn more only when early results expose a clear gap.
+  - id: AC-6
+    scenario: S-3
+    text: Real CLI dev-server quality checks show focus activation, sub-chat spawning, and a structured Deep research final report.
+  - id: AC-7
+    scenario: S-4
+    text: Focus-mode app-store pages can render linked example chats using the existing example-chat card pattern and app-skill-style examples copy, and remain hidden when no approved example exists.
+  - id: AC-8
+    scenario: S-4
+    text: Permanent focus-mode example chats are created only through the existing shared-chat extraction workflow after a quality review confirms they demonstrate the focus mode better than regular prompting.
+
+contracts:
+  websocket:
+    - event: spawn_sub_chats
+      direction: server_to_cli
+      payload: "{ parent_id|chat_id: string, sub_chats: [{ id: string, user_message_id: string, prompt: string, wait_for_completion?: boolean }] }"
+      cli_behavior:
+        - Resolve parent chat key from the active send context or sync cache.
+        - Create child chat shell with parent_id and is_sub_chat.
+        - Persist child user message encrypted with the parent chat key.
+    - event: sub_chat_progress
+      direction: server_to_cli
+      payload: "{ chat_id: string, task_id?: string, status?: running|stopping|stopped|completed, total?: number, completed?: number, active_sub_chat_id?: string|null }"
+      cli_behavior:
+        - Print concise progress to stderr in human-readable mode.
+        - Include structured progress in JSON result metadata if JSON mode is requested.
+    - event: sub_chat_confirmation_required
+      direction: server_to_cli
+      payload: "{ chat_id: string, task_id: string, sub_chats: [...], max_auto_sub_chats?: number, max_direct_sub_chats?: number, existing_sub_chats?: number, remaining_sub_chats?: number }"
+      cli_behavior:
+        - Prompt the terminal user for approval by default, matching the web app approval requirement.
+        - Approve automatically only when the user explicitly passed `--auto-approve` and the request fits the server-provided limits.
+        - Otherwise send or report cancellation clearly without spawning unencrypted local state.
+    - event: sub_chat_confirmation
+      direction: cli_to_server
+      payload: "{ chat_id: string, task_id: string, action: approve|cancel, approve_count?: number|null }"
+      cli_behavior:
+        - Use the backend's existing handler; do not invent a new event name.
+  data:
+    - Child chats share the parent chat encryption key under the current zero-knowledge sub-chat design.
+    - 'Example chat metadata may include focus-mode linkage, for example `app_focus_mode_examples: ["web.research"]`, without affecting existing `app_skill_examples` behavior.'
+    - The runtime Deep research focus mode id remains `research`; `deep_web_research` remains removed.
+  ui_states:
+    - Focus-mode details with approved examples show an Examples section using real example chat cards.
+    - Focus-mode example sections reuse app-skill-style examples wording unless a later product decision introduces dedicated focus-mode copy.
+    - Focus-mode details without approved examples show no placeholder examples section.
+    - CLI human-readable output shows progress on stderr; JSON output stays parseable.
+  privacy_security:
+    - CLI must not write plaintext child prompts, assistant responses, or chat keys outside existing encrypted/session storage patterns.
+    - CLI must not persist incognito sub-chat transcripts.
+    - Example chats committed to git must be public-safe, sanitized, and free of private user data, secrets, raw account identifiers, or vault-only values.
+
+tests:
+  - id: T-CLI-WS-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/ws.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/ws.test.ts
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - collectAiResponse ignores sub-chat lifecycle frames as non-final parent frames.
+      - progress and confirmation frames are captured or surfaced without resolving the parent early.
+      - JSON-mode metadata remains structured and parseable.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: temp-cli-red-check-ws-20260609
+        timestamp: "2026-06-09T15:07:16Z"
+        notes: "Ran current ws.test.ts in /tmp/opencode/cli-red-check against pre-change CLI source from git archive HEAD; sub-chat lifecycle assertion failed because no events were surfaced."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-cli-ws-20260609
+        timestamp: "2026-06-09T14:59:03Z"
+        notes: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/ws.test.ts; 4/4 passed."
+
+  - id: T-CLI-CLIENT-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts
+    covers:
+      - AC-1
+      - AC-4
+    assertions:
+      - spawned child chats use the parent chat key.
+      - spawned child chat metadata includes parent_id and is_sub_chat for cache and Directus persistence.
+      - child first messages are encrypted and sent through the same metadata channel as normal chat messages.
+      - confirmation approval payloads include chat_id, task_id, action, and approve_count/null after explicit terminal approval or `--auto-approve`.
+      - over-limit, malformed, or unapproved confirmation payloads are not auto-approved.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: temp-cli-red-check-client-20260609
+        timestamp: "2026-06-09T15:07:16Z"
+        notes: "Ran current client.test.ts in /tmp/opencode/cli-red-check against pre-change CLI source from git archive HEAD; sub-chat helper assertions failed because the helpers did not exist."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-cli-client-20260609
+        timestamp: "2026-06-09T15:23:43Z"
+        notes: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts; 5/5 passed after asserting parent_id/is_sub_chat metadata and messages_v=1 for child first messages."
+
+  - id: T-CLI-BUILD-001
+    type: build
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.test.ts
+    covers:
+      - AC-3
+    assertions:
+      - CLI builds successfully after WebSocket/client changes.
+      - CLI command metadata remains valid.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-cli-build-20260609
+        timestamp: "2026-06-09T15:23:43Z"
+        notes: "cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.test.ts; build succeeded and 75/75 tests passed."
+
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_sub_chat_confirmation_handler.py
+    command: python3 -m pytest backend/tests/test_sub_chat_confirmation_handler.py
+    covers:
+      - AC-4
+    assertions:
+      - Backend confirmation handler still rejects invalid or over-capacity approvals.
+      - Sequential queue approval behavior remains unchanged.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-sub-chat-confirmation-20260609
+        timestamp: "2026-06-09T15:17:50Z"
+        notes: "python3 -m py_compile backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py backend/core/api/app/tasks/persistence_tasks.py && python3 -m pytest backend/tests/test_sub_chat_confirmation_handler.py; syntax checks passed and 3/3 tests passed."
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    command: python3 scripts/run_tests.py --spec focus-mode-settings.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-7
+      - AC-8
+    assertions:
+      - A focus mode without linked example metadata does not render an empty examples section.
+      - Focus-mode example metadata renders an app-skill-style examples section with a real example chat card and opens the example chat when an approved example exists.
+      - The Deep research page shows no permanent example until the quality gate is satisfied.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: passed
+        run_id: run-20260609T150136Z / GitHub Actions 27215528355
+        timestamp: "2026-06-09T15:06:39Z"
+        notes: "Pre-deploy dev run passed the no-placeholder assertion, so this is regression coverage rather than red evidence for a missing old behavior. Orchestrator also reported unrelated pytest-unit failures outside this spec."
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: run-20260609T153649Z / GitHub Actions 27217714951 / Vercel dpl_A5kmUXYbdZkoVRjNpmRTu6xM1mog READY
+        timestamp: "2026-06-09T15:36:49Z"
+        notes: "python3 scripts/run_tests.py --spec focus-mode-settings.spec.ts; focus-mode settings spec passed on deployed dev. Orchestrator also reported unrelated pytest-unit summary failures outside this spec."
+
+  - id: T-CLI-QUALITY-001
+    type: manual
+    file: backend/apps/web/focus_modes/research/SKILL.md
+    command: node scripts/openmates_cli_test_account.mjs login --api-url https://api.dev.openmates.org && cd frontend/packages/openmates-cli && node dist/cli.js --api-url https://api.dev.openmates.org chats new "<complex research prompt>"
+    covers:
+      - AC-5
+      - AC-6
+      - AC-8
+    assertions:
+      - Logs show preprocessor selected `web-research`.
+      - Logs or CLI progress show at least two sub-chats spawned for separate research angles.
+      - Final answer includes Short Answer, Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, and Bottom Line.
+      - Final answer is materially stronger than a normal prompt baseline and is eligible for candidate example-chat review only if it is public-safe and high quality.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: cli-dev-chat-894f1b97-874c-4eb4-9f44-941db4c5169c / commit 6c48d11
+        timestamp: "2026-06-09T16:41:45Z"
+        notes: "Logged into dev CLI test slot 4 and ran node dist/cli.js --api-url https://api.dev.openmates.org chats new <egg-prices research prompt> --json --auto-approve. Output included spawn_sub_chats with 3 child chats, awaiting_sub_chats_completion, and a final report beginning with ## Short Answer followed by Surface Explanation, What Else May Be Going On, Evidence, Counterarguments, and Bottom Line."
+
+implementation_plan:
+  existing_patterns:
+    - Mirror `handleSpawnSubChatsImpl` from the web client in Node.js, using existing CLI encryption helpers.
+    - Reuse `OpenMatesWsClient.collectAiResponse` as the parent event loop rather than adding a separate WebSocket connection.
+    - Reuse the skill example-chat app-store card pattern and app-skill-style examples wording for focus-mode example links.
+  architecture: >
+    Extend the CLI WebSocket response collector to report sub-chat lifecycle events
+    to the client send flow. The client send flow owns chat keys and encrypted
+    metadata, so it must handle child chat shell creation and confirmation decisions.
+    Focus-mode examples should be represented as metadata on existing example chats,
+    then rendered from FocusModeDetails only when present.
+  data_flow:
+    - User sends a CLI parent message.
+    - Backend emits sub-chat lifecycle events while parent processing waits.
+    - CLI initializes encrypted child chat shells and sends metadata to the server.
+    - Child chats complete and backend resumes parent synthesis.
+    - CLI receives final parent response, encrypts/stores it, and returns normal chat output plus optional progress metadata.
+    - FocusModeDetails looks up example chats linked to `appId.focusModeId` and renders the section only when at least one exists.
+  affected_files:
+    - path: frontend/packages/openmates-cli/src/ws.ts
+      reason: Collect and surface sub-chat lifecycle frames without resolving parent output early.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Create/sync child chat shells with parent key and send bounded confirmation payloads.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Show human-readable sub-chat progress on stderr, prompt for approval, add explicit auto-approve opt-in, and preserve JSON output.
+    - path: frontend/packages/openmates-cli/tests/ws.test.ts
+      reason: Regression coverage for event handling and parent response timing.
+    - path: frontend/packages/openmates-cli/tests/client.test.ts
+      reason: Regression coverage for child encryption/sync and confirmation behavior.
+    - path: backend/core/api/app/tasks/persistence_tasks.py
+      reason: Preserve parent_id and is_sub_chat when encrypted metadata creates Directus chat rows for CLI sub-chats.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+      reason: Pass CLI sub-chat relationship fields from WebSocket encrypted metadata into persistence.
+    - path: backend/apps/web/focus_modes/research/SKILL.md
+      reason: Require sub-chat orchestration for complex Deep research and reinforce report structure.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Force the first Deep research tool step to use start_sub_chats when the preprocessor enabled sub-chats.
+    - path: backend/apps/ai/processing/preprocessor.py
+      reason: Enable sub-chats deterministically whenever the Deep research focus mode is selected.
+    - path: frontend/packages/ui/src/demo_chats/types.ts
+      reason: Add optional focus-mode example-chat metadata.
+    - path: frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      reason: Add focus-mode example lookup helper.
+    - path: frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+      reason: Render linked example chat cards for focus modes when metadata exists.
+    - path: frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+      reason: Verify focus-mode examples section behavior on deployed dev.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/cli-sub-chat-deep-research/spec.yml
+    - Run red-phase node tests before implementation for newly added assertions.
+    - Run green-phase CLI node tests and backend pytest after implementation.
+    - Deploy before Playwright and real CLI quality green checks.
+    - python3 scripts/spec_verify.py docs/specs/cli-sub-chat-deep-research/spec.yml
+
+tasks:
+  - id: TASK-1
+    title: Add CLI sub-chat WebSocket event collection
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+    expected_files:
+      - frontend/packages/openmates-cli/src/ws.ts
+      - frontend/packages/openmates-cli/tests/ws.test.ts
+    verification:
+      - T-CLI-WS-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add CLI encrypted sub-chat shell creation and confirmation handling
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/client.test.ts
+      - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+      - backend/core/api/app/tasks/persistence_tasks.py
+      - backend/tests/test_sub_chat_confirmation_handler.py
+    verification:
+      - T-CLI-CLIENT-001
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Update CLI output and Deep research orchestration prompt
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-3
+        - AC-5
+        - AC-6
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - backend/apps/ai/processing/preprocessor.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/web/focus_modes/research/SKILL.md
+    verification:
+      - T-CLI-BUILD-001
+      - T-CLI-QUALITY-001
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Add gated focus-mode example-chat linking infrastructure
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-7
+        - AC-8
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/types.ts
+      - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+      - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+    verification:
+      - T-E2E-001
+    independently_deployable: true
+
+risks:
+  - CLI send flow owns many encryption and sync responsibilities; changing it can regress normal chat persistence if tests do not cover the normal path.
+  - Auto-approval of confirmation requests can surprise users if it approves too many child chats; implementation must stay bounded by server limits and visible progress.
+  - Real Deep research quality can vary by provider/model availability; the quality gate must inspect actual output before committing a public example chat.
+  - Focus-mode example metadata must not break existing app-skill example lookups or SEO example pages.
+
+open_questions:
+  - none

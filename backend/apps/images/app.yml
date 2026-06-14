@@ -85,6 +85,14 @@ embed_types:
     icon: image
     gradient_var: "--color-app-images"
     i18n_namespace: embeds.images.view
+    content_catalog:
+      enabled: true
+      content_type_id: image
+      name: Image
+      description: Uploaded or generated image artifacts shown as first-class chat content.
+      icon: image
+      example_key: images.image
+      order: 10
     content_fields:
       - name: filename
         type: string
@@ -124,6 +132,24 @@ embed_types:
       - name: embed_ids
         type: string
         description: "Pipe-separated child embed IDs"
+  - id: view
+    category: app-skill-use
+    skill_id: view
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.view
+  - id: vectorize
+    category: app-skill-use
+    skill_id: vectorize
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.vectorize
   # Individual image search result — child embed of images.search
   - id: image_result
     category: direct

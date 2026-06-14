@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.base_skill import BaseSkill
 from backend.apps.shopping.providers.amazon_provider import (
     search_products as amazon_search,
@@ -335,19 +335,23 @@ class SearchProductsSkill(BaseSkill):
         if error_response:
             return error_response
 
-        # 2. Validate requests array — each must have a 'query' field
-        validated_requests, validation_error = self._validate_requests_array(
+        validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
             requests=requests,
-            required_field="query",
-            field_display_name="query",
+            required_fields=["query"],
+            field_display_names={"query": "query"},
             empty_error_message="No product search requests provided",
             logger=logger,
         )
         if validation_error:
             return SearchProductsResponse(results=[], error=validation_error)
         if not validated_requests:
-            return SearchProductsResponse(
-                results=[], error="No valid requests to process"
+            return self._build_response_with_errors(
+                response_class=SearchProductsResponse,
+                grouped_results=invalid_grouped_results,
+                errors=validation_errors,
+                provider="MULTI",
+                suggestions=self.FOLLOW_UP_SUGGESTIONS,
+                logger=logger,
             )
 
         # 3. Process requests in parallel
@@ -363,8 +367,13 @@ class SearchProductsSkill(BaseSkill):
         # 4. Group results by request ID
         grouped_results, errors = self._group_results_by_request_id(
             results=all_results,
-            requests=validated_requests,
+            requests=requests,
             logger=logger,
+        )
+        grouped_results = self._merge_grouped_results_preserving_request_order(
+            grouped_results,
+            invalid_grouped_results,
+            requests,
         )
 
         provider_values = {

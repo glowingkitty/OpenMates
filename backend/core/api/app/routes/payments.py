@@ -33,6 +33,7 @@ from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.payment_tier_service import PaymentTierService
 from backend.core.api.app.services.referral_service import ReferralService
+from backend.core.api.app.utils.server_mode import validate_request_domain
 from fastapi.responses import StreamingResponse
 import hashlib
 from datetime import datetime, timezone, timedelta
@@ -74,6 +75,15 @@ def get_payment_tier_service(request: Request) -> PaymentTierService:
 
 def is_production() -> bool:
     return os.getenv("SERVER_ENVIRONMENT", "development") == "production"
+
+
+def _require_official_cloud(request: Request) -> None:
+    _, is_self_hosted, _ = validate_request_domain(request)
+    if is_self_hosted:
+        raise HTTPException(
+            status_code=404,
+            detail="Feature not available on this server edition",
+        )
 
 class PaymentConfigResponse(BaseModel):
     provider: str
@@ -1093,6 +1103,7 @@ class CreateBankTransferOrderRequest(BaseModel):
     currency: str = "eur"
     email_encryption_key: str  # Stored with the order; needed when transfer arrives 1-2 days later
     is_signup: bool = False    # True when called from the signup payment step → triggers reminder email
+    is_gift_card: bool = False # True when the transfer should create a gift card instead of buyer credits
 
 
 class CreateBankTransferOrderResponse(BaseModel):
@@ -1128,6 +1139,10 @@ class BankTransferStatusResponse(BaseModel):
     created_at: str
 
 
+class GiftCardBankTransferStatusResponse(BankTransferStatusResponse):
+    gift_card_code: Optional[str] = None
+
+
 class PendingBankTransferSummary(BaseModel):
     order_id: str
     credits_amount: int
@@ -1154,7 +1169,7 @@ async def create_bank_transfer_order(
     Returns the company's bank details (IBAN, BIC) and a structured reference
     that the user must include in their bank transfer. When the transfer is
     received (detected via Revolut Business webhook), credits are applied
-    automatically.
+    automatically or a gift card is created, depending on the order type.
 
     SEPA bank transfers bypass the payment tier system entirely — they are
     available to all users regardless of tier, including Tier 0.
@@ -1190,14 +1205,16 @@ async def create_bank_transfer_order(
             detail="Email encryption key is required for bank transfer orders."
         )
 
-    # Check for existing pending order for same user + same credits amount → return it (idempotent)
+    order_type = "gift_card_purchase" if order_data.is_gift_card else "credit_purchase"
+
+    # Check for existing pending order for same user + same credits amount + order type → return it (idempotent)
     existing_orders = await cache_service.get_user_pending_bank_transfers(str(current_user.id))
     for existing in existing_orders:
-        if existing.get("credits_amount") == order_data.credits_amount:
+        if existing.get("credits_amount") == order_data.credits_amount and existing.get("order_type", "credit_purchase") == order_type:
             bank_details = payment_service.get_bank_transfer_details()
             logger.info(
                 f"Returning existing pending bank transfer {existing['order_id']} "
-                f"for user {current_user.id}"
+                f"for user {current_user.id} ({order_type})"
             )
             return CreateBankTransferOrderResponse(
                 order_id=existing["order_id"],
@@ -1238,7 +1255,7 @@ async def create_bank_transfer_order(
                 "currency": "eur",
                 "reference": reference,
                 "status": "pending",
-                "order_type": "credit_purchase",
+                "order_type": order_type,
                 "created_at": created_at,
                 "expires_at": expires_at,
                 "email_encryption_key": order_data.email_encryption_key,
@@ -1258,14 +1275,14 @@ async def create_bank_transfer_order(
             reference=reference,
             currency="eur",
             email_encryption_key=order_data.email_encryption_key,
-            order_type="credit_purchase",
+            order_type=order_type,
             expires_at=expires_at,
         )
 
         bank_details = payment_service.get_bank_transfer_details()
         logger.info(
             f"Created bank transfer order {order_id} for user {current_user.id}: "
-            f"{order_data.credits_amount} credits, €{price_cents / 100:.2f}, ref={reference}"
+            f"{order_data.credits_amount} credits, €{price_cents / 100:.2f}, ref={reference}, type={order_type}"
         )
 
         # If called from signup, dispatch a reminder email with the bank transfer details
@@ -1321,6 +1338,31 @@ async def create_bank_transfer_order(
     except Exception as e:
         logger.error(f"Error creating bank transfer order for user {current_user.id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error creating bank transfer order.")
+
+
+@router.post("/create-gift-card-bank-transfer-order", response_model=CreateBankTransferOrderResponse)
+@limiter.limit("5/hour")
+async def create_gift_card_bank_transfer_order(
+    request: Request,
+    order_data: CreateBankTransferOrderRequest,
+    payment_service: PaymentService = Depends(get_payment_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a pending bank transfer order for a gift-card purchase."""
+    _require_official_cloud(request)
+    gift_card_order_data = order_data.model_copy(update={"is_gift_card": True, "is_signup": False})
+    return await create_bank_transfer_order(
+        request=request,
+        order_data=gift_card_order_data,
+        payment_service=payment_service,
+        cache_service=cache_service,
+        directus_service=directus_service,
+        encryption_service=encryption_service,
+        current_user=current_user,
+    )
 
 
 @router.post("/create-support-bank-transfer-order", response_model=CreateBankTransferOrderResponse)
@@ -1465,6 +1507,48 @@ async def get_bank_transfer_status(
         reference=order.get("reference", ""),
         expires_at=order.get("expires_at", ""),
         created_at=order.get("created_at", ""),
+    )
+
+
+@router.get("/gift-card-purchase-status/{order_id}", response_model=GiftCardBankTransferStatusResponse)
+@limiter.limit("30/minute")
+async def get_gift_card_purchase_status(
+    request: Request,
+    order_id: str,
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    current_user: User = Depends(get_current_user),
+):
+    """Get status for a gift-card bank-transfer purchase."""
+    _require_official_cloud(request)
+    order = await cache_service.get_bank_transfer_by_order_id(order_id)
+
+    if not order:
+        results = await directus_service.get_items(
+            "pending_bank_transfers",
+            params={"filter[order_id][_eq]": order_id, "limit": 1}
+        )
+        if results:
+            order = results[0]
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Gift card purchase order not found.")
+    if order.get("user_id") != str(current_user.id):
+        raise HTTPException(status_code=404, detail="Gift card purchase order not found.")
+    if order.get("order_type") != "gift_card_purchase":
+        raise HTTPException(status_code=404, detail="Gift card purchase order not found.")
+
+    amount_cents = order.get("amount_expected_cents", 0)
+    status = order.get("status", "pending")
+    return GiftCardBankTransferStatusResponse(
+        order_id=order.get("order_id", order_id),
+        status=status,
+        credits_amount=order.get("credits_amount", 0),
+        amount_eur=f"{amount_cents / 100:.2f}",
+        reference=order.get("reference", ""),
+        expires_at=order.get("expires_at", ""),
+        created_at=order.get("created_at", ""),
+        gift_card_code=order.get("gift_card_code") if status == "completed" else None,
     )
 
 
@@ -2272,6 +2356,7 @@ async def payment_webhook(
                         "is_auto_topup": is_auto_topup,  # Pass auto top-up flag to invoice task
                         "provider": effective_order_provider,  # Controls document type and refund routing
                         "provider_order_id": managed_payment_intent_id,
+                        "gift_card_code": gift_card_code if is_gift_card else None,
                     }
                     app.send_task(
                         name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
@@ -4077,6 +4162,7 @@ async def redeem_gift_card(
     Checks cache first, then Directus if not found in cache.
     Gift cards are single-use and are deleted after redemption.
     """
+    _require_official_cloud(request)
     user_id = current_user.id
     code = gift_card_request.code.strip().upper()  # Normalize the code (uppercase, trimmed)
     
@@ -4380,6 +4466,7 @@ async def buy_gift_card(
     Supports Stripe (EU users) and Stripe Managed Payments (non-EU users), mirroring the
     credits purchase flow. Provider is selected via geo-detection or explicit `provider` override.
     """
+    _require_official_cloud(request)
     user_id = current_user.id
 
     # Detect user region for provider selection (same logic as /create-order)
@@ -4535,6 +4622,7 @@ async def get_redeemed_gift_cards(
     Get all gift cards redeemed by the current user.
     Gift card codes are decrypted using the user's vault key.
     """
+    _require_official_cloud(request)
     user_id = current_user.id
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
     
@@ -6065,7 +6153,10 @@ async def _handle_revolut_business_webhook(
                 order_id=order_id,
                 reference=reference,
                 status="completed",
-                extra_fields={"completed_at": completed_at, "received_amount_cents": received_amount_cents},
+                extra_fields={
+                    "completed_at": completed_at,
+                    "received_amount_cents": received_amount_cents,
+                },
             )
 
             # Dispatch support contribution email task
@@ -6095,6 +6186,177 @@ async def _handle_revolut_business_webhook(
         except Exception as e:
             logger.error(f"Error completing support bank transfer {order_id}: {e}", exc_info=True)
             return {"status": "processing_error"}
+
+    # ── Gift card purchase path (create card only after transfer arrives) ────
+    if order_type == "gift_card_purchase":
+        user_cache_data = await cache_service.get_user_by_id(user_id)
+        if not user_cache_data:
+            logger.error(f"User {user_id} not found in cache for gift-card bank transfer {order_id}")
+            raise HTTPException(status_code=500, detail="User data temporarily unavailable")
+
+        vault_key_id = user_cache_data.get("vault_key_id")
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing from cache for gift-card bank transfer user {user_id}")
+            raise HTTPException(status_code=500, detail="User encryption key unavailable")
+
+        user_cache_data["payment_in_progress"] = True
+        user_cache_data["payment_in_progress_timestamp"] = int(time.time())
+        user_cache_data["pending_order_id"] = order_id
+        await cache_service.set_user(user_cache_data, user_id=user_id)
+
+        completed_at = datetime.now(timezone.utc).isoformat()
+        gift_card_code = generate_gift_card_code()
+        purchaser_user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+
+        try:
+            created_gift_card = await directus_service.create_gift_card(
+                code=gift_card_code,
+                credits_value=credits_amount,
+                purchaser_user_id_hash=purchaser_user_id_hash,
+            )
+            if not created_gift_card:
+                raise Exception("Failed to create gift card in Directus")
+
+            await _update_bank_transfer(order_id, {
+                "status": "completed",
+                "completed_at": completed_at,
+                "received_amount_cents": received_amount_cents,
+                "revolut_transaction_id": transaction_id,
+                "gift_card_code": gift_card_code,
+            })
+            await cache_service.update_bank_transfer_status(
+                order_id=order_id,
+                reference=reference,
+                status="completed",
+                extra_fields={
+                    "completed_at": completed_at,
+                    "received_amount_cents": received_amount_cents,
+                    "gift_card_code": gift_card_code,
+                },
+            )
+
+            try:
+                calculated_amount_cents = get_price_for_credits(credits_amount, "eur")
+                if calculated_amount_cents:
+                    await tier_service.update_monthly_spending(
+                        user_id=user_id,
+                        purchase_amount_eur=float(calculated_amount_cents) / 100.0,
+                        vault_key_id=vault_key_id,
+                    )
+                    await tier_service.handle_successful_payment(
+                        user_id=user_id,
+                        payment_date=datetime.now(timezone.utc),
+                    )
+            except Exception as tier_err:
+                logger.error(f"Error updating tier for gift-card bank transfer {order_id}: {tier_err}")
+
+            try:
+                income_cents = get_price_for_credits(credits_amount, "eur")
+                if income_cents:
+                    await cache_service.increment_stat("income_eur_cents", int(income_cents))
+                await cache_service.increment_stat("credits_sold", int(credits_amount))
+                await cache_service.update_liability(int(credits_amount))
+                await cache_service.increment_stat("gift_cards_created")
+                await cache_service.increment_stat("purchase_count")
+                await cache_service.increment_json_stat("purchases_by_provider", "bank_transfer")
+            except Exception as stats_err:
+                logger.error(f"Error updating stats for gift-card bank transfer {order_id}: {stats_err}")
+
+            payment_completed_payload = {
+                "order_id": order_id,
+                "credits_purchased": credits_amount,
+                "is_gift_card": True,
+            }
+            gift_card_payload = {
+                "order_id": order_id,
+                "gift_card_code": gift_card_code,
+                "credits_value": credits_amount,
+            }
+            try:
+                await cache_service.publish_event(
+                    channel=f"user_updates::{user_id}",
+                    event_data={
+                        "event_for_client": "payment_completed",
+                        "user_id_uuid": user_id,
+                        "payload": payment_completed_payload,
+                    },
+                )
+                await manager.broadcast_to_user_specific_event(
+                    user_id=user_id,
+                    event_name="payment_completed",
+                    payload=payment_completed_payload,
+                )
+                await cache_service.publish_event(
+                    channel=f"user_updates::{user_id}",
+                    event_data={
+                        "event_for_client": "gift_card_created",
+                        "user_id_uuid": user_id,
+                        "payload": gift_card_payload,
+                    },
+                )
+                await manager.broadcast_to_user_specific_event(
+                    user_id=user_id,
+                    event_name="gift_card_created",
+                    payload=gift_card_payload,
+                )
+            except Exception as ws_err:
+                logger.error(f"Error broadcasting gift-card bank transfer events for {order_id}: {ws_err}")
+
+            invoice_sender_path = "kv/data/providers/invoice_sender"
+            app.send_task(
+                name="app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email",
+                kwargs={
+                    "order_id": order_id,
+                    "user_id": user_id,
+                    "credits_purchased": credits_amount,
+                    "sender_addressline1": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1"),
+                    "sender_addressline2": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2"),
+                    "sender_addressline3": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3"),
+                    "sender_country": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country"),
+                    "sender_email": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email") or "support@openmates.org",
+                    "sender_vat": await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat"),
+                    "email_encryption_key": pending_order.get("email_encryption_key"),
+                    "is_gift_card": True,
+                    "is_auto_topup": False,
+                    "provider": "bank_transfer",
+                    "gift_card_code": gift_card_code,
+                },
+                queue="email",
+            )
+
+            try:
+                ComplianceService.log_financial_transaction(
+                    user_id=user_id,
+                    transaction_type="gift_card_purchase",
+                    amount=credits_amount,
+                    currency="eur",
+                    status="success",
+                    details={
+                        "order_id": order_id,
+                        "provider": "bank_transfer",
+                        "gift_card_code": gift_card_code,
+                        "revolut_transaction_id": transaction_id,
+                    },
+                )
+            except Exception as compliance_err:
+                logger.error(f"Error logging gift-card bank transfer compliance for {order_id}: {compliance_err}")
+
+            logger.info(
+                f"Gift-card bank transfer {order_id} completed successfully. "
+                f"Created gift card for {credits_amount} credits. Revolut txn: {transaction_id}"
+            )
+            return {"status": "gift_card_bank_transfer_completed"}
+
+        except Exception as e:
+            logger.error(f"Error processing gift-card bank transfer {order_id}: {e}", exc_info=True)
+            return {"status": "processing_error"}
+        finally:
+            final_cache_data = await cache_service.get_user_by_id(user_id) or {}
+            final_cache_data["payment_in_progress"] = False
+            final_cache_data.pop("payment_in_progress_timestamp", None)
+            if final_cache_data.get("pending_order_id") == order_id:
+                final_cache_data.pop("pending_order_id", None)
+            await cache_service.set_user(final_cache_data, user_id=user_id)
 
     # ── Credit purchase path ─────────────────────────────────────────
     user_cache_data = await cache_service.get_user_by_id(user_id)

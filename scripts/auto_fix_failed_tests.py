@@ -431,6 +431,37 @@ def load_summary(summary_path: Path, group: FixGroup, session_id: str) -> dict[s
     return summary
 
 
+def recover_missing_summary(
+    summary: dict[str, Any],
+    opencode_rc: int,
+    summary_files: list[str],
+) -> None:
+    """Recover when OpenCode changed files but missed the summary contract.
+
+    OpenCode can exit successfully after context compaction or a final prose
+    response without writing the required JSON. Treat that as recoverable only
+    when the controller has concrete changed files to run through its normal
+    safety and verification gates.
+    """
+    if summary.get("reason") != "missing summary.json" or opencode_rc != 0 or not summary_files:
+        return
+
+    summary["status"] = "fixed"
+    summary["scope_classification"] = "minor"
+    summary["root_cause"] = (
+        "OpenCode exited successfully after applying changes but did not write "
+        "the required summary JSON. The controller recovered from the changed "
+        "files and will run the normal safety and verification gates."
+    )
+    summary["changes_applied"] = [
+        "Recovered missing OpenCode summary from changed files; controller verification will decide success."
+    ]
+    summary["changed_files"] = summary_files
+    summary["verification_result"] = "not_run"
+    summary["reason"] = "summary JSON missing; recovered from successful OpenCode exit"
+    summary["summary_recovered"] = True
+
+
 def changed_files() -> list[str]:
     result = run_command(["git", "diff", "--name-only"], timeout=60)
     if result.returncode != 0:
@@ -662,6 +693,7 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
 
         for attempt in range(1, args.max_attempts_per_group + 1):
             log(f"Attempt {attempt}/{args.max_attempts_per_group} for {group.id}")
+            files_before_attempt = set(changed_files())
             opencode_rc, output_path, summary_path, opencode_session_id, opencode_session_url = run_opencode(
                 group,
                 run_id,
@@ -671,7 +703,11 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
                 args.max_attempts_per_group,
                 attempts,
             )
+            files_after_attempt = set(changed_files())
+            files_touched_this_attempt = sorted(files_after_attempt - files_before_attempt)
             summary = load_summary(summary_path, group, session_id)
+            if summary.get("reason") == "missing summary.json":
+                summary["changed_files"] = files_touched_this_attempt
             summary["attempt"] = attempt
             summary["attempts"] = attempts
             summary["opencode_exit_code"] = opencode_rc
@@ -680,6 +716,8 @@ def process_group(group: FixGroup, run_id: str, args: argparse.Namespace) -> dic
             summary["opencode_session_url"] = opencode_session_url if expose_opencode_chats() else ""
             summary["opencode_visible"] = expose_opencode_chats()
             summary["opencode_chat"] = opencode_status_label(opencode_session_id, opencode_session_url)
+            summary_files = cumulative_changed_files(attempts, summary)
+            recover_missing_summary(summary, opencode_rc, summary_files)
             summary_files = cumulative_changed_files(attempts, summary)
             summary["changed_files"] = summary_files
             track_session_files(session_id, summary_files)

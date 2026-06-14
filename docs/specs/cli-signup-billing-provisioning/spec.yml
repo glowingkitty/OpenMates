@@ -1,0 +1,984 @@
+id: cli-signup-billing-provisioning
+title: CLI Signup, Security Setup, Billing, And E2E Provisioning
+status: draft
+
+goal: >
+  Let terminal users create and secure an OpenMates account from the CLI without
+  weakening the web app's client-side encrypted signup model. Add CLI-safe bank
+  transfer billing flows for buying credits and gift cards, improve no-credit
+  guidance, and provide a gated local E2E provisioning tool that creates the
+  reserved recovery-key and backup-code test account artifacts needed by CI.
+
+scope:
+  in:
+    - Public `openmates signup` for password-based account creation using hidden terminal prompts and the existing client-side encrypted password signup contract.
+    - Guided CLI signup security setup that mirrors the web app sequence: TOTP 2FA setup with QR code and manual secret, backup-code generation/storage, recovery-key generation/storage, and explicit warning-based skips where the web flow permits them.
+    - Signup gift-card redemption through a gift-card code input, plus clear instructions when a new CLI user has no credits.
+    - CLI settings commands that can set up missing 2FA, backup codes, and recovery key once, but cannot modify, rotate, disable, or regenerate existing security methods.
+    - CLI bank-transfer credit purchases using existing SEPA pending order infrastructure.
+    - CLI bank-transfer gift-card purchases that create a pending order and expose the gift-card code later through status/list after the transfer is matched.
+    - End-to-end validation that a CLI-created account can buy credits through CLI bank transfer, send a CLI chat after credits arrive, and later log in through the web app.
+    - CLI account deletion with a stricter terminal-only verification contract, requiring a verified email code for every deletion and a 2FA code when 2FA is configured.
+    - Test-only E2E provisioning command that creates or refreshes reserved test-account artifacts for recovery-key and backup-code Playwright specs without updating GitHub secrets.
+    - Backend, CLI, docs, and test coverage for the new auth/security/billing contracts.
+  out:
+    - CLI card checkout for buying credits.
+    - CLI card checkout for buying gift cards.
+    - Passkey setup or login in the CLI.
+    - CLI password change, 2FA rotation/modification, 2FA disable, or recovery-key regeneration.
+    - Automatically updating GitHub Actions secrets from the provisioning command.
+    - Storing real test credentials, OTP seeds, backup codes, recovery keys, gift-card codes, bank details, or private emails in git.
+    - Changing Apple StoreKit purchase behavior.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"CLI signup gift card bank transfer billing provisioning\" --state all --limit 20` found no matching issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/architecture/platforms/cli-package.md
+    - docs/architecture/core/signup-and-auth.md
+    - docs/specs/e2e-credential-isolation/spec.yml
+    - docs/specs/self-host-signup-mode/spec.yml
+    - docs/user-guide/cli/settings.md
+    - docs/user-guide/gift-cards.md
+    - docs/user-guide/pricing.md
+  code_patterns:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/ui/src/services/cryptoService.ts
+    - frontend/packages/ui/src/components/signup/steps/password/PasswordBottomContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/onetimecodes/OneTimeCodesTopContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/backupcodes/BackupCodesTopContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/recoverykey/RecoveryKeyTopContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/recoverykey/RecoveryKeyBottomContent.svelte
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    - frontend/packages/ui/src/components/settings/giftcards/SettingsGiftCardsBuy.svelte
+    - backend/core/api/app/routes/auth_routes/auth_password.py
+    - backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
+    - backend/core/api/app/routes/auth_routes/auth_recoverykey.py
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/payment/payment_service.py
+    - backend/core/api/app/services/payment/revolut_business_service.py
+    - backend/core/api/app/services/directus/gift_card_methods.py
+    - shared/config/pricing.yml
+  tests:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/crypto.test.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-bank-transfer.spec.ts
+    - backend/tests/test_gift_card_domain_restriction.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This change adds Node.js CLI commands and backend payment/auth support. It does not change Apple StoreKit purchase, passkey, chat, sync, settings UI, or native billing screens.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - Apple app remains native StoreKit/card-payment oriented. CLI bank-transfer behavior is terminal-specific.
+
+clarification:
+  rounds:
+    - question: Should the first implementation slice be a user-facing `openmates signup` command only, or also include test-only provisioning for reserved recovery-key and backup-code E2E accounts?
+      answer: Include both public CLI signup and E2E provisioning.
+    - question: Is there a secure way to enter password/login credentials in the terminal, and is it acceptable compared with web signup?
+      answer: Hidden terminal prompts are acceptable when passwords are never passed as flags or stored in shell history; web signup remains safer for most users, but CLI signup is acceptable for developers/self-hosters/test provisioning.
+    - question: Should CLI gift-card purchase use bank transfer only, or allow card-based gift-card purchase?
+      answer: Bank transfer only. Card checkout remains web-only.
+    - question: Should 2FA and recovery-key setup be mandatory by default, optional for users, or E2E-only?
+      answer: Mirror the web app process. Allow the user to skip 2FA with an explicit warning, and similarly for backup codes when allowed by the web flow. Settings commands may set up missing security methods, but not modify existing ones. TOTP setup must show a QR code for authenticator apps.
+    - question: Should E2E provisioning update GitHub Actions secrets automatically or only write local artifacts?
+      answer: Write local artifacts only.
+  vision_summary: >
+    The CLI should become a first-class terminal onboarding path for users who
+    intentionally want it, while preserving safer web-only boundaries for card
+    checkout, passkeys, password changes, and modifying existing recovery/2FA
+    settings. Signup should guide users through account creation, optional but
+    strongly encouraged security setup, gift-card redemption, and bank-transfer
+    billing. Test provisioning should be deterministic and local-artifact based,
+    so CI secrets are updated only by a human or separate trusted process.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: User signs up from the CLI with hidden credentials
+    given:
+      - Alice has Node.js and runs `openmates signup --api-url https://api.dev.openmates.org`.
+      - Alice provides email, username, and invite code through prompts or non-secret flags.
+    when:
+      - The CLI prompts for a password.
+    then:
+      - The password prompt disables terminal echo and never requires or accepts `--password`.
+      - The CLI generates the same signup crypto material as the web app: hashed email, user email salt, email encryption key, encrypted email, extractable master key, password lookup hash, encrypted master key, key IV, and salt.
+      - The CLI calls `/v1/auth/setup_password` and captures auth cookies from the response.
+      - The CLI saves a local session with the master key and email encryption key using the existing keychain/encrypted-file storage tiers.
+      - The CLI prints a concise success message without echoing secrets.
+
+  - id: S-2
+    title: Signup guides initial 2FA, backup-code, and recovery-key setup
+    given:
+      - Alice has just completed CLI password signup.
+    when:
+      - The CLI reaches the security setup step.
+    then:
+      - The CLI explains that 2FA and recovery setup protect account access and encrypted data recovery.
+      - The CLI calls `/v1/auth/2fa/setup/initiate` with the locally stored email encryption key.
+      - The CLI renders a terminal QR code for the returned TOTP otpauth URL and also prints the manual secret.
+      - Alice can enter a TOTP code to verify setup, choose or provide an authenticator app name, request backup codes, and save backup codes to a requested file path.
+      - The CLI generates a recovery key locally, wraps the master key with it, calls `/v1/auth/recovery-key/confirm-stored`, and saves the recovery key to a requested file path.
+      - If Alice explicitly skips a skippable step, the CLI shows a warning, requires confirmation, and records no false setup success.
+
+  - id: S-3
+    title: Existing user sets up missing 2FA or recovery key from settings once
+    given:
+      - Alice is logged in through the CLI.
+      - Alice has no TOTP 2FA or no recovery-key login method yet.
+    when:
+      - Alice runs `openmates settings security 2fa setup --backup-codes-output ./backup-codes.txt` or `openmates settings security recovery-key setup --recovery-key-output ./recovery-key.txt`.
+    then:
+      - The CLI performs the same setup contract as signup for the missing method.
+      - The CLI refuses to run if that method is already configured.
+      - The CLI does not expose commands to rotate, modify, disable, or regenerate existing 2FA or recovery-key methods.
+
+  - id: S-4
+    title: Signup redeems a gift card code and explains no-credit next steps
+    given:
+      - Alice has a gift-card code during signup.
+    when:
+      - Alice supplies it via `--gift-card-code` or the signup prompt.
+    then:
+      - The CLI redeems the gift card after account authentication using `/v1/payments/redeem-gift-card`.
+      - Domain-restricted gift cards include the local email encryption key in the request.
+      - On success, the CLI prints credits added and current balance.
+      - If Alice has no credits after signup, the CLI prints “Buy credits or redeem a gift card” guidance and shows terminal commands for `settings billing gift-card redeem <CODE>` and `settings billing buy-credits bank-transfer`.
+
+  - id: S-5
+    title: CLI user buys credits through SEPA bank transfer
+    given:
+      - Alice is logged in through the CLI.
+      - Bank transfer payments are available from `/v1/payments/config`.
+    when:
+      - Alice runs `openmates settings billing buy-credits bank-transfer --credits 110000`.
+    then:
+      - The CLI calls `/v1/payments/create-bank-transfer-order` with currency `eur`, selected credits amount, and the local email encryption key.
+      - The CLI prints amount, credits amount, order id, IBAN, BIC, bank name, account holder details, structured reference, expiration, and a warning to include the exact reference.
+      - Re-running the command for the same pending amount returns and prints the existing pending order idempotently.
+      - "`openmates settings billing bank-transfer status <order-id>` and `openmates settings billing bank-transfer list` show pending/completed/expired/admin-review state."
+
+  - id: S-6
+    title: CLI user buys a gift card through bank transfer and retrieves it later
+    given:
+      - Alice is logged in through the CLI.
+      - Alice wants to buy a gift card without card checkout.
+    when:
+      - Alice runs `openmates settings billing gift-card buy bank-transfer --credits 21000`.
+    then:
+      - The CLI creates a pending bank-transfer gift-card order, not a card checkout.
+      - The immediate output contains bank details and states that the gift-card code appears only after the transfer is matched.
+      - "`openmates settings billing gift-card purchase-status <order-id>` shows pending status until paid."
+      - After payment is matched, status/list exposes the purchased gift-card code and credit value using `/v1/payments/purchased-gift-cards` or a new dedicated purchase-status endpoint.
+
+  - id: S-7
+    title: CLI chat no-credit rejection gives terminal billing actions
+    given:
+      - Alice is logged in through the CLI with zero credits.
+    when:
+      - Alice sends a chat/app request and the backend rejects it with `insufficient_credits`.
+    then:
+      - The CLI does not show a browser-only dead end.
+      - The CLI prints “Buy credits or redeem a gift card” guidance.
+      - The CLI includes exact terminal commands to redeem a gift card and create a bank-transfer credit order.
+
+  - id: S-8
+    title: CLI-created paid account can chat in CLI and log in on web
+    given:
+      - Alice created her account through `openmates signup`.
+      - Alice created a bank-transfer credit order through the CLI.
+      - The bank transfer is matched and credits are applied.
+    when:
+      - Alice sends a CLI chat message.
+    then:
+      - The chat succeeds using the CLI session and encrypted chat contract.
+      - Credits are charged normally.
+      - Alice can later open the web app and log in with the same email, password, and TOTP setup created by the CLI.
+      - The web app can decrypt account data needed for login and settings because the CLI used web-compatible signup crypto.
+
+  - id: S-9
+    title: CLI account deletion requires 2FA when configured plus email code
+    given:
+      - Alice is logged in through the CLI.
+      - Alice wants to delete her account from the terminal.
+    when:
+      - Alice runs `openmates settings account delete --yes`.
+    then:
+      - The CLI fetches the delete-account preview and prints refundable credits, gift-card credits, and data deletion warning.
+      - The CLI always requests an email verification code for the delete-account action and requires Alice to enter it.
+      - If Alice has 2FA configured, the CLI also requires a current TOTP code.
+      - The CLI calls delete-account with a CLI-only email-verification requirement so backend deletion fails unless the email code was verified recently.
+      - On success, the CLI clears local session state.
+
+  - id: S-10
+    title: Operator provisions reserved E2E account artifacts locally
+    given:
+      - An operator has test-only API access and runs the provisioning command against dev.
+      - Reserved slots 15 and 17 are missing credentials or need refresh.
+    when:
+      - The operator runs a gated command such as `openmates e2e provision-auth-accounts --slot 15 --artifact ./test-results/credential-updates/backup-code-login-flow.env`.
+    then:
+      - The command creates or refreshes the account using CLI signup crypto, 2FA, backup codes, and recovery key setup.
+      - It writes only local ignored artifact files containing email, password, OTP secret, recovery key, and a backup code needed by tests.
+      - It does not update GitHub Actions secrets.
+      - It prints sanitized next-step instructions for the human/operator to upload secrets through the existing trusted process.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: "`openmates signup` creates a password account using web-compatible client-side encrypted signup crypto and saves a usable CLI session."
+  - id: AC-2
+    scenario: S-1
+    text: CLI signup never accepts password values through command-line flags, never logs passwords, and uses hidden terminal entry for interactive password input.
+  - id: AC-3
+    scenario: S-2
+    text: CLI signup can set up TOTP 2FA with a terminal QR code, verify the TOTP code, save the selected app/provider, generate backup codes, and confirm backup-code storage.
+  - id: AC-4
+    scenario: S-2
+    text: CLI signup can generate and confirm a recovery key that wraps the local master key and creates the recovery-key lookup/encryption record.
+  - id: AC-5
+    scenario: S-2
+    text: Recovery key and backup codes are written only to explicit output paths or explicitly confirmed terminal display, with overwrite protection unless `--force` is passed.
+  - id: AC-6
+    scenario: S-3
+    text: CLI settings can set up missing 2FA/recovery once and refuse modification, rotation, disablement, or regeneration of existing security methods.
+  - id: AC-7
+    scenario: S-4
+    text: CLI signup accepts a gift-card code, redeems it after auth, includes email encryption key for domain-restricted cards, and prints the resulting balance.
+  - id: AC-8
+    scenario: S-4
+    text: CLI signup and no-credit command failures show actionable terminal guidance for buying credits by bank transfer or redeeming a gift card.
+  - id: AC-9
+    scenario: S-5
+    text: CLI credit purchase by bank transfer uses the existing pending SEPA order contract and prints complete transfer details and status commands.
+  - id: AC-10
+    scenario: S-6
+    text: CLI gift-card purchase by bank transfer creates a pending order, keeps the code unavailable until payment is matched, and exposes the code through status/list afterward.
+  - id: AC-11
+    scenario: S-7
+    text: CLI chat/app insufficient-credit handling maps backend `insufficient_credits` into terminal-native billing next steps.
+  - id: AC-12
+    scenario: S-8
+    text: A CLI-created account with CLI-purchased bank-transfer credits can send a CLI chat after credits are applied, and can later log in through the web app with the same credentials/security setup.
+  - id: AC-13
+    scenario: S-9
+    text: CLI account deletion requires a verified email code for every CLI deletion attempt and additionally requires a TOTP code when 2FA is configured.
+  - id: AC-14
+    scenario: S-9
+    text: Successful CLI account deletion clears local CLI session/cache state and does not expose raw secrets in output.
+  - id: AC-15
+    scenario: S-10
+    text: Gated E2E provisioning writes local artifacts for reserved recovery-key and backup-code accounts without committing or uploading secrets.
+  - id: AC-16
+    scenario: S-10
+    text: Existing recovery-key and backup-code Playwright specs can run green after their reserved account artifacts are provisioned and CI secrets are updated by a human/trusted process.
+
+contracts:
+  api:
+    - route: POST /v1/auth/setup_password
+      status: existing
+      request: "{ hashed_email, encrypted_email, user_email_salt, username, invite_code, encrypted_master_key, key_iv, salt, lookup_hash, language, darkmode }"
+      response: "{ success: boolean, message: string, user?: { id, username, is_admin } } plus auth cookies on success"
+      cli_behavior:
+        - Reuse exactly the web signup crypto derivations.
+        - Capture cookies and store CLI session immediately after success.
+      errors:
+        - Surface validation, invite-code, duplicate-account, and login-after-create failures without swallowing errors.
+    - route: POST /v1/auth/2fa/setup/initiate
+      status: existing
+      request: "{ email_encryption_key: string }"
+      response: "{ success, secret, otpauth_url, message }"
+      cli_behavior:
+        - Render QR code from otpauth_url with qrcode-terminal and print manual secret.
+    - route: POST /v1/auth/2fa/setup/verify-signup
+      status: existing
+      request: "{ code: string }"
+      response: "{ success, message }"
+    - route: POST /v1/auth/2fa/setup/provider
+      status: existing
+      request: "{ provider: string }"
+      response: "{ success, message }"
+    - route: GET /v1/auth/2fa/setup/request-backup-codes
+      status: existing
+      response: "{ success, message, backup_codes: string[] }"
+    - route: POST /v1/auth/2fa/setup/confirm-codes-stored
+      status: existing
+      request: "{ confirmed: true }"
+      response: "{ success, message }"
+    - route: POST /v1/auth/recovery-key/confirm-stored
+      status: existing
+      request: "{ confirmed: true, lookup_hash, wrapped_master_key, key_iv, salt }"
+      response: "{ success, message }"
+    - route: POST /v1/payments/redeem-gift-card
+      status: existing
+      request: "{ code: string, email_encryption_key?: string }"
+      response: "{ success, credits_added, current_credits, message }"
+    - route: POST /v1/payments/create-bank-transfer-order
+      status: existing
+      request: "{ credits_amount: number, currency: 'eur', email_encryption_key: string, is_signup?: boolean }"
+      response: "{ order_id, reference, iban, bic, bank_name, account_holder_name, account_holder_address_*, amount_eur, credits_amount, expires_at }"
+    - route: GET /v1/payments/bank-transfer-status/{order_id}
+      status: existing
+      response: "{ order_id, status, credits_amount, amount_eur, reference, expires_at, created_at }"
+    - route: GET /v1/payments/bank-transfer-pending
+      status: existing
+      response: "[{ order_id, credits_amount, amount_eur, reference, status, expires_at }]"
+    - route: POST /v1/payments/create-gift-card-bank-transfer-order
+      status: new
+      request: "{ credits_amount: number, currency: 'eur', email_encryption_key: string }"
+      response: "{ order_id, reference, iban, bic, bank_name, account_holder_name, account_holder_address_*, amount_eur, credits_amount, expires_at }"
+      errors:
+        - 400 for invalid/non-EUR currency or non-priced credit tier.
+        - 503 when bank transfer is unavailable.
+      behavior:
+        - Create a pending bank transfer with order_type `gift_card_purchase`.
+        - Do not create or reveal the gift-card code until payment is matched.
+    - route: GET /v1/payments/gift-card-purchase-status/{order_id}
+      status: new
+      response: "{ order_id, status, credits_amount, amount_eur, reference, expires_at, gift_card_code?: string }"
+      errors:
+        - 404 for missing or unauthorized orders.
+    - route: GET /v1/payments/purchased-gift-cards
+      status: existing
+      response: "{ purchased_cards: [{ gift_card_code, credits_value, purchased_at, redeemed }] }"
+    - route: GET /v1/settings/delete-account-preview
+      status: existing
+      response: "{ total_credits, refundable_credits, credits_from_gift_cards, has_refundable_credits, auto_refunds }"
+    - route: POST /v1/settings/request-action-verification
+      status: existing
+      request: "{ action: 'delete_account', email_encryption_key: string }"
+      response: "{ success, message }"
+      cli_behavior:
+        - Dedicated delete command uses this even when 2FA is configured.
+        - Raw settings passthrough remains blocked.
+    - route: POST /v1/settings/verify-action-code
+      status: existing
+      request: "{ action: 'delete_account', code: string }"
+      response: "{ success, message }"
+      cli_behavior:
+        - On success the backend stores the short-lived `action_verified:<user>:delete_account` token.
+    - route: POST /v1/settings/delete-account
+      status: existing_with_cli_flag
+      request: "{ confirm_data_deletion: true, auth_method: passkey|2fa_otp|email_otp, auth_code?: string, email_encryption_key?: string, require_email_verification?: boolean }"
+      response: "{ success, message }"
+      cli_behavior:
+        - Remain blocked through raw settings passthrough.
+        - Dedicated CLI account deletion requests and verifies an email OTP before deleting.
+        - CLI sends `require_email_verification: true`; backend then requires the short-lived `action_verified:<user>:delete_account` token in addition to any selected auth_method.
+        - If 2FA is configured, CLI deletion sends `auth_method: 2fa_otp` and the TOTP code after email verification.
+  cli:
+    - command: openmates signup
+      options:
+        - --email <email> optional non-secret input; otherwise prompt.
+        - --username <name> optional non-secret input; otherwise prompt.
+        - --invite-code <code> optional non-secret input when required.
+        - --gift-card-code <code> optional gift-card redemption during signup.
+        - --recovery-key-output <path> explicit recovery-key save path.
+        - --backup-codes-output <path> explicit backup-code save path.
+        - --skip-2fa and --skip-recovery-key require explicit warning confirmation unless --yes is passed.
+        - --password is rejected.
+      output:
+        - Human-readable summary by default.
+        - --json returns status, user id, balance, security setup states, and output artifact paths, never secrets.
+    - command: openmates settings security 2fa setup
+      options:
+        - --backup-codes-output <path>
+        - --provider <name>
+        - --force is not allowed for modifying existing 2FA.
+    - command: openmates settings security recovery-key setup
+      options:
+        - --recovery-key-output <path>
+        - --force is not allowed for modifying existing recovery keys.
+    - command: openmates settings billing buy-credits bank-transfer
+      options:
+        - --credits <amount>
+    - command: openmates settings billing bank-transfer status <order-id>
+      output:
+        - Pending/completed/expired/admin-review order details.
+    - command: openmates settings billing bank-transfer list
+      output:
+        - Pending bank-transfer orders for the logged-in user.
+    - command: openmates settings billing gift-card buy bank-transfer
+      options:
+        - --credits <amount>
+    - command: openmates settings billing gift-card purchase-status <order-id>
+      output:
+        - Pending status before payment; gift-card code after payment is matched.
+    - command: openmates settings billing gift-card purchased
+      output:
+        - Purchased unused gift cards.
+    - command: openmates settings account delete
+      options:
+        - --yes to confirm the destructive action after preview output.
+      behavior:
+        - Fetch and print delete-account preview.
+        - Request email verification code and prompt for the code.
+        - Prompt for TOTP code when account 2FA is configured.
+        - Call delete-account with `require_email_verification: true`.
+        - Clear local CLI session on success.
+    - command: openmates e2e provision-auth-accounts
+      visibility: test-only/gated
+      options:
+        - --slot <15|17>
+        - --artifact <path>
+        - --api-url <dev-api-url>
+        - --yes
+      behavior:
+        - Refuse production API URLs unless an explicit future approved override exists.
+        - Write ignored local artifacts only.
+  data:
+    - CLI session storage continues to use `~/.openmates/session.json` plus keychain/encrypted-file tiers for master key and email encryption key.
+    - Recovery key and backup-code output files are written with mode `0o600` where the platform supports it.
+    - E2E provisioning artifacts are written under ignored paths such as `test-results/credential-updates/<spec>/` and never committed.
+    - Pending bank-transfer gift-card purchases use the existing `pending_bank_transfers` durability pattern with `order_type=gift_card_purchase` or an equivalent explicit type.
+  ui_states:
+    - Terminal QR code visible for TOTP setup.
+    - Manual secret visible as fallback under the QR code.
+    - Skips require warning text and explicit confirmation.
+    - No-credit messages include both gift-card redemption and bank-transfer credit purchase commands.
+  privacy_security:
+    - Passwords, TOTP seeds, backup codes, recovery keys, gift-card codes, and email encryption keys are never printed in logs or JSON output unless the command's explicit purpose is to display or save that secret.
+    - No password or secret may be accepted through command-line flags that commonly land in shell history or process listings.
+    - Card checkout remains browser-only because payment provider UI, SCA, and saved-card consent are not terminal-safe in this slice.
+    - Public CLI security setup may create missing methods only; mutation of existing methods remains web-only.
+    - Gift-card bank-transfer orders do not create usable codes before payment is matched.
+    - CLI deletion has a stricter auth contract than web deletion: the email code is always required, and 2FA is additionally required when configured.
+    - Test provisioning must fail closed on production API URLs and must not upload secrets.
+
+tests:
+  - id: T-CLI-CRYPTO-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/crypto.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/crypto.test.ts
+    covers:
+      - AC-1
+      - AC-4
+    assertions:
+      - CLI hashEmail/hashKey helpers match web SHA-256 base64 contracts.
+      - CLI PBKDF2/AES-GCM key wrapping matches web signup/recovery-key expectations.
+      - CLI email encryption uses the server-compatible email encryption key format.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "npm run build && npm run test:unit:crypto && npm run test:unit:signup && npm run test:unit:security-setup && npm run test:unit:e2e-provisioning && npm run test:unit:cli && npm run test:unit:billing && npm run test:unit:account-delete"
+        timestamp: "2026-06-10T06:05:21Z"
+
+  - id: T-CLI-SIGNUP-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/signup.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/signup.test.ts
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-7
+      - AC-8
+    assertions:
+      - "`--password` is rejected before network calls."
+      - hidden prompt path is used for interactive password entry.
+      - signup posts web-compatible setup_password payload and saves session cookies/keys.
+      - TOTP setup renders QR/manual secret, verifies code, saves provider, writes backup codes with overwrite protection, and confirms storage.
+      - recovery-key setup writes the key with overwrite protection and posts confirm-stored payload.
+      - gift-card signup path redeems with email_encryption_key and prints balance.
+      - zero-credit signup output includes terminal billing guidance.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "npm run build && npm run test:unit:crypto && npm run test:unit:signup && npm run test:unit:security-setup && npm run test:unit:e2e-provisioning && npm run test:unit:cli && npm run test:unit:billing && npm run test:unit:account-delete"
+        timestamp: "2026-06-10T06:05:21Z"
+
+  - id: T-CLI-SECURITY-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/security-setup.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/security-setup.test.ts
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+    assertions:
+      - settings 2FA setup refuses accounts with existing TOTP enabled.
+      - settings recovery-key setup refuses accounts with existing recovery-key method.
+      - no rotate/disable/regenerate command is exposed in help or router.
+      - output files are created with safe permissions and are not overwritten without explicit force where force is allowed for file writes only.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "npm run build && npm run test:unit:crypto && npm run test:unit:signup && npm run test:unit:security-setup && npm run test:unit:e2e-provisioning && npm run test:unit:cli && npm run test:unit:billing && npm run test:unit:account-delete"
+        timestamp: "2026-06-10T06:05:21Z"
+
+  - id: T-PY-PAYMENTS-001
+    type: pytest
+    file: backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+    command: python3 -m pytest backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+    covers:
+      - AC-10
+    assertions:
+      - create-gift-card-bank-transfer-order stores pending order_type gift_card_purchase.
+      - invalid tiers/currencies and unavailable bank transfer fail clearly.
+      - gift-card purchase status hides code while pending and returns code after a matched-payment fixture.
+      - unauthorized users cannot read another user's gift-card purchase status.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_cli_bank_transfer_gift_card_purchase.py /app/backend/tests/test_cli_account_delete.py"
+        timestamp: "2026-06-10T05:52:33Z"
+
+  - id: T-CLI-BILLING-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/billing.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/billing.test.ts
+    covers:
+      - AC-8
+      - AC-9
+      - AC-10
+      - AC-11
+    assertions:
+      - credit bank-transfer command posts email_encryption_key and prints exact bank details.
+      - bank-transfer status/list commands render pending and completed states.
+      - gift-card bank-transfer purchase command creates pending order and does not print a gift-card code until status returns one.
+      - insufficient_credits chat/app responses print terminal billing next steps.
+      - card-based buy-credit and gift-card purchase commands remain web-only.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "npm run build && npm run test:unit:crypto && npm run test:unit:signup && npm run test:unit:security-setup && npm run test:unit:e2e-provisioning && npm run test:unit:cli && npm run test:unit:billing && npm run test:unit:account-delete"
+        timestamp: "2026-06-10T06:05:21Z"
+
+  - id: T-CLI-PROVISION-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/e2e-provisioning.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/e2e-provisioning.test.ts
+    covers:
+      - AC-15
+    assertions:
+      - provisioning refuses production API URLs.
+      - provisioning writes local artifact files only.
+      - artifact content includes the required reserved-slot variables and is never printed in JSON output.
+      - no GitHub secret update command is executed.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "npm run build && npm run test:unit:crypto && npm run test:unit:signup && npm run test:unit:security-setup && npm run test:unit:e2e-provisioning && npm run test:unit:cli && npm run test:unit:billing && npm run test:unit:account-delete"
+        timestamp: "2026-06-10T06:05:21Z"
+
+  - id: T-CLI-DELETE-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/account-delete.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/account-delete.test.ts
+    covers:
+      - AC-13
+      - AC-14
+    assertions:
+      - account delete preview is fetched and printed before destructive confirmation.
+      - email verification is always requested and verified before delete-account is called.
+      - "when 2FA is configured, delete-account is called with auth_method `2fa_otp`, the TOTP code, and `require_email_verification: true`."
+      - "when 2FA is not configured, delete-account still sends `require_email_verification: true` after email code verification."
+      - local session state is cleared on successful deletion.
+      - raw settings passthrough remains blocked for request-action-verification, verify-action-code, and delete-account.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "npm run build && npm run test:unit:crypto && npm run test:unit:signup && npm run test:unit:security-setup && npm run test:unit:e2e-provisioning && npm run test:unit:cli && npm run test:unit:billing && npm run test:unit:account-delete"
+        timestamp: "2026-06-10T06:05:21Z"
+
+  - id: T-E2E-CLI-ACCOUNT-001
+    type: playwright
+    file: frontend/apps/web_app/tests/cli-created-account-login.spec.ts
+    command: python3 scripts/run_tests.py --spec cli-created-account-login.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-12
+    assertions:
+      - a test account created through the CLI signup/provisioning path can receive CLI-purchased credits.
+      - the account can send a CLI chat after credits are applied.
+      - the same account can log in through the web app with password and TOTP.
+      - web settings can decrypt account data created by CLI signup.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27263053793"
+        timestamp: "2026-06-10T08:21:29Z"
+
+  - id: T-E2E-RECOVERY-001
+    type: playwright
+    file: frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec recovery-key-login-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-16
+    assertions:
+      - reserved slot 17 credentials exist after provisioning and CI secret update.
+      - settings recovery-key flow and recovery-key login complete end-to-end.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27262866451"
+        timestamp: "2026-06-10T08:18:03Z"
+
+  - id: T-E2E-BACKUP-001
+    type: playwright
+    file: frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec backup-code-login-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-16
+    assertions:
+      - reserved slot 15 credentials exist after provisioning and CI secret update.
+      - settings backup-code regeneration flow and backup-code login complete end-to-end.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27262721376"
+        timestamp: "2026-06-10T08:15:34Z"
+
+  - id: T-E2E-BANK-TRANSFER-001
+    type: playwright
+    file: frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    command: python3 scripts/run_tests.py --spec settings-buy-credits-bank-transfer.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-9
+    assertions:
+      - existing web bank-transfer credit purchase flow remains unchanged.
+      - bank-transfer details still render correctly after backend payment changes.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27258872040"
+        timestamp: "2026-06-10T06:56:58Z"
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/client.ts pair-auth session creation and settings billing command patterns.
+    - frontend/packages/openmates-cli/src/crypto.ts Node webcrypto AES-GCM/PBKDF2 helpers.
+    - frontend/packages/openmates-cli/src/storage.ts keychain/encrypted-file session key storage.
+    - frontend/packages/ui/src/services/cryptoService.ts web signup/recovery crypto source of truth.
+    - backend/core/api/app/routes/payments.py existing credit bank-transfer and gift-card card purchase flows.
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts web bank-transfer behavior.
+  architecture: >
+    Add narrow CLI command handlers and SDK helpers that reuse existing backend
+    contracts where possible. Add only the backend surface needed for bank-transfer
+    gift-card purchase because the existing credit bank-transfer endpoint applies
+    credits directly and the existing gift-card purchase endpoint starts card
+    checkout. Keep existing CLI security blocklist for raw settings passthrough,
+    and expose security setup only through dedicated guided commands with local
+    preflight checks.
+  data_flow:
+    - CLI signup collects non-secret fields and hidden password, derives crypto, calls setup_password, stores cookies/keys.
+    - CLI security setup uses authenticated cookies plus email encryption key to create TOTP, backup-code, and recovery-key records.
+    - CLI gift-card redemption uses authenticated cookies and optional email encryption key.
+    - CLI bank-transfer credit purchase creates pending credit order and prints transfer details.
+    - CLI bank-transfer gift-card purchase creates pending gift-card order; webhook/payment match later creates purchased gift-card record.
+    - CLI deletion fetches preview, verifies email OTP, verifies TOTP when configured, calls delete-account with CLI email verification required, and clears local session.
+    - E2E provisioning uses the same CLI signup/security setup code path and writes ignored local artifacts.
+  affected_files:
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Add public signup, security setup, billing, and provisioning command routing/help.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Add SDK helpers for signup crypto payloads, security setup, bank transfer billing, and no-credit guidance.
+    - path: frontend/packages/openmates-cli/src/crypto.ts
+      reason: Add Node-compatible signup/recovery crypto helpers matching web contracts.
+    - path: frontend/packages/openmates-cli/src/storage.ts
+      reason: Ensure signup sessions persist master/email keys safely.
+    - path: backend/core/api/app/routes/payments.py
+      reason: Add bank-transfer gift-card order/status contract and webhook fulfillment support.
+    - path: backend/core/api/app/routes/settings.py
+      reason: Add CLI-only email-verification requirement flag for delete-account without changing web behavior.
+    - path: backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+      reason: Verify new backend payment contract.
+    - path: frontend/packages/openmates-cli/tests/signup.test.ts
+      reason: Verify public signup command behavior.
+    - path: frontend/packages/openmates-cli/tests/security-setup.test.ts
+      reason: Verify setup-only security command boundaries.
+    - path: frontend/packages/openmates-cli/tests/billing.test.ts
+      reason: Verify terminal billing commands and no-credit guidance.
+    - path: frontend/packages/openmates-cli/tests/account-delete.test.ts
+      reason: Verify stricter CLI deletion verification and local session cleanup.
+    - path: frontend/packages/openmates-cli/tests/e2e-provisioning.test.ts
+      reason: Verify local artifact-only provisioning.
+    - path: frontend/apps/web_app/tests/cli-created-account-login.spec.ts
+      reason: Verify a CLI-provisioned password/TOTP account can log in on web.
+    - path: frontend/apps/web_app/tests/signup-flow-helpers.ts
+      reason: Route the CLI-created account login spec to the reserved credential slot.
+    - path: scripts/run_tests.py
+      reason: Dispatch the CLI-created account login spec with the reserved credential slot.
+    - path: docs/architecture/platforms/cli-feature-parity.md
+      reason: Update intentional web-only boundaries and new CLI parity levels.
+    - path: docs/architecture/platforms/cli-package.md
+      reason: Update CLI auth/security/billing command architecture.
+    - path: docs/user-guide/cli/settings.md
+      reason: Document billing/security commands.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/cli-signup-billing-provisioning/spec.yml
+    - Run red-phase unit/pytest tests before feature implementation.
+    - Deploy backend/frontend changes before Playwright green-phase specs.
+    - Run green-phase CLI unit tests, backend pytest, and listed Playwright specs.
+    - Run python3 scripts/spec_verify.py docs/specs/cli-signup-billing-provisioning/spec.yml before marking verified.
+
+tasks:
+  - id: TASK-1
+    title: Add CLI signup crypto and command tests
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-7
+        - AC-8
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/crypto.ts
+      - frontend/packages/openmates-cli/tests/signup.test.ts
+      - frontend/packages/openmates-cli/tests/crypto.test.ts
+    verification:
+      - T-CLI-CRYPTO-001
+      - T-CLI-SIGNUP-001
+    independently_deployable: false
+  - id: TASK-2
+    title: Add CLI setup-only security settings commands
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/security-setup.test.ts
+    verification:
+      - T-CLI-SECURITY-001
+    independently_deployable: false
+  - id: TASK-3
+    title: Add bank-transfer billing and gift-card purchase support
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+        - AC-12
+    expected_files:
+      - backend/core/api/app/routes/payments.py
+      - backend/tests/test_cli_bank_transfer_gift_card_purchase.py
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/billing.test.ts
+      - frontend/apps/web_app/tests/cli-created-account-login.spec.ts
+    verification:
+      - T-PY-PAYMENTS-001
+      - T-CLI-BILLING-001
+      - T-E2E-CLI-ACCOUNT-001
+      - T-E2E-BANK-TRANSFER-001
+    independently_deployable: false
+  - id: TASK-4
+    title: Add stricter CLI account deletion
+    covers:
+      scenarios:
+        - S-9
+      acceptance_criteria:
+        - AC-13
+        - AC-14
+    expected_files:
+      - backend/core/api/app/routes/settings.py
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/account-delete.test.ts
+    verification:
+      - T-CLI-DELETE-001
+    independently_deployable: false
+  - id: TASK-5
+    title: Add local-artifact E2E provisioning command
+    covers:
+      scenarios:
+        - S-10
+      acceptance_criteria:
+        - AC-15
+        - AC-16
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/e2e-provisioning.test.ts
+      - frontend/apps/web_app/tests/signup-flow-helpers.ts
+      - scripts/run_tests.py
+      - docs/contributing/guides/testing.md
+    verification:
+      - T-CLI-PROVISION-001
+      - T-E2E-RECOVERY-001
+      - T-E2E-BACKUP-001
+    independently_deployable: false
+  - id: TASK-6
+    title: Update CLI docs and parity boundaries
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+        - AC-12
+        - AC-13
+    expected_files:
+      - docs/architecture/platforms/cli-feature-parity.md
+      - docs/architecture/platforms/cli-package.md
+      - docs/user-guide/cli/settings.md
+    verification:
+      - python3 scripts/spec_validate.py docs/specs/cli-signup-billing-provisioning/spec.yml
+    independently_deployable: false
+
+risks:
+  - Terminal signup expands a previous security boundary; tests and docs must enforce no password flags and no secret logs.
+  - Existing backend 2FA/recovery endpoints may allow setup calls on already configured accounts; CLI must preflight and backend hardening may be needed if direct API mutation is risky.
+  - Bank-transfer gift-card fulfillment must not leak or create usable gift-card codes before payment is matched.
+  - E2E provisioning can create highly sensitive artifacts; paths must remain ignored and output must be sanitized.
+  - Playwright green evidence for recovery/backup specs requires a human/trusted process to update CI secrets from the local artifact.
+
+open_questions:
+  - Should future work add backend-level hardening to reject recovery/2FA setup when already configured, or is CLI-side refusal sufficient for this slice?
+  - Should bank-transfer gift-card orders reuse `pending_bank_transfers` directly or introduce a small typed service wrapper around it to reduce order_type branching inside the webhook?

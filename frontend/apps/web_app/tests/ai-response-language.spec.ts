@@ -43,6 +43,7 @@ const {
 	loginToTestAccount,
 	startNewChat,
 	sendMessage,
+	waitForAssistantMessage,
 	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
@@ -166,7 +167,7 @@ function detectLanguage(text: string): 'de' | 'en' | 'unknown' {
  */
 async function getAssistantProseText(page: any, messageIndex: number): Promise<string> {
 	const targetMessage = page.getByTestId('message-assistant').nth(messageIndex);
-	const proseMirror = targetMessage.getByTestId('message-content').first();
+	const proseMirror = targetMessage.getByTestId('mate-message-content').first();
 
 	await expect(proseMirror).toBeVisible({ timeout: 10000 });
 
@@ -182,49 +183,53 @@ async function getAssistantProseText(page: any, messageIndex: number): Promise<s
 	return text;
 }
 
-/**
- * Wait for AI streaming to start (typing indicator appears) and then complete
- * (typing indicator disappears). This two-phase wait prevents the test from
- * reading a pre-existing message before the AI has even started responding.
- */
-async function waitForStreamingStartAndComplete(page: any, log: any) {
-	const typingIndicator = page.getByTestId('typing-indicator');
+async function waitForAssistantTurnSettled(page: any, log: any): Promise<void> {
+	const stopButton = page.getByTestId('stop-processing-button');
+	await expect(stopButton)
+		.not.toBeVisible({ timeout: 30000 })
+		.catch(() => log('WARNING: stop-processing-button remained visible before next turn.'));
 
-	// Phase 1: Wait for typing indicator to appear (AI started processing)
-	try {
-		await expect(typingIndicator).toBeVisible({ timeout: 30000 });
-		log('Typing indicator appeared — AI is streaming.');
-	} catch {
-		// Typing indicator may have already appeared and disappeared if response was fast
-		log('WARNING: Typing indicator not seen — response may have completed very quickly.');
-	}
+	const chatHeaderTitle = page.getByTestId('chat-header-title');
+	await expect(chatHeaderTitle)
+		.toBeVisible({ timeout: 10000 })
+		.catch(() => log('WARNING: chat-header-title was not visible before next turn.'));
+	await expect
+		.poll(
+			async () => {
+				const title = ((await chatHeaderTitle.textContent().catch(() => '')) ?? '')
+					.trim()
+					.toLowerCase();
+				return Boolean(
+					title &&
+						!title.includes('untitled') &&
+						!title.includes('creating') &&
+						!title.includes('new chat')
+				);
+			},
+			{ timeout: 10000 }
+		)
+		.toBeTruthy()
+		.catch(() => log('WARNING: generated title was not ready before next turn.'));
 
-	// Phase 2: Wait for typing indicator to disappear (AI finished)
-	await expect(typingIndicator).not.toBeVisible({ timeout: 120000 });
-	log('Streaming completed.');
-}
+	await expect(page.getByTestId('chat-header-summary'))
+		.toBeVisible({ timeout: 5000 })
+		.catch(() => log('WARNING: chat header summary was not ready before next turn.'));
+	await expect(page.getByTestId('follow-up-suggestion-item').first())
+		.toBeVisible({ timeout: 5000 })
+		.catch(() => log('WARNING: follow-up suggestions were not ready before next turn.'));
 
-/**
- * Wait for a new assistant response to appear.
- * Returns the 0-based index of the new assistant message.
- */
-async function waitForNewAssistantMessage(
-	page: any,
-	previousCount: number,
-	log: any
-): Promise<number> {
-	const assistantMessages = page.getByTestId('message-assistant');
-	let newCount = previousCount;
-	await expect(async () => {
-		newCount = await assistantMessages.count();
-		log(`Assistant message count: ${newCount} (waiting for > ${previousCount})`);
-		expect(newCount).toBeGreaterThanOrEqual(previousCount);
-	}).toPass({ timeout: 90000 });
-
-	// If count didn't increase (mock may update existing message), still return
-	// the last index so downstream assertions can check content.
-	log(`Assistant message available (total: ${newCount}).`);
-	return Math.max(newCount - 1, 0);
+	const processingEmbeds = page.locator(
+		'[data-testid="message-assistant"] [data-testid="embed-preview"][data-status="processing"]'
+	);
+	await expect
+		.poll(async () => await processingEmbeds.count().catch(() => 0), { timeout: 5000 })
+		.toBe(0)
+		.catch(async () => {
+			const count = await processingEmbeds.count().catch(() => 0);
+			log(`WARNING: ${count} assistant embed preview(s) still processing before next turn.`);
+		});
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 10000 });
+	log('Assistant turn settled: composer is ready.');
 }
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
@@ -289,11 +294,10 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 	// Wait for a real chat ID in URL
 	await expect(page).toHaveURL(/chat-id=[0-9a-f]{8}-/, { timeout: 30000 });
 
-	// Wait for the AI to start and finish streaming
-	await waitForStreamingStartAndComplete(page, log);
-
-	// Wait for the NEW assistant message (count must increase from before)
-	const turn1Index = await waitForNewAssistantMessage(page, countBeforeTurn1, log);
+	// Wait for the assistant output. Mock-driven sync recovery can replace the
+	// latest bubble instead of increasing the visible assistant count.
+	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+	const turn1Index = Math.max((await assistantMessages.count()) - 1, 0);
 	log(`Turn 1 assistant message at index ${turn1Index}.`);
 
 	await page.waitForTimeout(3000); // Let content fully render
@@ -320,6 +324,7 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 	).toBe('de');
 
 	log('Turn 1 verified: AI responded in German.');
+	await waitForAssistantTurnSettled(page, log);
 
 	// ══════════════════════════════════════════════════════════════════════
 	// STEP 3: Send a follow-up in English → expect English response
@@ -341,9 +346,11 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 		'turn2'
 	);
 
-	// Wait for AI to start and finish streaming, then find the new message
-	await waitForStreamingStartAndComplete(page, log);
-	const turn2Index = await waitForNewAssistantMessage(page, countBeforeTurn2, log);
+	// Wait for the new or replaced assistant output. The shared helper compares
+	// text growth from sendMessage(), so it handles the one-bubble sync recovery
+	// state captured in CI artifacts.
+	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+	const turn2Index = Math.max((await assistantMessages.count()) - 1, 0);
 	await page.waitForTimeout(3000);
 	await screenshot(page, 'turn2-response');
 

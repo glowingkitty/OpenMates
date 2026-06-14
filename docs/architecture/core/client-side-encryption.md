@@ -2,10 +2,45 @@
 status: active
 last_verified: 2026-04-08
 key_files:
+- frontend/packages/ui/src/services/cryptoService.ts
+- frontend/packages/ui/src/services/cryptoKeyStorage.ts
+- backend/core/api/app/utils/encryption.py
+- backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+claims:
+- id: arch-core-client-side-encryption-behavior
+  type: unit
+  claim: Client-Side Encryption is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/services/cryptoService.ts
   - frontend/packages/ui/src/services/cryptoKeyStorage.ts
   - backend/core/api/app/utils/encryption.py
   - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-core-client-side-encryption-behavior
+  verified: '2026-06-11'
+- id: arch-core-client-side-encryption-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-client-side-encryption-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+- id: arch-core-client-side-encryption-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-client-side-encryption-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/utils/encryption.py
+- id: arch-core-client-side-encryption-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-client-side-encryption-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/services/cryptoKeyStorage.ts
 ---
 
 # Client-Side Encryption

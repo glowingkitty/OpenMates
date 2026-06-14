@@ -115,6 +115,8 @@ struct AppSkillUseRenderer: View {
             return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview))
         } else if appId == "images", skillId == "view" {
             return AnyView(ImageEmbedRenderer(data: data, mode: .preview))
+        } else if appId == "videos", skillId == "create" {
+            return AnyView(RemotionVideoCreateRenderer(embedId: embed.id, data: data, mode: .preview))
         } else if appId == "code", skillId == "get_docs" {
             return AnyView(CodeGetDocsEmbedRenderer(data: data, mode: .preview))
         } else if appId == "events", skillId == "search" {
@@ -206,6 +208,8 @@ struct AppSkillUseRenderer: View {
             ImageGenerateEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "images", skillId == "view" {
             ImageEmbedRenderer(data: data, mode: .fullscreen)
+        } else if appId == "videos", skillId == "create" {
+            RemotionVideoCreateRenderer(embedId: embed.id, data: data, mode: .fullscreen)
         } else if appId == "code", skillId == "get_docs" {
             CodeGetDocsEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "events", skillId == "search" {

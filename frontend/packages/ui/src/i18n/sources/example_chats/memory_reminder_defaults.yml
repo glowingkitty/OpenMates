@@ -1,0 +1,267 @@
+title:
+  context: "Title of example chat: Memory Reminder Defaults"
+  en: "Memory Reminder Defaults"
+  de: "Memory Reminder Defaults"
+  zh: "Memory Reminder Defaults"
+  es: "Memory Reminder Defaults"
+  fr: "Memory Reminder Defaults"
+  pt: "Memory Reminder Defaults"
+  ru: "Memory Reminder Defaults"
+  ja: "Memory Reminder Defaults"
+  ko: "Memory Reminder Defaults"
+  it: "Memory Reminder Defaults"
+  tr: "Memory Reminder Defaults"
+  vi: "Memory Reminder Defaults"
+  id: "Memory Reminder Defaults"
+  pl: "Memory Reminder Defaults"
+  nl: "Memory Reminder Defaults"
+  ar: "Memory Reminder Defaults"
+  hi: "Memory Reminder Defaults"
+  th: "Memory Reminder Defaults"
+  cs: "Memory Reminder Defaults"
+  sv: "Memory Reminder Defaults"
+  he: "Memory Reminder Defaults"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Memory Reminder Defaults"
+  en: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  de: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  zh: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  es: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  fr: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  pt: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  ru: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  ja: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  ko: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  it: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  tr: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  vi: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  id: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  pl: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  nl: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  ar: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  hi: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  th: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  cs: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  sv: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  he: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Memory Reminder Defaults. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Memory Reminder Defaults. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  de: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  zh: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  es: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  fr: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pt: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ru: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ja: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ko: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  it: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  tr: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  vi: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  id: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pl: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  nl: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ar: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  hi: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  th: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  cs: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  sv: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  he: |
+    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
+
+    For any event you have saved for next week, you will be nudged at the following times:
+
+    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
+    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  verified_by_human: []

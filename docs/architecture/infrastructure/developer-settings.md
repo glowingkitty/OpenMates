@@ -2,14 +2,50 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+- frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte
+- frontend/packages/ui/src/components/settings/developers/SettingsWebhooks.svelte
+- backend/core/api/app/routes/settings.py
+- backend/core/api/app/routers/webhooks.py
+- backend/core/api/app/utils/api_key_auth.py
+- backend/core/api/app/utils/webhook_auth.py
+- backend/core/api/app/services/directus/api_key_device_methods.py
+claims:
+- id: arch-infrastructure-developer-settings-behavior
+  type: unit
+  claim: Developer Settings is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
   - frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte
   - frontend/packages/ui/src/components/settings/developers/SettingsWebhooks.svelte
   - backend/core/api/app/routes/settings.py
   - backend/core/api/app/routers/webhooks.py
-  - backend/core/api/app/utils/api_key_auth.py
-  - backend/core/api/app/utils/webhook_auth.py
-  - backend/core/api/app/services/directus/api_key_device_methods.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-infrastructure-developer-settings-behavior
+  verified: '2026-06-11'
+- id: arch-infrastructure-developer-settings-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-developer-settings-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routers/webhooks.py
+- id: arch-infrastructure-developer-settings-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-developer-settings-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/settings.py
+- id: arch-infrastructure-developer-settings-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-developer-settings-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/services/directus/api_key_device_methods.py
 ---
 
 # Developer Settings
@@ -96,7 +132,7 @@ Settings > Developers > Webhooks ([SettingsWebhooks.svelte](../../frontend/packa
 
 ## Related Docs
 
-- [CLI Package](../apps/cli-package.md) — CLI architecture using API keys
+- [CLI Package](../platforms/cli-package.md) — CLI architecture using API keys
 - [REST API](../apps/rest-api.md) — API endpoints accessible via API keys
 - [Device Sessions](../data/device-sessions.md) — device management
 - [Security](../core/security.md) — zero-knowledge architecture

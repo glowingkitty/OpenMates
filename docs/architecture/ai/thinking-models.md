@@ -2,14 +2,50 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/apps/ai/llm_providers/google_client.py
+- backend/apps/ai/llm_providers/types.py
+- backend/apps/ai/processing/main_processor.py
+- backend/apps/ai/tasks/stream_consumer.py
+- backend/apps/ai/utils/llm_utils.py
+- backend/apps/ai/utils/stream_utils.py
+- frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+- frontend/packages/ui/src/types/chat.ts
+claims:
+- id: arch-ai-thinking-models-behavior
+  type: unit
+  claim: Thinking Models is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/ai/llm_providers/google_client.py
   - backend/apps/ai/llm_providers/types.py
   - backend/apps/ai/processing/main_processor.py
   - backend/apps/ai/tasks/stream_consumer.py
   - backend/apps/ai/utils/llm_utils.py
-  - backend/apps/ai/utils/stream_utils.py
-  - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
-  - frontend/packages/ui/src/types/chat.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-ai-thinking-models-behavior
+  verified: '2026-06-11'
+- id: arch-ai-thinking-models-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-thinking-models-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/llm_providers/google_client.py
+- id: arch-ai-thinking-models-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-thinking-models-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/llm_providers/types.py
+- id: arch-ai-thinking-models-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-thinking-models-source-3
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/main_processor.py
 ---
 
 # Thinking Models

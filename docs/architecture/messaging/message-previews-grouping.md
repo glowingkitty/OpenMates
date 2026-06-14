@@ -2,11 +2,47 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/message_parsing/embedGrouping.ts
+- frontend/packages/ui/src/message_parsing/groupHandlers.ts
+- frontend/packages/ui/src/message_parsing/types.ts
+- frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+- frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+claims:
+- id: arch-messaging-message-previews-grouping-behavior
+  type: unit
+  claim: Message Previews Grouping Architecture is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/message_parsing/embedGrouping.ts
   - frontend/packages/ui/src/message_parsing/groupHandlers.ts
   - frontend/packages/ui/src/message_parsing/types.ts
   - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
   - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-messaging-message-previews-grouping-behavior
+  verified: '2026-06-11'
+- id: arch-messaging-message-previews-grouping-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-previews-grouping-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+- id: arch-messaging-message-previews-grouping-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-previews-grouping-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+- id: arch-messaging-message-previews-grouping-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-previews-grouping-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/message_parsing/embedGrouping.ts
 ---
 
 # Message Previews Grouping Architecture

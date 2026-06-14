@@ -165,18 +165,25 @@ class SearchSkill(BaseSkill):
         Returns:
             SearchResponse with grouped, sorted listing results.
         """
-        # 1. Validate requests array — each must have a 'query' field
-        validated_requests, validation_error = self._validate_requests_array(
+        validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
             requests=requests,
-            required_field="query",
-            field_display_name="query",
+            required_fields=["query"],
+            field_display_names={"query": "query"},
             empty_error_message="No search requests provided",
             logger=logger,
         )
         if validation_error:
             return SearchResponse(results=[], error=validation_error)
         if not validated_requests:
-            return SearchResponse(results=[], error="No valid requests to process")
+            return self._build_response_with_errors(
+                response_class=SearchResponse,
+                grouped_results=invalid_grouped_results,
+                errors=validation_errors,
+                provider="Multi",
+                suggestions=self.FOLLOW_UP_SUGGESTIONS,
+                logger=logger,
+                providers=[],
+            )
 
         # 2. Process requests in parallel
         all_results = await self._process_requests_in_parallel(
@@ -188,8 +195,13 @@ class SearchSkill(BaseSkill):
         # 3. Group results by request ID
         grouped_results, errors = self._group_results_by_request_id(
             results=all_results,
-            requests=validated_requests,
+            requests=requests,
             logger=logger,
+        )
+        grouped_results = self._merge_grouped_results_preserving_request_order(
+            grouped_results,
+            invalid_grouped_results,
+            requests,
         )
 
         # 4. Collect unique provider names from results that actually returned listings

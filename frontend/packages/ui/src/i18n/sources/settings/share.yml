@@ -426,6 +426,56 @@ share_embed:
   he: שתף הטמעה
   verified_by_human: []
 
+sharing_chat_status:
+  context: Status shown immediately after pressing the share chat button
+  en: Sharing chat...
+  de: Chat wird geteilt...
+  zh: 正在分享聊天...
+  es: Compartiendo chat...
+  fr: Partage du chat...
+  pt: Compartilhando chat...
+  ru: Публикуем чат...
+  ja: チャットを共有中...
+  ko: 채팅 공유 중...
+  it: Condivisione chat...
+  tr: Sohbet paylaşılıyor...
+  vi: Đang chia sẻ trò chuyện...
+  id: Membagikan obrolan...
+  pl: Udostępnianie czatu...
+  nl: Chat delen...
+  ar: جارٍ مشاركة المحادثة...
+  hi: चैट साझा की जा रही है...
+  th: กำลังแชร์แชท...
+  cs: Sdílí se chat...
+  sv: Delar chatt...
+  he: משתף צ'אט...
+  verified_by_human: []
+
+sharing_embed_status:
+  context: Status shown immediately after pressing the share embed button
+  en: Sharing embed...
+  de: Embed wird geteilt...
+  zh: 正在分享嵌入...
+  es: Compartiendo embed...
+  fr: Partage de l'embed...
+  pt: Compartilhando embed...
+  ru: Публикуем встраивание...
+  ja: 埋め込みを共有中...
+  ko: 임베드 공유 중...
+  it: Condivisione embed...
+  tr: Embed paylaşılıyor...
+  vi: Đang chia sẻ nhúng...
+  id: Membagikan embed...
+  pl: Udostępnianie embedu...
+  nl: Embed delen...
+  ar: جارٍ مشاركة التضمين...
+  hi: एम्बेड साझा किया जा रहा है...
+  th: กำลังแชร์ embed...
+  cs: Sdílí se embed...
+  sv: Delar embed...
+  he: משתף הטמעה...
+  verified_by_human: []
+
 expire_time_info:
   context: Info text explaining that expire time is only for URL access (for chats)
   en: The expiration time applies only to the share URL. Once someone accesses the chat using the link, they can continue viewing it until you unshare it.
@@ -1277,7 +1327,7 @@ short_link:
 
 short_link_info:
   context: Description text for the short link feature
-  en: Generate a temporary short link to share across the room. Expires automatically.
+  en: Your primary share link is compact by default when OpenMates is online.
   de: Erstelle einen temporären Kurzlink zum Teilen im Raum. Läuft automatisch ab.
   zh: 生成一个临时短链接以便在房间内分享。自动过期。
   es: Genera un enlace corto temporal para compartir en la sala. Expira automáticamente.
@@ -1298,6 +1348,81 @@ short_link_info:
   cs: Vytvořte dočasný krátký odkaz ke sdílení v místnosti. Automaticky vyprší.
   sv: Generera en tillfällig kort länk att dela i rummet. Upphör automatiskt.
   he: צור קישור קצר זמני לשיתוף בחדר. מפוגג אוטומטית.
+  verified_by_human: []
+
+short_link_fallback_timeout:
+  context: Notice shown when primary short link creation takes too long and the UI falls back to the encrypted long link
+  en: Short link took too long. Copy and QR code use the long encrypted link.
+  de: Der Kurzlink hat zu lange gedauert. Kopie und QR-Code verwenden den langen verschlüsselten Link.
+  zh: 短链接创建时间过长。复制和二维码将使用较长的加密链接。
+  es: El enlace corto tardó demasiado. Copiar y el código QR usan el enlace cifrado largo.
+  fr: Le lien court a pris trop de temps. La copie et le code QR utilisent le lien chiffré long.
+  pt: O link curto demorou demais. A cópia e o QR code usam o link criptografado longo.
+  ru: Короткая ссылка создавалась слишком долго. Копирование и QR-код используют длинную зашифрованную ссылку.
+  ja: ショートリンクの作成に時間がかかりすぎました。コピーとQRコードは長い暗号化リンクを使用します。
+  ko: 짧은 링크 생성이 너무 오래 걸렸습니다. 복사와 QR 코드는 긴 암호화 링크를 사용합니다.
+  it: Il link breve ha richiesto troppo tempo. Copia e codice QR usano il link crittografato lungo.
+  tr: Kısa bağlantı çok uzun sürdü. Kopyalama ve QR kod uzun şifreli bağlantıyı kullanır.
+  vi: Liên kết ngắn mất quá lâu. Sao chép và mã QR dùng liên kết mã hóa dài.
+  id: Tautan pendek terlalu lama. Salin dan kode QR memakai tautan terenkripsi panjang.
+  pl: Krótki link trwał zbyt długo. Kopiowanie i kod QR używają długiego szyfrowanego linku.
+  nl: De korte link duurde te lang. Kopiëren en QR-code gebruiken de lange versleutelde link.
+  ar: استغرق الرابط القصير وقتًا طويلاً. يستخدم النسخ ورمز QR الرابط المشفر الطويل.
+  hi: छोटा लिंक बनने में बहुत समय लगा। कॉपी और QR कोड लंबे एन्क्रिप्टेड लिंक का उपयोग करते हैं।
+  th: ลิงก์สั้นใช้เวลานานเกินไป การคัดลอกและ QR code จะใช้ลิงก์เข้ารหัสแบบยาว
+  cs: Krátký odkaz trval příliš dlouho. Kopírování a QR kód používají dlouhý šifrovaný odkaz.
+  sv: Kortlänken tog för lång tid. Kopiering och QR-kod använder den långa krypterade länken.
+  he: הקישור הקצר התעכב מדי. ההעתקה וקוד ה-QR משתמשים בקישור המוצפן הארוך.
+  verified_by_human: []
+
+short_link_fallback_offline:
+  context: Notice shown when the user is offline and the UI falls back to the encrypted long link
+  en: Short link unavailable while offline. Copy and QR code use the long encrypted link.
+  de: Kurzlink offline nicht verfügbar. Kopie und QR-Code verwenden den langen verschlüsselten Link.
+  zh: 离线时短链接不可用。复制和二维码将使用较长的加密链接。
+  es: El enlace corto no está disponible sin conexión. Copiar y el código QR usan el enlace cifrado largo.
+  fr: Le lien court est indisponible hors ligne. La copie et le code QR utilisent le lien chiffré long.
+  pt: Link curto indisponível offline. A cópia e o QR code usam o link criptografado longo.
+  ru: Короткая ссылка недоступна офлайн. Копирование и QR-код используют длинную зашифрованную ссылку.
+  ja: オフライン中はショートリンクを利用できません。コピーとQRコードは長い暗号化リンクを使用します。
+  ko: 오프라인에서는 짧은 링크를 사용할 수 없습니다. 복사와 QR 코드는 긴 암호화 링크를 사용합니다.
+  it: Link breve non disponibile offline. Copia e codice QR usano il link crittografato lungo.
+  tr: Çevrimdışıyken kısa bağlantı kullanılamaz. Kopyalama ve QR kod uzun şifreli bağlantıyı kullanır.
+  vi: Không có liên kết ngắn khi ngoại tuyến. Sao chép và mã QR dùng liên kết mã hóa dài.
+  id: Tautan pendek tidak tersedia saat offline. Salin dan kode QR memakai tautan terenkripsi panjang.
+  pl: Krótki link jest niedostępny offline. Kopiowanie i kod QR używają długiego szyfrowanego linku.
+  nl: Korte link niet beschikbaar offline. Kopiëren en QR-code gebruiken de lange versleutelde link.
+  ar: الرابط القصير غير متاح دون اتصال. يستخدم النسخ ورمز QR الرابط المشفر الطويل.
+  hi: ऑफलाइन रहते हुए छोटा लिंक उपलब्ध नहीं है। कॉपी और QR कोड लंबे एन्क्रिप्टेड लिंक का उपयोग करते हैं।
+  th: ลิงก์สั้นไม่พร้อมใช้งานแบบออฟไลน์ การคัดลอกและ QR code จะใช้ลิงก์เข้ารหัสแบบยาว
+  cs: Krátký odkaz není offline dostupný. Kopírování a QR kód používají dlouhý šifrovaný odkaz.
+  sv: Kortlänken är inte tillgänglig offline. Kopiering och QR-kod använder den långa krypterade länken.
+  he: הקישור הקצר אינו זמין במצב לא מקוון. ההעתקה וקוד ה-QR משתמשים בקישור המוצפן הארוך.
+  verified_by_human: []
+
+short_link_fallback_unavailable:
+  context: Notice shown when short link creation is unreachable and the UI falls back to the encrypted long link
+  en: Short link unavailable. Copy and QR code use the long encrypted link.
+  de: Kurzlink nicht verfügbar. Kopie und QR-Code verwenden den langen verschlüsselten Link.
+  zh: 短链接不可用。复制和二维码将使用较长的加密链接。
+  es: Enlace corto no disponible. Copiar y el código QR usan el enlace cifrado largo.
+  fr: Lien court indisponible. La copie et le code QR utilisent le lien chiffré long.
+  pt: Link curto indisponível. A cópia e o QR code usam o link criptografado longo.
+  ru: Короткая ссылка недоступна. Копирование и QR-код используют длинную зашифрованную ссылку.
+  ja: ショートリンクを利用できません。コピーとQRコードは長い暗号化リンクを使用します。
+  ko: 짧은 링크를 사용할 수 없습니다. 복사와 QR 코드는 긴 암호화 링크를 사용합니다.
+  it: Link breve non disponibile. Copia e codice QR usano il link crittografato lungo.
+  tr: Kısa bağlantı kullanılamıyor. Kopyalama ve QR kod uzun şifreli bağlantıyı kullanır.
+  vi: Không có liên kết ngắn. Sao chép và mã QR dùng liên kết mã hóa dài.
+  id: Tautan pendek tidak tersedia. Salin dan kode QR memakai tautan terenkripsi panjang.
+  pl: Krótki link jest niedostępny. Kopiowanie i kod QR używają długiego szyfrowanego linku.
+  nl: Korte link niet beschikbaar. Kopiëren en QR-code gebruiken de lange versleutelde link.
+  ar: الرابط القصير غير متاح. يستخدم النسخ ورمز QR الرابط المشفر الطويل.
+  hi: छोटा लिंक उपलब्ध नहीं है। कॉपी और QR कोड लंबे एन्क्रिप्टेड लिंक का उपयोग करते हैं।
+  th: ลิงก์สั้นไม่พร้อมใช้งาน การคัดลอกและ QR code จะใช้ลิงก์เข้ารหัสแบบยาว
+  cs: Krátký odkaz není dostupný. Kopírování a QR kód používají dlouhý šifrovaný odkaz.
+  sv: Kortlänken är inte tillgänglig. Kopiering och QR-kod använder den långa krypterade länken.
+  he: הקישור הקצר אינו זמין. ההעתקה וקוד ה-QR משתמשים בקישור המוצפן הארוך.
   verified_by_human: []
 
 short_link_generate:

@@ -1,0 +1,753 @@
+id: scalable-chat-embed-loading
+title: Scalable Chat And Embed Loading
+status: verified
+
+goal: >
+  Make owner chats and shared chats open reliably and quickly regardless of total
+  message or embed count by loading a bounded visible message window first,
+  rendering only visible chat content, and making parent embed previews
+  self-contained. Parent previews must not load, decrypt, decode, or request child
+  embed content until a user explicitly opens an embed or follows an embed/message
+  deep link.
+
+scope:
+  in:
+    - Authenticated owner chat opening and reload behavior.
+    - Shared-chat recipient opening and reload behavior.
+    - Initial chat viewport anchored around the latest user/assistant turn unless a message or embed deep link targets another location.
+    - Paged/windowed IndexedDB message reads for chat open, upward scroll hydration, and target-message hydration.
+    - ChatHistory rendering bounded to messages currently in the viewport plus overscan before and after the viewport for smooth scrolling.
+    - Self-contained parent embed preview metadata for all parent/composite embed types, including search result counts and the first preview thumbnails/URLs needed for the card.
+    - Deferring all child embed content decryption and full embed content loading until explicit fullscreen/open/copy/download/memory actions require it.
+    - Inline embed links in assistant messages resolving reliably without eager child-content hydration.
+    - Message deep links using URL hash parameters, target-message window loading, scroll-to-message, and orange highlight border while the hash target is active.
+    - Message context menu action to copy a link to a specific message.
+    - Compression-aware chat windows that show the latest compression summary without loading forgotten messages until requested.
+    - Shared-chat loading changes that reuse the same windowed message and visible-embed hydration model where practical.
+    - Regression tests and debug counters proving bounded work for large chats and dense embed graphs.
+    - Synthetic large-chat test fixtures only; tests must not run real AI inference to create or exercise 1000-message chats.
+  out:
+    - Replacing the existing zero-knowledge encryption model.
+    - Removing useful embed previews or reducing previews to generic placeholders.
+    - Loading all child embeds for preview-only rendering.
+    - Running generated application live previews automatically on chat load.
+    - Changing billing, permissions, chat ownership, or share-link access rules.
+    - Real model inference as part of scalable-loading tests or seeded 1000-message fixture generation.
+    - Full native Apple implementation in this first web-focused spec.
+
+context_discovery:
+  github_issues:
+    - "No matching public GitHub issue found via gh fallback search for: embed loading crash long chat sync shared chat performance."
+    - "No matching public GitHub issue found via gh fallback search for: chat load performance embeds browser crash unresponsive."
+    - "GitHub MCP issue search returned 401 Bad credentials, so gh CLI fallback was used."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/storage/embed-cold-storage.md
+    - docs/architecture/chat-compression.md
+    - docs/specs/application-embeds/spec.yml
+  code_patterns:
+    - frontend/packages/ui/src/services/db/messageOperations.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/services/deepLinkHandler.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+  tests:
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedStore.test.ts
+    - frontend/packages/ui/src/services/__tests__/embedResolver.test.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_chat_compression_checkpoint_handler.py
+    - backend/tests/test_chat_compressor.py
+
+clarification:
+  rounds:
+    - question: Should embed previews be strictly metadata-only until click, or may visible previews lazily load a capped subset of child metadata such as thumbnails?
+      answer: >
+        Embed previews must stay useful and self-contained. Search/image previews
+        should include result counts and first preview thumbnails/URLs on the
+        parent record itself. They must not decrypt, decode, load, or request child
+        embeds until the user actively opens the embed or follows a specific embed
+        link.
+    - question: When opening an existing chat, should the default behavior load/render the latest message window first and target message windows for deep links?
+      answer: >
+        Yes. Initial open should show the latest conversation turn: the last user
+        message, the last assistant response, and whatever immediately precedes
+        them within the viewport. Older messages load as the user scrolls upward.
+        Message or embed deep links should load the target window instead.
+    - question: Should the first implementation include both authenticated owner chats and shared-chat recipients?
+      answer: >
+        Both owner chats and shared chats must be fixed in a unified way where it
+        is reasonable.
+    - question: Should the spec enforce hard performance targets?
+      answer: >
+        Do not overfit to hard targets yet. Optimize as well as reasonably
+        possible and enforce bounded-work behavior instead of a fragile exact
+        latency number.
+    - question: Should message-specific deep links and copy-link actions be included in the same plan?
+      answer: >
+        Yes. Add deep links to specific messages and a message context-menu
+        "Copy link" action. Opening such a URL should load and scroll to that
+        message rather than the latest turn, and the target message should show
+        an orange border while the message hash is active.
+  vision_summary: >
+    Users expect chats to open like scalable chat applications: a bounded visible
+    window is loaded first, older content hydrates on scroll, and deep links load
+    the target window. Embed cards must remain informative, but preview metadata
+    belongs on the parent/lightweight record. Parent preview rendering and
+    inline-link rendering are forbidden from touching child content; child/full
+    content is hydrated only for explicit actions such as fullscreen, inline embed
+    link navigation, copy, download, or memory save. The same product guarantees
+    apply to owner chats and shared-chat recipients.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Owner opens a large chat at the latest conversation turn
+    given:
+      - Alice is authenticated.
+      - Alice owns a chat with 1000 messages and 500 embeds.
+      - The latest conversation turn is one user message followed by one assistant response.
+    when:
+      - Alice opens or reloads the chat without a message-id or embed-id hash target.
+    then:
+      - OpenMates loads a bounded message window around the latest conversation turn.
+      - The last user message and last assistant response are visible after initial render.
+      - Older messages outside the initial window are not decrypted or rendered until Alice scrolls upward.
+      - Even after more pages are hydrated, ChatHistory mounts only viewport messages plus overscan, not every loaded or cached message.
+      - The browser remains responsive during initial load.
+
+  - id: S-2
+    title: Shared-chat recipient opens a large shared chat using the same window model
+    given:
+      - Bob opens a valid shared-chat link.
+      - The shared chat has many messages and a dense parent/child embed graph.
+    when:
+      - Bob opens the shared-chat URL.
+    then:
+      - The share loader validates the link and imports enough metadata/key material to render the first bounded window.
+      - Bob is navigated to the normal chat view after the first bounded window is ready, not after every message and embed is fully hydrated.
+      - Older message pages and non-visible embeds hydrate in the background or on demand.
+      - Shared-chat access remains zero-knowledge; the URL fragment key is not sent to the server.
+
+  - id: S-3
+    title: Parent embed previews are self-contained and do not load children
+    given:
+      - A visible assistant message contains an image-search parent embed with 10 child image-result embeds.
+      - The parent embed stores preview metadata including result count and the first preview thumbnail URLs.
+    when:
+      - The message enters the visible chat window.
+    then:
+      - The image-search preview shows useful metadata, result count, and preview thumbnails from the parent record.
+      - The preview does not decrypt, decode, load, or request child image-result embed content.
+      - Child embed content is loaded only when the user opens the embed fullscreen or performs an explicit action that needs child content.
+
+  - id: S-4
+    title: Inline embed links remain reliable without eager hydration
+    given:
+      - An assistant message contains inline links such as [source](embed:source-ref) and large preview links such as [!](embed:source-ref).
+      - The target embed content has not been fully decrypted during chat open.
+    when:
+      - The message renders in the visible window.
+    then:
+      - Inline embed links render with the correct label and app styling from lightweight ref metadata when available.
+      - Clicking an inline embed link loads the target embed content on demand and opens the correct fullscreen view.
+      - Missing ref metadata shows a recoverable loading state rather than triggering broad IndexedDB scans, child graph hydration, or all-embed decryption.
+
+  - id: S-5
+    title: Message deep link loads and highlights the target message
+    given:
+      - Alice has a link in the form /#chat-id=<CHAT_ID>&message-id=<MESSAGE_ID>.
+      - The target message is far above the latest conversation turn.
+    when:
+      - Alice opens the link.
+    then:
+      - OpenMates loads a bounded message window around the target message.
+      - The target message scrolls into view.
+      - The target message shows an orange border while the URL hash points to that message.
+      - The latest conversation turn is not loaded first unless it overlaps the target window.
+
+  - id: S-6
+    title: Message context menu copies a message-specific link
+    given:
+      - Alice opens a chat message context menu from mouse, keyboard, or touch.
+      - The message has a stable message_id.
+    when:
+      - Alice chooses Copy link.
+    then:
+      - The clipboard receives a same-origin URL containing chat-id and message-id hash parameters.
+      - OpenMates shows a copy confirmation.
+      - Opening the copied link follows the target-message loading and orange-highlight behavior.
+
+  - id: S-7
+    title: Dense large-preview carousel only hydrates visible slides
+    given:
+      - A visible assistant message contains a carousel run of 20 large embed previews.
+    when:
+      - The message enters the visible chat window.
+    then:
+      - Only the active slide and a small overscan of adjacent slides mount embed preview renderers.
+      - Hidden slides do not resolve, decrypt, decode, or render previews until selected or near-selected.
+      - Hydrated slides still render parent previews only and do not load child content until clicked.
+      - Carousel navigation loads newly selected slides on demand without breaking swipe, keyboard, or dot navigation.
+
+  - id: S-8
+    title: Upward scroll hydrates older messages without resetting current view
+    given:
+      - Alice has opened a large chat at the latest conversation turn.
+      - Older messages are not yet loaded in the visible message store.
+    when:
+      - Alice scrolls upward near the top of the loaded window.
+    then:
+      - OpenMates fetches/decrypts the next older message window.
+      - The scroll anchor is preserved so content does not jump.
+      - Embed previews in newly visible older messages follow the same lightweight preview rules.
+
+  - id: S-9
+    title: Compressed chat opens at the summary and recent window
+    given:
+      - Alice owns a chat with a latest compression checkpoint.
+      - The checkpoint summarizes older messages up to compressed_up_to_timestamp.
+      - The chat has recent messages after that checkpoint.
+    when:
+      - Alice opens or reloads the chat without a target message before the checkpoint.
+    then:
+      - OpenMates loads the latest compression checkpoint and decrypts its summary for display.
+      - The initial window contains the compression summary and recent post-checkpoint messages.
+      - Forgotten messages before compressed_up_to_timestamp are not loaded or decrypted during initial open.
+      - Choosing Show earlier messages requests a bounded old-message page for the checkpoint and preserves the current view.
+      - If a message deep link targets a forgotten message, OpenMates loads the bounded checkpoint old-message page needed to reveal and highlight that target.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Owner chat open reads/decrypts only a bounded latest-turn message window before first useful render, and ChatHistory mounts only viewport messages plus overscan rather than every loaded or cached message.
+  - id: AC-2
+    scenario: S-2
+    text: Shared-chat open uses the same bounded message and visible-embed hydration model rather than importing all content before navigation.
+  - id: AC-3
+    scenario: S-3
+    text: Parent/composite embed previews render useful parent metadata while avoiding any child embed content hydration before explicit user action.
+  - id: AC-4
+    scenario: S-4
+    text: Inline embed links and large preview links resolve and open on demand without forcing full chat/embed graph hydration.
+  - id: AC-5
+    scenario: S-5
+    text: Chat URLs with message-id load a target message window, scroll the target into view, and apply an orange highlight while the hash target remains active.
+  - id: AC-6
+    scenario: S-6
+    text: Message context menus include Copy link and copy a same-origin chat/message URL that reopens the target message.
+  - id: AC-7
+    scenario: S-7
+    text: Large-preview carousel rendering is windowed to active/near-active slides and does not mount every slide at once; hydrated slides still use parent-only preview rendering.
+  - id: AC-8
+    scenario: S-8
+    text: Upward scroll loads older message windows while preserving scroll position and lightweight embed behavior.
+  - id: AC-9
+    scenario: S-9
+    text: Compressed chats initially render the latest summary plus recent messages and load forgotten pre-checkpoint messages only through explicit show-earlier or target-message hydration.
+
+contracts:
+  api:
+    - route: GET /v1/share/chat/{chat_id}
+      request: "Existing route remains valid during migration."
+      response: "May include backward-compatible full payload while new windowed shared-chat endpoints are added."
+      errors:
+        - Returns dummy encrypted data for unavailable private/missing chats as today.
+    - route: GET /v1/share/chat/{chat_id}/manifest
+      request: "chat_id path parameter; URL fragment key remains client-only"
+      response: "Encrypted chat metadata, message count, embed count, latest/target cursor hints, share flags, and lightweight embed preview metadata where available."
+      errors:
+        - Same unavailable-chat dummy/non-enumeration behavior as existing shared-chat route.
+    - route: GET /v1/share/chat/{chat_id}/messages
+      request: "cursor/anchor message id, direction, limit"
+      response: "Encrypted message window plus minimal referenced embed preview metadata and key wrappers needed for that window."
+      errors:
+        - Same unavailable-chat dummy/non-enumeration behavior as existing shared-chat route.
+    - route: WebSocket request_chat_content_batch or successor
+      request: "chat id plus optional anchor message id, direction, and limit"
+      response: "Encrypted bounded message window, embed preview metadata, embed keys needed for visible-window previews, and version data."
+      errors:
+        - Unauthorized when the user cannot access the chat.
+    - route: WebSocket get_compressed_chat_old_messages or successor
+      request: "chat id, checkpoint id, before timestamp, optional target message id, and bounded limit"
+      response: "Encrypted bounded old-message window before the checkpoint plus has_more/cursor metadata."
+      errors:
+        - Unauthorized when the user cannot access the chat.
+        - Compression checkpoint not found when the checkpoint does not belong to that user/chat.
+  data:
+    - Add or expose IndexedDB message-window read APIs using the existing chat_id_created_at index.
+    - Keep existing full getMessagesForChat for export/debug/fork paths that explicitly require all messages.
+    - Store self-contained parent preview metadata separately from encrypted full child content when needed for preview cards.
+    - Persist local hydration ranges/manifests for owner and shared chats so reloads can resume partial hydration safely.
+    - Keep child embed content encrypted and load/decrypt it on explicit fullscreen/open/copy/download/memory actions.
+    - Parent preview renderers must not call child-content APIs, including loadEmbedsWithRetry(child_ids), resolveEmbed(child_id), embedStore.get(child contentRef), or decode child TOON content.
+    - Store compression checkpoints as lightweight chat-window metadata and do not treat forgotten pre-checkpoint messages as part of the default latest-turn window.
+  ui_states:
+    - Initial latest-turn loading.
+    - Target-message loading.
+    - Older-window loading while scrolling upward.
+    - Viewport virtualization with overscan before and after the visible messages.
+    - Compression summary visible with forgotten messages collapsed.
+    - Forgotten pre-checkpoint messages loading after Show earlier messages or target-message hydration.
+    - Self-contained parent embed preview loaded.
+    - Full embed content loading after explicit action.
+    - Target message highlighted with orange border while hash target is active.
+    - Recoverable missing embed-ref metadata state.
+  privacy_security:
+    - Shared-chat URL fragment keys must never be sent to the server.
+    - Server responses remain encrypted; client-only decryption continues.
+    - Preview metadata must not expose more than the parent embed already exposes to the chat recipient.
+    - Message Copy link must not include plaintext message content, PII, raw logs, or secrets.
+    - Compression summaries and forgotten-message windows remain client-encrypted and owner-authorized; shared-chat import must not expose checkpoint keys outside the existing share-key model.
+
+tests:
+  - id: T-VITEST-DB-WINDOWS
+    type: vitest
+    file: frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-1
+      - AC-5
+      - AC-8
+      - AC-9
+    assertions:
+      - latest-turn query returns a bounded window ending near the latest assistant response
+      - target-message query returns a bounded window containing the target message
+      - older-window query returns the next page without loading all chat messages
+      - compressed-chat latest-turn query returns checkpoint summary plus post-checkpoint messages without pre-checkpoint forgotten messages
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_captured
+        run_id: implementation_already_started_before_red_run
+        timestamp: "2026-06-08T12:09:51Z"
+    green_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "27381345815; python3 scripts/run_tests.py --suite vitest; 364/364 passed on 507806478"
+        timestamp: "2026-06-11T22:27:27Z"
+
+  - id: T-VITEST-EMBED-PREVIEW-METADATA
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-3
+      - AC-4
+      - AC-7
+    assertions:
+      - parent/composite preview derives card metadata from parent preview fields without loading child embeds
+      - clicking/opening an embed triggers child/full content hydration on demand
+      - large-preview carousel hydrates only active and adjacent slides
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_captured
+        run_id: implementation_already_started_before_red_run
+        timestamp: "2026-06-08T12:09:51Z"
+    green_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "27381345815; python3 scripts/run_tests.py --suite vitest; 364/364 passed on 507806478"
+        timestamp: "2026-06-11T22:27:27Z"
+
+  - id: T-PYTEST-EMBED-PREVIEW-AUDIT
+    type: pytest
+    file: scripts/tests/test_audit_embed_preview_hydration.py
+    command: python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py
+    covers:
+      - AC-3
+      - AC-7
+    assertions:
+      - parent preview components do not define child preview loader helpers
+      - parent preview components do not call child batch hydration APIs
+      - fullscreen components remain allowed to hydrate child content after explicit user action
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_captured
+        run_id: parent_only_invariant_added_after_initial_spec
+        timestamp: "2026-06-11T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/audit_embed_preview_hydration.py; python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py; 14 passed"
+        timestamp: "2026-06-11T22:25:58Z"
+
+  - id: T-VITEST-DEEP-LINK
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - parser accepts message-id, message_id, and legacy messageid parameters
+      - copied chat/message URLs round-trip through parseDeepLink
+      - embed-id and message-id can coexist in the hash without losing either target
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_captured
+        run_id: implementation_already_started_before_red_run
+        timestamp: "2026-06-08T12:09:51Z"
+    green_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "27381345815; python3 scripts/run_tests.py --suite vitest; 364/364 passed on 507806478"
+        timestamp: "2026-06-11T22:27:27Z"
+
+  - id: T-PYTEST-SHARE-WINDOW
+    type: pytest
+    file: backend/tests/test_share_chat_window_loading.py
+    command: python3 -m pytest backend/tests/test_share_chat_window_loading.py
+    covers:
+      - AC-2
+    assertions:
+      - shared-chat manifest endpoint omits full message/embed content
+      - shared-chat message window endpoint returns a bounded encrypted message page
+      - unavailable shared chats preserve non-enumeration behavior
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_captured
+        run_id: implementation_already_started_before_red_run
+        timestamp: "2026-06-08T12:09:51Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py; share window coverage included in 14 passed"
+        timestamp: "2026-06-11T22:25:58Z"
+
+  - id: T-PYTEST-COMPRESSION-WINDOW
+    type: pytest
+    file: backend/tests/test_chat_compression_checkpoint_handler.py
+    command: python3 -m pytest backend/tests/test_chat_compression_checkpoint_handler.py
+    covers:
+      - AC-9
+    assertions:
+      - old-message handler returns a bounded encrypted page before the checkpoint
+      - old-message handler enforces chat ownership and checkpoint ownership
+      - handler exposes cursor/has_more metadata for additional forgotten pages
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_captured
+        run_id: implementation_already_started_before_red_run
+        timestamp: "2026-06-08T12:09:51Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py backend/tests/test_share_chat_window_loading.py backend/tests/test_chat_compression_checkpoint_handler.py; compression window coverage included in 14 passed"
+        timestamp: "2026-06-11T22:25:58Z"
+
+  - id: T-E2E-LARGE-CHAT-LOAD
+    type: playwright
+    file: frontend/apps/web_app/tests/scalable-chat-loading.spec.ts
+    command: python3 scripts/run_tests.py --spec scalable-chat-loading.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-3
+      - AC-7
+      - AC-8
+      - AC-9
+    assertions:
+      - opening a seeded large owner chat renders the latest user/assistant turn first
+      - initial and post-scroll viewports do not mount every message or every large-preview carousel slide
+      - preview-only render does not load child embed content before explicit click
+      - scrolling upward loads older messages and preserves scroll anchor
+      - compressed chat opens with the compression summary visible and forgotten messages collapsed until requested
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: pending
+        run_id: e2e_spec_not_created_yet
+        timestamp: "2026-06-08T12:09:51Z"
+    green_phase:
+      required: false
+      expected: pass_after_deploy
+      evidence:
+        status: pending_post_deploy
+        run_id: e2e_spec_not_created_yet
+        timestamp: "2026-06-08T12:17:48Z"
+
+  - id: T-E2E-SHARED-TARGET-MESSAGE
+    type: playwright
+    file: frontend/apps/web_app/tests/shared-chat-target-message.spec.ts
+    command: python3 scripts/run_tests.py --spec shared-chat-target-message.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-5
+      - AC-6
+    assertions:
+      - shared-chat link with message-id loads the target message window
+      - target message is visible and has orange highlight border
+      - message context-menu Copy link produces a URL that reopens the target message
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: pending
+        run_id: e2e_spec_not_created_yet
+        timestamp: "2026-06-08T12:09:51Z"
+    green_phase:
+      required: false
+      expected: pass_after_deploy
+      evidence:
+        status: pending_post_deploy
+        run_id: e2e_spec_not_created_yet
+        timestamp: "2026-06-08T12:17:48Z"
+
+implementation_plan:
+  existing_patterns:
+    - Authenticated startup sync already uses bounded metadata/full-content phases in docs/architecture/data/sync.md.
+    - Phase 1b embed sync already uses embedStore.putEncryptedBatch for large embed batches.
+    - ReadOnlyMessage already lazily creates TipTap editors when messages enter the viewport.
+    - Deep-link parsing already supports chat-id, message-id/message_id, embed-id/embed_id, and latest-response scroll.
+    - Chat compression checkpoints already store encrypted summaries separately and expose get_compressed_chat_old_messages for explicit forgotten-history expansion.
+  architecture: >
+    Introduce a chat content window abstraction used by owner and shared chats.
+    The active chat store keeps a bounded hydrated message window plus hydration cursors,
+    while IndexedDB and shared-chat endpoints expose bounded message windows.
+    Embed previews render from self-contained parent preview metadata and never
+    touch child content during preview render. Child or full-content hydration is
+    deferred to explicit user actions. ChatHistory is virtualized
+    so message and large-preview component mount counts scale with viewport size and overscan,
+    not total chat history.
+  data_flow:
+    - Chat open parses hash for chat-id, optional message-id, optional embed-id, and scroll intent.
+    - ActiveChat requests a latest-turn or target-message window from local IndexedDB, WebSocket, or shared-chat HTTP window endpoints.
+    - If the chat has a compression checkpoint, ActiveChat includes checkpoint metadata in the window and treats pre-checkpoint messages as a separate forgotten-history range.
+    - ChatHistory renders only viewport messages plus overscan and asks for older windows as the user scrolls upward.
+    - ChatHistory loads forgotten pre-checkpoint messages only after Show earlier messages or when a target-message link requires that range.
+    - Embed preview components read preview metadata from parent/lightweight records and render only parent-owned preview fields.
+    - Parent preview components do not call child hydration APIs, even with capped child limits.
+    - Full embed content and child embeds hydrate on explicit fullscreen/open/copy/download/memory actions.
+    - Message Copy link writes a same-origin hash URL with chat-id and message-id.
+  affected_files:
+    - path: frontend/packages/ui/src/services/db/messageOperations.ts
+      reason: Add bounded message window reads and keep full read for explicit all-message flows.
+    - path: frontend/packages/ui/src/services/db.ts
+      reason: Expose message window APIs.
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Load latest-turn/target windows, handle message hash highlighting, and hydrate older windows.
+    - path: frontend/packages/ui/src/components/ChatHistory.svelte
+      reason: Render bounded message windows, preserve scroll anchors on older-window prepend, and keep compressed forgotten history collapsed until requested.
+    - path: frontend/packages/ui/src/components/ChatMessage.svelte
+      reason: Add Copy link action and target-message orange border state.
+    - path: frontend/packages/ui/src/services/deepLinkHandler.ts
+      reason: Normalize message-id variants and preserve embed/message targets.
+    - path: frontend/packages/ui/src/services/embedStore.ts
+      reason: Store/resolve lightweight parent embed preview metadata and avoid child-content access on preview render.
+    - path: frontend/packages/ui/src/services/embedResolver.ts
+      reason: Split parent preview metadata resolution from child/full-content hydration.
+    - path: frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+      reason: Window carousel slide hydration to active/adjacent slides.
+    - path: frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+      reason: Avoid full embed resolution until selected/needed.
+    - path: frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+      reason: Render preview thumbnails from parent metadata and defer child embed loads.
+    - path: scripts/audit_embed_preview_hydration.py
+      reason: Deterministically forbid preview-time child hydration regressions.
+    - path: scripts/tests/test_audit_embed_preview_hydration.py
+      reason: Test the deterministic parent-only preview audit.
+    - path: frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+      reason: Use shared-chat manifest/window import instead of all-content import before navigation.
+    - path: backend/core/api/app/routes/share.py
+      reason: Add manifest and windowed shared-chat endpoints.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+      reason: Support bounded target/latest content windows for owner chats if existing batch request is insufficient.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+      reason: Keep forgotten-message loading bounded and target-message aware for compressed chats.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/scalable-chat-embed-loading/spec.yml
+    - python3 scripts/run_tests.py --suite vitest
+    - python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py
+    - python3 -m pytest backend/tests/test_share_chat_window_loading.py
+    - python3 -m pytest backend/tests/test_chat_compression_checkpoint_handler.py
+    - python3 scripts/run_tests.py --spec scalable-chat-loading.spec.ts
+    - python3 scripts/run_tests.py --spec shared-chat-target-message.spec.ts
+
+tasks:
+  - id: TASK-1
+    title: Add message window data APIs and tests
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+        - S-8
+        - S-9
+      acceptance_criteria:
+        - AC-1
+        - AC-5
+        - AC-8
+        - AC-9
+    expected_files:
+      - frontend/packages/ui/src/services/db/messageOperations.ts
+      - frontend/packages/ui/src/services/db.ts
+      - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    verification:
+      - T-VITEST-DB-WINDOWS
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Add shared-chat manifest and message window endpoints
+    covers:
+      scenarios:
+        - S-2
+      acceptance_criteria:
+        - AC-2
+    expected_files:
+      - backend/core/api/app/routes/share.py
+      - backend/tests/test_share_chat_window_loading.py
+      - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    verification:
+      - T-PYTEST-SHARE-WINDOW
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Split parent preview metadata from child/full content hydration
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-7
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-7
+    expected_files:
+      - frontend/packages/ui/src/services/embedStore.ts
+      - frontend/packages/ui/src/services/embedResolver.ts
+      - frontend/packages/ui/src/components/embeds/EmbedPreviewLarge.svelte
+      - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+      - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/*/*SearchEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+      - scripts/audit_embed_preview_hydration.py
+      - scripts/tests/test_audit_embed_preview_hydration.py
+    verification:
+      - T-VITEST-EMBED-PREVIEW-METADATA
+      - T-PYTEST-EMBED-PREVIEW-AUDIT
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Window ActiveChat and ChatHistory rendering
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+        - S-8
+        - S-9
+      acceptance_criteria:
+        - AC-1
+        - AC-5
+        - AC-8
+        - AC-9
+    expected_files:
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - frontend/apps/web_app/tests/scalable-chat-loading.spec.ts
+    verification:
+      - T-E2E-LARGE-CHAT-LOAD
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Make compression windows explicit and bounded
+    covers:
+      scenarios:
+        - S-9
+      acceptance_criteria:
+        - AC-9
+    expected_files:
+      - backend/core/api/app/routes/handlers/websocket_handlers/chat_compression_checkpoint_handler.py
+      - backend/tests/test_chat_compression_checkpoint_handler.py
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+    verification:
+      - T-PYTEST-COMPRESSION-WINDOW
+      - T-VITEST-DB-WINDOWS
+      - T-E2E-LARGE-CHAT-LOAD
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add message deep-link copy and target highlighting
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+    expected_files:
+      - frontend/packages/ui/src/services/deepLinkHandler.ts
+      - frontend/packages/ui/src/services/__tests__/deepLinkHandler.test.ts
+      - frontend/packages/ui/src/components/ChatMessage.svelte
+      - frontend/apps/web_app/tests/shared-chat-target-message.spec.ts
+    verification:
+      - T-VITEST-DEEP-LINK
+      - T-E2E-SHARED-TARGET-MESSAGE
+    independently_deployable: true
+
+risks:
+  - Windowed rendering can break scroll restoration if message heights change after embed previews hydrate.
+  - Deferring full embed hydration can expose missing preview metadata in older embeds that were created before lightweight preview fields existed; those previews must use parent-only fallback UI rather than child decryption fallback.
+  - Shared-chat endpoint changes must preserve non-enumeration behavior for missing/private chats.
+  - Large ref-index repair scans can reappear if inline embed links do not get lightweight ref metadata.
+    - E2E performance assertions must avoid brittle timing thresholds while still proving bounded work.
+    - Large-chat tests must use seeded/mocked messages and embeds; no test may trigger real AI inference to generate or process a 1000-message chat.
+    - Compression target-message links may require a server query by message id instead of timestamp-only paging to avoid loading many forgotten pages.
+
+open_questions:
+  - Which exact preview metadata schema should be standardized for each app/skill parent embed type?
+  - Should legacy embeds without preview metadata be upgraded lazily after explicit fullscreen/open, or only when the skill reruns?
+  - Should full ChatHistory virtualization be implemented immediately, or is bounded message-window rendering enough for the first deployable slice?
+  - Should shared-chat compression checkpoints be included in the new manifest response on day one, or should compressed shared chats use a backward-compatible full import until checkpoint windowing is added?

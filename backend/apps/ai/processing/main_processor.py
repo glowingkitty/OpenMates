@@ -2165,6 +2165,21 @@ async def handle_main_processing(
     if chat_depth < 2 and enable_subchats_results:
         available_tools_for_llm.append(start_sub_chats_tool)
         logger.info(f"{log_prefix} Added start_sub_chats tool to main LLM tools.")
+
+    if (
+        chat_depth == 0
+        and enable_subchats_results
+        and (
+            request_data.active_focus_id == "web-research"
+            or "web-research" in relevant_focus_modes
+        )
+    ):
+        if not request_data.active_focus_id:
+            request_data.active_focus_id = "web-research"
+        available_tools_for_llm = [start_sub_chats_tool]
+        logger.info(
+            f"{log_prefix} [SUB_CHAT] Deep research first-step gate: exposing only start_sub_chats to force delegated research."
+        )
     
     if chat_depth > 0:
         available_tools_for_llm.append(ask_user_input_tool)
@@ -3782,6 +3797,16 @@ async def handle_main_processing(
                             sub_chats_args,
                             max_template_items=MAX_DIRECT_SUB_CHATS_PER_PARENT if execution_mode != "sequential" else None,
                         )
+                        if (
+                            request_data.active_focus_id == "web-research"
+                            and execution_mode != "sequential"
+                            and len(spawned_sub_chats) > MAX_AUTO_SUB_CHATS_PER_TURN
+                        ):
+                            logger.info(
+                                f"{log_prefix} [SUB_CHAT] Deep research requested {len(spawned_sub_chats)} sub-chats; "
+                                f"capping to {MAX_AUTO_SUB_CHATS_PER_TURN} to stay within automatic approval limits."
+                            )
+                            spawned_sub_chats = spawned_sub_chats[:MAX_AUTO_SUB_CHATS_PER_TURN]
                         existing_sub_chat_count = await count_direct_sub_chats(directus_service, request_data.chat_id)
                         capacity_result = (
                             {"allowed": True, "remaining": None, "message": ""}
@@ -5059,13 +5084,10 @@ async def handle_main_processing(
                                                     "app_id": app_id,
                                                     "skill_id": skill_id
                                                 }
-                                                # Include query and provider from request_metadata for UI rendering
-                                                if request_metadata_with_provider.get("query"):
-                                                    embed_reference_payload["query"] = request_metadata_with_provider["query"]
-                                                if request_metadata_with_provider.get("provider"):
-                                                    embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
-                                                if request_metadata_with_provider.get("providers"):
-                                                    embed_reference_payload["providers"] = request_metadata_with_provider["providers"]
+                                                # Include user-visible request metadata for UI rendering.
+                                                for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                                                    if request_metadata_with_provider.get(key):
+                                                        embed_reference_payload[key] = request_metadata_with_provider[key]
                                                 updated_error_embed["embed_reference"] = json.dumps(embed_reference_payload)
                                                 updated_error_embed["request_id"] = request_id
                                                 updated_error_embed["request_metadata"] = request_metadata
@@ -5164,13 +5186,10 @@ async def handle_main_processing(
                                             "app_id": app_id,
                                             "skill_id": skill_id
                                         }
-                                        # Include query and provider from request_metadata for UI rendering
-                                        if request_metadata_with_provider.get("query"):
-                                            embed_reference_payload["query"] = request_metadata_with_provider["query"]
-                                        if request_metadata_with_provider.get("provider"):
-                                            embed_reference_payload["provider"] = request_metadata_with_provider["provider"]
-                                        if request_metadata_with_provider.get("providers"):
-                                            embed_reference_payload["providers"] = request_metadata_with_provider["providers"]
+                                        # Include user-visible request metadata for UI rendering.
+                                        for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                                            if request_metadata_with_provider.get(key):
+                                                embed_reference_payload[key] = request_metadata_with_provider[key]
                                         updated_embed_data["embed_reference"] = json.dumps(embed_reference_payload)
                                         updated_embed_data["request_id"] = request_id
                                         updated_embed_data["request_metadata"] = request_metadata

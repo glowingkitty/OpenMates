@@ -32,6 +32,10 @@ VAPID_CONTACT_EMAIL = os.getenv("VAPID_CONTACT_EMAIL", "admin@openmates.org")
 
 APNS_CHAT_CATEGORY = "OPENMATES_CHAT_MESSAGE"
 APNS_TIMEOUT_SECONDS = 10.0
+APNS_CHAT_MESSAGE_TITLE = "OpenMates"
+APNS_CHAT_MESSAGE_BODY = "New message received"
+APNS_ENCRYPTION_VERSION = "x25519-aesgcm-v1"
+APNS_ENCRYPTION_INFO = b"openmates-apns-notification-v1"
 
 
 class PushNotificationService:
@@ -195,7 +199,7 @@ class PushNotificationService:
         )
 
         try:
-            from pywebpush import webpush, WebPushException  # type: ignore[import]
+            from pywebpush import webpush  # type: ignore[import]
 
             webpush(
                 subscription_info=subscription_info,
@@ -271,9 +275,11 @@ class PushNotificationService:
         private_key = private_key.replace("\\n", "\n")
 
         host = "api.sandbox.push.apple.com" if os.getenv("APNS_USE_SANDBOX", "false").lower() == "true" else "api.push.apple.com"
+        alert_title = APNS_CHAT_MESSAGE_TITLE if category == APNS_CHAT_CATEGORY else title
+        alert_body = APNS_CHAT_MESSAGE_BODY if category == APNS_CHAT_CATEGORY else body
         payload = {
             "aps": {
-                "alert": {"title": title, "body": body},
+                "alert": {"title": alert_title, "body": alert_body},
                 "sound": "default",
                 "category": category,
                 "thread-id": chat_id or tag or "openmates-chat",
@@ -281,6 +287,10 @@ class PushNotificationService:
             "chat_id": chat_id,
             "category": category,
         }
+        encrypted_payload = self._build_encrypted_apns_payload(subscription_info, body)
+        if category == APNS_CHAT_CATEGORY and encrypted_payload:
+            payload["aps"]["mutable-content"] = 1
+            payload["encrypted_notification"] = encrypted_payload
 
         try:
             import httpx
@@ -314,6 +324,50 @@ class PushNotificationService:
             logger.error(f"[PushNotificationService] APNs delivery failed: {exc}", exc_info=True)
             return False
 
+    def _build_encrypted_apns_payload(self, subscription_info: dict, preview_text: str) -> Optional[dict]:
+        """Encrypt optional Apple notification preview text to the device public key."""
+        public_key_b64 = (subscription_info.get("notification_public_key") or "").strip()
+        encryption_version = (subscription_info.get("encryption_version") or APNS_ENCRYPTION_VERSION).strip()
+        if not public_key_b64 or encryption_version != APNS_ENCRYPTION_VERSION or not preview_text:
+            return None
+
+        try:
+            from cryptography.hazmat.primitives import hashes, serialization
+            from cryptography.hazmat.primitives.asymmetric import x25519
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+            device_public_key = x25519.X25519PublicKey.from_public_bytes(
+                _decode_base64url(public_key_b64)
+            )
+            ephemeral_private_key = x25519.X25519PrivateKey.generate()
+            shared_secret = ephemeral_private_key.exchange(device_public_key)
+            key = HKDF(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=None,
+                info=APNS_ENCRYPTION_INFO,
+            ).derive(shared_secret)
+            nonce = os.urandom(12)
+            plaintext = json.dumps(
+                {"preview": preview_text},
+                separators=(",", ":"),
+            ).encode("utf-8")
+            ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)
+            ephemeral_public_key = ephemeral_private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw,
+            )
+            return {
+                "version": APNS_ENCRYPTION_VERSION,
+                "ephemeral_public_key": _encode_base64url(ephemeral_public_key),
+                "nonce": _encode_base64url(nonce),
+                "ciphertext": _encode_base64url(ciphertext),
+            }
+        except Exception as exc:
+            logger.warning("[PushNotificationService] Could not encrypt APNs notification preview: %s", exc)
+            return None
+
     def _build_apns_jwt(self, team_id: str, key_id: str, private_key_pem: str) -> str:
         """Build the ES256 provider token APNs expects without adding a PyJWT dependency."""
         from cryptography.hazmat.primitives import hashes, serialization
@@ -341,3 +395,12 @@ class PushNotificationService:
 
 # Singleton — imported by routes and tasks
 push_notification_service = PushNotificationService()
+
+
+def _encode_base64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _decode_base64url(value: str) -> bytes:
+    padding = "=" * ((4 - len(value) % 4) % 4)
+    return base64.urlsafe_b64decode((value + padding).encode("ascii"))

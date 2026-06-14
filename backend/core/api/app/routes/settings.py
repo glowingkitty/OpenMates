@@ -29,6 +29,7 @@ from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
+from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -39,6 +40,57 @@ optional_api_key_scheme = HTTPBearer(
 
 router = APIRouter(prefix="/v1/settings", tags=["Settings"])
 logger = logging.getLogger(__name__)
+
+LLM_PROVIDER_ENV_KEYS = (
+    "SECRET__MISTRAL_AI__API_KEY",
+    "SECRET__CEREBRAS__API_KEY",
+    "SECRET__GROQ__API_KEY",
+    "SECRET__OPENAI__API_KEY",
+    "SECRET__ANTHROPIC__API_KEY",
+    "SECRET__GOOGLE_AI_STUDIO__API_KEY",
+    "SECRET__OPENROUTER__API_KEY",
+    "SECRET__TOGETHER__API_KEY",
+)
+
+LLM_PROVIDER_VAULT_PATHS = (
+    "kv/data/providers/mistral_ai",
+    "kv/data/providers/cerebras",
+    "kv/data/providers/groq",
+    "kv/data/providers/openai",
+    "kv/data/providers/anthropic",
+    "kv/data/providers/google_ai_studio",
+    "kv/data/providers/openrouter",
+    "kv/data/providers/together",
+)
+
+
+def _has_configured_secret_value(value: Optional[str]) -> bool:
+    return bool(value and value.strip() and value.strip() != "IMPORTED_TO_VAULT")
+
+
+async def _are_ai_models_configured(request: Request) -> bool:
+    """Return True when at least one server LLM provider key is configured."""
+    for env_key in LLM_PROVIDER_ENV_KEYS:
+        if _has_configured_secret_value(os.getenv(env_key)):
+            return True
+
+    secrets_manager = getattr(request.app.state, "secrets_manager", None)
+    if not secrets_manager:
+        return False
+
+    for vault_path in LLM_PROVIDER_VAULT_PATHS:
+        try:
+            value = await secrets_manager.get_secret(
+                secret_path=vault_path,
+                secret_key="api_key",
+            )
+        except Exception as exc:
+            logger.debug("Failed to check LLM provider key at %s: %s", vault_path, exc)
+            continue
+        if _has_configured_secret_value(value):
+            return True
+
+    return False
 
 # --- Define a simple success response model ---
 class SimpleSuccessResponse(BaseModel):
@@ -850,13 +902,12 @@ async def record_mates_consent(
 @router.post(
     "/auto-topup/low-balance",
     response_model=SimpleSuccessResponse,
-    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
 )
 @limiter.limit("30/minute")  # Prevent abuse of auto-topup settings
 async def update_low_balance_auto_topup(
     request: Request,
     request_data: AutoTopUpLowBalanceRequest,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
@@ -986,13 +1037,13 @@ class ApiKeyCreateRequest(BaseModel):
     expires_at: Optional[str] = None  # Optional expiration timestamp (ISO format)
 
 class ApiKeyResponse(BaseModel):
-    """Response model for API key information (encrypted fields excluded for REST API)"""
+    """Response model for API key information."""
     id: str
     created_at: Optional[str] = None  # Optional: Directus may return null on newly-created keys
     expires_at: Optional[str] = None
     last_used_at: Optional[str] = None
-    # Note: encrypted_name and encrypted_key_prefix are excluded from REST API responses
-    # These fields are only available via CLI tools that have decryption keys
+    encrypted_name: Optional[str] = None
+    encrypted_key_prefix: Optional[str] = None
 
 class ApiKeyListResponse(BaseModel):
     api_keys: list[ApiKeyResponse]
@@ -1003,12 +1054,11 @@ class ApiKeyListResponse(BaseModel):
 @router.get(
     "/api-keys",
     response_model=ApiKeyListResponse,
-    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
 )
 @limiter.limit("30/minute")
 async def get_api_keys(
     request: Request,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
@@ -1051,12 +1101,13 @@ async def get_api_keys(
                         else:
                             last_used_at = str(last_used_at)
                     
-                    # Exclude encrypted fields from REST API response (only available via CLI)
                     api_key_response = ApiKeyResponse(
                         id=key.get('id'),
                         created_at=created_at,
                         expires_at=expires_at,
-                        last_used_at=last_used_at
+                        last_used_at=last_used_at,
+                        encrypted_name=key.get('encrypted_name'),
+                        encrypted_key_prefix=key.get('encrypted_key_prefix')
                     )
                     api_keys.append(api_key_response)
                 except Exception as key_error:
@@ -1166,12 +1217,13 @@ async def create_api_key(
             else:
                 last_used_at = str(last_used_at)
         
-        # Exclude encrypted fields from REST API response (only available via CLI)
         return ApiKeyResponse(
             id=created_key.get('id', ''),
             created_at=created_at,
             expires_at=expires_at,
-            last_used_at=last_used_at
+            last_used_at=last_used_at,
+            encrypted_name=created_key.get('encrypted_name'),
+            encrypted_key_prefix=created_key.get('encrypted_key_prefix')
         )
 
     except HTTPException as e:
@@ -1253,12 +1305,11 @@ class DeviceListResponse(BaseModel):
 @router.get(
     "/api-key-devices",
     response_model=DeviceListResponse,
-    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
 )
 @limiter.limit("30/minute")
 async def get_api_key_devices(
     request: Request,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service)
 ):
     """
@@ -2030,7 +2081,7 @@ async def get_chat_entries(
 async def export_usage_csv(
     request: Request,
     months: int = 3,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
@@ -2143,12 +2194,11 @@ async def export_usage_csv(
 @router.get(
     "/billing",
     response_model=BillingOverviewResponse,
-    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
 )
 @limiter.limit("30/minute")
 async def get_billing_overview(
     request: Request,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
@@ -2156,7 +2206,7 @@ async def get_billing_overview(
     """
     Get billing overview for the current user.
     Returns current payment tier, auto top-up settings, and list of invoices.
-    Secured by API key validation (supports both session and API key authentication).
+    Secured by session authentication because billing data and invoices are account-sensitive.
     """
     logger.info(f"Fetching billing overview for user {current_user.id}")
     
@@ -2353,16 +2403,25 @@ async def get_billing_overview(
 # --- Endpoint for server status (payment enabled, server edition, etc.) ---
 class ServerStatusResponse(BaseModel):
     """Response model for server status endpoint"""
-    payment_enabled: bool
+    payment_enabled: Optional[bool] = None
     is_self_hosted: bool
     is_development: bool
     server_edition: str  # "production" | "development" | "self_hosted" (deprecated, use is_self_hosted)
     domain: Optional[str]  # Domain extracted from request (None for localhost)
+    ai_models_configured: bool = Field(
+        default=True,
+        description="Whether at least one server-side LLM provider key is configured.",
+    )
+    free_testing_credits: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Safe public Free testing promotion metadata for signup UI.",
+    )
 
 
 @router.get(
     "/server-status",
     response_model=ServerStatusResponse,
+    response_model_exclude_none=True,
     include_in_schema=False,  # Exclude from OpenAPI docs - internal endpoint for frontend
     dependencies=[Security(optional_api_key_scheme)]  # Public endpoint, but add security scheme for Swagger UI
 )
@@ -2371,10 +2430,10 @@ async def get_server_status(
     request: Request
 ):
     """
-    Get server status information including payment enablement and server edition.
+    Get server status information including server edition and self-host status.
     
     This is a public endpoint (no authentication required) that allows the frontend
-    to check if payment features should be displayed and what server edition is running.
+    to check which server edition is running.
     
     This endpoint uses request-based validation to determine if the server is self-hosted.
     It extracts the domain from the request headers (Origin or Host) and validates it
@@ -2382,8 +2441,8 @@ async def get_server_status(
     than environment variable-based detection alone.
     
     Returns:
-        ServerStatusResponse with payment_enabled, is_self_hosted, is_development, 
-        server_edition (deprecated), and domain
+        ServerStatusResponse with is_self_hosted, is_development, server_edition
+        (deprecated), domain, and cloud-only payment_enabled.
     """
     try:
         # Import server mode utilities
@@ -2402,14 +2461,30 @@ async def get_server_status(
         # This cannot be easily spoofed by environment variables
         is_self_hosted = is_self_hosted_from_request
         
-        # CRITICAL: If self-hosted (from request validation), payment is ALWAYS disabled
-        # This overrides any environment-based logic that might enable payment for localhost in dev mode
+        # Self-hosted responses intentionally omit cloud payment status. The UI hides
+        # billing from is_self_hosted instead of rendering a disabled payment state.
         if is_self_hosted:
-            payment_enabled = False
+            payment_enabled = None
         else:
             # Only check environment-based payment logic if NOT self-hosted
             payment_enabled = is_payment_enabled()
         
+        ai_models_configured = await _are_ai_models_configured(request)
+        free_testing_credits = None
+        directus_service = getattr(request.app.state, "directus_service", None)
+        cache_service = getattr(request.app.state, "cache_service", None)
+        encryption_service = getattr(request.app.state, "encryption_service", None)
+        if not is_self_hosted and directus_service and cache_service and encryption_service:
+            try:
+                free_testing_service = FreeTestingCreditsService(
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                )
+                free_testing_credits = await free_testing_service.get_public_promotion()
+            except Exception as promo_err:
+                logger.error("Failed to load free testing promotion metadata: %s", promo_err, exc_info=True)
+
         # Get server edition (for backward compatibility)
         server_edition = get_server_edition()
         
@@ -2421,6 +2496,7 @@ async def get_server_status(
             f"Server status requested: payment_enabled={payment_enabled}, "
             f"is_self_hosted={is_self_hosted} (from request), "
             f"is_development={is_development} (from request edition), "
+            f"ai_models_configured={ai_models_configured}, "
             f"request_edition={request_edition}, "
             f"server_edition={server_edition}, "
             f"request_domain={request_domain or 'localhost'}, "
@@ -2432,18 +2508,21 @@ async def get_server_status(
             is_self_hosted=is_self_hosted,
             is_development=is_development,
             server_edition=request_edition,  # Use request-based edition (more accurate)
-            domain=request_domain
+            domain=request_domain,
+            ai_models_configured=ai_models_configured,
+            free_testing_credits=free_testing_credits,
         )
         
     except Exception as e:
         logger.error(f"Error fetching server status: {str(e)}", exc_info=True)
         # Return safe defaults on error (assume self-hosted to be safe)
         return ServerStatusResponse(
-            payment_enabled=False,
+            payment_enabled=None,
             is_self_hosted=True,
             is_development=False,
             server_edition="self_hosted",
-            domain=None
+            domain=None,
+            ai_models_configured=False,
         )
 
 
@@ -2499,17 +2578,6 @@ class IssueReportRequest(BaseModel):
             "merge OTel trace spans into the log timeline."
         )
     )
-    agent_action: str = Field(
-        "none",
-        description=(
-            "Admin-only field controlling agent behavior on issue submission. "
-            "Values: 'none' (default, no agent), 'research' (codebase + web research only, "
-            "posts findings as comments), 'fix' (research + direct fix attempt). "
-            "Only honoured when the reporter is an authenticated admin user — "
-            "non-admin requests are silently ignored."
-        ),
-        pattern="^(none|research|fix)$",
-    )
     add_to_linear: bool = Field(
         True,
         description=(
@@ -2538,105 +2606,6 @@ class IssueReportResponse(BaseModel):
     # Surfaced synchronously so E2E tests can assert the screenshot path worked
     # without needing an admin API key.
     screenshot_uploaded: bool = False
-
-
-async def _trigger_agent_issue_investigation(
-    *,
-    request: Request,
-    issue_id: Optional[str],
-    issue_title: str,
-    issue_description: Optional[str],
-    chat_or_embed_url: Optional[str],
-    console_logs: Optional[str],
-    action_history: Optional[str],
-    screenshot_presigned_url: Optional[str],
-    agent_action: str = "fix",
-) -> None:
-    """
-    Fire-and-forget: ask the admin sidecar to start a Claude Code session
-    investigating this issue.
-
-    Args:
-        agent_action: 'research' for read-only analysis, 'fix' for full investigation + fix.
-
-    Called only when:
-    - The reporter is a verified admin user (``is_from_admin`` is True)
-    - ``issue_data.agent_action`` is 'research' or 'fix'
-
-    The sidecar runs on the host where claude is installed; the API runs inside
-    Docker, so we delegate via an authenticated HTTP call to
-    ``CORE_SIDECAR_URL/admin/claude-investigate``.
-
-    Architecture reference: docs/architecture/admin-console-log-forwarding.md
-    """
-    import aiohttp
-
-    core_sidecar_url = os.getenv("CORE_SIDECAR_URL", "").rstrip("/")
-    # The key is injected by Vault under the vault-prefixed name (same as settings_software_update.py)
-    core_sidecar_key = os.getenv("SECRET__CORE_SERVER__ADMIN_LOG_API_KEY", "")
-
-    if not core_sidecar_url:
-        logger.warning(
-            "[report_issue/agent] CORE_SIDECAR_URL not set — "
-            "cannot trigger claude investigation"
-        )
-        return
-
-    if not core_sidecar_key:
-        logger.warning(
-            "[report_issue/agent] SECRET__CORE_SERVER__ADMIN_LOG_API_KEY not set — "
-            "cannot authenticate with admin sidecar"
-        )
-        return
-
-    # Build a compact context block for the prompt
-    environment = os.getenv("SERVER_ENVIRONMENT", "development")
-    production_url = os.getenv("PRODUCTION_URL", "")
-    domain = production_url or "unknown domain"
-
-    payload = {
-        "issue_id": issue_id or "unknown",
-        "issue_title": issue_title,
-        "issue_description": issue_description or "",
-        "chat_or_embed_url": chat_or_embed_url or "",
-        "console_logs": (console_logs or "")[:10000],  # Trim to avoid huge prompts
-        "action_history": action_history or "",
-        "screenshot_presigned_url": screenshot_presigned_url or "",
-        "environment": environment,
-        "domain": domain,
-        "agent_action": agent_action,
-    }
-
-    endpoint = f"{core_sidecar_url}/admin/claude-investigate"
-    logger.info(
-        f"[report_issue/agent] Triggering claude investigation via sidecar: {endpoint} "
-        f"(issue_id={issue_id})"
-    )
-
-    try:
-        timeout = aiohttp.ClientTimeout(total=15)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(
-                endpoint,
-                json=payload,
-                headers={"X-Admin-Log-Key": core_sidecar_key},
-            ) as resp:
-                if resp.status == 202:
-                    logger.info(
-                        f"[report_issue/agent] Sidecar accepted investigation request "
-                        f"(issue_id={issue_id})"
-                    )
-                else:
-                    body = await resp.text()
-                    logger.warning(
-                        f"[report_issue/agent] Sidecar returned HTTP {resp.status} "
-                        f"for investigation request (issue_id={issue_id}): {body[:300]}"
-                    )
-    except Exception as exc:
-        logger.error(
-            f"[report_issue/agent] HTTP call to sidecar failed (issue_id={issue_id}): {exc}",
-            exc_info=True
-        )
 
 
 @router.post(
@@ -3168,28 +3137,6 @@ async def report_issue(
                 f"(admin toggle off)"
             )
 
-        # Admin-only: trigger agent investigation if requested.
-        # Only honoured when the reporter is a verified admin user.
-        if is_from_admin and issue_data.agent_action in ("research", "fix"):
-            try:
-                await _trigger_agent_issue_investigation(
-                    request=request,
-                    issue_id=issue_id,
-                    issue_title=sanitized_title,
-                    issue_description=sanitized_description,
-                    chat_or_embed_url=sanitized_url,
-                    console_logs=console_logs_str,
-                    action_history=action_history_str,
-                    screenshot_presigned_url=screenshot_presigned_url,
-                    agent_action=issue_data.agent_action,
-                )
-            except Exception as _agent_err:
-                # Never block the issue report response if agent trigger fails
-                logger.error(
-                    f"Failed to trigger agent investigation for issue {issue_id}: {_agent_err}",
-                    exc_info=True
-                )
-
         return IssueReportResponse(
             success=True,
             message="Issue report submitted successfully. Thank you for your feedback!",
@@ -3523,6 +3470,7 @@ class DeleteAccountRequest(BaseModel):
     auth_method: str  # "passkey", "2fa_otp", or "email_otp"
     auth_code: Optional[str] = None  # OTP code for 2FA/email, or credential_id for passkey
     email_encryption_key: Optional[str] = None  # Client-side email encryption key for sending refund emails during deletion
+    require_email_verification: bool = False  # CLI-only hardening: require recent email OTP in addition to auth_method
 
 
 async def _calculate_delete_account_preview(
@@ -4069,6 +4017,14 @@ async def delete_account(
         # Credits are automatically refunded (except gift card credits), so no separate confirmation needed
         if not delete_request.confirm_data_deletion:
             raise HTTPException(status_code=400, detail="Data deletion confirmation is required")
+
+        if delete_request.require_email_verification:
+            verified_key = f"action_verified:{user_id}:delete_account"
+            verified_status = await cache_service.get(verified_key)
+            if verified_status != "verified":
+                logger.warning(f"Required email OTP not verified for CLI account deletion: user {user_id}")
+                raise HTTPException(status_code=401, detail="Email verification required")
+            await cache_service.delete(verified_key)
         
         # Validate authentication
         if delete_request.auth_method == "passkey":
@@ -4111,13 +4067,14 @@ async def delete_account(
             # The /verify-action-code endpoint stores a short-lived token in cache
             # when the code is successfully verified.
             verified_key = f"action_verified:{user_id}:delete_account"
-            verified_status = await cache_service.get(verified_key)
+            verified_status = "verified" if delete_request.require_email_verification else await cache_service.get(verified_key)
             if verified_status != "verified":
                 logger.warning(f"Email OTP not verified for account deletion: user {user_id}")
                 raise HTTPException(status_code=401, detail="Email verification required")
 
             # Delete the verified token so it can't be reused
-            await cache_service.delete(verified_key)
+            if not delete_request.require_email_verification:
+                await cache_service.delete(verified_key)
             logger.info(f"Email OTP authentication verified for account deletion: user {user_id}")
         else:
             raise HTTPException(status_code=400, detail="Invalid authentication method")

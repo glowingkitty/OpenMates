@@ -12,9 +12,14 @@ from pydantic import BaseModel, Field, field_validator
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_cache_service
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_cache_service, get_encryption_service
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
+from backend.core.api.app.routes.websockets import manager as ws_manager
+from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.utils.server_mode import validate_request_domain
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +109,65 @@ class AdminGiftCardListResponse(BaseModel):
     success: bool
     gift_cards: List[AdminGiftCardItem]
     count: int
+
+
+class FreeTestingBudgetRequest(BaseModel):
+    """Admin request for configuring the Free testing credit budget."""
+
+    enabled: bool = Field(default=False)
+    total_budget_credits: int = Field(default=0, ge=0, le=100_000_000)
+    per_user_grant_credits: int = Field(default=1000, ge=0, le=1_000_000)
+
+
+class FreeTestingBudgetResponse(BaseModel):
+    """Admin-visible Free testing credit budget state."""
+
+    enabled: bool
+    total_budget_credits: int
+    used_budget_credits: int
+    remaining_budget_credits: int
+    per_user_grant_credits: int
+    active: bool
+    exhausted: bool
+    exhausted_email_sent_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+def _free_testing_budget_response(status) -> FreeTestingBudgetResponse:
+    return FreeTestingBudgetResponse(
+        enabled=status.enabled,
+        total_budget_credits=status.total_budget_credits,
+        used_budget_credits=status.used_budget_credits,
+        remaining_budget_credits=status.remaining_budget_credits,
+        per_user_grant_credits=status.per_user_grant_credits,
+        active=status.active,
+        exhausted=status.exhausted,
+        exhausted_email_sent_at=status.exhausted_email_sent_at,
+        updated_at=status.updated_at,
+    )
+
+
+def _build_free_testing_service(
+    directus_service: DirectusService,
+    cache_service: CacheService,
+    encryption_service: EncryptionService,
+) -> FreeTestingCreditsService:
+    return FreeTestingCreditsService(
+        directus_service=directus_service,
+        cache_service=cache_service,
+        encryption_service=encryption_service,
+        websocket_manager=ws_manager,
+        celery_app=celery_app,
+    )
+
+
+def _require_official_cloud(request: Request) -> None:
+    _, is_self_hosted, _ = validate_request_domain(request)
+    if is_self_hosted:
+        raise HTTPException(
+            status_code=404,
+            detail="Feature not available on this server edition",
+        )
 
 # --- Endpoints ---
 
@@ -230,6 +294,46 @@ async def get_server_stats(
         raise HTTPException(status_code=500, detail="Failed to fetch server statistics")
 
 
+@router.get("/free-testing-credits-budget", response_model=FreeTestingBudgetResponse)
+@limiter.limit("30/minute")
+async def get_free_testing_credits_budget(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> FreeTestingBudgetResponse:
+    """Return admin-visible Free testing credit budget state."""
+    _require_official_cloud(request)
+    service = _build_free_testing_service(directus_service, cache_service, encryption_service)
+    return _free_testing_budget_response(await service.get_budget_status())
+
+
+@router.put("/free-testing-credits-budget", response_model=FreeTestingBudgetResponse)
+@limiter.limit("10/minute")
+async def update_free_testing_credits_budget(
+    request: Request,
+    payload: FreeTestingBudgetRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> FreeTestingBudgetResponse:
+    """Create or update the Free testing credit budget."""
+    _require_official_cloud(request)
+    service = _build_free_testing_service(directus_service, cache_service, encryption_service)
+    try:
+        status = await service.save_budget(
+            enabled=payload.enabled,
+            total_budget_credits=payload.total_budget_credits,
+            per_user_grant_credits=payload.per_user_grant_credits,
+            admin_user_id=admin_user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _free_testing_budget_response(status)
+
+
 # --- Gift Card Code Generation ---
 # Charset: uppercase letters (excluding ambiguous O, I) + digits (excluding ambiguous 0, 1)
 # This matches the canonical charset used in payments.py for consistency
@@ -286,6 +390,7 @@ async def admin_generate_gift_cards(
     Security: Protected by require_admin dependency which validates
     the user is in the server_admins collection with is_active=True.
     """
+    _require_official_cloud(request)
     try:
         generated_cards: List[Dict[str, Any]] = []
         max_retries = 3  # Max retries per code in case of collision
@@ -388,6 +493,7 @@ async def admin_list_gift_cards(
 
     Security: Protected by require_admin dependency.
     """
+    _require_official_cloud(request)
     try:
         cards = await directus_service.get_all_gift_cards()
 

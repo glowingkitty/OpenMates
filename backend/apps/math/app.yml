@@ -52,6 +52,14 @@ embed_types:
     icon: function
     gradient_var: "--color-app-math"
     i18n_namespace: embeds.math.plot
+    content_catalog:
+      enabled: true
+      content_type_id: plot
+      name: Plot
+      description: Function plots and chart-like math visualizations generated from explicit plot specs.
+      icon: function
+      example_key: math.plot
+      order: 10
     content_fields:
       - name: plot_spec
         type: string

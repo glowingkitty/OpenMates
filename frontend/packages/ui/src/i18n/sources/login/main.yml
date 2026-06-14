@@ -296,6 +296,30 @@ auto_logout_notification.message:
   sv: Aktivera "Förbli inloggad" vid inloggning för att förhindra detta.
   he: 'יש להפעיל את האפשרות "הישאר מחובר" במהלך ההתחברות כדי למנוע זאת.'
   verified_by_human: []
+auto_logout_notification.login_again_action:
+  context: CTA button label in the auto-logout notification that opens login with stay-logged-in enabled
+  en: Login again
+  de: Erneut einloggen
+  zh: 重新登录
+  es: Iniciar sesión de nuevo
+  fr: Se reconnecter
+  pt: Entrar novamente
+  ru: Войти снова
+  ja: もう一度ログイン
+  ko: 다시 로그인
+  it: Accedi di nuovo
+  tr: Tekrar giriş yap
+  vi: Đăng nhập lại
+  id: Login lagi
+  pl: Zaloguj ponownie
+  nl: Opnieuw inloggen
+  ar: تسجيل الدخول مرة أخرى
+  hi: फिर से लॉग इन करें
+  th: เข้าสู่ระบบอีกครั้ง
+  cs: Přihlásit se znovu
+  sv: Logga in igen
+  he: התחבר שוב
+  verified_by_human: []
 auto_logout_notification.storage_evicted_title:
   context: Title for the auto-logout notification when the browser unexpectedly cleared local storage (e.g. Safari on iOS evicted IndexedDB data). Different from the normal auto-logout which is caused by not enabling 'stay logged in'.
   en: Session expired

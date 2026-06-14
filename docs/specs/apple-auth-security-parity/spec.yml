@@ -1,0 +1,206 @@
+id: apple-auth-security-parity
+title: Apple Auth Recovery And Security Web Spec Parity
+status: implementing
+
+goal: >
+  Recreate the web app's auth, recovery, and security Playwright coverage in
+  the Apple app so native login/signup/account recovery behavior matches the web
+  contracts while using OS-owned authentication dialogs only where they are the
+  correct native product boundary.
+
+scope:
+  in:
+    - Native parity for signup, login, passkey, password plus OTP, 2FA reconnect, recovery key, backup code, account recovery, and session revoke flows.
+    - Native settings parity for recovery key, backup code, change email, API key management, security/location messaging, and unauthenticated app load states.
+    - Remote Mac XCTest verification against simulator-safe seeded flows and live dev account flows where required.
+  out:
+    - Changing backend auth policy, passkey cryptography, recovery semantics, or billing entitlement rules.
+    - Committing private credentials, passkeys, recovery keys, backup codes, screenshots with private data, hostnames, IPs, or local Mac paths.
+    - Replacing OS-owned passkey or permission dialogs with custom product UI.
+
+context_discovery:
+  docs:
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/architecture/apple/web-spec-recreation-gap-audit.md
+  code_patterns:
+    - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/EmailLookupView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasskeyLoginView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/SignupFlowView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/AccountRecoveryView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/RecoveryKeyView.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/BackupCodeView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - scripts/apple_remote.py
+  tests:
+    - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-codes-settings.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-settings.spec.ts
+    - frontend/apps/web_app/tests/settings-change-email.spec.ts
+    - frontend/apps/web_app/tests/signup-2fa-reconnect-preview.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Auth/Views/*.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+    - apple/OpenMatesTests/AuthSecurityParityTests.swift
+  parity_expectations:
+    - Apple auth screens use OpenMates primitives and generated tokens for product UI.
+    - Passkey and permission prompts remain OS-owned, but the surrounding flow and error states match web intent.
+    - Recovery and backup artifacts are never logged or committed as test evidence.
+  verification:
+    - Remote Mac build through `python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"`.
+    - Remote Mac XCTest through `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/AuthSecurityParityUITests`.
+    - Unit tests through `python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/AuthSecurityParityTests`.
+  intentional_native_differences:
+    - Apple may use `ASAuthorizationController` for passkeys and platform credential prompts.
+    - Native Keychain state replaces browser local storage but must preserve the same security outcomes.
+
+scenarios:
+  - id: S-1
+    title: Signup and login flows match web outcomes
+    given:
+      - A simulator starts from a clean app container.
+    when:
+      - The Apple auth UI runs seeded and live-dev signup/login paths equivalent to the web specs.
+    then:
+      - The user reaches the same authenticated app states, validation errors, reconnect prompts, and unauthenticated fallbacks as web.
+      - Product UI uses OpenMates controls and stable accessibility identifiers for every asserted step.
+  - id: S-2
+    title: Recovery and backup flows preserve web security semantics
+    given:
+      - A test account has recovery key and backup code setup paths available.
+    when:
+      - Apple creates, displays, verifies, regenerates, and uses recovery/backup credentials through simulator-safe flows.
+    then:
+      - Recovery credentials are shown only at the same explicit confirmation moments as web.
+      - Apple stores secrets only in approved secure storage and never writes raw credentials to logs, screenshots, fixtures, or committed docs.
+  - id: S-3
+    title: Security settings and account actions match web behavior
+    given:
+      - A logged-in user opens native settings.
+    when:
+      - The user changes email, manages sessions/dev API keys, and sees location/security messaging.
+    then:
+      - Apple shows equivalent success, validation, and permission states.
+      - Session revocation and API key actions synchronize with backend state visible to web.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple signup/login tests recreate the covered web auth states with native accessibility identifiers and no default product chrome.
+  - id: AC-2
+    scenario: S-2
+    text: Apple recovery and backup tests prove equivalent security semantics without leaking recovery materials into artifacts.
+  - id: AC-3
+    scenario: S-3
+    text: Apple security/account settings tests prove change email, session/API-key management, and security messaging match web outcomes.
+
+tests:
+  - id: T-UNIT-001
+    type: unit
+    file: apple/OpenMatesTests/AuthSecurityParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/AuthSecurityParityTests
+    covers:
+      - AC-1
+    assertions:
+      - Auth flow reset clears account-specific and sensitive lookup state.
+      - Switching to another account preserves mode while clearing account-specific state.
+      - The test uses synthetic values only and does not persist credentials, recovery materials, or private account data.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
+  - id: T-UNIT-002
+    type: unit
+    file: apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/AuthSecurityParityUITests
+    covers:
+      - AC-1
+    assertions:
+      - Unauthenticated auth entry exposes native login and signup tabs.
+      - The test starts from a clean simulator app container before auth flows.
+      - Screenshots contain only unauthenticated UI and no account data.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: apple-remote-iphone17-e282
+        timestamp: "2026-06-10"
+  - id: T-MANUAL-003
+    type: manual
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - Recovery key, backup code, and account recovery parity still need dedicated Apple tests with sanitized fixtures.
+      - Change email, session management, API-key management, and security messaging still need dedicated Apple tests.
+      - Raw recovery materials, API keys, session identifiers, private emails, and screenshots with private data must remain out of committed evidence.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+
+tasks:
+  - id: TASK-1
+    title: Add auth/security Apple testability identifiers and seeded fixtures
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+      - apple/OpenMatesTests/AuthSecurityParityTests.swift
+    verification:
+      - T-UNIT-001
+      - T-UNIT-002
+    independently_deployable: true

@@ -1,45 +1,49 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-creators-program-source
+    type: unit
+    claim: Creator program guidance is grounded in the current creator tip API.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-creators-program-source
 ---
 
 # Creators Program
 
-> Content creators earn credits when their websites or videos are used through OpenMates. No signup is needed to start earning -- credits are reserved automatically.
+> Creator tipping lets users send credits to website or video creators. The current implemented API stores creator income against privacy-preserving owner hashes.
 
 ## What It Does
 
-When you use OpenMates to read a website or get a video transcript, a portion of the credits charged goes to the content creator. This happens automatically in the background.
+OpenMates includes a creator-tip API for sending credits to a website owner or video creator. Creator tips require the cloud payment system and are not available in self-hosted mode.
 
 ## How Revenue Sharing Works
 
 ### Supported Activities
 
-| Activity | Total cost | Creator gets | Platform share |
-|----------|-----------|-------------|----------------|
-| **Read a website** | 20 credits | 10 credits (50%) | 10 credits (50%) |
-| **Get a video transcript** | 20 credits | 9 credits (45%) | 11 credits (55%)* |
-
-*For video transcripts, 1 credit (5%) is reserved for the video platform (such as YouTube) and 10 credits (50%) cover OpenMates operating costs.
+The implemented creator endpoint accepts website or video creator identifiers and a positive credit amount. 100% of the tipped credits are assigned to the creator income entry; there is no platform fee on the tip itself.
 
 ### How It Works
 
-1. **Automatic tracking**: When your team mate reads a website or transcribes a video, the creator's content is noted (anonymously -- no user data is stored).
-2. **Credits are reserved**: The creator's share is set aside immediately.
-3. **Claiming (coming soon)**: Creators will be able to sign up, verify ownership of their content, and claim their reserved credits.
+1. **Creator identifier**: The website domain or video channel identifier is hashed before storage.
+2. **Credits are deducted**: The tip amount is charged to the user through the billing service.
+3. **Creator income entry**: The tip is recorded for the creator to claim when creator account flows are available.
 
 ## For Content Creators
 
 ### What Is Happening Now
 
-Your content is already being tracked and credits are being reserved when OpenMates users interact with it. No action is needed from you at this stage.
+Creator tips can be recorded for website or video owner identifiers. Public creator account and claim flows are still evolving.
 
 ### What Is Coming
 
 - **Creator accounts**: Sign up and verify that you own a website or YouTube channel.
 - **Claim your credits**: Once verified, all reserved credits transfer to your account.
 - **Dashboard**: View statistics about how your content is being used (aggregated, no individual user data).
-- **6-month window**: Credits remain available to claim for 6 months. Unclaimed credits go to the Youth and Education Fund.
+- **Claim policies**: Claim windows and unclaimed-credit handling will be documented when the creator account flow is available.
 
 ### Verification Methods
 
@@ -61,11 +65,10 @@ A tipping feature is planned that will let you send credits directly to creators
 
 ## Privacy
 
-- All tracking is anonymous. No user information is linked to content usage.
-- Creators can see totals and statistics but never individual user details.
-- Creator identifiers are anonymised before storage.
+- Creator owner identifiers are hashed before storage.
+- Creator tips use billing records for the tipping user, but creator income entries are keyed by the hashed owner identifier.
 
 ## Related
 
-- [Pricing](pricing.md) -- How credits work
-- [Usage & Billing](usage-and-billing.md) -- Your credit usage
+- [Pricing](billing/pricing.md) -- How credits work
+- [Usage & Billing](billing/usage.md) -- Your credit usage

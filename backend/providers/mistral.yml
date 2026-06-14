@@ -105,18 +105,18 @@ models:
         currency: USD
         max_context: 128000
 
-  - id: "mistral-medium-latest" # Official model ID
-    name: "Mistral Medium"
+  - id: "mistral-medium-latest" # Official alias — currently Mistral Medium 3.5
+    name: "Mistral Medium 3.5"
     description: >-
-      State-of-the-art performance. Simplified enterprise deployments.
-      Cost-efficient.
+      Mistral AI's frontier-class multimodal model optimized for agentic and
+      coding use cases. Released as open weights under a Modified MIT license.
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2025-05-01" # Model release date (Mistral Medium 3.1 release)
+    release_date: "2026-04-28" # Mistral Medium 3.5 release date
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "mistral-medium-3.1"
-      openrouter: "mistralai/mistral-medium-3.1"
+      lmarena: "mistral-medium-3.5"
+      openrouter: "mistralai/mistral-medium-3-5"
     input_types:
       - text
       - image
@@ -126,27 +126,32 @@ models:
     servers:
       - id: "mistral"
         name: "Mistral"
-        model_id: "mistral-medium-latest" # Direct Mistral API model ID
+        model_id: "mistral-medium-latest" # Direct Mistral API alias
         region: "EU" # Server region for UI display (Mistral is EU-based)
       - id: "openrouter"
         name: "OpenRouter"
-        model_id: "mistralai/mistral-medium-3.1" # OpenRouter model identifier
+        model_id: "mistralai/mistral-medium-3-5" # OpenRouter model identifier
         region: "US" # Server region for UI display
     pricing:
       tokens:
         input:
-          per_credit_unit: 850 # 1 credit per 850 input tokens
+          per_credit_unit: 220 # 1 credit per ~220 input tokens ($1.50/M)
         output:
-          per_credit_unit: 170 # 1 credit per 170 output tokens
+          per_credit_unit: 45 # 1 credit per ~45 output tokens ($7.50/M)
     costs:
       input_per_million_token:
-        price: 0.40
+        price: 1.50
         currency: USD
-        max_context: 128000
+        max_context: 256000
       output_per_million_token:
-        price: 2.00
+        price: 7.50
         currency: USD
-        max_context: 128000
+        max_context: 256000
+    features:
+      max_output_tokens: 128000
+      tool_use: true
+      streaming: true
+      agents: true
 
   - id: "ministral-8b-2512" # Official model ID - Ministral 3 8B
     name: "Ministral 3 8B"

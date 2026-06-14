@@ -15,7 +15,7 @@ const defaultProps = {
     embedData: { status: 'finished' },
     decodedContent: {
       query: 'vegetarische Pasta',
-      provider: 'REWE',
+      provider: 'Edamam',
       status: 'finished',
       results: [
         {
@@ -85,7 +85,7 @@ export const variants = {
       decodedContent: {
         ...defaultProps.data.decodedContent,
         status: 'error',
-        error: 'REWE recipe API returned an error',
+        error: 'Edamam recipe API returned an error',
         results: []
       }
     } as unknown as EmbedFullscreenRawData

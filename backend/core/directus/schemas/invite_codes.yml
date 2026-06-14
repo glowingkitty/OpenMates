@@ -32,4 +32,4 @@ invite_codes:
     is_admin:
       type: boolean
       default: false
-      note: "If true, user becomes a server admin when using this code"
+      note: "Legacy metadata only. Invite codes do not grant admin privileges; use openmates server make-admin."

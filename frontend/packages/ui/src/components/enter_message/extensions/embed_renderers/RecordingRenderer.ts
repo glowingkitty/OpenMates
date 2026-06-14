@@ -49,6 +49,7 @@ import { get } from "svelte/store";
 import RecordingEmbedPreview from "../../../embeds/audio/RecordingEmbedPreview.svelte";
 import { authStore } from "../../../../stores/authStore";
 import { embedStore } from "../../../../services/embedStore";
+import { resolveEmbed } from "../../../../services/embedResolver";
 
 // Track mounted Svelte components for cleanup (keyed by the DOM element)
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -126,6 +127,13 @@ export class RecordingRenderer implements EmbedRenderer {
       return embedStore
         .get(attrs.contentRef)
         .then(async (embedData) => {
+          if (!embedData || typeof embedData === "string" || !embedData["content"]) {
+            const resolved = await resolveEmbed(attrs.contentRef!);
+            if (resolved?.content) {
+              embedData = { content: resolved.content };
+            }
+          }
+
           if (!embedData || typeof embedData === "string" || !embedData["content"]) {
             // EmbedStore miss — try requesting from server (non-blocking WebSocket)
             console.warn(
@@ -329,8 +337,10 @@ export class RecordingRenderer implements EmbedRenderer {
         );
       };
 
-      // Read auth state from authStore (same pattern as ImageRenderer.ts)
-      const isAuthenticated = get(authStore).isAuthenticated;
+      // Read-only recordings in shared chats already decrypted their embed
+      // payload from the share key, so transcript display must not depend on a
+      // logged-in upload session. Keep the auth gate for live editor uploads.
+      const isAuthenticated = get(authStore).isAuthenticated || !isEditable;
 
       const component = mount(RecordingEmbedPreview, {
         target: content,

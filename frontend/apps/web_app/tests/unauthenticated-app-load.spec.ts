@@ -304,6 +304,80 @@ test.describe('Unauthenticated app load', () => {
 		expect(thirdPhrase).toBe('Cycling inspiration one');
 	});
 
+	test('daily inspiration banner navigates with arrows and touch swipes on mobile', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
+			const originalFetch = window.fetch.bind(window);
+			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+				if (url.includes('/v1/default-inspirations')) {
+					return new Response(JSON.stringify({ inspirations }), {
+						status: 200,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				}
+				return originalFetch(input, init);
+			};
+		}, CYCLING_INSPIRATIONS);
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+
+		await page.getByTestId('new-chat-cta-fullwidth').click();
+
+		const banner = page.getByTestId('daily-inspiration-banner').first();
+		const phrase = page.getByTestId('daily-inspiration-phrase');
+		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 15000 });
+
+		const bannerBox = await banner.boundingBox();
+		expect(bannerBox, 'Daily inspiration banner must have bounds for gesture tests').toBeTruthy();
+
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
+
+		await page.getByTestId('daily-inspiration-previous').click();
+		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+
+		const centerY = bannerBox!.y + bannerBox!.height / 2;
+		await banner.dispatchEvent('touchstart', {
+			touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
+			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
+		});
+		await banner.dispatchEvent('touchmove', {
+			touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
+			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
+		});
+		await banner.dispatchEvent('touchend', {
+			touches: [],
+			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
+		});
+		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
+
+		await banner.dispatchEvent('touchstart', {
+			touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
+			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
+		});
+		await banner.dispatchEvent('touchmove', {
+			touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
+			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
+		});
+		await banner.dispatchEvent('touchend', {
+			touches: [],
+			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
+		});
+		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+		expect(page.url(), 'Carousel navigation should not start a chat').not.toContain('chat-id=');
+	});
+
 	test('daily inspiration banner auto-rotates for unauthenticated users', async ({
 		page
 	}: {

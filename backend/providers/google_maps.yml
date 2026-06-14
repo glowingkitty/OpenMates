@@ -6,7 +6,7 @@
 provider_id: "google_maps"
 name: "Google Maps"
 description: "Google Maps Platform Places API for location-based search and place information."
-logo_svg: "logos/google_maps.svg" # Path for UI, relative to a common logos directory
+logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
 region: "US" # Google Maps Platform HQ is in the US
 privacy_policy: "https://privacy.google.com/"
 

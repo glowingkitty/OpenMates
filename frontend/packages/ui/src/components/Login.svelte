@@ -39,6 +39,7 @@
     } from '../utils/chunkErrorHandler';
     import { notificationStore } from '../stores/notificationStore';
     import { setLastAuthMethod } from '../utils/lastAuthMethod';
+    import { loginStayLoggedInRequested } from '../stores/uiStateStore';
 
     /** PRF extension results from WebAuthn client */
     interface PRFExtensionResults {
@@ -2051,7 +2052,16 @@
 
     // Derive the main view from the signup process state. This is more robust against race conditions using $derived (Svelte 5 runes mode)
     let currentView = $derived($isInSignupProcess ? 'signup' : 'login');
-    
+
+    $effect(() => {
+        if ($loginStayLoggedInRequested && currentView === 'login' && !$authStore.isAuthenticated) {
+            stayLoggedIn = true;
+            currentLoginStep = 'email';
+            showForm = true;
+            loginStayLoggedInRequested.set(false);
+        }
+    });
+
     // Determine if tabs should be visible
     // Tabs should only be visible on login screen or during alpha disclaimer and basics steps
     // Once user reaches confirm email step, tabs should be hidden

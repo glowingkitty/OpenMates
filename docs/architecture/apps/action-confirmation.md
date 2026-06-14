@@ -2,8 +2,38 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/api/app/routes/apps_api.py
+- backend/apps/base_skill.py
+claims:
+- id: arch-apps-action-confirmation-behavior
+  type: unit
+  claim: Action Confirmation is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/routes/apps_api.py
   - backend/apps/base_skill.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-apps-action-confirmation-behavior
+  verified: '2026-06-11'
+- id: arch-apps-action-confirmation-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-action-confirmation-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/base_skill.py
+- id: arch-apps-action-confirmation-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-action-confirmation-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/apps_api.py
+- id: arch-apps-action-confirmation-manual-3
+  type: manual
+  reason: 'Tiny architecture note: source-file existence claims cover the implemented anchor surface; deeper behavior remains
+    covered by linked canonical docs.'
 ---
 
 # Action Confirmation
@@ -62,4 +92,4 @@ Confirmation requirements defined per skill in app configuration. Users can over
 ## Related Docs
 
 - [REST API](./rest-api.md) -- API endpoints and authentication
-- [CLI Package](./cli-package.md) -- SDK access patterns
+- [CLI Package](../platforms/cli-package.md) -- SDK access patterns

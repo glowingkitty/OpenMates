@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-debug-tools-source
+    type: unit
+    claim: Debug tool guidance is grounded in browser debug utility sources.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-debug-tools-source
 ---
 
 # Debug Tools

@@ -19,6 +19,7 @@ import os
 import io
 import json
 import time
+from contextlib import contextmanager
 from typing import Any, Dict
 
 import httpx
@@ -104,6 +105,22 @@ def api_client():
         event_hooks={"response": [log_response]},
     ) as client:
         yield client
+
+
+@pytest.fixture
+def doc_assert():
+    """Mark a pytest assertion block as backing a documentation claim.
+
+    The docs claim verifier only needs the hardcoded `doc_assert("claim-id")`
+    marker to exist in a test file. The runtime helper returns a no-op context
+    manager so tests can either call it before assertions or wrap a block.
+    """
+
+    @contextmanager
+    def _marker(_claim_id: str):
+        yield
+
+    return _marker
 
 
 # ─── Task Polling Helper ─────────────────────────────────────────────────────

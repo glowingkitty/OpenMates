@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "surface": "message-input",
+  "generatedAt": "2026-06-09T00:00:00Z",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Focused authenticated message composer before attachments.",
+      "elements": [
+        {
+          "semanticId": "message-field",
+          "testId": "message-field",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": ["message-editor", "action-buttons"]
+          },
+          "computedStyle": {
+            "border-radius": "24px"
+          },
+          "boundingBox": {
+            "width": 358,
+            "height": 100
+          }
+        },
+        {
+          "semanticId": "message-editor",
+          "testId": "message-editor",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": []
+          },
+          "computedStyle": {
+            "font-size": "16px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "focused",
+      "description": "Focused composer with action buttons visible.",
+      "elements": [
+        {
+          "semanticId": "record-audio-button",
+          "testId": "record-audio-button",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": []
+          },
+          "computedStyle": {
+            "display": "block"
+          }
+        }
+      ]
+    },
+    {
+      "id": "image-pending-embed",
+      "description": "Composer with uploaded image pending embed preview.",
+      "elements": [
+        {
+          "semanticId": "pending-composer-embed",
+          "testId": "embed-full-width-wrapper",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": []
+          },
+          "computedStyle": {
+            "border-radius": "30px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "file-pending-embed",
+      "description": "Composer with uploaded file/code pending embed preview.",
+      "elements": [
+        {
+          "semanticId": "pending-composer-embed",
+          "testId": "embed-full-width-wrapper",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": []
+          },
+          "computedStyle": {
+            "border-radius": "30px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "recording-overlay",
+      "description": "Press-and-hold audio recording overlay.",
+      "elements": [
+        {
+          "semanticId": "record-overlay",
+          "testId": "record-overlay",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": ["release-text", "timer-pill", "cancel-hint", "mic-button"]
+          },
+          "computedStyle": {
+            "border-radius": "24px"
+          }
+        },
+        {
+          "semanticId": "release-text",
+          "testId": "release-text",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": []
+          },
+          "computedStyle": {
+            "font-weight": "700"
+          }
+        },
+        {
+          "semanticId": "timer-pill",
+          "testId": "timer-pill",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": []
+          },
+          "computedStyle": {
+            "border-radius": "20px"
+          }
+        },
+        {
+          "semanticId": "cancel-hint",
+          "testId": "cancel-hint",
+          "required": true,
+          "severity": "fail",
+          "exists": true,
+          "structure": {
+            "childTestIds": []
+          },
+          "computedStyle": {
+            "opacity": "0.7"
+          }
+        }
+      ]
+    }
+  ]
+}

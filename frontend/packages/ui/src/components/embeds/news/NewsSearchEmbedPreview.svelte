@@ -111,7 +111,6 @@
   let localResults = $state<NewsSearchResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  let isLoadingChildren = $state(false);
 
   // Initialize local state from props
   $effect(() => {
@@ -166,89 +165,6 @@
         localSkillTaskId = content.skill_task_id;
       }
       
-      // CRITICAL FIX: When status is "finished" and we have embed_ids but no results,
-      // load child embeds asynchronously to get favicon data for preview display.
-      // This handles the architecture where parent embed only stores references.
-      if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || content.results.length === 0)) {
-        const embedIds = content.embed_ids;
-        if (embedIds) {
-          // Parse embed_ids (can be pipe-separated string or array)
-          const childEmbedIds: string[] = typeof embedIds === 'string'
-            ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
-            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
-          
-          if (childEmbedIds.length > 0 && !isLoadingChildren) {
-            console.debug(`[NewsSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
-            isLoadingChildren = true;
-            loadChildEmbedsForPreview(childEmbedIds);
-          }
-        }
-      }
-    }
-  }
-  
-  /**
-   * Load child embeds to extract favicon data for preview display
-   * Uses retry logic because child embeds might not be persisted yet
-   * (they arrive via websocket after the parent embed)
-   */
-  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
-    try {
-      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
-      
-      // Use retry logic with shorter timeout for preview (we just need a few favicons)
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
-      
-      if (childEmbeds.length > 0) {
-        // Transform child embeds to NewsSearchResult format (just need basic data for favicons)
-        const results = await Promise.all(childEmbeds.map(async (embed) => {
-          const content = embed.content ? await decodeToonContent(embed.content) : null;
-          if (!content) return null;
-          
-          // Extract favicon URL from multiple possible field formats:
-          // 1. meta_url_favicon: TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
-          // 2. meta_url.favicon: Nested format (raw API or non-TOON encoded)
-          // 3. favicon: Direct field (processed backend format)
-          // 4. favicon_url: Alternative flat format
-          const faviconUrl = 
-            content.meta_url_favicon ||  // TOON flattened format (most common for stored embeds)
-            (content.meta_url as { favicon?: string } | undefined)?.favicon ||  // Nested format
-            content.favicon || 
-            content.favicon_url ||
-            '';
-          
-          // DEBUG: Log what we extracted to help diagnose issues
-          if (childEmbeds.indexOf(embed) < 3) {
-            console.debug(`[NewsSearchEmbedPreview] Child embed favicon extraction:`, {
-              embedId: embed.embed_id,
-              title: content.title?.substring(0, 30),
-              meta_url_favicon: content.meta_url_favicon,
-              meta_url: content.meta_url,
-              favicon: content.favicon,
-              favicon_url: content.favicon_url,
-              extracted: faviconUrl
-            });
-          }
-          
-          return {
-            title: content.title || '',
-            url: content.url || '',
-            favicon: faviconUrl,
-            favicon_url: faviconUrl
-          } as NewsSearchResult;
-        }));
-        
-        const validResults = results.filter(r => r !== null) as NewsSearchResult[];
-        if (validResults.length > 0) {
-          localResults = validResults;
-          console.debug(`[NewsSearchEmbedPreview] Loaded ${validResults.length} results from child embeds, favicons found: ${validResults.filter(r => r.favicon).length}`);
-        }
-      }
-    } catch (error) {
-      console.warn('[NewsSearchEmbedPreview] Error loading child embeds for preview:', error);
-      // Continue without results - preview will just show query/provider
-    } finally {
-      isLoadingChildren = false;
     }
   }
   
@@ -441,10 +357,7 @@
       <!-- Finished state: show favicons and remaining count -->
       {#if status === 'finished'}
         <div class="ds-search-results-info">
-          {#if faviconResults.length === 0 && remainingCount === 0 && isLoadingChildren}
-            <!-- Child embeds are being fetched — show loading instead of empty state -->
-            <span class="ds-loading-text">{$text('common.loading')}</span>
-          {:else if faviconResults.length > 0}
+          {#if faviconResults.length > 0}
             <div class="favicon-row">
               {#each faviconResults as result, index}
                 {@const rawFaviconUrl = getFaviconUrl(result)}
@@ -570,4 +483,3 @@
     mask-image: url('@openmates/ui/static/icons/search.svg');
   }
 </style>
-

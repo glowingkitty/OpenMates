@@ -1,0 +1,372 @@
+title:
+  context: "Title of example chat: Memory Books Currently Reading"
+  en: "Memory Books Currently Reading"
+  de: "Memory Books Currently Reading"
+  zh: "Memory Books Currently Reading"
+  es: "Memory Books Currently Reading"
+  fr: "Memory Books Currently Reading"
+  pt: "Memory Books Currently Reading"
+  ru: "Memory Books Currently Reading"
+  ja: "Memory Books Currently Reading"
+  ko: "Memory Books Currently Reading"
+  it: "Memory Books Currently Reading"
+  tr: "Memory Books Currently Reading"
+  vi: "Memory Books Currently Reading"
+  id: "Memory Books Currently Reading"
+  pl: "Memory Books Currently Reading"
+  nl: "Memory Books Currently Reading"
+  ar: "Memory Books Currently Reading"
+  hi: "Memory Books Currently Reading"
+  th: "Memory Books Currently Reading"
+  cs: "Memory Books Currently Reading"
+  sv: "Memory Books Currently Reading"
+  he: "Memory Books Currently Reading"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Memory Books Currently Reading"
+  en: "OpenMates uses saved books currently_reading memory in a real chat."
+  de: "OpenMates uses saved books currently_reading memory in a real chat."
+  zh: "OpenMates uses saved books currently_reading memory in a real chat."
+  es: "OpenMates uses saved books currently_reading memory in a real chat."
+  fr: "OpenMates uses saved books currently_reading memory in a real chat."
+  pt: "OpenMates uses saved books currently_reading memory in a real chat."
+  ru: "OpenMates uses saved books currently_reading memory in a real chat."
+  ja: "OpenMates uses saved books currently_reading memory in a real chat."
+  ko: "OpenMates uses saved books currently_reading memory in a real chat."
+  it: "OpenMates uses saved books currently_reading memory in a real chat."
+  tr: "OpenMates uses saved books currently_reading memory in a real chat."
+  vi: "OpenMates uses saved books currently_reading memory in a real chat."
+  id: "OpenMates uses saved books currently_reading memory in a real chat."
+  pl: "OpenMates uses saved books currently_reading memory in a real chat."
+  nl: "OpenMates uses saved books currently_reading memory in a real chat."
+  ar: "OpenMates uses saved books currently_reading memory in a real chat."
+  hi: "OpenMates uses saved books currently_reading memory in a real chat."
+  th: "OpenMates uses saved books currently_reading memory in a real chat."
+  cs: "OpenMates uses saved books currently_reading memory in a real chat."
+  sv: "OpenMates uses saved books currently_reading memory in a real chat."
+  he: "OpenMates uses saved books currently_reading memory in a real chat."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Memory Books Currently Reading. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved currently-reading memory to make a simple spoiler-free one-week reading plan. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Memory Books Currently Reading. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  de: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  zh: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  es: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  fr: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  pt: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  ru: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  ja: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  ko: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  it: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  tr: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  vi: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  id: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  pl: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  nl: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  ar: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  hi: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  th: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  cs: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  sv: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  he: |
+    Based on your saved memory for [Project Hail Mary](wiki:Project_Hail_Mary) by [Andy Weir](wiki:Andy_Weir), you are currently around page 250 and prefer a pace of 25 pages per night.
+
+    Here is your spoiler-free one-week reading plan to keep you on track:
+
+    *   **Night 1:** Page 250 to 275
+    *   **Night 2:** Page 275 to 300
+    *   **Night 3:** Page 300 to 325
+    *   **Night 4:** Page 325 to 350
+    *   **Night 5:** Page 350 to 375
+    *   **Night 6:** Page 375 to 400
+    *   **Night 7:** Page 400 to 425
+
+    By the end of the week, you'll have progressed 175 pages deeper into the story. Enjoy the journey with Ryland Grace!
+  verified_by_human: []

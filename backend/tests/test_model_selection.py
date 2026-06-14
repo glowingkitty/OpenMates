@@ -264,7 +264,6 @@ class TestModelSelector:
         assert result.secondary_model_id is None or not result.secondary_model_id.startswith("google/")
         assert "google" in result.selection_reason.lower()
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Override Parser Tests
 # ═══════════════════════════════════════════════════════════════════════════════

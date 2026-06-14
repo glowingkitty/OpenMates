@@ -72,13 +72,13 @@ process_trigger() {
     mkdir -p "$SCRIPT_DIR/.tmp"
     echo "$prompt" > "$prompt_file"
 
-    # Start an OpenCode chat. Research triggers are instructed to stay read-only;
+    # Start an OpenCode chat. Research triggers investigate and recommend only;
     # fix triggers get full permissions so they can implement and deploy.
     local session_name="investigate-${issue_id:0:8}"
     local message="Read ${prompt_file#$PROJECT_DIR/} in full and follow all instructions precisely."
     local opencode_args=(opencode run --title "$session_name" --format json)
     if [[ "$agent_action" == "research" ]]; then
-        message="$message This is a read-only research job: do not edit files, do not commit, and do not deploy."
+        message="$message This is an investigate-only job: do not edit files, do not commit, and do not deploy. Recommend the fix and verification plan for user approval."
     else
         opencode_args+=(--dangerously-skip-permissions)
     fi

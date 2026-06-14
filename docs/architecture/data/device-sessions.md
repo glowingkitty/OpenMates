@@ -1,22 +1,52 @@
 ---
-status: partial
+status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+- frontend/packages/ui/src/stores/authSessionActions.ts
+claims:
+- id: arch-data-device-sessions-behavior
+  type: unit
+  claim: Device and Session Management is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
   - frontend/packages/ui/src/stores/authSessionActions.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-data-device-sessions-behavior
+  verified: '2026-06-11'
+- id: arch-data-device-sessions-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-device-sessions-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+- id: arch-data-device-sessions-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-device-sessions-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/stores/authSessionActions.ts
+- id: arch-data-device-sessions-manual-3
+  type: manual
+  reason: 'Tiny architecture note: source-file existence claims cover the implemented anchor surface; deeper behavior remains
+    covered by linked canonical docs.'
 ---
 
 # Device and Session Management
 
-> Current: "Stay Logged In" toggle controls master key persistence. Planned: QR phone login for public computers, magic links for CLI/VSCode, and API key device authorization.
+> Current: "Stay Logged In" controls master key persistence and browser session lifetime.
 
 ## Why This Exists
 
-Users access OpenMates from personal devices, public computers, and developer tools (CLI, VSCode). Each scenario has different security requirements for session lifetime, key storage, and device authorization.
+Users access OpenMates from personal devices and browser sessions. Session lifetime and key persistence are controlled separately so users can choose between convenience and short-lived local key storage.
 
 ## How It Works
 
-### Implemented: Personal Device Sessions
+### Personal Device Sessions
 
 **Stay Logged In = false (default):**
 - Master key stored in memory only.
@@ -33,44 +63,17 @@ Users access OpenMates from personal devices, public computers, and developer to
 - **Refresh:** Automatic background refresh.
 - **Revocation:** On user logout or security event.
 
-## Planned Features
-
-### Phone-Based QR Login (Public Computers)
-
-1. Public computer displays QR code with unique request token.
-2. Phone scans, authenticates user, shows device authorization dialog.
-3. Phone generates 6-digit code, encrypts login bundle (master key + session), uploads to server.
-4. User enters code on public computer; computer downloads and decrypts bundle.
-5. 30-minute fixed session with visible countdown. No refresh, no persistence.
-
-**Security:** Auto-logout at 30 min, IndexedDB cleared on internet disconnect, remote logout from phone with biometric confirmation.
-
-### Magic Login Links (CLI/VSCode/Developer Tools)
-
-Same 6-digit code exchange pattern via browser authorization:
-1. Tool displays pairing URL + QR code.
-2. User visits URL, authenticates, clicks "Authorize".
-3. Browser generates 6-digit code, encrypts crypto bundle, uploads.
-4. Tool polls, prompts for code, decrypts bundle.
-
-### API Key Device Authorization
-
-- Client-side key generation, `SHA256(api_key)` stored server-side.
-- New IP/device blocked until approved in web UI.
-- Wrapped master key per API key (Argon2 derivation).
-
-### Threat Mitigations
+## Threat Mitigations
 
 | Threat               | Mitigation                                          |
 |----------------------|-----------------------------------------------------|
-| Forget to logout     | 30-min auto-logout + remote logout from phone       |
-| Device theft         | Session auto-expires; visible in device list         |
+| Forget to logout     | Session expiry, explicit logout, and short-lived key storage when Stay Logged In is off |
+| Device theft         | Session auto-expires and master key can remain memory-only |
 | Network eavesdropping| 6-digit codes (1M combinations), 2-min TTL, HTTPS   |
 | Session hijacking    | HTTP-only cookies, auto-expiry, encrypted clearing   |
-| QR code reuse        | Unique tokens per request; single-use completion     |
 
 ## Related Docs
 
 - [Signup & Auth](../core/signup-and-auth.md) -- authentication flows
-- [Zero-Knowledge Storage](../core/zero-knowledge-storage.md) -- master key encryption
+- [Encryption Architecture](../core/encryption-architecture.md) -- master key encryption
 - [Developer Settings](../infrastructure/developer-settings.md) -- API key management

@@ -21,7 +21,8 @@ def make_client_ciphertext() -> str:
     return base64.b64encode(raw).decode("ascii")
 
 
-def test_persist_new_chat_message_rejects_vault_ciphertext_before_side_effects(monkeypatch):
+def test_persist_new_chat_message_rejects_vault_ciphertext_before_side_effects(monkeypatch, doc_assert):
+    doc_assert("chat-persistence-rejects-vault-ciphertext")
     touched_directus = False
     touched_cache = False
 
@@ -56,7 +57,8 @@ def test_persist_new_chat_message_rejects_vault_ciphertext_before_side_effects(m
     assert touched_cache is False
 
 
-def test_persist_new_chat_message_accepts_client_encrypted_base64():
+def test_persist_new_chat_message_accepts_client_encrypted_base64(doc_assert):
+    doc_assert("chat-persistence-accepts-client-encrypted-base64")
     assert persistence_tasks._validate_client_encrypted_chat_payload(
         message_id="client-message-123",
         encrypted_content=make_client_ciphertext(),

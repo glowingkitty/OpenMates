@@ -78,8 +78,22 @@ def build_quick_tip_context(available_app_ids: List[str]) -> str:
     )
 
 
-def select_hardcoded_quick_tip_slug(message_history: List[Dict[str, Any]]) -> Optional[str]:
+def select_hardcoded_quick_tip_slug(
+    message_history: List[Dict[str, Any]],
+    available_app_ids: Optional[List[str]] = None,
+) -> Optional[str]:
     """Select deterministic quick tips that should not depend on LLM judgment."""
+
+    user_text = "\n".join(
+        str(message.get("content") or "")
+        for message in message_history
+        if message.get("role") == "user"
+    ).lower()
+    if (
+        (available_app_ids is None or "travel" in set(available_app_ids))
+        and all(term in user_text for term in ("food", "transit", "local events"))
+    ):
+        return "travel-can-add-local-context"
 
     chat_message_count = sum(
         1

@@ -17,6 +17,7 @@ import { mount, unmount } from "svelte";
 import WebsiteEmbedPreview from "../../../embeds/web/WebsiteEmbedPreview.svelte";
 import VideoEmbedPreview from "../../../embeds/videos/VideoEmbedPreview.svelte";
 import CodeEmbedPreview from "../../../embeds/code/CodeEmbedPreview.svelte";
+import ApplicationEmbedPreview from "../../../embeds/code/ApplicationEmbedPreview.svelte";
 import CodeRepoEmbedPreview from "../../../embeds/code/CodeRepoEmbedPreview.svelte";
 import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
@@ -31,10 +32,14 @@ import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
 import SheetEmbedPreview from "../../../embeds/sheets/SheetEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
+import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
 import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPreview.svelte";
 import TravelConnectionEmbedPreview from "../../../embeds/travel/TravelConnectionEmbedPreview.svelte";
 import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
+import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
+import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
+import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
@@ -42,6 +47,7 @@ import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchE
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
+import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
 import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionRecipeEmbedPreview.svelte";
 import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
 import SocialMediaPostEmbedPreview from "../../../embeds/social_media/SocialMediaPostEmbedPreview.svelte";
@@ -49,6 +55,7 @@ import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMe
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
+import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -76,6 +83,57 @@ const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TOON-decoded content is genuinely schemaless (100+ dynamic fields across embed types)
 type DecodedEmbedContent = Record<string, any>;
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function cleanDocxModelValue(value: string): string {
+  return value
+    .trim()
+    .replace(/^"|"$/g, "")
+    .replace(/",true$/g, "")
+    .replace(/^true,/, "")
+    .trim();
+}
+
+function extractLegacyDocxHtml(rawContent?: string, title?: string): string {
+  if (!rawContent?.includes("docx_model:")) return "";
+
+  const lines = rawContent.split("\n");
+  const titleMatch = rawContent.match(/(?:^|\n)title:\s*"?([^\n"]+)"?/);
+  const displayTitle = cleanDocxModelValue(title || titleMatch?.[1] || "Document");
+  const bodyLines: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = lines[index].trim();
+    const next = lines[index + 1]?.trim() || "";
+
+    if (trimmed.startsWith("text:")) {
+      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^text:\s*/, "")));
+    } else if (trimmed.includes("runs[") && next && !next.includes(":")) {
+      bodyLines.push(cleanDocxModelValue(next));
+    } else if (trimmed.startsWith("items[")) {
+      bodyLines.push(...trimmed.replace(/^items\[[^\]]+\]:\s*/, "").split(",").map(cleanDocxModelValue));
+    } else if (trimmed.startsWith("headers[")) {
+      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^headers\[[^\]]+\]:\s*/, "")));
+    } else if (trimmed.startsWith("- [")) {
+      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^- \[[^\]]+\]:\s*/, "")));
+    }
+  }
+
+  const uniqueBodyLines = bodyLines.filter(
+    (line, index, all) => line && line !== displayTitle && all.indexOf(line) === index,
+  );
+  return [
+    `<h1>${escapeHtml(displayTitle)}</h1>`,
+    ...uniqueBodyLines.map((line) => `<p>${escapeHtml(line)}</p>`),
+  ].join("\n");
+}
 
 /** Match result from PDF search skill (mirrors PdfSearchEmbedFullscreen.SearchMatch) */
 interface PdfSearchMatch {
@@ -192,6 +250,16 @@ export class GroupRenderer implements EmbedRenderer {
         "code-code",
         (item, embedData, decodedContent, content) =>
           this.renderCodeComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "code-application",
+        (item, embedData, decodedContent, content) =>
+          this.renderApplicationComponent(
+            item,
+            embedData,
+            decodedContent,
+            content,
+          ),
       ],
       [
         "code-repo",
@@ -586,6 +654,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderVideoItem(item, embedData, decodedContent);
       case "code-code":
         return this.renderCodeItem(item, embedData, decodedContent);
+      case "code-application":
+        return this.renderApplicationItem(item, embedData, decodedContent);
       case "code-repo":
         return this.renderCodeRepoItem(item, embedData, decodedContent);
       case "docs-doc":
@@ -1127,10 +1197,11 @@ export class GroupRenderer implements EmbedRenderer {
         ? decodedContent.result_count
         : 0;
     const results = decodedContent?.results || [];
-    const childEmbedIds = Array.isArray(embedData?.embed_ids)
-      ? embedData.embed_ids
-      : Array.isArray(decodedContent?.embed_ids)
-        ? decodedContent.embed_ids
+    const rawChildEmbedIds = embedData?.embed_ids || decodedContent?.embed_ids;
+    const childEmbedIds = typeof rawChildEmbedIds === "string"
+      ? rawChildEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawChildEmbedIds)
+        ? rawChildEmbedIds
         : [];
 
     // Error embeds are kept in the group and rendered with status: 'error'.
@@ -1149,6 +1220,8 @@ export class GroupRenderer implements EmbedRenderer {
     const query = decodedContent?.query || embedData?.query || itemQuery;
     const provider =
       decodedContent?.provider || embedData?.provider || itemProvider;
+    const startDate = decodedContent?.start_date || embedData?.start_date || item.start_date || "";
+    const endDate = decodedContent?.end_date || embedData?.end_date || item.end_date || "";
     const providers = Array.isArray(decodedContent?.providers)
       ? decodedContent.providers
       : Array.isArray(embedData?.providers)
@@ -1186,6 +1259,9 @@ export class GroupRenderer implements EmbedRenderer {
 
     try {
       if (appId === "web" && skillId === "search") {
+        const webResultCount = typeof decodedContent?.result_count === "number"
+          ? decodedContent.result_count
+          : results.length || childEmbedIds.length;
         const component = mount(WebSearchEmbedPreview, {
           target,
           props: {
@@ -1194,6 +1270,8 @@ export class GroupRenderer implements EmbedRenderer {
             provider: provider || "Brave Search",
             status,
             results,
+            resultCount: webResultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -1247,8 +1325,11 @@ export class GroupRenderer implements EmbedRenderer {
             query: query || "",
             provider: provider || "",
             providers,
+            start_date: startDate,
+            end_date: endDate,
             status,
             results,
+            result_count: resultCount || childEmbedIds.length,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -1305,6 +1386,24 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             results,
             taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "travel" && skillId === "price_calendar") {
+        const component = mount(TravelPriceCalendarEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            status: status as "processing" | "finished" | "error",
+            results,
+            taskId,
+            skillTaskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
           },
@@ -1410,7 +1509,10 @@ export class GroupRenderer implements EmbedRenderer {
       // Handle reminder.set-reminder skill
       if (
         appId === "reminder" &&
-        (skillId === "set_reminder" || skillId === "set-reminder")
+        (skillId === "set_reminder" ||
+          skillId === "set-reminder" ||
+          skillId === "list-reminders" ||
+          skillId === "cancel-reminder")
       ) {
         const component = mount(ReminderEmbedPreview, {
           target,
@@ -1464,6 +1566,78 @@ export class GroupRenderer implements EmbedRenderer {
             onFullscreen: handleFullscreen,
             inputEmbedIds:
               inputEmbedIdsGroup.length > 0 ? inputEmbedIdsGroup : undefined,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "music" && skillId === "generate") {
+        const component = mount(MusicGenerateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            prompt: decodedContent?.prompt || "",
+            mode: decodedContent?.mode || "background",
+            model: decodedContent?.model || "",
+            durationSeconds: decodedContent?.duration_seconds,
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "videos" && skillId === "generate") {
+        const component = mount(VideoGenerateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            prompt: decodedContent?.prompt || "",
+            model: decodedContent?.model || "",
+            durationSeconds: decodedContent?.duration_seconds,
+            resolution: decodedContent?.resolution || "",
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
+            status: status as "processing" | "finished" | "error",
+            error: decodedContent?.error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "videos" && skillId === "create") {
+        const component = mount(VideoCreateEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            remotionSource: decodedContent?.remotion_source || "",
+            filename: decodedContent?.filename || "Composition.tsx",
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
+            videoUrl: decodedContent?.video_url || decodedContent?.public_video_url || "",
+            thumbnailUrl: decodedContent?.thumbnail_url || decodedContent?.public_thumbnail_url || "",
+            status: status as "processing" | "rendering" | "finished" | "error" | "cancelled" | "needs_rerender",
+            errorMessage: decodedContent?.error || decodedContent?.render_metadata?.safe_error || "",
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
           },
         });
         mountedComponents.set(target, component);
@@ -1547,6 +1721,14 @@ export class GroupRenderer implements EmbedRenderer {
 
       // Handle images.search skill — image search results
       if (appId === "images" && skillId === "search") {
+        const imagePreviewResults =
+          decodedContent?.results ||
+          decodedContent?.preview_results ||
+          decodedContent?.preview_thumbnails ||
+          [];
+        const imageResultCount = typeof decodedContent?.result_count === "number"
+          ? decodedContent.result_count
+          : (Array.isArray(imagePreviewResults) ? imagePreviewResults.length : 0) || childEmbedIds.length;
         const component = mount(ImagesSearchEmbedPreview, {
           target,
           props: {
@@ -1554,7 +1736,10 @@ export class GroupRenderer implements EmbedRenderer {
             query: query || "",
             provider: provider || "Brave",
             status,
-            results,
+            results: imagePreviewResults,
+            previewResultsJson: decodedContent?.preview_results_json || "",
+            resultCount: imageResultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -1602,6 +1787,25 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "nutrition" && skillId === "search_recipes") {
+        const component = mount(NutritionSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            provider: provider || "Edamam",
+            status: status as "processing" | "finished" | "error",
+            results,
+            taskId,
+            skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       // Handle electronics.search_components skill
       if (appId === "electronics" && skillId === "search_components") {
         const component = mount(ElectronicsSearchEmbedPreview, {
@@ -1634,6 +1838,31 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             results,
             taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "weather" && skillId === "forecast") {
+        const component = mount(WeatherForecastEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            locationName:
+              decodedContent?.location?.name || decodedContent?.location_name || "",
+            provider: provider || "Weather",
+            status: status as
+              | "processing"
+              | "finished"
+              | "error"
+              | "cancelled",
+            results,
+            taskId,
+            skillTaskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
           },
@@ -2272,7 +2501,11 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     // Use decoded content if available, otherwise fall back to item attributes
-    const htmlContent = decodedContent?.html || item.code || "";
+    const htmlContent =
+      decodedContent?.html ||
+      decodedContent?.code ||
+      item.code ||
+      extractLegacyDocxHtml(embedData?.content, decodedContent?.title || item.title);
     const title = decodedContent?.title || item.title;
     const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
@@ -3006,6 +3239,75 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render generated application embed using the Svelte preview component.
+   */
+  private async renderApplicationComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = item.status === "cancelled" ? "error" : embedData?.status || decodedContent?.status || item.status || "finished";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const handleFullscreen = () => {
+        this.openFullscreen(item, embedData, decodedContent);
+      };
+
+      const component = mount(ApplicationEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          name: decodedContent?.name || item.title,
+          framework: decodedContent?.framework,
+          runtime: decodedContent?.runtime,
+          file_refs: Array.isArray(decodedContent?.file_refs)
+            ? decodedContent.file_refs
+            : [],
+          entrypoints: Array.isArray(decodedContent?.entrypoints)
+            ? decodedContent.entrypoints
+            : [],
+          latest_screenshot_url: decodedContent?.latest_screenshot_url,
+          status: status as "processing" | "finished" | "error",
+          taskId: decodedContent?.task_id,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+
+      console.debug("[GroupRenderer] Mounted ApplicationEmbedPreview component:", {
+        embedId,
+        name: decodedContent?.name || item.title,
+        status,
+      });
+    } catch (error) {
+      console.error(
+        "[GroupRenderer] Error mounting ApplicationEmbedPreview component:",
+        error,
+      );
+      content.innerHTML = await this.renderApplicationItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+    }
+  }
+
+  /**
    * Render document embed using Svelte component
    * Uses DocsEmbedPreview for consistent sizing (300x200px desktop, 150x290px mobile)
    */
@@ -3016,7 +3318,11 @@ export class GroupRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): Promise<void> {
     // Use decoded content if available, otherwise fall back to item attributes
-    const htmlContent = decodedContent?.html || item.code || "";
+    const htmlContent =
+      decodedContent?.html ||
+      decodedContent?.code ||
+      item.code ||
+      extractLegacyDocxHtml(embedData?.content, decodedContent?.title || item.title);
     const title = decodedContent?.title || item.title;
     const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
@@ -3450,6 +3756,35 @@ export class GroupRenderer implements EmbedRenderer {
       <div class="embed-extended-preview">
         <div class="code-preview">
           <div class="code-snippet">// Code preview would be rendered here</div>
+        </div>
+      </div>
+    `;
+  }
+
+  private async renderApplicationItem(
+    item: EmbedNodeAttributes,
+    _embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const name = decodedContent?.name || item.title || "Application";
+    const fileCount = Array.isArray(decodedContent?.file_refs)
+      ? decodedContent.file_refs.length
+      : 0;
+    const framework = decodedContent?.framework || "Application preview";
+    const isProcessing = item.status === "processing";
+
+    return `
+      <div class="embed-app-icon code">
+        <span class="icon icon_code"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ""}
+        <div class="embed-text-line">${name}</div>
+        <div class="embed-text-line">${fileCount} files, ${framework}</div>
+      </div>
+      <div class="embed-extended-preview">
+        <div class="code-preview">
+          <div class="code-snippet">Application preview</div>
         </div>
       </div>
     `;
@@ -4318,10 +4653,18 @@ export class GroupRenderer implements EmbedRenderer {
 
     const title = (decodedContent?.title as string | undefined) || "";
     const sourceDomain = resolveImageSourceDomain(decodedContent);
-    const thumbnailUrl =
-      (decodedContent?.thumbnail_url as string | undefined) || "";
-    const faviconUrl =
+    const rawImageUrl = (decodedContent?.image_url as string | undefined) || "";
+    const rawThumbnailUrl =
+      (decodedContent?.thumbnail_url as string | undefined) ||
+      (decodedContent?.public_thumbnail_url as string | undefined) ||
+      "";
+    const rawFaviconUrl =
       (decodedContent?.favicon_url as string | undefined) || "";
+    const imageUrl = rawImageUrl ? proxyImage(rawImageUrl) : undefined;
+    const thumbnailUrl = rawThumbnailUrl
+      ? proxyImage(rawThumbnailUrl)
+      : undefined;
+    const faviconUrl = rawFaviconUrl ? proxyImage(rawFaviconUrl) : undefined;
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -4348,6 +4691,7 @@ export class GroupRenderer implements EmbedRenderer {
           title,
           sourceDomain,
           thumbnailUrl,
+          imageUrl,
           faviconUrl,
           status,
           isMobile: false,

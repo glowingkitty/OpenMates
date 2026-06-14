@@ -4,6 +4,16 @@ icon_image: |
   fitness.svg
 category: personal
 last_updated: '2025-11-12'
+embed_types:
+  - id: search_locations_and_courses
+    category: app-skill-use
+    skill_id: search_locations_and_courses
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: fitness
+    gradient_var: "--color-app-fitness"
+    i18n_namespace: embeds.fitness.search_locations_and_courses
 skills:
   - id: search_locations_and_courses
     name_translation_key: fitness.search_locations_and_courses

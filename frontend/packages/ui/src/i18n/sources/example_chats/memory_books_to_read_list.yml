@@ -1,0 +1,162 @@
+title:
+  context: "Title of example chat: Memory Books To Read List"
+  en: "Memory Books To Read List"
+  de: "Memory Books To Read List"
+  zh: "Memory Books To Read List"
+  es: "Memory Books To Read List"
+  fr: "Memory Books To Read List"
+  pt: "Memory Books To Read List"
+  ru: "Memory Books To Read List"
+  ja: "Memory Books To Read List"
+  ko: "Memory Books To Read List"
+  it: "Memory Books To Read List"
+  tr: "Memory Books To Read List"
+  vi: "Memory Books To Read List"
+  id: "Memory Books To Read List"
+  pl: "Memory Books To Read List"
+  nl: "Memory Books To Read List"
+  ar: "Memory Books To Read List"
+  hi: "Memory Books To Read List"
+  th: "Memory Books To Read List"
+  cs: "Memory Books To Read List"
+  sv: "Memory Books To Read List"
+  he: "Memory Books To Read List"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Memory Books To Read List"
+  en: "OpenMates uses saved books to_read_list memory in a real chat."
+  de: "OpenMates uses saved books to_read_list memory in a real chat."
+  zh: "OpenMates uses saved books to_read_list memory in a real chat."
+  es: "OpenMates uses saved books to_read_list memory in a real chat."
+  fr: "OpenMates uses saved books to_read_list memory in a real chat."
+  pt: "OpenMates uses saved books to_read_list memory in a real chat."
+  ru: "OpenMates uses saved books to_read_list memory in a real chat."
+  ja: "OpenMates uses saved books to_read_list memory in a real chat."
+  ko: "OpenMates uses saved books to_read_list memory in a real chat."
+  it: "OpenMates uses saved books to_read_list memory in a real chat."
+  tr: "OpenMates uses saved books to_read_list memory in a real chat."
+  vi: "OpenMates uses saved books to_read_list memory in a real chat."
+  id: "OpenMates uses saved books to_read_list memory in a real chat."
+  pl: "OpenMates uses saved books to_read_list memory in a real chat."
+  nl: "OpenMates uses saved books to_read_list memory in a real chat."
+  ar: "OpenMates uses saved books to_read_list memory in a real chat."
+  hi: "OpenMates uses saved books to_read_list memory in a real chat."
+  th: "OpenMates uses saved books to_read_list memory in a real chat."
+  cs: "OpenMates uses saved books to_read_list memory in a real chat."
+  sv: "OpenMates uses saved books to_read_list memory in a real chat."
+  he: "OpenMates uses saved books to_read_list memory in a real chat."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Memory Books To Read List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved books-to-read memory to help me choose what to start for a long train ride this week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Memory Books To Read List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  de: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  zh: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  es: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  fr: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  pt: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  ru: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  ja: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  ko: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  it: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  tr: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  vi: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  id: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  pl: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  nl: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  ar: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  hi: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  th: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  cs: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  sv: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  he: |
+    Based on the books in your to-read list, I recommend starting [Dune](wiki:Dune_(novel)) by [Frank Herbert](wiki:Frank_Herbert) for your long train ride this week.
+
+    Your notes specifically identify it as a "big immersive book for a quiet trip" and a "high priority," which makes it the perfect fit for a long journey where you have the time to sink into its deep worldbuilding. While [A Psalm for the Wild-Built](wiki:A_Psalm_for_the_Wild-Built) by [Becky Chambers](wiki:Becky_Chambers) is a great option for a "gentle weekend read," the scale of [Dune](wiki:Dune_(novel)) will help the hours on the train pass quickly.
+  verified_by_human: []

@@ -1,0 +1,325 @@
+id: user-data-permission-audit
+title: User Data Permission Audit
+status: verified
+
+goal: >
+  Establish a fail-closed permission source of truth for every user-data access
+  path in OpenMates, then use deterministic audits and tests to prevent new REST
+  routes, WebSocket handlers, client commands, or native actions from bypassing
+  read/write authorization review.
+
+scope:
+  in:
+    - REST API routes under backend/core/api/app/routes.
+    - WebSocket handlers under backend/core/api/app/routes/handlers/websocket_handlers.
+    - Data domains including chats, messages, embeds, memories/app settings, invoices, billing, profile, notifications, projects, generated assets, usage, account export, and admin/debug data.
+    - Public/shared-link routes and unauthenticated routes, with explicit contracts for what encrypted or metadata-only data may be returned.
+    - Backend service-side write boundaries such as store_embed ownership checks.
+    - Frontend web, CLI, and Apple surfaces as product actors that consume the backend contracts.
+    - A YAML permission registry and deterministic audit that fail when backend entrypoints are unclassified.
+  out:
+    - Implementing future teams/collaborator permissions beyond marking them unsupported or pending.
+    - Replacing Directus collection permissions in this first slice.
+    - Manual penetration testing; this spec creates deterministic static and unit guardrails first.
+    - Changing currently permitted behavior until the generated matrix is reviewed with the user.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials."
+    - "gh fallback found no dedicated permission-audit issue; closest historical issues were passkeys/E2EE, email privacy, and preview-gateway work."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/privacy/pii-protection.md
+    - docs/architecture/privacy/sensitive-data-redaction.md
+    - docs/architecture/privacy/privacy-promises.md
+    - docs/architecture/payments/payment-processing.md
+    - docs/architecture/phased_sync_handler.md
+    - docs/architecture/platforms/cli-feature-parity.md
+  code_patterns:
+    - backend/core/api/app/routes/**/*.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/*.py
+    - backend/core/api/app/services/directus/*_methods.py
+    - frontend/packages/openmates-cli/src/**
+    - apple/OpenMates/Sources/**
+  tests:
+    - backend/tests/test_store_embed_authorization.py
+    - backend/tests/test_share_short_links.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_application_preview_gateway.py
+    - backend/tests/test_privacy_promises.py
+
+apple_impact:
+  affected_files:
+    - none for the first backend registry/audit slice
+  parity_expectations:
+    - Apple client actions must eventually map to the same backend permission registry. This first implementation does not change native UI or networking behavior.
+  verification:
+    - Apple not affected for the initial backend audit script.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: For the first permission-audit spec, what scope should be mandatory?
+      answer: Full product surface.
+    - question: Which actor model should the permission matrix use as the source of truth?
+      answer: Standard roles.
+    - question: How strict should the deterministic permission script be on day one?
+      answer: Fail unclassified endpoints.
+    - question: Where should the permission source of truth live?
+      answer: YAML registry.
+  vision_summary: >
+    OpenMates needs a reviewed permission matrix for user data, not just ad-hoc
+    handler checks. The first implemented slice creates a YAML backend entrypoint
+    registry and audit that fails when routes or WebSocket handlers are added or
+    changed without explicit classification. The generated matrix then becomes
+    the basis for discussing which permissions should be restricted further.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: New backend REST route is added without permission review
+    given:
+      - A developer adds a new FastAPI router endpoint under backend/core/api/app/routes.
+    when:
+      - The permission audit runs.
+    then:
+      - The audit fails because the route file count no longer matches the YAML registry.
+      - The failure points to the route file and asks for an explicit permission classification.
+
+  - id: S-2
+    title: New WebSocket handler is added without permission review
+    given:
+      - A developer adds a new handler file under backend/core/api/app/routes/handlers/websocket_handlers.
+    when:
+      - The permission audit runs.
+    then:
+      - The audit fails until the handler is listed in the YAML registry with actors, access mode, and data domains.
+
+  - id: S-3
+    title: Shared recipient attempts to write owner embed data
+    given:
+      - Bob can read a shared chat through a public share link and fragment key.
+    when:
+      - Bob's client sends store_embed for an owner embed.
+    then:
+      - The backend rejects the write because Bob's authenticated user hash does not match the stored owner hash.
+      - No Directus write or broadcast occurs.
+
+  - id: S-4
+    title: Permission matrix is generated for review
+    given:
+      - The YAML registry covers current REST route files and WebSocket handlers.
+    when:
+      - The audit runs in matrix mode.
+    then:
+      - It prints each backend module/handler, allowed actors, access type, data domains, and rationale.
+      - Public/shared/admin/internal endpoints are visible for product review.
+
+  - id: S-5
+    title: Mixed-permission REST module has endpoint-level classifications
+    given:
+      - A REST route module contains both public/token endpoints and authenticated owner endpoints.
+    when:
+      - The permission audit runs in matrix mode.
+    then:
+      - The matrix prints each REST method, route, function, detected auth guard, auth model, actors, access type, data domains, and rationale.
+      - Explicit endpoint overrides fail if they reference a stale route or conflict with detected auth guards.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A deterministic script fails when a REST route file has a new or removed endpoint without a registry update.
+  - id: AC-2
+    scenario: S-2
+    text: A deterministic script fails when a WebSocket handler file is missing from the registry.
+  - id: AC-3
+    scenario: S-3
+    text: store_embed writes are enforced server-side by authenticated owner hash, independent of frontend behavior.
+  - id: AC-4
+    scenario: S-4
+    text: The audit can print a permission matrix for current backend entrypoints to support follow-up restriction decisions.
+  - id: AC-5
+    scenario: S-5
+    text: Mixed REST modules can define endpoint-level overrides that are validated against discovered method/path/function and auth guard shape.
+
+contracts:
+  api:
+    - route: scripts/audit_user_data_permissions.py
+      request: "Optional --registry PATH, --routes-root PATH, --ws-root PATH, --matrix"
+      response: "Exit 0 when all discovered REST route files and WebSocket handlers match the registry; exit non-zero with actionable gaps otherwise."
+      errors:
+        - Missing route module registry entry.
+        - Endpoint count mismatch for a registered route module.
+        - Missing WebSocket handler registry entry.
+        - Registry entry missing actors, access, data_domains, or rationale.
+        - Missing endpoint-level registry entry when a module requires overrides.
+        - Stale endpoint override for a route that no longer exists.
+        - Endpoint override actor/auth mismatch.
+  data:
+    - backend/core/api/app/security/user_data_permissions.yml is the initial YAML source of truth for backend entrypoint permissions.
+  privacy_security:
+    - Public and shared-link routes must explicitly state whether they return public metadata, encrypted user data, or share-key-authorized encrypted data.
+    - Admin and internal-service routes must be explicitly classified rather than implicitly trusted.
+    - Frontend, CLI, and Apple clients are not security boundaries; backend and service methods enforce writes.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: scripts/tests/test_audit_user_data_permissions.py
+    command: python3 -m pytest scripts/tests/test_audit_user_data_permissions.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-5
+    assertions:
+      - missing REST route module fails
+      - endpoint count mismatch fails
+      - missing WebSocket handler fails
+      - missing required endpoint override fails
+      - stale endpoint override fails
+      - endpoint actor/auth mismatch fails
+      - fully covered fixture passes
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pre-implementation-missing-audit-script
+        timestamp: "2026-06-12T12:30:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-12-passed
+        timestamp: "2026-06-12T13:33:42Z"
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_store_embed_authorization.py
+    command: python3 -m pytest backend/tests/test_store_embed_authorization.py
+    covers:
+      - AC-3
+    assertions:
+      - non-owner existing embed update is rejected
+      - forged new embed owner hash is rejected
+      - owner update is accepted and preserves server-side owner hash
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: store-embed-handler-pre-authorization-gap
+        timestamp: "2026-06-12T11:55:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-3-passed
+        timestamp: "2026-06-12T11:59:00Z"
+
+  - id: T-AUDIT-001
+    type: pytest
+    file: scripts/audit_user_data_permissions.py
+    command: python3 scripts/audit_user_data_permissions.py --matrix
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-5
+    assertions:
+      - repository registry covers current backend REST route files and WebSocket handlers
+      - matrix mode prints endpoint method, route, function, auth guards, auth model, actors, access, domains, and rationale
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pre-implementation-no-registry
+        timestamp: "2026-06-12T12:30:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-endpoint-audit-56-rest-modules-42-websocket-handlers
+        timestamp: "2026-06-12T13:33:42Z"
+
+implementation_plan:
+  existing_patterns:
+    - scripts/audit_search_parent_preview_metadata.py
+    - scripts/tests/test_audit_search_parent_preview_metadata.py
+    - backend/tests/test_store_embed_authorization.py
+  architecture: >
+    Add a YAML backend entrypoint permission registry and an AST-based audit that
+    discovers FastAPI route decorators plus WebSocket handler files. The registry
+    records expected route counts per module and endpoint-level overrides for
+    mixed modules so public/token/signature/owner routes can be reviewed without
+    relying on broad module defaults. Later slices can add frontend/CLI/Apple
+    action registries that map to the same data-domain and actor vocabulary.
+  data_flow:
+    - Audit discovers REST endpoints by method, route, function, and dependency guards.
+    - Audit discovers WebSocket handler files.
+    - Audit validates module defaults and explicit endpoint overrides against YAML registry actors, access, data_domains, auth_model, and rationale.
+    - Matrix mode prints the endpoint-level reviewed contract for human discussion.
+  affected_files:
+    - path: docs/specs/user-data-permission-audit/spec.yml
+      reason: Executable permission-audit contract.
+    - path: backend/core/api/app/security/user_data_permissions.yml
+      reason: Permission source of truth.
+    - path: scripts/audit_user_data_permissions.py
+      reason: Deterministic fail-closed endpoint audit.
+    - path: scripts/tests/test_audit_user_data_permissions.py
+      reason: Fixture coverage for the audit.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+      reason: Immediate backend write enforcement for embed persistence.
+    - path: backend/tests/test_store_embed_authorization.py
+      reason: Backend authorization regression tests.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/user-data-permission-audit/spec.yml
+    - python3 -m pytest scripts/tests/test_audit_user_data_permissions.py backend/tests/test_store_embed_authorization.py
+    - python3 scripts/audit_user_data_permissions.py --matrix
+  verification_order:
+    - Backend pytest/audit first.
+    - No Playwright required for the initial deterministic backend audit slice.
+    - Apple not affected for the initial backend audit slice.
+
+tasks:
+  - id: TASK-1
+    title: Add backend permission registry and audit
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/core/api/app/security/user_data_permissions.yml
+      - scripts/audit_user_data_permissions.py
+      - scripts/tests/test_audit_user_data_permissions.py
+    verification:
+      - T-PYTEST-001
+      - T-AUDIT-001
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Enforce store_embed backend ownership
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - backend/core/api/app/routes/handlers/websocket_handlers/store_embed_handler.py
+      - backend/tests/test_store_embed_authorization.py
+    verification:
+      - T-PYTEST-002
+    independently_deployable: true

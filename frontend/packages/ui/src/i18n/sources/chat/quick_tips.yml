@@ -3,48 +3,228 @@ eyebrow:
   en: "Quick tip"
   de: "Kurztipp"
   es: "Consejo rápido"
+  zh: 小提示
+  fr: Astuce
+  pt: Dica rápida
+  ru: Совет
+  ja: クイックヒント
+  ko: 팁
+  it: Suggerimento rapido
+  tr: Hızlı ipucu
+  vi: Mẹo nhanh
+  id: Tip cepat
+  pl: Szybka wskazówka
+  nl: Snelle tip
+  ar: نصيحة سريعة
+  hi: क्विक टिप
+  th: เคล็ดลับด่วน
+  cs: Rychlý tip
+  sv: Snabbtips
+  he: טיפ מהיר
 cta_learn_more:
   context: Generic CTA for quick tip cards that opens the related app or action
   en: "Learn more"
   de: "Mehr erfahren"
   es: "Más información"
+  zh: 了解更多
+  fr: En savoir plus
+  pt: Saiba mais
+  ru: Подробнее
+  ja: 詳細を見る
+  ko: 자세히 알아보기
+  it: Scopri di più
+  tr: Daha fazla bilgi edin
+  vi: Tìm hiểu thêm
+  id: Pelajari selengkapnya
+  pl: Dowiedz się więcej
+  nl: Meer informatie
+  ar: معرفة المزيد
+  hi: ज़्यादा जानें
+  th: เรียนรู้เพิ่มเติม
+  cs: Zjistit více
+  sv: Läs mer
+  he: מידע נוסף
 shorter_chats_equal_better_responses.title:
   context: Quick tip title for shorter topic-specific chats
   en: "Shorter chats work better"
   de: "Kürzere Chats funktionieren besser"
   es: "Los chats más cortos funcionan mejor"
+  zh: 较短的对话效果更好
+  fr: Les chats courts fonctionnent mieux
+  pt: Chats curtos funcionam melhor
+  ru: Короткие чаты эффективнее
+  ja: 短いチャットの方が効果的です
+  ko: 대화가 짧을수록 답변 품질이 좋아집니다
+  it: Le chat brevi funzionano meglio
+  tr: Kısa sohbetler daha iyi sonuç verir
+  vi: Trò chuyện ngắn hơn sẽ hiệu quả hơn
+  id: Obrolan singkat bekerja lebih baik
+  pl: Krótsze czaty działają lepiej
+  nl: Kortere chats werken beter
+  ar: الدردشات القصيرة تعمل بشكل أفضل
+  hi: छोटी चैट बेहतर काम करती हैं
+  th: แชทสั้นๆ ให้ผลลัพธ์ที่ดีกว่า
+  cs: Kratší chaty fungují lépe
+  sv: Kortare chattar fungerar bättre
+  he: "צ'אטים קצרים עובדים טוב יותר"
 shorter_chats_equal_better_responses.body:
   context: Quick tip body explaining that shorter separate chats improve results and reduce credits
   en: "You get better responses and save credits when you split topics into separate shorter chats."
   de: "Du bekommst bessere Antworten und sparst Credits, wenn du Themen in separate, kürzere Chats aufteilst."
   es: "Obtienes mejores respuestas y ahorras créditos cuando separas los temas en chats más cortos."
+  zh: 将不同主题拆分为较短的独立对话，可以获得更好的回复并节省额度。
+  fr: Tu obtiens de meilleures réponses et économises des crédits en divisant les sujets en plusieurs chats plus courts.
+  pt: Obténs melhores respostas e poupas créditos ao dividir os tópicos em chats separados e mais curtos.
+  ru: Ответы будут точнее, а расход кредитов — меньше, если разделять темы на короткие чаты.
+  ja: トピックを個別の短いチャットに分けることで、より良い回答が得られ、クレジットも節約できます。
+  ko: 주제별로 대화를 짧게 나누면 더 정확한 답변을 얻고 크레딧도 절약할 수 있습니다.
+  it: Ottieni risposte migliori e risparmi crediti quando dividi gli argomenti in chat separate più brevi.
+  tr: Konuları ayrı ve daha kısa sohbetlere böldüğünde daha iyi yanıtlar alır ve kredi tasarrufu sağlarsın.
+  vi: Bạn sẽ nhận được phản hồi tốt hơn và tiết kiệm tín dụng khi chia các chủ đề thành những cuộc trò chuyện ngắn riêng biệt.
+  id: Kamu akan mendapatkan respons yang lebih baik dan menghemat kredit saat membagi topik ke dalam obrolan terpisah yang lebih pendek.
+  pl: Otrzymasz lepsze odpowiedzi i zaoszczędzisz kredyty, dzieląc tematy na osobne, krótsze czaty.
+  nl: Je krijgt betere antwoorden en bespaart credits wanneer je onderwerpen opsplitst in afzonderlijke, kortere chats.
+  ar: ستحصل على ردود أفضل وتوفر الرصيد عند تقسيم المواضيع إلى دردشات منفصلة وأقصر.
+  hi: जब आप विषयों को अलग-अलग छोटी चैट में बांटते हैं, तो आपको बेहतर जवाब मिलते हैं और क्रेडिट की बचत होती है।
+  th: คุณจะได้รับคำตอบที่ดีกว่าและประหยัดเครดิตเมื่อแยกหัวข้อต่างๆ ออกเป็นแชทสั้นๆ หลายแชท
+  cs: Získáš lepší odpovědi a ušetříš kredity, když témata rozdělíš do samostatných kratších chatů.
+  sv: Du får bättre svar och sparar krediter när du delar upp ämnen i separata, kortare chattar.
+  he: "תקבל תשובות טובות יותר ותחסוך קרדיטים כשתפצל נושאים לצ'אטים קצרים ונפרדים."
 search_current_info_next_time.title:
   context: Quick tip title for using web search when information needs to be fresh
   en: "Search when freshness matters"
   de: "Suche, wenn Aktualität wichtig ist"
   es: "Busca cuando la actualidad importe"
+  zh: 在需要即时信息时使用搜索
+  fr: "Rechercher quand l'actualité compte"
+  pt: Pesquise quando a atualidade for importante
+  ru: Используй поиск для актуальных данных
+  ja: 情報の鮮度が重要な場合は検索を
+  ko: 최신 정보가 필요할 땐 검색하세요
+  it: "Cerca quando l'attualità è importante"
+  tr: Bilgilerin güncelliği önemli olduğunda arama yap
+  vi: Tìm kiếm khi cần thông tin mới nhất
+  id: Cari saat kesegaran informasi penting
+  pl: Szukaj, gdy liczy się aktualność
+  nl: Zoek wanneer actuele informatie belangrijk is
+  ar: استخدم البحث عندما تكون حداثة المعلومات مهمة
+  hi: ताज़ा जानकारी के लिए सर्च का इस्तेमाल करें
+  th: ใช้การค้นหาเมื่อต้องการข้อมูลที่เป็นปัจจุบัน
+  cs: Hledej, když záleží na aktuálnosti
+  sv: Sök när aktualitet är viktigt
+  he: חפש כשהעדכניות חשובה
 search_current_info_next_time.body:
   context: Quick tip body explaining that OpenMates can search for current information next time
   en: "Next time you need current prices, events, news, product details, or recent facts, OpenMates can search the web for you."
   de: "Wenn du das nächste Mal aktuelle Preise, Veranstaltungen, Nachrichten, Produktdetails oder neue Fakten brauchst, kann OpenMates für dich im Web suchen."
   es: "La próxima vez que necesites precios actuales, eventos, noticias, detalles de productos o datos recientes, OpenMates puede buscar en la web por ti."
+  zh: 下次当你需要了解当前价格、活动、新闻、产品详情或近期事实时，OpenMates 可以为你搜索网页。
+  fr: "La prochaine fois que tu auras besoin de prix actuels, d'événements, d'actualités, de détails sur un produit ou de faits récents, OpenMates pourra faire des recherches sur le web pour toi."
+  pt: Da próxima vez que precisares de preços atuais, eventos, notícias, detalhes de produtos ou factos recentes, o OpenMates pode pesquisar na web por ti.
+  ru: В следующий раз, когда тебе понадобятся актуальные цены, события, новости, сведения о товарах или свежие факты, OpenMates сможет найти их в сети.
+  ja: 次回、最新の価格、イベント、ニュース、製品の詳細、または最近の事実が必要なときは、OpenMatesがウェブを検索します。
+  ko: 다음번에 최신 가격, 이벤트, 뉴스, 제품 상세 정보 또는 최근 사실이 필요할 때 OpenMates가 웹에서 대신 검색해 드립니다.
+  it: La prossima volta che avrai bisogno di prezzi aggiornati, eventi, notizie, dettagli sui prodotti o fatti recenti, OpenMates potrà cercare sul web per te.
+  tr: "Bir dahaki sefere güncel fiyatlara, etkinliklere, haberlere, ürün detaylarına veya yeni bilgilere ihtiyaç duyduğunda, OpenMates senin için web'de arama yapabilir."
+  vi: Lần tới khi bạn cần giá cả hiện tại, sự kiện, tin tức, chi tiết sản phẩm hoặc các sự kiện gần đây, OpenMates có thể tìm kiếm trên web giúp bạn.
+  id: Lain kali kamu butuh harga terkini, acara, berita, detail produk, atau fakta terbaru, OpenMates bisa mencari di web untukmu.
+  pl: Gdy następnym razem będziesz potrzebować aktualnych cen, wydarzeń, wiadomości, szczegółów produktów lub najnowszych faktów, OpenMates może przeszukać dla Ciebie sieć.
+  nl: De volgende keer dat je actuele prijzen, evenementen, nieuws, productdetails of recente feiten nodig hebt, kan OpenMates het web voor je doorzoeken.
+  ar: في المرة القادمة التي تحتاج فيها إلى أسعار حالية أو فعاليات أو أخبار أو تفاصيل منتجات أو حقائق حديثة، يمكن لـ OpenMates البحث في الويب من أجلك.
+  hi: अगली बार जब तुम्हें मौजूदा कीमतों, कार्यक्रमों, समाचारों, उत्पाद विवरणों या हाल के तथ्यों की ज़रूरत हो, तो OpenMates तुम्हारे लिए वेब पर खोज कर सकता है।
+  th: ครั้งหน้าที่คุณต้องการทราบราคาปัจจุบัน กิจกรรม ข่าวสาร รายละเอียดผลิตภัณฑ์ หรือข้อเท็จจริงล่าสุด OpenMates สามารถค้นหาเว็บให้คุณได้
+  cs: Až budeš příště potřebovat aktuální ceny, události, zprávy, podrobnosti o produktech nebo nedávná fakta, OpenMates za tebe může prohledat web.
+  sv: Nästa gång du behöver aktuella priser, evenemang, nyheter, produktinformation eller färska fakta kan OpenMates söka på webben åt dig.
+  he: בפעם הבאה שתצטרך מחירים עדכניים, אירועים, חדשות, פרטי מוצרים או עובדות מהזמן האחרון, OpenMates יוכל לחפש באינטרנט עבורך.
 travel_can_add_local_context.title:
   context: Quick tip title for adding travel context after planning travel
   en: "Add more travel context"
   de: "Mehr Reisekontext hinzufügen"
   es: "Añade más contexto de viaje"
+  zh: 添加更多旅行背景信息
+  fr: Ajoute plus de contexte de voyage
+  pt: Adiciona mais contexto de viagem
+  ru: Добавь больше контекста поездки
+  ja: 旅行の情報をさらに追加する
+  ko: 여행 정보 추가하기
+  it: Aggiungi più contesto di viaggio
+  tr: Daha fazla seyahat bağlamı ekle
+  vi: Thêm bối cảnh du lịch
+  id: Tambahkan lebih banyak konteks perjalanan
+  pl: Dodaj więcej kontekstu podróży
+  nl: Voeg meer reiscontext toe
+  ar: أضف المزيد من سياق السفر
+  hi: यात्रा के बारे में और जानकारी जोड़ें
+  th: เพิ่มข้อมูลบริบทการเดินทางเพิ่มเติม
+  cs: Přidej další cestovní kontext
+  sv: Lägg till mer resekontext
+  he: הוספת הקשר נוסף לנסיעה
 travel_can_add_local_context.body:
   context: Quick tip body explaining that OpenMates can help with travel-related next steps
   en: "After planning travel, OpenMates can also help find local places, events, stays, routes, and practical details for the same trip."
   de: "Nach der Reiseplanung kann OpenMates auch lokale Orte, Veranstaltungen, Unterkünfte, Routen und praktische Details für dieselbe Reise finden."
   es: "Después de planificar un viaje, OpenMates también puede ayudarte a encontrar lugares locales, eventos, alojamientos, rutas y detalles prácticos para el mismo viaje."
+  zh: 在规划行程后，OpenMates 还可以帮助查找同一行程的当地地点、活动、住宿、路线和实用细节。
+  fr: "Après avoir planifié un voyage, OpenMates peut aussi t'aider à trouver des lieux locaux, des événements, des hébergements, des itinéraires et des détails pratiques pour ce même voyage."
+  pt: Depois de planeares uma viagem, o OpenMates também pode ajudar a encontrar locais, eventos, estadias, rotas e detalhes práticos para a mesma viagem.
+  ru: После планирования поездки OpenMates также поможет найти интересные места, события, жилье, маршруты и полезные детали для этого путешествия.
+  ja: 旅行の計画を立てた後、OpenMatesは同じ旅行の現地の場所、イベント、宿泊先、ルート、実用的な詳細を見つけるお手伝いもできます。
+  ko: 여행 계획을 세운 후, OpenMates는 해당 여행의 현지 장소, 이벤트, 숙소, 경로 및 실용적인 세부 정보를 찾는 데 도움을 줄 수 있습니다.
+  it: Dopo aver pianificato un viaggio, OpenMates può aiutarti a trovare luoghi locali, eventi, alloggi, percorsi e dettagli pratici per lo stesso viaggio.
+  tr: Seyahat planladıktan sonra OpenMates; aynı gezi için yerel mekanlar, etkinlikler, konaklama yerleri, rotalar ve pratik detaylar bulmana da yardımcı olabilir.
+  vi: Sau khi lập kế hoạch du lịch, OpenMates cũng có thể giúp tìm các địa điểm địa phương, sự kiện, nơi lưu trú, lộ trình và các chi tiết thực tế cho cùng chuyến đi đó.
+  id: Setelah merencanakan perjalanan, OpenMates juga bisa membantu menemukan tempat lokal, acara, penginapan, rute, dan detail praktis untuk perjalanan yang sama.
+  pl: Po zaplanowaniu podróży OpenMates może również pomóc w znalezieniu lokalnych miejsc, wydarzeń, noclegów, tras i praktycznych szczegółów dotyczących tej samej wyprawy.
+  nl: Na het plannen van een reis kan OpenMates ook helpen bij het vinden van lokale plekken, evenementen, verblijven, routes en praktische details voor diezelfde reis.
+  ar: بعد التخطيط للسفر، يمكن لـ OpenMates أيضاً المساعدة في العثور على أماكن محلية وفعاليات وإقامات ومسارات وتفاصيل عملية لنفس الرحلة.
+  hi: यात्रा की योजना बनाने के बाद, OpenMates उसी यात्रा के लिए स्थानीय स्थानों, कार्यक्रमों, ठहरने की जगहों, रास्तों और व्यावहारिक विवरणों को खोजने में भी मदद कर सकता है।
+  th: หลังจากวางแผนการเดินทางแล้ว OpenMates ยังสามารถช่วยค้นหาสถานที่ในท้องถิ่น กิจกรรม ที่พัก เส้นทาง และรายละเอียดที่เป็นประโยชน์สำหรับการเดินทางครั้งเดียวกันนี้ได้อีกด้วย
+  cs: Po naplánování cesty ti OpenMates může pomoci najít místní podniky, události, ubytování, trasy a praktické detaily pro stejný výlet.
+  sv: Efter att du har planerat en resa kan OpenMates även hjälpa till att hitta lokala platser, evenemang, boenden, rutter och praktiska detaljer för samma resa.
+  he: לאחר תכנון הנסיעה, OpenMates יכול לעזור גם במציאת מקומות מקומיים, אירועים, מקומות לינה, מסלולים ופרטים פרקטיים לאותה נסיעה.
 use_apps_for_better_results.title:
   context: Quick tip title for trying a specialized app
   en: "Try an app for the next step"
   de: "Nutze eine App für den nächsten Schritt"
   es: "Prueba una app para el siguiente paso"
+  zh: 尝试使用应用进行下一步操作
+  fr: "Essaie une application pour l'étape suivante"
+  pt: Experimenta uma app para o próximo passo
+  ru: Попробуй приложение для следующего шага
+  ja: 次のステップでアプリを試す
+  ko: 다음 단계를 위해 앱을 사용해 보세요
+  it: "Prova un'app per il prossimo passo"
+  tr: Bir sonraki adım için bir uygulama dene
+  vi: Thử một ứng dụng cho bước tiếp theo
+  id: Coba aplikasi untuk langkah selanjutnya
+  pl: Wypróbuj aplikację w kolejnym kroku
+  nl: Probeer een app voor de volgende stap
+  ar: جرب تطبيقاً للخطوة التالية
+  hi: अगले कदम के लिए किसी ऐप को आज़माएं
+  th: ลองใช้แอปสำหรับขั้นตอนต่อไป
+  cs: Zkus aplikaci pro další krok
+  sv: Prova en app för nästa steg
+  he: נסה אפליקציה לשלב הבא
 use_apps_for_better_results.body:
   context: Quick tip body explaining that OpenMates apps provide specialized tools
   en: "When you know what you want to do next, OpenMates apps can give the AI better tools for tasks like coding, research, events, shopping, writing, or planning."
   de: "Wenn du weißt, was du als Nächstes tun möchtest, geben OpenMates Apps der KI bessere Werkzeuge für Aufgaben wie Programmieren, Recherche, Events, Shopping, Schreiben oder Planen."
   es: "Cuando sabes qué quieres hacer después, las apps de OpenMates dan a la IA mejores herramientas para tareas como programar, investigar, eventos, compras, escritura o planificación."
+  zh: 当你明确下一步要做什么时，OpenMates 应用可以为 AI 提供更好的工具，用于编程、研究、活动、购物、写作或规划等任务。
+  fr: "Quand tu sais ce que tu veux faire ensuite, les applications OpenMates peuvent donner à l'IA de meilleurs outils pour des tâches comme le code, la recherche, les événements, le shopping, l'écriture ou la planification."
+  pt: Quando souberes o que queres fazer a seguir, as apps do OpenMates podem dar à IA melhores ferramentas para tarefas como programação, pesquisa, eventos, compras, escrita ou planeamento.
+  ru: Когда ты знаешь, что делать дальше, приложения OpenMates предоставят ИИ лучшие инструменты для таких задач, как программирование, исследования, события, покупки, письмо или планирование.
+  ja: 次に何をしたいかが決まっている場合、OpenMatesアプリは、コーディング、リサーチ、イベント、ショッピング、執筆、計画などのタスクに対して、AIにより優れたツールを提供できます。
+  ko: 다음에 무엇을 할지 결정했다면, OpenMates 앱을 통해 코딩, 리서치, 이벤트, 쇼핑, 글쓰기 또는 계획과 같은 작업에 더 적합한 도구를 AI에 제공할 수 있습니다.
+  it: "Quando sai cosa vuoi fare dopo, le app di OpenMates possono fornire all'IA strumenti migliori per attività come programmazione, ricerca, eventi, shopping, scrittura o pianificazione."
+  tr: Bir sonraki adımda ne yapmak istediğini bildiğinde, OpenMates uygulamaları; kodlama, araştırma, etkinlikler, alışveriş, yazma veya planlama gibi görevler için yapay zekaya daha iyi araçlar sunabilir.
+  vi: Khi bạn biết mình muốn làm gì tiếp theo, các ứng dụng OpenMates có thể cung cấp cho AI các công cụ tốt hơn cho các tác vụ như lập trình, nghiên cứu, sự kiện, mua sắm, viết lách hoặc lập kế hoạch.
+  id: Saat kamu tahu apa yang ingin dilakukan selanjutnya, aplikasi OpenMates dapat memberikan alat yang lebih baik kepada AI untuk tugas-tugas seperti coding, riset, acara, belanja, menulis, atau perencanaan.
+  pl: Gdy wiesz, co chcesz zrobić dalej, aplikacje OpenMates mogą zapewnić AI lepsze narzędzia do zadań takich jak kodowanie, research, wydarzenia, zakupy, pisanie czy planowanie.
+  nl: Wanneer je weet wat je vervolgens wilt doen, kunnen OpenMates-apps de AI betere tools geven voor taken zoals coderen, onderzoek, evenementen, winkelen, schrijven of plannen.
+  ar: عندما تعرف ما تريد القيام به بعد ذلك، يمكن لتطبيقات OpenMates تزويد الذكاء الاصطناعي بأدوات أفضل لمهام مثل البرمجة أو البحث أو الفعاليات أو التسوق أو الكتابة أو التخطيط.
+  hi: जब तुम्हें पता हो कि आगे क्या करना है, तो OpenMates ऐप्स AI को कोडिंग, शोध, कार्यक्रमों, खरीदारी, लेखन या योजना बनाने जैसे कार्यों के लिए बेहतर टूल दे सकते हैं।
+  th: เมื่อคุณรู้ว่าต้องการทำอะไรในขั้นตอนต่อไป แอป OpenMates สามารถมอบเครื่องมือที่ดีกว่าให้กับ AI สำหรับงานต่างๆ เช่น การเขียนโค้ด การวิจัย กิจกรรม การช้อปปิ้ง การเขียน หรือการวางแผน
+  cs: Když víš, co chceš dělat dál, aplikace OpenMates mohou dát AI lepší nástroje pro úkoly, jako je kódování, výzkum, události, nakupování, psaní nebo plánování.
+  sv: "När du vet vad du vill göra härnäst kan OpenMates-appar ge AI:n bättre verktyg för uppgifter som kodning, efterforskning, evenemang, shopping, skrivande eller planering."
+  he: כשאתה יודע מה אתה רוצה לעשות הלאה, האפליקציות של OpenMates יכולות לתת ל-AI כלים טובים יותר למשימות כמו תכנות, מחקר, אירועים, קניות, כתיבה או תכנון.

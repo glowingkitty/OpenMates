@@ -17,9 +17,10 @@ This skill sets up context for working on the Apple app (`apple/OpenMates/`). Us
 
 ### Step 2: Choose Work Mode
 
-Use one of two modes depending on the environment and task:
+Use one of three modes depending on the environment and task:
 
 - **Mac implementation mode:** XcodeBuildMCP is available. Use build/run/screenshot verification after changes.
+- **Remote Mac verification mode:** OpenCode runs on Linux/dev server, but a trusted Mac is reachable through operator-provided SSH configuration. Use SSH to run `git`, `xcodebuild`, and `xcrun simctl` on the Mac. Never commit hostnames, IPs, usernames, SSH aliases, tailnet names, auth keys, device names, or personal local paths to repo files.
 - **Linux parity audit mode:** XcodeBuildMCP is unavailable. Do static source audits, generate parity specs, update mappings, compare web test IDs with Apple accessibility identifiers, and prepare Mac verification checklists. Do not claim runtime parity until a Mac build/simulator pass verifies it.
 
 ### Step 3: Verify XcodeBuildMCP setup (Mac only)
@@ -34,6 +35,8 @@ session_set_defaults:
 ```
 
 Skip this step on Linux and record `Mac verification required` in the final summary.
+
+For remote Mac verification mode, use only local runtime configuration supplied by the operator, such as `~/.ssh/config`, environment variables, or the current chat. Before building, verify key-based SSH access, check the Mac checkout with `git status --short`, and avoid overwriting local user changes. Use generic placeholders in notes and committed docs.
 
 ### Step 4: Identify affected Swift files or parity surface
 
@@ -85,6 +88,19 @@ After each code change:
 2. Screenshot the simulator: use `screenshot`
 3. Compare against the web app (use `firecrawl_scrape` with `screenshot` format on the equivalent page)
 4. If mismatch: re-read the CSS, fix the Swift code, repeat
+5. When verification is complete, shut down any simulator booted by this session unless the operator asks to keep it running
+
+### Step 8: Remote Mac CLI verification loop
+
+When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
+
+1. Confirm the remote Mac has a clean checkout or only the current session's expected changes.
+2. Run `git pull --ff-only` in the remote checkout only when it is clean.
+3. Build with `xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" build`.
+4. Interact with the simulator using `xcrun simctl`: boot the chosen simulator, install the built `.app`, launch the bundle identifier, optionally set appearance or open a URL, then capture a screenshot.
+5. After verification, run `xcrun simctl shutdown <simulator>` for any simulator booted by this session unless the operator asks to keep it running.
+6. Clean up only temporary artifacts created by the current session, such as copied screenshots or throwaway build logs. Do not delete unrelated DerivedData, caches, or local checkout changes.
+7. Keep private connection details out of repo files and final summaries; refer to the remote host only generically.
 
 ### Reminders
 

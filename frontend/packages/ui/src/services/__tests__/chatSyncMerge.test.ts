@@ -38,6 +38,7 @@ describe("chat sync merge", () => {
     const localChat = makeChat({
       candidate_encrypted_keys: ["local-candidate-k0"],
       key_fingerprint: "local-fp-k1",
+      encrypted_shared_short_url: "local-short-url-k1",
     });
     const serverChat = {
       id: "chat-1",
@@ -63,6 +64,7 @@ describe("chat sync merge", () => {
     expect(merged.encrypted_title).toBe("local-title-k1");
     expect(merged.encrypted_icon).toBe("local-icon-k1");
     expect(merged.encrypted_category).toBe("local-category-k1");
+    expect(merged.encrypted_shared_short_url).toBe("local-short-url-k1");
     expect(merged.encrypted_draft_md).toBeUndefined();
     expect(merged.encrypted_draft_preview).toBeUndefined();
     expect(merged.messages_v).toBe(0);
@@ -142,5 +144,27 @@ describe("chat sync merge", () => {
     expect(merged.encrypted_icon).toBe("local-icon-from-idb");
     expect(merged.encrypted_category).toBe("local-category-from-idb");
     expect(merged.title_v).toBe(1);
+  });
+
+  it("merges encrypted shared short URL from server for owner share UI restore", async () => {
+    const localChat = makeChat({
+      encrypted_chat_key: "same-key",
+      encrypted_shared_short_url: null,
+      is_shared: false,
+    });
+    const serverChat = {
+      id: "chat-1",
+      encrypted_chat_key: "same-key",
+      encrypted_shared_short_url: "server-encrypted-short-url",
+      is_shared: true,
+      messages_v: 6,
+      title_v: 10,
+      draft_v: 0,
+    };
+
+    const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
+
+    expect(merged.encrypted_shared_short_url).toBe("server-encrypted-short-url");
+    expect(merged.is_shared).toBe(true);
   });
 });

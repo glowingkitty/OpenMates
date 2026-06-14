@@ -15,9 +15,17 @@ const {
 	renderedProviderName
 } = require('./helpers/provider-icon-helpers');
 const { appsMetadata } = require('../../../packages/ui/src/data/appsMetadata');
+const { providersMetadata } = require('../../../packages/ui/src/data/providersMetadata');
 
 test.describe('App Store skill provider icons', () => {
 	test.setTimeout(360_000);
+
+	test('Edamam has provider metadata with a dedicated logo asset', async () => {
+		expect(providersMetadata.edamam, 'Edamam provider metadata should exist').toBeTruthy();
+		expect(providersMetadata.edamam.logo_svg, 'Edamam should not use the generic server icon').toBe(
+			'icons/edamam.png'
+		);
+	});
 
 	test('all skills with providers show matching loaded provider icons in settings', async ({ page }: { page: any }) => {
 		await page.setViewportSize({ width: 1600, height: 900 });

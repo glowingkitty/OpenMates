@@ -2,10 +2,45 @@
 status: active
 last_verified: 2026-06-01
 key_files:
+- backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+- backend/core/api/app/routes/sync_api.py
+- frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+- frontend/packages/ui/src/services/chatSyncMerge.ts
+claims:
+- id: arch-phased-sync-handler-behavior
+  type: unit
+  claim: Startup Sync Handler is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
   - backend/core/api/app/routes/sync_api.py
   - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
   - frontend/packages/ui/src/services/chatSyncMerge.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-phased-sync-handler-behavior
+  verified: '2026-06-11'
+- id: arch-phased-sync-handler-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-phased-sync-handler-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+- id: arch-phased-sync-handler-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-phased-sync-handler-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/sync_api.py
+- id: arch-phased-sync-handler-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-phased-sync-handler-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/services/chatSyncMerge.ts
 ---
 
 # Startup Sync Handler

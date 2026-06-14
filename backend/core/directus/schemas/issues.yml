@@ -81,3 +81,31 @@ issues:
       length: 20
       nullable: true
       note: "Linear issue identifier (e.g., OPE-78) auto-created when the issue is reported. Used for cross-referencing between the internal issue database and the Linear project board."
+
+    agent_action:
+      type: string
+      length: 20
+      nullable: true
+      note: "Legacy admin-requested agent action for retired automatic OpenCode handoff. Kept for old records only."
+
+    agent_status:
+      type: string
+      length: 20
+      nullable: true
+      note: "Legacy automatic OpenCode handoff status. Kept for old records only."
+
+    agent_session_title:
+      type: string
+      length: 100
+      nullable: true
+      note: "Legacy OpenCode session title from retired automatic issue handoff."
+
+    agent_error:
+      type: text
+      nullable: true
+      note: "Legacy host-side poller error from retired automatic issue handoff."
+
+    agent_started_at:
+      type: timestamp
+      nullable: true
+      note: "Legacy timestamp from retired automatic OpenCode issue handoff."

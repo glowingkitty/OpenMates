@@ -318,6 +318,24 @@ class TestTopicAreaMateRouting:
             available_category_ids=AVAILABLE_CATEGORY_IDS,
         ) == "cooking_food"
 
+    def test_code_task_area_forces_software_category(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="life_coaching_productivity",
+            raw_topic_shift="noticeable_shift",
+            previous_category=None,
+            available_category_ids=AVAILABLE_CATEGORY_IDS,
+            raw_task_area="code",
+        ) == "software_development"
+
+    def test_non_code_task_area_keeps_topic_category(self):
+        assert _resolve_category_from_topic_area(
+            raw_topic_area="life_coaching_productivity",
+            raw_topic_shift="noticeable_shift",
+            previous_category=None,
+            available_category_ids=AVAILABLE_CATEGORY_IDS,
+            raw_task_area="general",
+        ) == "life_coach_psychology"
+
 @pytest.mark.anyio
 async def test_translate_chat_summary_uses_isolated_translation(monkeypatch):
     captured = {}

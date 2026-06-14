@@ -9,7 +9,7 @@
 > See: [Encryption Architecture](./encryption-architecture.md) for the post-rebuild overview.
 >
 > Related: [Chat Encryption Implementation](./chat-encryption-implementation.md) |
-> [Zero-Knowledge Storage](./zero-knowledge-storage.md)
+> [Encryption Architecture](./encryption-architecture.md)
 
 ## Resolution Status (Post-Rebuild)
 

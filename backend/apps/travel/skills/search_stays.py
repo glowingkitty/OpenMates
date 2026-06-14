@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.travel.providers.serpapi_hotels_provider import (
     search_hotels,
     StayResult,
@@ -122,6 +122,67 @@ class SearchStaysSkill(BaseSkill):
         "Show only hotels with free cancellation",
     ]
 
+    @staticmethod
+    def _has_pool_intent(query: str) -> bool:
+        return "pool" in query.lower()
+
+    @staticmethod
+    def _has_beach_intent(query: str) -> bool:
+        lowered = query.lower()
+        return "beach" in lowered or "beachfront" in lowered or "near beach" in lowered
+
+    @staticmethod
+    def _apply_quality_filters(
+        results: List[Dict[str, Any]],
+        *,
+        max_price: Optional[float],
+        query: str,
+    ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Apply deterministic stay filters and annotate constraint confidence."""
+        filtered: List[Dict[str, Any]] = []
+        filtered_out_count = 0
+        pool_intent = SearchStaysSkill._has_pool_intent(query)
+        beach_intent = SearchStaysSkill._has_beach_intent(query)
+
+        for result in results:
+            copy = dict(result)
+            nightly_price = copy.get("extracted_rate_per_night")
+            if max_price is not None:
+                if not isinstance(nightly_price, (int, float)) or float(nightly_price) > float(max_price):
+                    filtered_out_count += 1
+                    continue
+
+            amenities = " ".join(str(item) for item in copy.get("amenities", [])).lower()
+            description = str(copy.get("description") or "").lower()
+            constraint_matches = dict(copy.get("constraint_matches") or {})
+            if max_price is not None:
+                constraint_matches["budget"] = "matched"
+            if pool_intent:
+                constraint_matches["pool"] = "mentioned" if "pool" in amenities else "unknown"
+            if beach_intent:
+                constraint_matches["beach_proximity"] = (
+                    "mentioned" if "beach" in amenities or "beach" in description else "unknown"
+                )
+            if constraint_matches:
+                copy["constraint_matches"] = constraint_matches
+            filtered.append(copy)
+
+        metadata: Dict[str, Any] = {
+            "filtered_out_count": filtered_out_count,
+            "applied_filters": ["max_price"] if max_price is not None else [],
+            "no_result_reason": "filtered_out" if results and not filtered else None,
+            "pool_intent": pool_intent,
+            "beach_intent": beach_intent,
+        }
+        if metadata["no_result_reason"]:
+            metadata["suggestions"] = [
+                "Increase the nightly budget",
+                "Search farther from the beach",
+                "Include hostels or private rooms",
+                "Try nearby dates",
+            ]
+        return filtered, metadata
+
     async def execute(
         self,
         requests: List[Dict[str, Any]],
@@ -147,18 +208,24 @@ class SearchStaysSkill(BaseSkill):
         if error_response:
             return error_response
 
-        # 2. Validate requests array (require 'query' field per request)
-        validated_requests, validation_error = self._validate_requests_array(
+        validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
             requests=requests,
-            required_field="query",
-            field_display_name="query",
+            required_fields=["query"],
+            field_display_names={"query": "query"},
             empty_error_message="No stay search requests provided",
             logger=logger,
         )
         if validation_error:
             return SearchStaysResponse(results=[], error=validation_error)
         if not validated_requests:
-            return SearchStaysResponse(results=[], error="No valid requests to process")
+            return self._build_response_with_errors(
+                response_class=SearchStaysResponse,
+                grouped_results=invalid_grouped_results,
+                errors=validation_errors,
+                provider="Google",
+                suggestions=self.FOLLOW_UP_SUGGESTIONS,
+                logger=logger,
+            )
 
         # 3. Process requests in parallel
         all_results = await self._process_requests_in_parallel(
@@ -172,9 +239,15 @@ class SearchStaysSkill(BaseSkill):
         # 4. Group results by request ID
         grouped_results, errors = self._group_results_by_request_id(
             results=all_results,
-            requests=validated_requests,
+            requests=requests,
             logger=logger,
         )
+        grouped_results = self._merge_grouped_results_preserving_request_order(
+            grouped_results,
+            invalid_grouped_results,
+            requests,
+        )
+        self._annotate_empty_result_groups(grouped_results, requests)
 
         # 5. Build and return response
         return self._build_response_with_errors(
@@ -185,6 +258,35 @@ class SearchStaysSkill(BaseSkill):
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )
+
+    @staticmethod
+    def _annotate_empty_result_groups(
+        grouped_results: List[Dict[str, Any]],
+        requests: List[Dict[str, Any]],
+    ) -> None:
+        """Add no-result metadata to successful empty stay groups."""
+        request_by_id = {request.get("id"): request for request in requests}
+        for group in grouped_results:
+            if group.get("results") or group.get("error"):
+                continue
+            request = request_by_id.get(group.get("id"), {})
+            has_explicit_filters = any(
+                request.get(key) is not None
+                for key in ("max_price", "min_price", "hotel_class", "rating")
+            )
+            query = str(request.get("query") or "")
+            has_constraints = (
+                has_explicit_filters
+                or SearchStaysSkill._has_pool_intent(query)
+                or SearchStaysSkill._has_beach_intent(query)
+            )
+            group["no_result_reason"] = "filtered_out" if has_constraints else "no_matches"
+            group["suggestions"] = [
+                "Increase the nightly budget",
+                "Search farther from the beach",
+                "Include hostels or private rooms",
+                "Try nearby dates",
+            ]
 
     async def _process_single_request(
         self,
@@ -260,6 +362,18 @@ class SearchStaysSkill(BaseSkill):
             # Add a hash for deduplication
             result_dict["hash"] = self._generate_stay_hash(stay)
             results.append(result_dict)
+
+        results, quality_metadata = self._apply_quality_filters(
+            results,
+            max_price=max_price,
+            query=query,
+        )
+        if quality_metadata.get("filtered_out_count"):
+            logger.info(
+                "Stay quality filters removed %d result(s) for request %s",
+                quality_metadata["filtered_out_count"],
+                request_id,
+            )
 
         try:
             results = await sanitize_long_text_fields_in_payload(

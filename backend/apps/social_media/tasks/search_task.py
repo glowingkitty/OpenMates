@@ -14,7 +14,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation
 from backend.apps.social_media.search_collection import SearchResponseItem, collect_search_results
 from backend.apps.social_media.tasks.get_posts_task import (

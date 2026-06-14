@@ -26,6 +26,122 @@ const noopScreenshot = async (_page: any, _label: string): Promise<void> => {};
 /** No-op log function for when logging isn't needed */
 const noopLog = (_message: string, _metadata?: Record<string, unknown>): void => {};
 
+type LastSendState = {
+	assistantCount: number;
+	assistantLastText: string;
+};
+
+const lastSendStateByPage = new WeakMap<object, LastSendState>();
+
+async function locatorCount(locator: any): Promise<number> {
+	return locator.count().catch(() => 0);
+}
+
+function visibleMessageAnchors(message: string): string[] {
+	const normalized = message
+		.replace(/<<<TEST_(?:MOCK|RECORD):[^>]+>>>/g, '')
+		.replace(/\s+/g, ' ')
+		.trim();
+	const withoutFirstWord = normalized.split(' ').slice(1).join(' ');
+	return [normalized.slice(0, 80), withoutFirstWord.slice(0, 80)]
+		.filter((anchor) => anchor.length >= 20);
+}
+
+async function userMessagePersisted(
+	userMessages: any,
+	previousCount: number,
+	message: string,
+	messageEditor?: any,
+	assistantMessages?: any,
+	previousAssistantCount?: number
+): Promise<boolean> {
+	const currentCount = await locatorCount(userMessages);
+	if (currentCount >= previousCount + 1) {
+		return true;
+	}
+
+	if (assistantMessages && previousAssistantCount !== undefined) {
+		const assistantCount = await locatorCount(assistantMessages);
+		if (assistantCount > previousAssistantCount) {
+			return true;
+		}
+	}
+
+	const anchors = visibleMessageAnchors(message);
+	if (anchors.length === 0 || currentCount === 0) {
+		return false;
+	}
+
+	const lastVisibleText = await userMessages.last().textContent({ timeout: 1000 }).catch(() => '');
+	const normalizedVisibleText = (lastVisibleText ?? '').replace(/\s+/g, ' ');
+	return anchors.some((anchor) => normalizedVisibleText.includes(anchor));
+}
+
+async function waitForUserMessageAcceptedByServer(
+	page: any,
+	userMessages: any,
+	assistantMessages: any,
+	previousAssistantCount: number,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	try {
+		await expect
+			.poll(
+				async () => {
+					const assistantCount = await locatorCount(assistantMessages);
+					if (assistantCount > previousAssistantCount) {
+						return true;
+					}
+
+					const userCount = await locatorCount(userMessages);
+					if (userCount === 0) {
+						return false;
+					}
+
+					const lastUserText = await userMessages.last().textContent({ timeout: 1000 }).catch(() => '');
+					return !/\b(Sending|Waiting for internet|Waiting for upload)\b/i.test(lastUserText ?? '');
+				},
+				{ timeout: 45_000 }
+			)
+			.toBeTruthy();
+	} catch (error) {
+		const diagnostics = await page.evaluate(() => {
+			const input = document.querySelector('[data-action="message-input"]') as HTMLElement | null;
+			const lastUser = Array.from(document.querySelectorAll('[data-testid="message-user"]')).at(-1) as HTMLElement | undefined;
+
+			return {
+				url: window.location.href,
+				inputChatId: input?.getAttribute('data-current-chat-id') ?? null,
+				lastUserText: lastUser?.innerText ?? null
+			};
+		});
+		logCheckpoint(`User message stayed pending after send; diagnostics=${JSON.stringify(diagnostics)}`);
+		throw error;
+	}
+}
+
+async function waitForNewChatSendContext(
+	page: any,
+	startedFromNewChat: boolean,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	if (!startedFromNewChat) {
+		return;
+	}
+
+	await expect(async () => {
+		const chatIdFromUrl = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+		const messageInput = page.locator('[data-action="message-input"]').last();
+		const inputChatId = await messageInput.getAttribute('data-current-chat-id').catch(() => null);
+		expect(chatIdFromUrl ?? inputChatId).toBeTruthy();
+		expect(chatIdFromUrl ?? inputChatId).not.toBe('new-chat');
+	}).toPass({ timeout: 30_000 });
+
+	logCheckpoint('New-chat send rebound to created chat context.', {
+		url: page.url()
+	});
+}
+
 async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 20000): Promise<boolean> {
 	const authDom = authSignal.waitFor({ state: 'visible', timeout })
 		.then(() => true)
@@ -81,6 +197,33 @@ async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promi
 	await page.goto(getE2EDebugUrl('/'));
 	await page.waitForLoadState('load');
 	return waitForAuthenticatedUi(page, authSignal, 20000);
+}
+
+async function hasStoredEmailSalt(page: any): Promise<boolean> {
+	return page.evaluate(() => {
+		return Boolean(
+			sessionStorage.getItem('openmates_email_salt') ||
+				localStorage.getItem('openmates_email_salt')
+		);
+	}).catch(() => false);
+}
+
+async function waitForEmailLookupReady(page: any): Promise<boolean> {
+	const passwordInput = page.locator('#login-password-input');
+	const passwordVisible = passwordInput.waitFor({ state: 'visible', timeout: 15000 })
+		.then(() => true)
+		.catch(() => false);
+	const saltReady = page.waitForFunction(
+		() => Boolean(
+			sessionStorage.getItem('openmates_email_salt') ||
+				localStorage.getItem('openmates_email_salt')
+		),
+		undefined,
+		{ timeout: 15000 }
+	).then(() => true).catch(() => false);
+
+	const [hasPasswordInput, hasSalt] = await Promise.all([passwordVisible, saltReady]);
+	return hasPasswordInput && hasSalt;
 }
 
 /**
@@ -161,13 +304,16 @@ async function loginToTestAccount(
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
 
-	// Retry if 429 hit on lookup — the EmailLookup component hides the form
-	// and shows a rate-limit message for 120s. To retry, we must clear the
-	// rate-limit flag from localStorage and reload the login interface so the
-	// form reappears. Max 3 retries with increasing back-off.
-	for (let retryCount = 0; retryCount < 3 && hit429; retryCount++) {
-		const waitSec = 5 + retryCount * 5;
-		logCheckpoint(`Hit 429 rate limit on lookup, waiting ${waitSec}s before retry ${retryCount + 1}...`);
+	// Retry if lookup fails before password login. 429 shows a rate-limit view,
+	// while transient 5xx/CORS failures can leave the password form visible but
+	// without the stored email salt required for password hash generation.
+	let lookupReady = await waitForEmailLookupReady(page);
+	for (let retryCount = 0; retryCount < 3 && (!lookupReady || hit429); retryCount++) {
+		const waitSec = hit429 ? 5 + retryCount * 5 : 3 + retryCount * 3;
+		const hasSalt = await hasStoredEmailSalt(page);
+		logCheckpoint(
+			`Email lookup not ready (hit429=${hit429}, hasSalt=${hasSalt}); waiting ${waitSec}s before retry ${retryCount + 1}...`
+		);
 		hit429 = false;
 		await page.waitForTimeout(waitSec * 1000);
 
@@ -190,6 +336,11 @@ async function loginToTestAccount(
 		await retryEmailInput.fill(TEST_EMAIL);
 		await page.getByRole('button', { name: /continue/i }).click();
 		logCheckpoint(`Retry ${retryCount + 1}: re-entered email and clicked continue.`);
+		lookupReady = await waitForEmailLookupReady(page);
+	}
+
+	if (!lookupReady) {
+		throw new Error('Login email lookup did not store the email salt or show a usable password step.');
 	}
 
 	const passwordInput = page.locator('#login-password-input');
@@ -387,6 +538,10 @@ async function startNewChat(
 	await page.waitForTimeout(1000);
 
 	const currentUrl = page.url();
+	const previousChatId = currentUrl.match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+	const messageInput = page.locator('[data-action="message-input"]').last();
+	const previousInputChatId = await messageInput.getAttribute('data-current-chat-id').catch(() => null);
+	const previousContextId = previousChatId ?? previousInputChatId;
 	logCheckpoint(`Current URL before starting new chat: ${currentUrl}`);
 
 	// If the editor has focus, the adjacent new-chat CTA is intentionally hidden.
@@ -430,6 +585,21 @@ async function startNewChat(
 	}
 
 	if (!clicked) {
+		const attachedNewChatButton = page.locator('[data-testid="new-chat-button"], [data-action="new-chat"]').first();
+		if (await attachedNewChatButton.count().catch(() => 0)) {
+			const clickedAttached = await attachedNewChatButton.evaluate((button: HTMLElement) => {
+				button.click();
+				return true;
+			}).catch(() => false);
+			if (clickedAttached) {
+				logCheckpoint('Triggered attached New Chat button via DOM fallback.');
+				clicked = true;
+				await page.waitForTimeout(2000);
+			}
+		}
+	}
+
+	if (!clicked) {
 		const messageEditor = page.getByTestId('message-editor');
 		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
 			logCheckpoint('New Chat button not visible; editor is already ready, treating page as new chat.');
@@ -439,6 +609,14 @@ async function startNewChat(
 	}
 
 	const newUrl = page.url();
+	if (clicked && previousContextId) {
+		await expect(async () => {
+			const contextId = await messageInput.getAttribute('data-current-chat-id');
+			expect(contextId).toBeTruthy();
+			expect(contextId).not.toBe(previousContextId);
+		}).toPass({ timeout: 10000 });
+		logCheckpoint('Message input rebound to new chat context.');
+	}
 	logCheckpoint(`URL after attempting to start new chat: ${newUrl}`);
 }
 
@@ -453,19 +631,247 @@ async function sendMessage(
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
 	stepLabel: string = 'msg'
 ): Promise<void> {
-	const messageEditor = page.getByTestId('message-editor');
+	const currentChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+	const startedFromNewChat = !currentChatId;
+	const currentChatInput = currentChatId
+		? page.locator(`[data-action="message-input"][data-current-chat-id="${currentChatId}"]`).last()
+		: null;
+	const inputScope = currentChatInput && await currentChatInput.isVisible({ timeout: 1000 }).catch(() => false)
+		? currentChatInput
+		: page;
+	const messageField = inputScope.getByTestId('message-field').last();
+	const messageEditor = messageField.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
+	const userMessages = page.getByTestId('message-user');
+	const assistantMessages = page.getByTestId('message-assistant');
+	const userCountBeforeSend = await locatorCount(userMessages);
+	const assistantCountBeforeSend = await locatorCount(assistantMessages);
+	const assistantLastTextBeforeSend = assistantCountBeforeSend > 0
+		? ((await assistantMessages.last()
+			.textContent({ timeout: 1000 })
+			.catch(() => '')) ?? '').trim()
+		: '';
+
 	await messageEditor.click();
-	await page.keyboard.type(message);
+	await page.keyboard.insertText(message);
 	logCheckpoint(`Typed message: "${message}"`);
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeVisible({ timeout: 15000 });
-	await expect(sendButton).toBeEnabled({ timeout: 5000 });
-	await sendButton.click();
-	logCheckpoint('Clicked send button.');
-	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
+	const sendButton = messageField.locator('[data-action="send-message"]');
+	const captureSendDiagnostics = async () => {
+		return messageField.evaluate((field: HTMLElement) => {
+			const wrapper = field.closest('[data-action="message-input"]') as HTMLElement | null;
+			const editor = field.querySelector('[data-testid="message-editor"]') as HTMLElement | null;
+			const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
+			const buttonRect = button?.getBoundingClientRect();
+			const fieldRect = field.getBoundingClientRect();
+
+			return {
+				wrapperChatId: wrapper?.getAttribute('data-current-chat-id') ?? null,
+				editorText: editor?.innerText ?? null,
+				editorHtml: editor?.innerHTML?.slice(0, 500) ?? null,
+				editorConnected: editor?.isConnected ?? false,
+				buttonConnected: button?.isConnected ?? false,
+				buttonDisabled: button?.disabled ?? null,
+				buttonText: button?.textContent?.trim() ?? null,
+				buttonRect: buttonRect
+					? { x: buttonRect.x, y: buttonRect.y, width: buttonRect.width, height: buttonRect.height }
+					: null,
+				fieldRect: { x: fieldRect.x, y: fieldRect.y, width: fieldRect.width, height: fieldRect.height }
+			};
+		});
+	};
+	const readLastSendDebug = async () => {
+		return page.evaluate(() => {
+			return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
+		});
+	};
+	const sendAlreadyInProgress = async () => {
+		const stopButtonVisible = await page
+			.getByTestId('stop-processing-button')
+			.isVisible({ timeout: 500 })
+			.catch(() => false);
+		if (stopButtonVisible) return true;
+
+		const lastSendDebug = await readLastSendDebug();
+		const debug = typeof lastSendDebug === 'object' && lastSendDebug !== null
+			? lastSendDebug as { step?: unknown; timestamp?: unknown }
+			: null;
+		const step = debug?.step;
+		const timestamp = typeof debug?.timestamp === 'string' ? Date.parse(debug.timestamp) : 0;
+		const isFreshDebugStep = timestamp > 0 && Date.now() - timestamp < 10_000;
+		return typeof step === 'string' && [
+			'send_invoked',
+			'send_guard_acquired',
+			'local_message_dispatch_started'
+		].includes(step) && isFreshDebugStep;
+	};
+	try {
+		await expect(sendButton).toBeVisible({ timeout: 5000 });
+		await sendButton.click({ timeout: 5000 });
+		logCheckpoint('Clicked send button.');
+	} catch (clickError) {
+		const diagnosticsBeforeFallback = await captureSendDiagnostics();
+		const lastSendDebugAfterClickAttempt = await readLastSendDebug();
+		logCheckpoint(`Send button click did not complete; diagnostics=${JSON.stringify({
+			clickError: clickError instanceof Error ? clickError.message : String(clickError),
+			lastSendDebug: lastSendDebugAfterClickAttempt,
+			diagnostics: diagnosticsBeforeFallback
+		})}`);
+		if (await sendAlreadyInProgress()) {
+			logCheckpoint('Send appears to be in progress; skipping duplicate fallback dispatch.');
+		} else if ((diagnosticsBeforeFallback.editorText ?? '').trim() === '') {
+			await messageEditor.click();
+			await page.keyboard.insertText(message);
+			logCheckpoint('Retyped message after editor reset before send button was available.');
+			await takeStepScreenshot(page, `${stepLabel}-message-retyped`);
+			if (await sendButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+				await sendButton.click({ timeout: 5000 });
+				logCheckpoint('Clicked send button after retyping message.');
+			} else {
+				const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
+					return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+				});
+				logCheckpoint(`Dispatched synthetic custom-send-message after retype; diagnostics=${JSON.stringify({
+					syntheticDispatchResult,
+					lastSendDebug: await readLastSendDebug(),
+					diagnostics: await captureSendDiagnostics()
+				})}`);
+			}
+		} else {
+			const domClickResult = await messageField.evaluate((field: HTMLElement) => {
+				const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
+				if (!button) return false;
+				button.click();
+				return true;
+			});
+			if (domClickResult) {
+				logCheckpoint('Clicked send button via DOM fallback.');
+			} else {
+				const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
+					return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+				});
+				logCheckpoint(`Dispatched synthetic custom-send-message after missing send button; diagnostics=${JSON.stringify({
+					syntheticDispatchResult,
+					lastSendDebug: await readLastSendDebug()
+				})}`);
+			}
+		}
+	}
+	try {
+		await expect
+			.poll(
+				async () =>
+					await userMessagePersisted(
+						userMessages,
+						userCountBeforeSend,
+						message,
+						messageEditor,
+						assistantMessages,
+						assistantCountBeforeSend
+					),
+				{ timeout: 60000, intervals: [1000, 2000, 5000] }
+			)
+			.toBeTruthy();
+	} catch (error) {
+		const diagnosticsBeforeSynthetic = await captureSendDiagnostics();
+		const lastSendDebugAfterClick = await readLastSendDebug();
+		logCheckpoint(`Send did not persist user message after click; diagnostics=${JSON.stringify({
+			userCountBeforeSend,
+			userCountAfterClick: await locatorCount(userMessages),
+			lastSendDebug: lastSendDebugAfterClick,
+			diagnostics: diagnosticsBeforeSynthetic
+		})}`);
+		if (await sendAlreadyInProgress()) {
+			logCheckpoint('Send is still in progress after initial persistence wait; waiting without synthetic dispatch.');
+			await expect
+				.poll(
+					async () =>
+						await userMessagePersisted(
+							userMessages,
+							userCountBeforeSend,
+							message,
+							messageEditor,
+							assistantMessages,
+							assistantCountBeforeSend
+						),
+					{ timeout: 90000, intervals: [1000, 2000, 5000] }
+				)
+				.toBeTruthy();
+		} else {
+
+			const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
+				return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
+			});
+			await expect
+				.poll(
+					async () =>
+						await userMessagePersisted(
+							userMessages,
+							userCountBeforeSend,
+							message,
+							messageEditor,
+							assistantMessages,
+							assistantCountBeforeSend
+						),
+					{ timeout: 30000, intervals: [1000, 2000, 5000] }
+				)
+				.toBeTruthy()
+				.catch(() => undefined);
+			const userCountAfterSynthetic = await locatorCount(userMessages);
+			const lastSendDebugAfterSynthetic = await page.evaluate(() => {
+				return (window as Window & { __openmatesLastSendDebug?: unknown }).__openmatesLastSendDebug ?? null;
+			});
+			logCheckpoint(`Synthetic custom-send-message diagnostic completed; diagnostics=${JSON.stringify({
+				syntheticDispatchResult,
+				userCountAfterSynthetic,
+				lastSendDebug: lastSendDebugAfterSynthetic
+			})}`);
+		}
+		if (
+			await userMessagePersisted(
+				userMessages,
+				userCountBeforeSend,
+				message,
+				messageEditor,
+				assistantMessages,
+				assistantCountBeforeSend
+			)
+		) {
+			await waitForUserMessageAcceptedByServer(
+				page,
+				userMessages,
+				assistantMessages,
+				assistantCountBeforeSend,
+				logCheckpoint
+			);
+			await waitForNewChatSendContext(page, startedFromNewChat, logCheckpoint);
+			lastSendStateByPage.set(page, {
+				assistantCount: assistantCountBeforeSend,
+				assistantLastText: assistantLastTextBeforeSend
+			});
+			logCheckpoint('Message send accepted after synthetic send fallback.', {
+				assistantCountBeforeSend
+			});
+			return;
+		}
+		throw error;
+	}
+	await waitForUserMessageAcceptedByServer(
+		page,
+		userMessages,
+		assistantMessages,
+		assistantCountBeforeSend,
+		logCheckpoint
+	);
+	await waitForNewChatSendContext(page, startedFromNewChat, logCheckpoint);
+	lastSendStateByPage.set(page, {
+		assistantCount: assistantCountBeforeSend,
+		assistantLastText: assistantLastTextBeforeSend
+	});
+	logCheckpoint('Message send accepted after send.', {
+		assistantCountBeforeSend
+	});
 }
 
 /**
@@ -650,6 +1056,36 @@ async function waitForAssistantMessage(
 
 	const start = Date.now();
 	const budget = () => Math.max(1000, timeout - (Date.now() - start));
+	const lastSendState = lastSendStateByPage.get(page);
+	const assistantMessages = page.getByTestId('message-assistant');
+
+	const shouldWaitForNewAssistant = lastSendState && (which !== 'first' || lastSendState.assistantCount === 0);
+	if (shouldWaitForNewAssistant) {
+		const currentAssistantCount = await locatorCount(assistantMessages);
+		const minimumAssistantCount =
+			typeof nth === 'number'
+				? Math.max(nth + 1, lastSendState.assistantCount + 1)
+				: Math.min(lastSendState.assistantCount + 1, currentAssistantCount + 1);
+		await expect
+			.poll(async () => {
+				const assistantCount = await locatorCount(assistantMessages);
+				if (assistantCount >= minimumAssistantCount) return true;
+
+				// ChatHistory merges adjacent assistant continuations into one bubble.
+				// In that case the count stays stable, but the last assistant text expands.
+				if (assistantCount > 0 && lastSendState.assistantLastText) {
+					const lastText = ((await assistantMessages.last()
+						.textContent({ timeout: 1000 })
+						.catch(() => '')) ?? '').trim();
+					return lastText.length > lastSendState.assistantLastText.length
+						&& lastText !== lastSendState.assistantLastText;
+				}
+
+				return false;
+			}, { timeout: budget() })
+			.toBeTruthy();
+		logCheckpoint(`Assistant response attached or merged (target count>=${minimumAssistantCount}).`);
+	}
 
 	// Stage 1 — stream-started gate.
 	// Wait for any evidence that the AI pipeline has accepted the message.
@@ -669,7 +1105,6 @@ async function waitForAssistantMessage(
 	}
 
 	// Stage 2 — target the specific assistant message and wait for it to render.
-	const assistantMessages = page.getByTestId('message-assistant');
 	const target =
 		typeof nth === 'number'
 			? assistantMessages.nth(nth)
@@ -690,37 +1125,40 @@ async function waitForAssistantMessage(
 }
 
 /**
- * Returns true if the login/signup interface can be opened (either the banner button
- * or the header button is visible). Use instead of checking `header-login-signup-btn`
- * directly — that button is intentionally hidden while the intro banner is visible.
+ * Returns true if the header login/signup button is visible.
  */
 async function isSignupInterfaceVisible(page: any, timeout = 5000): Promise<boolean> {
-	const bannerBtn = page.getByTestId('banner-signup-button');
 	const headerBtn = page.getByTestId('header-login-signup-btn');
-	const bannerVisible = await bannerBtn.isVisible({ timeout }).catch(() => false);
-	if (bannerVisible) return true;
-	return headerBtn.isVisible({ timeout: 1000 }).catch(() => false);
+	return headerBtn.isVisible({ timeout }).catch(() => false);
 }
 
 /**
  * Open the login/signup dialog.
  *
- * When the intro banner is in the viewport (the app hides the header button to avoid
- * a duplicate CTA), clicks the banner's own signup button instead. Falls back to the
- * header button once the banner has scrolled out of view.
- *
- * Use this instead of `page.getByTestId('header-login-signup-btn')` + `toBeVisible()`
- * directly — the header button is intentionally hidden while the banner is visible.
+ * Clicks the intro banner signup button when present, otherwise the header
+ * login/signup button. Includes a reload-retry on first failure to handle
+ * Svelte hydration or locale-loading races.
  */
 async function openSignupInterface(page: any, timeout = 15000): Promise<void> {
-	const bannerBtn = page.getByTestId('banner-signup-button');
-	const headerBtn = page.getByTestId('header-login-signup-btn');
-	const bannerVisible = await bannerBtn.isVisible({ timeout: 8000 }).catch(() => false);
-	if (bannerVisible) {
-		await bannerBtn.click();
-	} else {
-		await expect(headerBtn).toBeVisible({ timeout });
-		await headerBtn.click();
+	for (let attempt = 0; attempt < 2; attempt++) {
+		const bannerBtn = page.getByTestId('banner-signup-button');
+		const headerBtn = page.getByTestId('header-login-signup-btn');
+		try {
+			if (await bannerBtn.isVisible({ timeout: Math.min(timeout, 8000) }).catch(() => false)) {
+				await bannerBtn.click({ timeout });
+				return;
+			}
+			await headerBtn.waitFor({ state: 'visible', timeout });
+			await headerBtn.click({ timeout });
+			return;
+		} catch (e) {
+			if (attempt === 0) {
+				await page.reload();
+				await page.waitForLoadState('load');
+				continue;
+			}
+			throw e;
+		}
 	}
 }
 

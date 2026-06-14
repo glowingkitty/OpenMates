@@ -78,6 +78,19 @@ private enum ChatResponsiveBreakpoint {
     static let inlineNewChatCompact: CGFloat = 550
 }
 
+private enum ChatMessageLayoutMetric {
+    /// Web `chat.css`: `.chat-message { gap: 6px; }`.
+    static let rowGap: CGFloat = 6
+    /// Web `chat.css`: `.mobile-stacked .mate-profile { margin-bottom: 8px; }`.
+    static let stackedAvatarGap: CGFloat = 8
+    /// Web `chat.css`: `.message-align-right { max-width: calc(100% - 100px); }`.
+    static let userDesktopReserve: CGFloat = 100
+    /// Web `chat.css`: `.message-align-right.mobile-compact { max-width: calc(100% - 20px); }`.
+    static let userCompactReserve: CGFloat = 20
+    /// Web `chat.css`: `.message-align-left { max-width: calc(100% - 70px); }`.
+    static let assistantDesktopReserve: CGFloat = 70
+}
+
 struct ChatView: View {
     let chatId: String
     /// Optional gradient banner state. Provide `.loaded` for demo/example chats;
@@ -101,6 +114,8 @@ struct ChatView: View {
     /// Mirrors web `demoChatSelected`: embedded public chat cards ask the app shell
     /// to select and load a different bundled demo/example chat.
     var onOpenPublicChat: ((String) -> Void)? = nil
+    /// Opens another user chat in the owning app shell.
+    var onOpenChat: ((String) -> Void)? = nil
     /// Opens the new-chat surface in the owning app shell window.
     var onNewChat: (() -> Void)? = nil
     /// Sends the last visible message ID to the app shell for cross-device sync.
@@ -134,6 +149,7 @@ struct ChatView: View {
     @State private var isRestoringScroll = false
     @State private var lastReportedVisibleMessageId: String?
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
+    @State private var broadcastToSiblingSubChats = false
     @StateObject private var focusModeManager = FocusModeManager()
     @StateObject private var composerRecorder = VoiceRecorder()
     @StateObject private var pendingUploads = PendingUploadStore.shared
@@ -172,7 +188,13 @@ struct ChatView: View {
                             }
                         )
 
-                    FocusModePill(focusModeManager: focusModeManager)
+                    subChatLifecyclePanel
+
+                    returnToParentButton
+
+                    FocusModePill(focusModeManager: focusModeManager) { _ in
+                        Task { await viewModel.deactivateActiveFocusMode() }
+                    }
 
                     if viewModel.isStreaming {
                         streamingBanner
@@ -188,6 +210,7 @@ struct ChatView: View {
                     }
                 }
                 .background(Color.grey20)
+                .accessibilityIdentifier("chat-view-\(chatId)")
 
                 if showReminder {
                     customOverlay(title: AppStrings.setReminder, isPresented: $showReminder) {
@@ -235,9 +258,22 @@ struct ChatView: View {
             .ignoresSafeArea()
         }
         #endif
+        .onAppear {
+            applyUITestRecordingOverlayIfNeeded()
+        }
         .task(id: chatId) {
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed") {
+                viewModel.seedUITestPendingComposerEmbed()
+            }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay") {
+                micPermissionState = .granted
+                composerOverlay = .recording
+                isInputFocused = true
+            }
+            #endif
             // Advertise this chat for Handoff to other Apple devices
             handoffManager.advertiseChatViewing(
                 chatId: chatId,
@@ -276,6 +312,17 @@ struct ChatView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
             handleComposerDeferredSend(notification)
+        }
+        .onChange(of: viewModel.chat?.activeFocusId) { _, focusId in
+            if let focusId, !focusId.isEmpty {
+                focusModeManager.activate(.init(
+                    id: focusId,
+                    appId: focusId.components(separatedBy: "-").first ?? "ai",
+                    name: focusId
+                ))
+            } else {
+                focusModeManager.deactivate()
+            }
         }
     }
 
@@ -336,6 +383,7 @@ struct ChatView: View {
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
         .background(Color.grey20)
+        .accessibilityIdentifier("active-chat-header")
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.grey20)
@@ -484,6 +532,9 @@ struct ChatView: View {
                                             showEmbedFullscreen = true
                                         },
                                         onOpenPublicChat: onOpenPublicChat,
+                                        onInteractiveQuestionSubmit: { content in
+                                            Task { await viewModel.sendMessage(content) }
+                                        },
                                         onShowActions: {
                                             actionMessage = message
                                         }
@@ -676,7 +727,7 @@ struct ChatView: View {
     private var chatFloatingActions: some View {
         HStack(spacing: .spacing2) {
             HStack(spacing: .spacing2) {
-                chatFloatingAction(icon: "share", label: AppStrings.share) {
+                chatFloatingAction(icon: "share", label: AppStrings.share, accessibilityIdentifier: "chat-share-button") {
                     onShareChat?()
                 }
                 chatFloatingAction(icon: "bug", label: AppStrings.report) {
@@ -693,7 +744,12 @@ struct ChatView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func chatFloatingAction(icon: String, label: String, action: @escaping () -> Void) -> some View {
+    private func chatFloatingAction(
+        icon: String,
+        label: String,
+        accessibilityIdentifier: String? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Icon(icon, size: 22)
                 .foregroundStyle(LinearGradient.primary)
@@ -704,6 +760,7 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .accessibilityIdentifier(accessibilityIdentifier ?? "chat-floating-action-\(icon)")
     }
 
     // MARK: - Streaming banner
@@ -801,6 +858,7 @@ struct ChatView: View {
         .background(Color.grey0)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(AppStrings.aiResponding)
+        .accessibilityIdentifier("streaming-banner")
     }
 
     // MARK: - New chat CTA (replaces input for demo/intro/legal chats)
@@ -823,6 +881,7 @@ struct ChatView: View {
             .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("new-chat-button")
         .frame(maxWidth: 1000)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, .spacing4)
@@ -862,14 +921,188 @@ struct ChatView: View {
     }
 
     private var inputBar: some View {
-        inputField(compact: false, placeholder: AppStrings.typeMessage)
+        VStack(spacing: .spacing3) {
+            subChatBroadcastToggle
+            inputField(compact: false, placeholder: AppStrings.typeMessage)
+        }
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
             .background(Color.grey0)
     }
 
+    @ViewBuilder
+    private var subChatLifecyclePanel: some View {
+        if let request = viewModel.subChatApprovalRequest {
+            subChatApprovalCard(request)
+        } else if let progress = viewModel.subChatProgress {
+            subChatProgressBar(progress)
+        }
+    }
+
+    @ViewBuilder
+    private var returnToParentButton: some View {
+        if let parentId = viewModel.chat?.parentId {
+            Button {
+                onOpenChat?(parentId)
+            } label: {
+                HStack(spacing: .spacing4) {
+                    Icon("arrow-left", size: 14)
+                        .foregroundStyle(Color.buttonPrimary)
+                    Text(LocalizationManager.shared.text("chat.sub_chats.return_to_parent"))
+                        .font(.omXs)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.fontSecondary)
+                    Spacer()
+                }
+                .padding(.horizontal, .spacing8)
+                .padding(.vertical, .spacing3)
+                .background(Color.grey0)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("return-to-parent-button")
+        }
+    }
+
+    private func subChatApprovalCard(_ request: SubChatApprovalRequest) -> some View {
+        let count = request.subChats?.count ?? 0
+        return VStack(alignment: .leading, spacing: .spacing5) {
+            Text(LocalizationManager.shared.text("chat.sub_chats.confirmation_title", replacements: ["count": String(count)]))
+                .font(.omP)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+            Text(LocalizationManager.shared.text(
+                "chat.sub_chats.confirmation_description",
+                replacements: [
+                    "auto": String(request.maxAutoSubChats ?? 0),
+                    "max": String(request.maxDirectSubChats ?? count)
+                ]
+            ))
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+            subChatPromptPreview(request.subChats ?? [])
+            HStack(spacing: .spacing4) {
+                subChatActionButton(
+                    title: LocalizationManager.shared.text("chat.sub_chats.start_all", replacements: ["count": String(count)]),
+                    primary: true,
+                    identifier: "sub-chat-approve-button"
+                ) {
+                    Task { await viewModel.approveSubChatRequest() }
+                }
+                subChatActionButton(
+                    title: AppStrings.cancel,
+                    primary: false,
+                    identifier: "sub-chat-cancel-button"
+                ) {
+                    Task { await viewModel.cancelSubChatRequest() }
+                }
+            }
+        }
+        .padding(.spacing8)
+        .background(Color.grey0)
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .padding(.horizontal, .spacing8)
+        .padding(.bottom, .spacing4)
+        .accessibilityIdentifier("sub-chat-approval-card")
+    }
+
+    private func subChatPromptPreview(_ subChats: [SpawnedSubChat]) -> some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            ForEach(subChats.prefix(3)) { child in
+                Text(child.title ?? child.prompt)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private func subChatActionButton(title: String, primary: Bool, identifier: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.omSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(primary ? Color.fontButton : Color.fontPrimary)
+                .padding(.horizontal, .spacing8)
+                .padding(.vertical, .spacing4)
+                .background(primary ? Color.buttonPrimary : Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+
+    private func subChatProgressBar(_ progress: SubChatProgress) -> some View {
+        HStack(spacing: .spacing5) {
+            Text(subChatProgressLabel(progress))
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+            Spacer()
+            Button {
+                Task { await viewModel.stopSubChats() }
+            } label: {
+                Text(LocalizationManager.shared.text("chat.sub_chats.stop_queue"))
+                    .font(.omXs)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.vertical, .spacing3)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("sub-chat-stop-button")
+        }
+        .padding(.horizontal, .spacing8)
+        .padding(.vertical, .spacing4)
+        .background(Color.grey0)
+        .accessibilityIdentifier("sub-chat-progress-bar")
+    }
+
+    @ViewBuilder
+    private var subChatBroadcastToggle: some View {
+        if viewModel.chat?.isSubChat == true {
+            Button {
+                broadcastToSiblingSubChats.toggle()
+            } label: {
+                HStack(spacing: .spacing4) {
+                    if broadcastToSiblingSubChats {
+                        Icon("select", size: 14)
+                            .foregroundStyle(Color.buttonPrimary)
+                    } else {
+                        Circle()
+                            .stroke(Color.fontTertiary, lineWidth: 1.5)
+                            .frame(width: 14, height: 14)
+                    }
+                    Text(LocalizationManager.shared.text("chat.sub_chats.broadcast_to_siblings"))
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                    Spacer()
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing3)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("sub-chat-broadcast-toggle")
+        }
+    }
+
+    private func subChatProgressLabel(_ progress: SubChatProgress) -> String {
+        if progress.status == "stopping" {
+            return LocalizationManager.shared.text("chat.sub_chats.progress_stopping")
+        }
+        return LocalizationManager.shared.text(
+            "chat.sub_chats.progress_label",
+            replacements: [
+                "completed": String(progress.completed ?? 0),
+                "total": String(progress.total ?? 0)
+            ]
+        )
+    }
+
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
-        let overlayActive = composerOverlay != nil
+        let overlayActive = composerOverlay != nil || isUITestRecordingOverlayForced
         return VStack(spacing: .spacing2) {
             let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
             PIIWarningBanner(matches: activePIIMatches) {
@@ -883,6 +1116,19 @@ struct ChatView: View {
             PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
                 viewModel.removePendingComposerEmbed(id: embed.id)
             }
+
+            #if DEBUG
+            if shouldShowUITestPendingComposerEmbedFallback {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: .spacing3) {
+                        PendingComposerEmbedPreview(embed: .uiTestFixture) {}
+                    }
+                    .padding(.horizontal, .spacing4)
+                }
+                .padding(.vertical, .spacing2)
+                .accessibilityIdentifier("pending-composer-embed")
+            }
+            #endif
 
             if let mentionQuery {
                 MentionDropdownView(
@@ -916,6 +1162,7 @@ struct ChatView: View {
                     }
                 )
                 .accessibilityLabel(AppStrings.attachFiles)
+                .accessibilityIdentifier("attach-files-button")
 
                 inputActionButton(icon: "maps", label: AppStrings.shareLocation) {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -941,6 +1188,7 @@ struct ChatView: View {
                 inputActionButton(icon: "camera", label: AppStrings.takePhoto) {
                     showCameraCapture = true
                 }
+                .accessibilityIdentifier("take-photo-button")
                 #endif
 
                 if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !viewModel.isStreaming {
@@ -962,6 +1210,7 @@ struct ChatView: View {
                     .opacity((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) ? 0.6 : 1.0)
                     .accessibilityLabel(AppStrings.sendMessage)
                     .accessibilityHint(AppStrings.typeMessage)
+                    .accessibilityIdentifier("send-button")
                     #if os(macOS)
                     .keyboardShortcut(.return, modifiers: .command)
                     #endif
@@ -969,6 +1218,8 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, .spacing5)
                 .padding(.bottom, .spacing6)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("action-buttons")
             }
 
             if let recordPermissionHintText {
@@ -983,6 +1234,11 @@ struct ChatView: View {
     }
 
     private func composerOverlayView() -> AnyView? {
+        #if DEBUG
+        if composerOverlay == nil, isUITestRecordingOverlayForced {
+            return recordingOverlayView()
+        }
+        #endif
         guard let composerOverlay else { return nil }
         switch composerOverlay {
         case .location:
@@ -1011,30 +1267,58 @@ struct ChatView: View {
             return nil
             #endif
         case .recording:
-            return AnyView(
-                ComposerRecordingOverlay(
-                    recorder: composerRecorder,
-                    dragOffsetX: recordDragOffsetX,
-                    onStop: { url in
-                        self.composerOverlay = nil
-                        self.recordAttemptActive = false
-                        self.recordDragOffsetX = 0
-                        Task {
-                            if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
-                                appendRecordingTranscript(transcript)
-                            }
-                        }
-                    },
-                    onCancel: {
-                        composerRecorder.cancelRecording()
-                        self.composerOverlay = nil
-                        self.recordAttemptActive = false
-                        self.recordDragOffsetX = 0
-                    }
-                )
-            )
+            return recordingOverlayView()
         }
     }
+
+    private func recordingOverlayView() -> AnyView {
+        AnyView(
+            ComposerRecordingOverlay(
+                recorder: composerRecorder,
+                dragOffsetX: recordDragOffsetX,
+                onStop: { url in
+                    self.composerOverlay = nil
+                    self.recordAttemptActive = false
+                    self.recordDragOffsetX = 0
+                    Task {
+                        if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
+                            appendRecordingTranscript(transcript)
+                        }
+                    }
+                },
+                onCancel: {
+                    composerRecorder.cancelRecording()
+                    self.composerOverlay = nil
+                    self.recordAttemptActive = false
+                    self.recordDragOffsetX = 0
+                }
+            )
+        )
+    }
+
+    private var isUITestRecordingOverlayForced: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_RECORDING_OVERLAY"] == "1"
+        #else
+        return false
+        #endif
+    }
+
+    private func applyUITestRecordingOverlayIfNeeded() {
+        #if DEBUG
+        guard isUITestRecordingOverlayForced else { return }
+        micPermissionState = .granted
+        composerOverlay = .recording
+        isInputFocused = true
+        #endif
+    }
+
+    #if DEBUG
+    private var shouldShowUITestPendingComposerEmbedFallback: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed")
+    }
+    #endif
 
     private var newChatInlineButton: some View {
         Button {
@@ -1058,6 +1342,7 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(AppStrings.newChat)
+        .accessibilityIdentifier("new-chat-button")
     }
 
     private var useCompactInlineNewChat: Bool {
@@ -1115,6 +1400,7 @@ struct ChatView: View {
                     .foregroundStyle(Color.fontTertiary)
                     .lineLimit(1)
                     .transition(.opacity)
+                    .accessibilityIdentifier("press-hold-label")
             }
 
             recordGestureButton
@@ -1136,6 +1422,8 @@ struct ChatView: View {
                     }
             )
             .accessibilityLabel(AppStrings.recordAudio)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityIdentifier("record-audio-button")
     }
 
     private var recordPermissionHintText: String? {
@@ -1274,7 +1562,7 @@ struct ChatView: View {
         mentionQuery = nil
 
         Task {
-            await viewModel.sendMessage(sanitizedText)
+            await viewModel.sendMessage(sanitizedText, broadcastToSiblings: broadcastToSiblingSubChats)
         }
     }
 
@@ -1285,7 +1573,7 @@ struct ChatView: View {
               deferredChatId == viewModel.chat?.id,
               let content = notification.userInfo?["content"] as? String else { return }
         Task {
-            await viewModel.sendMessage(content)
+            await viewModel.sendMessage(content, broadcastToSiblings: broadcastToSiblingSubChats)
         }
     }
 
@@ -1365,6 +1653,7 @@ struct MessageBubble: View {
     let containerWidth: CGFloat
     let onEmbedTap: (EmbedRecord) -> Void
     let onOpenPublicChat: ((String) -> Void)?
+    let onInteractiveQuestionSubmit: ((String) -> Void)?
     let onShowActions: (() -> Void)?
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -1384,6 +1673,10 @@ struct MessageBubble: View {
     var displayContent: String {
         if let streaming = streamingContent { return streaming }
         return message.content ?? ""
+    }
+
+    private var viewAllowsInteractiveQuestionSubmit: Bool {
+        !isUser && streamingContent == nil
     }
 
     private var topLevelAppSkillEmbeds: [EmbedRecord] {
@@ -1514,7 +1807,12 @@ struct MessageBubble: View {
     private var userBubble: some View {
         VStack(alignment: .trailing, spacing: .spacing3) {
             if !displayContent.isEmpty {
-                InlineMarkdownText(content: displayContent, isUserMessage: true)
+                RichMarkdownView(
+                    content: displayContent,
+                    isUserMessage: true,
+                    allEmbedRecords: allEmbedRecords,
+                    onEmbedTap: onEmbedTap
+                )
                     .foregroundStyle(Color.fontPrimary)
                     .padding(.spacing6)
                     .background(Color.greyBlue)
@@ -1570,7 +1868,8 @@ struct MessageBubble: View {
                             embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
                             allEmbedRecords: allEmbedRecords,
                             hiddenEmbedIds: hiddenInlineEmbedIds,
-                            onEmbedTap: onEmbedTap
+                            onEmbedTap: onEmbedTap,
+                            onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil
                         )
                     }
                     .foregroundStyle(Color.grey100)
@@ -1635,22 +1934,26 @@ struct MessageBubble: View {
         Group {
             if isUser {
                 // User message: right-aligned, spacer on left
-                HStack(alignment: .top, spacing: .spacing3) {
-                    Spacer(minLength: useStackedLayout ? 20 : 100)
+                HStack(alignment: .top, spacing: ChatMessageLayoutMetric.rowGap) {
+                    Spacer(
+                        minLength: useStackedLayout
+                            ? ChatMessageLayoutMetric.userCompactReserve
+                            : ChatMessageLayoutMetric.userDesktopReserve
+                    )
                     userBubble
                 }
             } else if useStackedLayout {
                 // Web ≤500px: assistant avatar stacked above message
-                VStack(alignment: .leading, spacing: .spacing2) {
+                VStack(alignment: .leading, spacing: ChatMessageLayoutMetric.stackedAvatarGap) {
                     assistantAvatar
                     assistantContent
                 }
             } else {
                 // Desktop: assistant avatar left of message
-                HStack(alignment: .top, spacing: .spacing3) {
+                HStack(alignment: .top, spacing: ChatMessageLayoutMetric.rowGap) {
                     assistantAvatar
                     assistantContent
-                    Spacer(minLength: 70)
+                    Spacer(minLength: ChatMessageLayoutMetric.assistantDesktopReserve)
                 }
             }
         }
@@ -1669,6 +1972,7 @@ struct MessageBubble: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(isUser ? "You" : "AI"): \(displayContent.prefix(200))")
         .accessibilityHint("Long press for options")
+        .accessibilityIdentifier(isUser ? "message-user" : "message-assistant")
     }
 }
 
@@ -1769,5 +2073,6 @@ struct StreamingIndicator: View {
         .onReceive(timer) { _ in
             dotCount = (dotCount + 1) % 3
         }
+        .accessibilityIdentifier("streaming-indicator")
     }
 }

@@ -150,6 +150,7 @@ case "$EVENT" in
           "external-resources-guard.sh" \
           "cookie-consent-gate.sh" \
           "css-selector-in-specs.sh" \
+          "code-debt-pre-edit-guard.sh" \
           "svelte5-legacy-syntax.sh" \
           "donation-language-guard.sh" \
           "settings-canonical-elements.sh" \
@@ -162,8 +163,12 @@ case "$EVENT" in
     TOOL=$(tool_name)
     case "$TOOL" in
       apply_patch|Edit|Write)
+        run_for_files "PostToolUse" true \
+          "skill-embed-registry-guard.sh"
+
         run_for_files "PostToolUse" false \
           "auto-track.sh" \
+          "docs-claims-impact.sh" \
           "auto-rebuild-translations.sh" \
           "testid-drift-detector.sh" \
           "encryption-architecture-reminder.sh" \

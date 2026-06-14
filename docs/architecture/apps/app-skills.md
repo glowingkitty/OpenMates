@@ -2,13 +2,49 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/apps/base_app.py
+- backend/apps/base_skill.py
+- backend/apps/base_main.py
+- backend/apps/base_app.yml
+- backend/apps/ai/processing/skill_executor.py
+- backend/shared/python_schemas/app_metadata_schemas.py
+- backend/core/api/app/services/embed_service.py
+claims:
+- id: arch-apps-app-skills-behavior
+  type: unit
+  claim: App Skills Architecture is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/base_app.py
   - backend/apps/base_skill.py
-  - backend/apps/base_main.py
   - backend/apps/base_app.yml
   - backend/apps/ai/processing/skill_executor.py
   - backend/shared/python_schemas/app_metadata_schemas.py
-  - backend/core/api/app/services/embed_service.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-apps-app-skills-behavior
+  verified: '2026-06-11'
+- id: arch-apps-app-skills-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-app-skills-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/skill_executor.py
+- id: arch-apps-app-skills-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-app-skills-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/base_app.py
+- id: arch-apps-app-skills-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-app-skills-source-3
+  anchors:
+  - type: file_exists
+    path: backend/apps/base_app.yml
 ---
 
 # App Skills Architecture

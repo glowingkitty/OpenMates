@@ -15,7 +15,7 @@ under load (see OPE-349).
 | Spec | Lives in | Why |
 | --- | --- | --- |
 | `dev-smoke/dev-smoke-reachability.spec.ts` | this dir | Cheap pre-flight: root + login + signup pages render. Fails fast if dev is down. |
-| `settings-buy-credits-stripe.spec.ts` | `tests/` | Login → buy credits via Stripe (test card). Catches Stripe + checkout regressions. |
+| `settings-buy-credits-stripe-managed.spec.ts` | `tests/` | Login → buy credits via Stripe (test card). Catches Stripe + checkout regressions. |
 | `signup-flow-polar.spec.ts` | `tests/` | Cold-boot signup → Polar checkout. Catches Polar + signup regressions. |
 | `chat-flow.spec.ts` | `tests/` | Login → send message → AI reply → cleanup. Catches end-to-end chat breakage. |
 

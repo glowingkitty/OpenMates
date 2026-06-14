@@ -31,6 +31,23 @@
             {{ t.email.invoice_pdf_attached.text }}
           </mj-text>
 
+          {% if gift_card_code %}
+          <mj-text font-size="18px" padding-bottom="10px">
+            <strong>{{ t.email.gift_card_purchase_ready.text }}</strong>
+          </mj-text>
+          <mj-text font-size="14px" padding-bottom="8px" color="{{ '#cccccc' if darkmode else '#555555' }}">
+            {{ t.email.gift_card_purchase_instruction.text }}
+          </mj-text>
+          <mj-text font-size="24px" letter-spacing="2px" font-family="Courier New, monospace" padding="14px 20px" background-color="{{ '#2b2b2b' if darkmode else '#f3f4f6' }}" border-radius="12px">
+            {{ gift_card_code }}
+          </mj-text>
+          {% if gift_card_credits %}
+          <mj-text font-size="14px" padding-bottom="40px" color="{{ '#cccccc' if darkmode else '#555555' }}">
+            {{ t.email.gift_card_purchase_credits.text }}
+          </mj-text>
+          {% endif %}
+          {% endif %}
+
           {% if customer_portal_url %}
           <mj-text font-size="18px" padding-top="10px">
               <strong>{{ t.settings.billing.manage_subscription.text }}:</strong>

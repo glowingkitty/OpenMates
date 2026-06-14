@@ -9,6 +9,7 @@
 # See: docs/architecture/prompt_injection_protection.md
 
 import logging
+import base64
 import httpx
 import hashlib
 import os
@@ -1828,6 +1829,112 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
     logger.info("Registered custom route: POST /v1/apps/audio/skills/transcribe")
 
 
+def _register_code_custom_routes(app: FastAPI, app_name: str) -> None:
+    """Register the canonical Code Run app-skill endpoint."""
+    from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+    from backend.core.api.app.routes.code_execution import (
+        CODE_RUN_START_RATE_LIMIT,
+        CodeRunAppSkillRequest,
+        CodeRunAppSkillResponse,
+        CodeRunAppSkillResponseData,
+        CodeRunAppSkillResult,
+        CodeRunClientFile,
+        collect_direct_code_run_files,
+        _collect_code_files,
+        _get_embed_metadata,
+        start_code_run_execution,
+    )
+
+    async def code_run_handler(
+        body: CodeRunAppSkillRequest,
+        request: Request,
+        user=Depends(get_current_user_or_api_key),
+        cache_service: CacheService = Depends(get_cache_service),
+        directus_service: DirectusService = Depends(get_directus_service),
+        encryption_service: EncryptionService = Depends(get_encryption_service),
+    ) -> CodeRunAppSkillResponse:
+        results: list[CodeRunAppSkillResult] = []
+        for item in body.requests:
+            if item.mode == "direct":
+                if item.chat_id or item.target_embed_id or item.selected_embed_ids:
+                    raise HTTPException(status_code=400, detail="Direct Code Run cannot include chat or embed fields")
+                files, target_path = collect_direct_code_run_files(item)
+                start_response = await start_code_run_execution(
+                    current_user=user,
+                    cache_service=cache_service,
+                    files=files,
+                    target_path=target_path,
+                    enable_internet=item.enable_internet,
+                    chat_id=None,
+                    target_embed_id=None,
+                    message_id=None,
+                    dependency_installs=item.dependency_installs,
+                )
+                persisted_output = False
+            else:
+                if not item.chat_id or not item.target_embed_id:
+                    raise HTTPException(status_code=400, detail="Chat-bound Code Run requires chat_id and target_embed_id")
+                client_files = [
+                    CodeRunClientFile(
+                        embed_id=file.path,
+                        code=base64.b64decode(file.content_base64, validate=True).decode("utf-8"),
+                        language=file.language,
+                        filename=file.path,
+                        is_target=file.is_target,
+                    )
+                    for file in item.files
+                ]
+                files, target_path = await _collect_code_files(
+                    item.chat_id,
+                    item.target_embed_id,
+                    client_files,
+                    [],
+                    item.selected_embed_ids,
+                    user,
+                    cache_service,
+                    directus_service,
+                    encryption_service,
+                )
+                target_metadata = await _get_embed_metadata(item.target_embed_id, cache_service, directus_service) or {}
+                target_message_id = target_metadata.get("message_id")
+                start_response = await start_code_run_execution(
+                    current_user=user,
+                    cache_service=cache_service,
+                    files=files,
+                    target_path=target_path,
+                    enable_internet=item.enable_internet,
+                    chat_id=item.chat_id,
+                    target_embed_id=item.target_embed_id,
+                    message_id=target_message_id if isinstance(target_message_id, str) else None,
+                    dependency_installs=item.dependency_installs,
+                )
+                persisted_output = True
+
+            results.append(CodeRunAppSkillResult(
+                execution_id=start_response.execution_id,
+                status=start_response.status,
+                target_filename=start_response.target_filename,
+                files=start_response.files,
+                credits_per_minute=start_response.credits_per_minute,
+                persisted_output=persisted_output,
+                stream_path=f"/v1/code/run/{start_response.execution_id}/stream",
+                status_path=f"/v1/code/run/{start_response.execution_id}",
+            ))
+        return CodeRunAppSkillResponse(data=CodeRunAppSkillResponseData(results=results))
+
+    app.add_api_route(
+        path="/v1/apps/code/skills/run",
+        endpoint=limiter.limit(CODE_RUN_START_RATE_LIMIT)(code_run_handler),
+        methods=["POST"],
+        response_model=CodeRunAppSkillResponse,
+        tags=[f"Apps | {app_name.capitalize()}"],
+        name="code_run_app_skill",
+        summary="Run code in an isolated sandbox",
+        description="Start a Code Run execution through the canonical app-skill endpoint. Supports session cookies and Bearer API keys.",
+    )
+    logger.info("Registered custom route: POST /v1/apps/code/skills/run")
+
+
 def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYAML]):
     """
     Dynamically register explicit routes for each app and each skill.
@@ -2902,5 +3009,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             _register_travel_custom_routes(app, app_name)
         if app_id == "audio":
             _register_audio_custom_routes(app, app_name)
+        if app_id == "code":
+            _register_code_custom_routes(app, app_name)
         
         logger.info(f"Registered routes for app: GET /v1/apps/{app_id}")

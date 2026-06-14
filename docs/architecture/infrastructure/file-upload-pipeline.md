@@ -2,12 +2,48 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/upload/routes/upload_route.py
+- backend/upload/services/file_encryption.py
+- backend/upload/services/sightengine_service.py
+- backend/core/api/app/routes/internal_api.py
+- backend/core/api/app/tasks/storage_billing_tasks.py
+- backend/core/api/app/tasks/auto_delete_tasks.py
+claims:
+- id: arch-infrastructure-file-upload-pipeline-behavior
+  type: unit
+  claim: File Upload Pipeline is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/upload/routes/upload_route.py
   - backend/upload/services/file_encryption.py
   - backend/upload/services/sightengine_service.py
   - backend/core/api/app/routes/internal_api.py
   - backend/core/api/app/tasks/storage_billing_tasks.py
-  - backend/core/api/app/tasks/auto_delete_tasks.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-infrastructure-file-upload-pipeline-behavior
+  verified: '2026-06-11'
+- id: arch-infrastructure-file-upload-pipeline-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-file-upload-pipeline-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/internal_api.py
+- id: arch-infrastructure-file-upload-pipeline-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-file-upload-pipeline-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/tasks/auto_delete_tasks.py
+- id: arch-infrastructure-file-upload-pipeline-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-file-upload-pipeline-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/tasks/storage_billing_tasks.py
 ---
 
 # File Upload Pipeline
@@ -127,4 +163,4 @@ Key Directus fields on `users`: `storage_used_bytes`, `storage_last_billed_at`, 
 ## Related Docs
 
 - [Message Processing](../messaging/message-processing.md) -- how AI skills consume uploaded file embed data
-- [Zero-Knowledge Storage](../core/zero-knowledge-storage.md) -- encryption model
+- [Encryption Architecture](../core/encryption-architecture.md) -- encryption model

@@ -41,6 +41,7 @@ OpenMates/
 - **No Magic Values:** Extract raw strings/numbers to named constants.
 - **Comments:** Explain business logic and architecture decisions. Link to `docs/architecture/`.
 - **File headers:** Every new `.py`, `.ts`, `.svelte` file needs a header comment (5-10 lines).
+- **Deterministic guardrails:** When repeated bugs, flaky tests, security/privacy risks, provider metadata drift, or OpenCode workflow issues cost debugging time or inference tokens, prefer creating or updating a deterministic script, audit, hook, or focused test guard that prevents the same issue from recurring.
 
 ### DRY: Search Before Writing
 
@@ -72,6 +73,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Add backend shared logic under `backend/shared/python_utils/`, `backend/shared/python_schemas/`, or `backend/shared/providers/`.
 - Do not import from another backend skill. Move shared behavior to `BaseSkill` or `backend/shared/`.
 - Use the repo scripts rather than ad hoc commands when available.
+- Treat deterministic scripts as a first-class outcome of bug fixes and code-quality work. Prefer updating an existing script over adding a new one; wire checks into hooks only when they are path-scoped, fast, and low-noise, otherwise expose them as on-demand scripts from the relevant skill.
 - For Playwright and Vitest, follow `.claude/rules/testing.md`; do not run local test commands that the repo forbids.
 - For `*.spec.ts` Playwright verification, deploy the change to `dev` first, wait for the deployment to be live, then run the spec. Do not run E2E specs against undeployed local code.
 - For changed code, run the smallest relevant lint/test/build command that proves the change.
@@ -101,6 +103,40 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Claude Code remains the canonical authoring format for project skills, subagents, and hook scripts. Run `python3 scripts/sync_agent_parity.py` after changing `.claude/skills/` or `.claude/agents/`, and run `python3 scripts/sync_agent_parity.py --check` to verify `.agents/skills/`, `.codex/agents/`, `.opencode/agents/`, and hook adapters are in sync.
 - Do not add GSD/Get-Shit-Done workflows, commands, hooks, or agents to this repo.
 - If GSD files appear from global OpenCode config, treat them as unrelated user-level tooling and keep them disabled for OpenMates work.
+
+### Skill Auto-Selection
+
+Use OpenCode skills proactively when the task matches their purpose. Do not wait
+for the user to name the skill if the intent is clear.
+
+Spec-driven development:
+- Auto-select `specify` before implementing complex, risky, multi-session, or multi-system work. Do not wait for the user to name the skill when the intent is clearly implementation.
+- Full specs are required for auth, encryption, billing, privacy, teams, sharing, permissions, sync, AI pipeline changes, provider integrations, migrations, new API routes, app skills, embed types, background jobs, cron jobs, and Directus schema changes.
+- Full specs use one executable YAML source of truth at `docs/specs/<slug>/spec.yml`; do not create separate Markdown spec, plan, or task files for new specs.
+- Before writing `spec.yml`, discover existing GitHub Issues, relevant Linear tasks only when appropriate, docs, source patterns, and tests; then ask up to five rounds of clarifying questions, one question per message. Wait for the user's response before asking the next question, then wait for the user's vision confirmation before writing the final full spec.
+- Use `plan-from-spec` and `tasks-from-spec` after a full spec is approved; they update `implementation_plan` and `tasks` inside `spec.yml`.
+- Write or update the tests listed in `spec.yml` before feature code. Record red-phase evidence before implementation. For Playwright, red and green runs target live `app.dev.openmates.org`; green evidence is only valid after deploy and Vercel is Ready.
+- Run `python3 scripts/spec_validate.py docs/specs/<slug>/spec.yml` after spec edits and `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before marking the spec complete or deploying full-spec work.
+- Use an inline spec instead of a full spec for small behavior changes; skip specs for trivial or mechanical work. See `docs/contributing/guides/spec-driven-development.md` for the boundary.
+
+Common routing:
+- New external API/provider: use `add-api`.
+- New backend app skill: use `add-app-skill`.
+- New embed type: use `add-embed-type`.
+- New hardcoded example chat from a share URL: use `add-example-chat`.
+- User-visible bug with reproducible behavior: use `reproduce-first` before fix code.
+- Latest failing tests or daily-run failures: use `fix-tests` or `fix-next-test`.
+- User-reported issue ID or debugging timeline: use `debug-issue`; for encryption/key/sync symptoms, use the encryption/debug specialist subagents from the available agent list.
+- Vercel deployment failure: use `fix-vercel`.
+- Production SSH request: use `prod-ssh`.
+- Newsletter creation/publishing: use `create-newsletter` or `publish-newsletter`.
+- iOS/macOS parity work: use `ios`.
+- Task creation or prioritization: use `new-task` or `next-tasks`.
+
+If multiple skills apply, choose the earliest workflow gate first. For example,
+for a new provider-backed app skill, run `specify` or `add-api` research before
+scaffolding with `add-app-skill`; for a bug, reproduce with a failing test
+before implementation.
 
 ---
 

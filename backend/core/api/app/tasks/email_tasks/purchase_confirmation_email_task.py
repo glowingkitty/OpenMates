@@ -45,6 +45,7 @@ def process_invoice_and_send_email(
     provider: Optional[str] = None,  # Payment provider/mode — controls PDF document type
     provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
     send_email: bool = True,  # Backfills can generate records/PDFs without notifying users
+    gift_card_code: Optional[str] = None,  # Generated code for gift-card purchase confirmation emails
 ) -> bool:
     """
     Celery task to generate invoice/payment confirmation, upload to S3, save to Directus, and send email.
@@ -64,6 +65,7 @@ def process_invoice_and_send_email(
                 email_encryption_key, is_gift_card, is_auto_topup, provider,
                 provider_order_id,
                 send_email,
+                gift_card_code,
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -91,6 +93,7 @@ async def _async_process_invoice_and_send_email(
     provider: Optional[str] = None,  # Payment provider/mode
     provider_order_id: Optional[str] = None,  # Provider-specific refundable payment ID
     send_email: bool = True,
+    gift_card_code: Optional[str] = None,
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -746,6 +749,9 @@ async def _async_process_invoice_and_send_email(
             "refund_link": refund_deep_link_url,  # Set refund_link directly to ensure it's used in email template
             "customer_portal_url": customer_portal_url  # Pass management link to email
         }
+        if is_gift_card and gift_card_code:
+            email_context["gift_card_code"] = gift_card_code
+            email_context["gift_card_credits"] = credits_purchased
         logger.info("Prepared email context for invoice")
 
         # 12. Optionally send Purchase Confirmation Email with Attachment(s)

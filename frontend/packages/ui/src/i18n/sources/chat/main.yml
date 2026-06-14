@@ -22,6 +22,30 @@ new_chat:
   sv: Ny chatt
   he: "צ'אט חדש"
   verified_by_human: []
+interactive_question_failed:
+  context: Fallback shown when an interactive question payload cannot be parsed or displayed
+  en: Failed to display question.
+  de: Frage konnte nicht angezeigt werden.
+  zh: 无法显示问题。
+  es: No se pudo mostrar la pregunta.
+  fr: Impossible d’afficher la question.
+  pt: Não foi possível exibir a pergunta.
+  ru: Не удалось показать вопрос.
+  ja: 質問を表示できませんでした。
+  ko: 질문을 표시하지 못했습니다.
+  it: Impossibile visualizzare la domanda.
+  tr: Soru gösterilemedi.
+  vi: Không thể hiển thị câu hỏi.
+  id: Gagal menampilkan pertanyaan.
+  pl: Nie udało się wyświetlić pytania.
+  nl: Kan de vraag niet weergeven.
+  ar: تعذر عرض السؤال.
+  hi: प्रश्न दिखाया नहीं जा सका।
+  th: ไม่สามารถแสดงคำถามได้
+  cs: Nepodařilo se zobrazit otázku.
+  sv: Det gick inte att visa frågan.
+  he: לא ניתן להציג את השאלה.
+  verified_by_human: [en]
 share:
   context: Button label for sharing a chat
   en: Share chat
@@ -1584,49 +1608,249 @@ compression.messages_compressed:
 sub_chats.confirmation_title:
   context: Title for inline confirmation card before starting a large batch of sub-chats. {count} is the number of proposed sub-chats.
   en: Start {count} background chats?
+  de: "{count} Hintergrund-Chats starten?"
+  zh: "启动 {count} 个后台对话？"
+  es: "¿Iniciar {count} chats en segundo plano?"
+  fr: "Lancer {count} chats en arrière-plan ?"
+  pt: "Iniciar {count} chats em segundo plano?"
+  ru: "Запустить {count} фоновых чатов?"
+  ja: "{count} 件のバックグラウンドチャットを開始しますか？"
+  ko: "{count}개의 백그라운드 대화를 시작할까?"
+  it: "Avviare {count} chat in background?"
+  tr: "{count} arka plan sohbeti başlatılsın mı?"
+  vi: "Bắt đầu {count} cuộc trò chuyện nền?"
+  id: "Mulai {count} obrolan latar belakang?"
+  pl: "Uruchomić {count} czatów w tle?"
+  nl: "{count} achtergrondchats starten?"
+  ar: "هل تريد بدء {count} من الدردشات الخلفية؟"
+  hi: "{count} बैकग्राउंड चैट शुरू करें?"
+  th: "เริ่มแชทเบื้องหลัง {count} รายการหรือไม่?"
+  cs: "Spustit {count} chatů na pozadí?"
+  sv: "Starta {count} bakgrundschattar?"
+  he: "להתחיל {count} צ'אטים ברקע?"
   verified_by_human: []
 
 sub_chats.confirmation_description:
   context: Description for inline sub-chat confirmation. {auto} is the number allowed without confirmation, {max} is the concurrent parallel sub-chat cap.
   en: OpenMates starts up to {auto} automatically. Larger batches need your approval, and parallel batches can start up to {max} sub-chats at once. Sequential queues can be larger.
+  de: "OpenMates startet bis zu {auto} automatisch. Größere Mengen benötigen deine Zustimmung, und parallele Stapel können bis zu {max} Sub-Chats gleichzeitig starten. Sequenzielle Warteschlangen können größer sein."
+  zh: "OpenMates 会自动启动最多 {auto} 个子对话。更大批量的启动需要你的批准，且并行批次一次最多可启动 {max} 个子对话。顺序队列可以包含更多数量。"
+  es: "OpenMates inicia hasta {auto} automáticamente. Los lotes más grandes necesitan tu aprobación, y los lotes paralelos pueden iniciar hasta {max} subchats a la vez. Las colas secuenciales pueden ser más grandes."
+  fr: "OpenMates en lance jusqu'à {auto} automatiquement. Les lots plus importants nécessitent ton approbation, et les lots parallèles peuvent lancer jusqu'à {max} sous-chats à la fois. Les files d'attente séquentielles peuvent être plus grandes."
+  pt: "O OpenMates inicia até {auto} automaticamente. Lotes maiores precisam da tua aprovação, e lotes paralelos podem iniciar até {max} sub-chats de uma vez. Filas sequenciais podem ser maiores."
+  ru: "OpenMates запускает до {auto} чатов автоматически. Для большего количества нужно твое подтверждение. Одновременно может работать до {max} параллельных чатов, последовательные очереди могут быть больше."
+  ja: "OpenMatesは最大 {auto} 件まで自動的に開始します。それ以上のバッチには承認が必要で、並列バッチでは一度に最大 {max} 件のサブチャットを開始できます。順次キューはそれ以上の件数に対応可能です。"
+  ko: "OpenMates는 최대 {auto}개까지 자동으로 시작합니다. 그 이상의 대화는 승인이 필요하며, 병렬 배치는 한 번에 최대 {max}개의 하위 대화를 시작할 수 있습니다. 순차 대기열은 더 크게 설정할 수 있습니다."
+  it: "OpenMates ne avvia automaticamente fino a {auto}. I lotti più grandi richiedono la tua approvazione e i lotti paralleli possono avviare fino a {max} sotto-chat contemporaneamente. Le code sequenziali possono essere più grandi."
+  tr: "OpenMates en fazla {auto} sohbeti otomatik olarak başlatır. Daha büyük gruplar onayını gerektirir ve paralel gruplar aynı anda en fazla {max} alt sohbet başlatabilir. Sıralı kuyruklar daha büyük olabilir."
+  vi: "OpenMates tự động bắt đầu tối đa {auto} cuộc trò chuyện. Các đợt lớn hơn cần bạn phê duyệt và các đợt song song có thể bắt đầu tối đa {max} cuộc trò chuyện phụ cùng lúc. Hàng đợi tuần tự có thể lớn hơn."
+  id: "OpenMates memulai hingga {auto} secara otomatis. Batch yang lebih besar memerlukan persetujuanmu, dan batch paralel dapat memulai hingga {max} sub-obrolan sekaligus. Antrean berurutan bisa lebih besar."
+  pl: "OpenMates automatycznie uruchamia do {auto}. Większe partie wymagają Twojej zgody, a partie równoległe mogą uruchamiać do {max} podczatów jednocześnie. Kolejki sekwencyjne mogą być większe."
+  nl: "OpenMates start er maximaal {auto} automatisch. Voor grotere batches is je goedkeuring nodig, en parallelle batches kunnen maximaal {max} subchats tegelijk starten. Sequentiële wachtrijen kunnen groter zijn."
+  ar: "يبدأ OpenMates ما يصل إلى {auto} تلقائيًا. تتطلب المجموعات الأكبر موافقتك، ويمكن للمجموعات المتوازية بدء ما يصل إلى {max} من الدردشات الفرعية في وقت واحد. يمكن أن تكون قوائم الانتظار المتسلسلة أكبر."
+  hi: "OpenMates {auto} तक अपने आप शुरू कर देता है। बड़े बैच के लिए आपकी मंज़ूरी चाहिए, और पैरेलल बैच एक साथ {max} सब-चैट तक शुरू कर सकते हैं। सीक्वेंशियल (क्रमवार) कतारें इससे बड़ी हो सकती हैं।"
+  th: "OpenMates จะเริ่มทำงานสูงสุด {auto} รายการโดยอัตโนมัติ ชุดข้อมูลที่ใหญ่กว่านี้ต้องได้รับการอนุมัติจากคุณ และการทำงานแบบขนานสามารถเริ่มแชทย่อยได้สูงสุด {max} รายการพร้อมกัน ส่วนคิวแบบลำดับสามารถมีขนาดใหญ่กว่านี้ได้"
+  cs: "OpenMates automaticky spouští až {auto}. Větší dávky vyžadují tvůj souhlas a paralelní dávky mohou spustit až {max} podchatů najednou. Sekvenční fronty mohou být větší."
+  sv: "OpenMates startar upp till {auto} automatiskt. Större batcher kräver ditt godkännande, och parallella batcher kan starta upp till {max} underchattar samtidigt. Sekventiella köer kan vara större."
+  he: "OpenMates מתחילה עד {auto} באופן אוטומטי. קבוצות גדולות יותר דורשות את אישורך, וקבוצות מקבילות יכולות להפעיל עד {max} צ'אטי-משנה בו-זמנית. תורים רציפים יכולים להיות גדולים יותר."
   verified_by_human: []
 
 sub_chats.confirmation_more:
   context: Collapsed list footer in sub-chat confirmation card. {count} is the number of hidden proposed sub-chats.
   en: +{count} more
+  de: "+{count} weitere"
+  zh: "还有 +{count} 个"
+  es: "+{count} más"
+  fr: "+{count} de plus"
+  pt: "+{count} mais"
+  ru: "+ еще {count}"
+  ja: "他 {count} 件"
+  ko: "외 {count}개 더 보기"
+  it: "+altre {count}"
+  tr: "+{count} tane daha"
+  vi: "+{count} mục nữa"
+  id: "+{count} lagi"
+  pl: "+{count} więcej"
+  nl: "+ nog {count}"
+  ar: "+{count} إضافية"
+  hi: "+{count} और"
+  th: "+ อีก {count} รายการ"
+  cs: "+{count} dalších"
+  sv: "+{count} till"
+  he: "+{count} נוספים"
   verified_by_human: []
 
 sub_chats.start_all:
   context: Button to approve all proposed sub-chats. {count} is the number of sub-chats.
   en: Start all {count}
+  de: "Alle {count} starten"
+  zh: "全部启动 ({count})"
+  es: "Iniciar los {count}"
+  fr: "Lancer les {count}"
+  pt: "Iniciar todos ({count})"
+  ru: "Запустить все ({count})"
+  ja: "全 {count} 件を開始"
+  ko: "{count}개 모두 시작"
+  it: "Avvia tutte ({count})"
+  tr: "Tümünü başlat ({count})"
+  vi: "Bắt đầu tất cả {count}"
+  id: "Mulai semua {count}"
+  pl: "Uruchom wszystkie {count}"
+  nl: "Alle {count} starten"
+  ar: "بدء الكل ({count})"
+  hi: "सभी {count} शुरू करें"
+  th: "เริ่มทั้งหมด {count} รายการ"
+  cs: "Spustit všech {count}"
+  sv: "Starta alla {count}"
+  he: "התחל את כל ה-{count}"
   verified_by_human: []
 
 sub_chats.start_first:
   context: Button to approve only the first few proposed sub-chats. {count} is the number to approve.
   en: Start first {count}
+  de: "Erste {count} starten"
+  zh: "启动前 {count} 个"
+  es: "Iniciar los primeros {count}"
+  fr: "Lancer les {count} premiers"
+  pt: "Iniciar primeiros {count}"
+  ru: "Запустить первые {count}"
+  ja: "最初の {count} 件を開始"
+  ko: "처음 {count}개 시작"
+  it: "Avvia le prime {count}"
+  tr: "İlk {count} tanesini başlat"
+  vi: "Bắt đầu {count} mục đầu tiên"
+  id: "Mulai {count} pertama"
+  pl: "Uruchom pierwsze {count}"
+  nl: "Eerste {count} starten"
+  ar: "بدء أول {count}"
+  hi: "पहले {count} शुरू करें"
+  th: "เริ่ม {count} รายการแรก"
+  cs: "Spustit prvních {count}"
+  sv: "Starta de första {count}"
+  he: "התחל את ה-{count} הראשונים"
   verified_by_human: []
 
 sub_chats.confirmation_failed:
   context: Error notification when sending sub-chat confirmation failed.
   en: Failed to update sub-chat approval.
+  de: Aktualisierung der Sub-Chat-Zustimmung fehlgeschlagen.
+  zh: 更新子对话审批失败。
+  es: Error al actualizar la aprobación del subchat.
+  fr: "Échec de la mise à jour de l'approbation du sous-chat."
+  pt: Falha ao atualizar a aprovação do sub-chat.
+  ru: Не удалось обновить подтверждение подчатов.
+  ja: サブチャットの承認の更新に失敗しました。
+  ko: 하위 대화 승인 업데이트에 실패했습니다.
+  it: "Impossibile aggiornare l'approvazione della sotto-chat."
+  tr: Alt sohbet onayı güncellenemedi.
+  vi: Không thể cập nhật phê duyệt cuộc trò chuyện phụ.
+  id: Gagal memperbarui persetujuan sub-obrolan.
+  pl: Nie udało się zaktualizować zgody na podczaty.
+  nl: Bijwerken van goedkeuring voor subchats mislukt.
+  ar: فشل تحديث الموافقة على الدردشة الفرعية.
+  hi: सब-चैट मंज़ूरी अपडेट करने में विफल।
+  th: ไม่สามารถอัปเดตการอนุมัติแชทย่อยได้
+  cs: Nepodařilo se aktualizovat schválení podchatu.
+  sv: Kunde inte uppdatera godkännande för underchatt.
+  he: "עדכון אישור צ'אט המשנה נכשל."
   verified_by_human: []
 
 sub_chats.limit_exceeded:
   context: Fallback error notification when the parallel sub-chat concurrency limit is exceeded.
   en: This chat can start up to 20 parallel sub-chats at once. Use a sequential queue for larger batches.
+  de: Dieser Chat kann bis zu 20 parallele Sub-Chats gleichzeitig starten. Nutze eine sequenzielle Warteschlange für größere Mengen.
+  zh: 此对话一次最多可启动 20 个并行子对话。如需更大批量，请使用顺序队列。
+  es: Este chat puede iniciar hasta 20 subchats paralelos a la vez. Usa una cola secuencial para lotes más grandes.
+  fr: "Ce chat peut lancer jusqu'à 20 sous-chats parallèles à la fois. Utilise une file d'attente séquentielle pour les lots plus importants."
+  pt: Este chat pode iniciar até 20 sub-chats paralelos de uma vez. Usa uma fila sequencial para lotes maiores.
+  ru: В этом чате можно запустить до 20 параллельных подчатов одновременно. Для большего количества используй последовательную очередь.
+  ja: このチャットでは、一度に最大20件の並列サブチャットを開始できます。より大きなバッチには順次キューを使用してください。
+  ko: 이 대화에서는 한 번에 최대 20개의 병렬 하위 대화를 시작할 수 있습니다. 더 많은 양은 순차 대기열을 사용하세요.
+  it: Questa chat può avviare fino a 20 sotto-chat parallele contemporaneamente. Usa una coda sequenziale per lotti più grandi.
+  tr: Bu sohbet aynı anda en fazla 20 paralel alt sohbet başlatabilir. Daha büyük gruplar için sıralı kuyruk kullan.
+  vi: Cuộc trò chuyện này có thể bắt đầu tối đa 20 cuộc trò chuyện phụ song song cùng lúc. Hãy sử dụng hàng đợi tuần tự cho các đợt lớn hơn.
+  id: Obrolan ini dapat memulai hingga 20 sub-obrolan paralel sekaligus. Gunakan antrean berurutan untuk batch yang lebih besar.
+  pl: Ten czat może uruchomić do 20 równoległych podczatów jednocześnie. W przypadku większych partii użyj kolejki sekwencyjnej.
+  nl: Deze chat kan maximaal 20 parallelle subchats tegelijk starten. Gebruik een sequentiële wachtrij voor grotere batches.
+  ar: يمكن لهذه الدردشة بدء ما يصل إلى 20 دردشة فرعية متوازية في وقت واحد. استخدم قائمة انتظار متسلسلة للمجموعات الأكبر.
+  hi: यह चैट एक साथ 20 पैरेलल सब-चैट तक शुरू कर सकती है। बड़े बैच के लिए सीक्वेंशियल कतार का इस्तेमाल करें।
+  th: แชทนี้สามารถเริ่มแชทย่อยแบบขนานได้สูงสุด 20 รายการพร้อมกัน โปรดใช้คิวแบบลำดับสำหรับชุดข้อมูลที่ใหญ่กว่านี้
+  cs: Tento chat může spustit až 20 paralelních podchatů najednou. Pro větší dávky použij sekvenční frontu.
+  sv: Den här chatten kan starta upp till 20 parallella underchattar samtidigt. Använd en sekventiell kö för större batcher.
+  he: "צ'אט זה יכול להפעיל עד 20 צ'אטי משנה מקבילים בו-זמנית. השתמש בתור רציף עבור קבוצות גדולות יותר."
   verified_by_human: []
 
 sub_chats.progress_label:
   context: Label above sequential sub-chat progress bar. {completed} is completed count and {total} is total count.
   en: 'Sequential sub-chats: {completed} / {total} complete'
+  de: "Sequenzielle Sub-Chats: {completed} / {total} abgeschlossen"
+  zh: "顺序子对话：已完成 {completed} / {total}"
+  es: "Subchats secuenciales: {completed} / {total} completados"
+  fr: "Sous-chats séquentiels : {completed} / {total} terminés"
+  pt: "Sub-chats sequenciais: {completed} / {total} concluídos"
+  ru: "Последовательные подчаты: {completed} / {total} завершено"
+  ja: "順次サブチャット: {completed} / {total} 完了"
+  ko: "순차 하위 대화: {completed} / {total} 완료"
+  it: "Sotto-chat sequenziali: {completed} / {total} completate"
+  tr: "Sıralı alt sohbetler: {completed} / {total} tamamlandı"
+  vi: "Cuộc trò chuyện phụ tuần tự: {completed} / {total} đã hoàn thành"
+  id: "Sub-obrolan berurutan: {completed} / {total} selesai"
+  pl: "Sekwencyjne podczaty: ukończono {completed} / {total}"
+  nl: "Sequentiële subchats: {completed} / {total} voltooid"
+  ar: "الدردشات الفرعية المتسلسلة: اكتمل {completed} / {total}"
+  hi: "सीक्वेंशियल सब-चैट: {completed} / {total} पूरे हुए"
+  th: "แชทย่อยแบบลำดับ: เสร็จสิ้น {completed} / {total} รายการ"
+  cs: "Sekvenční podchaty: {completed} / {total} dokončeno"
+  sv: "Sekventiella underchattar: {completed} / {total} klara"
+  he: "צ'אטי משנה רציפים: {completed} / {total} הושלמו"
   verified_by_human: []
 
 sub_chats.progress_stopping:
   context: Status label shown while a sequential sub-chat queue is being stopped.
   en: Stopping sequential sub-chats...
+  de: Sequenzielle Sub-Chats werden gestoppt...
+  zh: 正在停止顺序子对话...
+  es: Deteniendo subchats secuenciales...
+  fr: Arrêt des sous-chats séquentiels...
+  pt: Interrompendo sub-chats sequenciais...
+  ru: Остановка последовательных подчатов...
+  ja: 順次サブチャットを停止しています...
+  ko: 순차 하위 대화 중지 중...
+  it: Interruzione delle sotto-chat sequenziali...
+  tr: Sıralı alt sohbetler durduruluyor...
+  vi: Đang dừng các cuộc trò chuyện phụ tuần tự...
+  id: Menghentikan sub-obrolan berurutan...
+  pl: Zatrzymywanie sekwencyjnych podczatów...
+  nl: Sequentiële subchats stoppen...
+  ar: جاري إيقاف الدردشات الفرعية المتسلسلة...
+  hi: सीक्वेंशियल सब-चैट रोकी जा रही हैं...
+  th: กำลังหยุดแชทย่อยแบบลำดับ...
+  cs: Zastavování sekvenčních podchatů...
+  sv: Stoppar sekventiella underchattar...
+  he: "עוצר צ'אטי משנה רציפים..."
   verified_by_human: []
 
 sub_chats.stop_queue:
   context: Button label for stopping a sequential sub-chat queue.
   en: Stop queue
+  de: Warteschlange stoppen
+  zh: 停止队列
+  es: Detener cola
+  fr: "Arrêter la file d'attente"
+  pt: Parar fila
+  ru: Остановить очередь
+  ja: キューを停止
+  ko: 대기열 중지
+  it: Interrompi coda
+  tr: Kuyruğu durdur
+  vi: Dừng hàng đợi
+  id: Hentikan antrean
+  pl: Zatrzymaj kolejkę
+  nl: Wachtrij stoppen
+  ar: إيقاف قائمة الانتظار
+  hi: कतार रोकें
+  th: หยุดคิว
+  cs: Zastavit frontu
+  sv: Stoppa kö
+  he: עצירת התור
   verified_by_human: []

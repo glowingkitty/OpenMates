@@ -167,6 +167,7 @@ TASK_CONFIG = [
     {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
+    {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender
  ]
 
 
@@ -1301,6 +1302,13 @@ app.conf.beat_schedule = {
     'daily-notification-dispatcher': {
         'task': 'app.tasks.email_tasks.daily_notification_dispatcher.run_daily_notifications',
         'schedule': crontab(hour=9, minute=0),  # Daily at 09:00 UTC
+        'options': {'queue': 'email'},
+    },
+    # Newsletter campaign scheduler — sends only campaigns that were test-sent
+    # to an admin and explicitly approved via the hidden admin API.
+    'process-due-newsletter-campaigns': {
+        'task': 'app.tasks.email_tasks.newsletter_campaign_task.process_due_newsletter_campaigns',
+        'schedule': timedelta(seconds=60),
         'options': {'queue': 'email'},
     },
     # Pending delivery audit - logs users with undelivered messages (reminders + AI responses)

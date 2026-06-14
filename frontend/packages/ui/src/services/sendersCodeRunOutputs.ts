@@ -44,6 +44,7 @@ export async function sendUpsertCodeRunOutputImpl(
 
   try {
     await idbUpsertCodeRunOutput(chatDB, cloneSafeOutput);
+    window.dispatchEvent(new CustomEvent("codeRunOutputSynced", { detail: cloneSafeOutput }));
   } catch (error) {
     console.error("[sendersCodeRunOutputs] IDB upsert failed", error);
   }

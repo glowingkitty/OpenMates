@@ -1,0 +1,753 @@
+id: free-testing-credits-budget
+title: Free Testing Credits Budget
+status: implementing
+
+goal: >
+  Let server admins configure a finite Free testing credit budget from the
+  admin-only Server settings area. While enough budget remains for a full grant,
+  signup presents Free credits for testing instead of Pay per use, and each newly
+  completed signup receives translated in-app notification copy plus encrypted
+  credits automatically.
+
+scope:
+  in:
+    - Admin-only Server settings UI for configuring total Free testing budget and per-user grant amount.
+    - Public server-status metadata that tells signup whether the Free testing promotion is active.
+    - Signup basics-page advantage text changes from Pay per use to Free credits for testing only while a full grant is available.
+    - Automatic post-signup grant of the configured per-user credit amount to newly completed users.
+    - User-visible translated notification text You received {credits} free credits for testing.
+    - Budget accounting that increments used credits once per eligible completed signup and never overspends.
+    - Admin visibility into total budget, used credits, remaining credits, grant amount, active/exhausted state, and exhausted notification state.
+    - One admin email when the promotion transitions from active to exhausted.
+    - Cleanup of legacy signup payment and credits step code so payment purchase flows remain only in Settings.
+    - Privacy-preserving device/account promo hiding after the current browser or authenticated account has already received a Free testing grant.
+    - Free testing credits and gift cards are official-cloud-only and are hidden/unavailable on self-hosted editions.
+  out:
+    - Changing regular official-cloud Settings > Billing purchase, gift-card, refund, referral, or auto-top-up behavior.
+    - Changing alpha disclaimer copy or layout.
+    - Partial grants when remaining budget is below the per-user grant amount.
+    - Retroactively granting credits to existing users.
+    - Per-invite, per-domain, or per-user-segment promotional budgets.
+    - IP hashing, device fingerprinting, or email-claim limits for promotional abuse prevention.
+    - Apple-specific signup or StoreKit UI changes.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"credits budget signup free testing billing admin settings\" --state all --limit 10` found no matching issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/specs/cli-signup-billing-provisioning/spec.yml
+    - docs/specs/unified-notifications/spec.yml
+    - docs/user-guide/usage-and-billing.md
+  code_patterns:
+    - frontend/packages/ui/src/components/signup/signupFlow.ts
+    - frontend/packages/ui/src/components/signup/steps/basics/Basics.svelte
+    - frontend/packages/ui/src/components/signup/Signup.svelte
+    - frontend/packages/ui/src/components/signup/steps/credits/CreditsTopContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/payment/PaymentTopContent.svelte
+    - frontend/packages/ui/src/components/settings/SettingsServer.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/components/settings/server/SettingsStats.svelte
+    - frontend/packages/ui/src/components/settings/server/SettingsGiftCardGenerator.svelte
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/auth_routes/auth_password.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/auth_routes/auth_gift.py
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/services/directus/user/user_creation.py
+    - backend/core/api/app/services/directus/user/user_profile.py
+    - backend/core/api/app/services/server_stats_service.py
+    - backend/core/directus/schemas/users.yml
+    - backend/core/directus/schemas/server_stats_global_daily.yml
+  tests:
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-eu.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    - backend/tests/test_billing_utils.py
+    - backend/tests/test_gift_card_domain_restriction.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - The first implementation is web signup copy, web admin Server settings, backend credit grant logic, and web translations.
+    - Apple StoreKit, Apple billing screens, and Apple signup UI are not changed in this slice.
+    - Backend credit balances remain compatible with Apple because the same encrypted user credit balance is updated.
+  verification:
+    - Apple not affected for UI parity.
+  intentional_native_differences:
+    - Free testing promotion management is web/admin-only, matching existing Server settings behavior.
+
+clarification:
+  rounds:
+    - question: Should the active promo UI replace only the basics-page advantage text Pay per use with Free credits for testing, while leaving the alpha disclaimer page unchanged?
+      answer: Yes. Replace the Pay per use advantage text on signup basics with Free credits for testing. Leave the alpha disclaimer unchanged.
+    - question: Should the user notification include the specific amount as translated variable text?
+      answer: Yes. Use translated copy You received {credits} free credits for testing with the credit count as a variable so the grant amount can change later.
+    - question: Should legacy signup payment and credits code be cleaned up now that payments remain only in Settings?
+      answer: Yes. Remove legacy payment and credits parts from signup. Payment remains only in the Settings menu.
+  vision_summary: >
+    Current signup finishes directly after account security setup and no longer
+    asks for payment. The new feature should advertise Free credits for testing
+    only in the basics-page advantages list while the admin budget can cover a
+    full grant, then grant encrypted credits once per completed signup and notify
+    both the user in-app and the admin by email when the budget is exhausted.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Admin configures a Free testing budget
+    given:
+      - Alice is an authenticated server admin.
+      - The Free testing budget is disabled or empty.
+    when:
+      - Alice opens Server settings and sets total budget to 50000 credits and per-user grant to 1000 credits.
+    then:
+      - Server settings saves the configuration.
+      - Server settings shows total budget 50000, used 0, remaining 50000, grant amount 1000, and active state.
+      - Non-admin users cannot read or change the budget management endpoint.
+  - id: S-2
+    title: Signup advertises free testing credits while a full grant is available
+    given:
+      - The Free testing budget total is 50000 credits.
+      - The used budget is 49000 credits.
+      - The per-user grant is 1000 credits.
+    when:
+      - Bob opens the signup basics page.
+    then:
+      - The advantages list shows Free credits for testing.
+      - The alpha disclaimer copy remains unchanged.
+      - The signup flow still proceeds directly from account security setup to completion.
+  - id: S-3
+    title: New completed signup receives free testing credits
+    given:
+      - The Free testing budget has at least 1000 remaining credits.
+      - Bob creates a new account and completes signup.
+    when:
+      - Signup reaches the existing completion path and lands Bob in the app.
+    then:
+      - Bob's encrypted credit balance increases by 1000 credits.
+      - The budget used amount increases by 1000 credits.
+      - Bob receives a success notification saying You received 1000 free credits for testing.
+      - Bob receives the grant only once, even if signup completion is retried or the page reloads.
+  - id: S-4
+    title: Signup falls back when not enough budget remains
+    given:
+      - The Free testing budget total is 50000 credits.
+      - The used budget is 49500 credits.
+      - The per-user grant is 1000 credits.
+    when:
+      - Clara opens the signup basics page and completes signup.
+    then:
+      - The advantages list shows Pay per use.
+      - Clara receives no free-testing grant.
+      - The remaining 500 credits are not partially granted.
+  - id: S-5
+    title: Admin receives one budget exhausted email
+    given:
+      - The Free testing budget has exactly 1000 remaining credits.
+      - No exhausted email has been sent for the current budget configuration.
+    when:
+      - The next completed signup receives the final 1000-credit grant.
+    then:
+      - The budget becomes exhausted.
+      - One email is queued to SERVER_OWNER_EMAIL or ADMIN_NOTIFY_EMAIL.
+      - Server settings records that the exhausted email was sent.
+      - Rechecking status or retrying signup completion does not send duplicate exhausted emails.
+  - id: S-6
+    title: Legacy signup payment and credits paths are removed
+    given:
+      - Payment flows now belong only to Settings.
+    when:
+      - A user signs up with password or passkey.
+    then:
+      - Signup step ordering contains no credits, payment, or auto-top-up purchase step.
+      - Signup components no longer import or render legacy signup payment/credits content.
+      - Settings > Billing purchase, gift-card redemption, and bank-transfer flows remain unchanged.
+  - id: S-7
+    title: Device hides promotion after receiving a Free testing grant
+    given:
+      - The Free testing promotion is active.
+      - A browser session completes signup and receives the Free testing grant.
+    when:
+      - The same browser returns to the signup basics page or logs in to an account that already has a Free testing grant.
+    then:
+      - The browser stores a first-party local marker that the grant was received.
+      - Signup basics shows Pay per use instead of Free credits for testing on that browser.
+      - Clearing browser storage can clear the local marker, but the backend grant ledger remains authoritative and still prevents duplicate grants.
+  - id: S-8
+    title: Self-hosted editions do not expose cloud-only credits or gift cards
+    given:
+      - A request is made from a self-hosted domain or localhost.
+    when:
+      - Signup, Server settings, or direct payment/admin API surfaces are loaded.
+    then:
+      - Public server status omits Free testing promotion metadata.
+      - Signup completion does not grant Free testing credits.
+      - Server settings does not mention gift-card generation or Free testing budget management.
+      - Direct gift-card and Free testing budget endpoints return not found for self-hosted requests.
+  - id: S-9
+    title: Gift-card signup is excluded from Free testing credits
+    given:
+      - The Free testing promotion is active.
+      - A visitor opens signup through a gift-card deep link that stores a pending code for auto-redemption after account creation.
+    when:
+      - The visitor views signup basics and completes account creation.
+    then:
+      - Signup basics shows Pay per use instead of Free credits for testing.
+      - The signup request sends the pending gift-card code to the backend for eligibility validation.
+      - If the code currently resolves to a redeemable gift card, signup does not grant Free testing credits.
+      - The existing auto-redemption flow applies only the gift-card credits after signup.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Admins can create, update, disable, and view a persistent Free testing credit budget from Server settings, including total, used, remaining, per-user grant, active, and exhausted-email status.
+  - id: AC-2
+    scenario: S-1
+    text: Non-admin users and unauthenticated callers cannot read or write admin budget management endpoints.
+  - id: AC-3
+    scenario: S-2
+    text: Public server status exposes only safe promotion metadata needed by signup, including whether a full free-testing grant is currently available and the per-user grant amount.
+  - id: AC-4
+    scenario: S-2
+    text: Signup basics advantage text uses Free credits for testing while promotion metadata is active and falls back to Pay per use otherwise; alpha disclaimer copy is unchanged.
+  - id: AC-5
+    scenario: S-3
+    text: A newly completed signup receives the configured grant once, stored in the existing encrypted credit balance and reflected in cache and user_credits_updated behavior.
+  - id: AC-6
+    scenario: S-3
+    text: The free-testing grant decrements remaining budget by incrementing used credits exactly once per granted signup and cannot overspend under concurrent signups.
+  - id: AC-7
+    scenario: S-3
+    text: The user receives translated notification copy with a credits variable after a successful free-testing grant.
+  - id: AC-8
+    scenario: S-4
+    text: If remaining budget is less than the per-user grant, signup shows Pay per use, no partial grant is made, and no user notification is sent.
+  - id: AC-9
+    scenario: S-5
+    text: When the budget transitions to exhausted, one admin email is queued and duplicate emails are prevented until an admin changes or resets the budget configuration.
+  - id: AC-10
+    scenario: S-6
+    text: Legacy signup credits/payment/auto-top-up purchase steps are removed from the active signup code without regressing Settings billing flows.
+  - id: AC-11
+    scenario: S-7
+    text: Authenticated user/session responses expose only a boolean has_free_testing_credits_grant marker derived from the grant ledger, and the frontend persists a first-party local device flag when that marker or the grant notification is observed.
+  - id: AC-12
+    scenario: S-7
+    text: Signup promotion display is gated by both safe public promotion metadata and the local device flag, without adding IP hashes, fingerprints, or email-claim tracking.
+  - id: AC-13
+    scenario: S-8
+    text: Self-hosted editions do not expose, mention, or permit Free testing credits or gift-card features through public metadata, signup grants, Settings UI, or direct API calls.
+  - id: AC-14
+    scenario: S-9
+    text: Gift-card deep-link signup hides the Free credits claim and excludes the account from Free testing grants when the pending code resolves to a redeemable gift card.
+
+contracts:
+  api:
+    - route: GET /v1/settings/server-status
+      response: "{ payment_enabled?, is_self_hosted, is_development, server_edition, domain, ai_models_configured, free_testing_credits?: { active: boolean, grant_credits: number } }"
+      notes:
+        - Public response must not expose total budget, used budget, remaining exact amount, admin email state, or internal IDs.
+        - active is true only when remaining_credits >= grant_credits and grant_credits > 0.
+        - Self-hosted responses omit free_testing_credits entirely.
+    - route: GET /v1/admin/free-testing-credits-budget
+      auth: admin only
+      response: "{ enabled, total_budget_credits, used_budget_credits, remaining_budget_credits, per_user_grant_credits, active, exhausted, exhausted_email_sent_at, updated_at }"
+    - route: PUT /v1/admin/free-testing-credits-budget
+      auth: admin only
+      request: "{ enabled: boolean, total_budget_credits: number, per_user_grant_credits: number }"
+      response: "same as GET"
+      validation:
+        - total_budget_credits >= 0
+        - per_user_grant_credits >= 1 when enabled is true
+        - total_budget_credits cannot be set below used_budget_credits unless the request explicitly disables or resets the budget according to the final implementation contract.
+    - route: internal signup completion grant path
+      notes:
+        - Called from existing signup completion paths after a new user is authenticated and before or during the /chat/new completion transition.
+        - Must be idempotent per user.
+        - Must no-op on self-hosted requests.
+        - Must no-op when password or passkey signup includes a pending_gift_card_code that resolves to an existing redeemable gift card.
+    - route: gift-card and Free testing admin/payment endpoints
+      notes:
+        - Direct self-hosted requests return 404 Feature not available on this server edition.
+    - route: authenticated user/session responses
+      response_delta: "{ user: { has_free_testing_credits_grant: boolean } }"
+      notes:
+        - Marker is derived from the existing Free testing grant ledger.
+        - Response must not expose grant IDs, user hashes, budget totals, remaining budget, or device identifiers.
+  data:
+    - Add persistent server-level Free testing budget state, likely a singleton Directus collection or equivalent server settings table.
+    - Store total_budget_credits, used_budget_credits, per_user_grant_credits, enabled, exhausted_email_sent_at, created_at, updated_at, and updated_by_admin_user_id.
+    - Store a per-user marker for free-testing grant idempotency, either on directus_users or a grant ledger keyed by user_id_hash.
+    - Derive account-level promo hiding from the grant ledger; do not add a separate persistent user field unless future requirements need it.
+    - User credit balance continues to use encrypted_credit_balance encrypted with the user's vault key.
+    - Budget reservation and user credit update must be transactional enough to prevent overspending and duplicate grants during concurrent signups.
+    - Free testing credits are promotional grants and must not increment credits_sold.
+    - Free testing credits should use separate stats fields such as free_testing_credits_granted and free_testing_grants_created if grant analytics are needed.
+  ui_states:
+    - Signup basics advantage text shows Free credits for testing only when server status says the promotion is active.
+    - Signup basics advantage text falls back to signup.advantage_pay_per_use on server-status error, disabled budget, exhausted budget, insufficient remaining budget, a local device flag showing this browser/account already received the promotion, or a pending gift-card redemption code.
+    - Admin Server settings shows loading, saved, validation error, disabled, active, exhausted, and email-sent states.
+    - User grant notification uses translated string signup.free_testing_credits_received with {credits} replacement.
+    - Local device flag is first-party localStorage only and is not cleared by logout.
+  privacy_security:
+    - Public status exposes only whether the promotion is active and the grant amount.
+    - Admin endpoints require the existing require_admin dependency.
+    - No plaintext user emails, user IDs, or private signup data are written to logs or specs.
+    - Grant ledger uses user_id_hash if a separate collection is introduced.
+    - Admin exhausted email contains aggregate budget numbers only, not recipient user data.
+    - Device/account promo hiding uses an account boolean derived from the grant ledger and a first-party browser flag; no IP hashes, fingerprint-derived identifiers, or email-claim hashes are introduced.
+    - Self-hosted detection uses request-domain validation, not frontend-only hiding.
+  i18n:
+    - Add signup.advantage_free_testing_credits with English Free credits for testing and translated placeholders for other locales if not human-verified.
+    - Add signup.free_testing_credits_received with English You received {credits} free credits for testing.
+    - Add settings.server.free_testing_* keys for admin Server settings UI labels, helper text, success, validation, active, disabled, exhausted, and email-sent states.
+    - Rebuild generated locale JSON from YAML sources.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_free_testing_credits_budget.py
+    command: python3 -m pytest backend/tests/test_free_testing_credits_budget.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-5
+      - AC-6
+      - AC-8
+      - AC-9
+      - AC-11
+    assertions:
+      - admin can save and fetch enabled budget state
+      - non-admin access to admin budget endpoints returns 403
+      - public server-status exposes only active and grant_credits metadata
+      - grant updates encrypted user credits and used budget once
+      - repeated grant attempt for same user is idempotent
+      - concurrent grants cannot push used budget above total budget
+      - remaining budget below per-user grant returns inactive and no partial grant
+      - exhausted email task is queued once when final full grant is consumed
+      - account grant marker is false before a grant and true after a grant
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: local-pytest-red-missing-service
+        timestamp: "2026-06-10"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-5-passed
+        timestamp: "2026-06-10"
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_server_status_response.py
+    command: python3 -m pytest backend/tests/test_server_status_response.py
+    covers:
+      - AC-3
+      - AC-13
+    assertions:
+      - self-hosted server-status omits payment_enabled and free_testing_credits
+      - self-hosted server-status does not instantiate the Free testing promotion service
+      - cloud server-status can include only safe free_testing_credits metadata
+    red_phase:
+      required: false
+      expected: existing_regression_guard
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-server-status-4-passed
+        timestamp: "2026-06-10"
+  - id: T-PLAYWRIGHT-001
+    type: playwright
+    file: frontend/apps/web_app/tests/signup-free-testing-credits.spec.ts
+    command: python3 scripts/run_tests.py --spec signup-free-testing-credits.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-7
+      - AC-8
+      - AC-12
+    assertions:
+      - signup basics shows Free credits for testing when mocked server-status reports active promotion
+      - alpha disclaimer text remains unchanged
+      - signup completes directly to chat without payment or credits step
+      - successful signup grant shows You received 1000 free credits for testing
+      - inactive promotion shows Pay per use and no free-testing notification
+      - local device marker hides the Free credits for testing copy on the same browser after grant
+      - gift-card deep-link signup hides Free credits for testing and sends pending_gift_card_code with password signup
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "27340381011"
+        timestamp: "2026-06-11"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27341704555"
+        timestamp: "2026-06-11"
+  - id: T-PLAYWRIGHT-002
+    type: playwright
+    file: frontend/apps/web_app/tests/server-free-testing-budget.spec.ts
+    command: python3 scripts/run_tests.py --spec server-free-testing-budget.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-9
+    assertions:
+      - admin can open Server settings and see Free testing budget page
+      - admin can save total budget and per-user grant values
+      - admin sees used, remaining, active/exhausted, and exhausted-email state
+      - non-admin users do not see the Server settings entry
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27272118284"
+        timestamp: "2026-06-10"
+  - id: T-VITEST-001
+    type: vitest
+    file: frontend/packages/ui/src/components/signup/signupFlow.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-10
+    assertions:
+      - password signup sequence contains no credits, payment, or auto-top-up step
+      - passkey signup sequence contains no credits, payment, or auto-top-up step
+      - self-hosted signup sequence still removes confirm_email only
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "27264016764"
+        timestamp: "2026-06-10"
+  - id: T-PLAYWRIGHT-003
+    type: playwright
+    file: frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    command: python3 scripts/run_tests.py --spec settings-buy-credits-bank-transfer.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-10
+    assertions:
+      - Settings > Billing > Buy Credits bank-transfer flow remains reachable
+      - existing billing purchase routes are not moved back into signup
+    red_phase:
+      required: false
+      expected: existing_regression_guard
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+  - id: T-VITEST-002
+    type: vitest
+    file: frontend/packages/ui/src/stores/__tests__/serverStatusStore.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-11
+      - AC-12
+      - AC-14
+    assertions:
+      - active public promotion is visible when the local device flag is absent
+      - marking the device as already granted hides the signup promotion without changing raw public metadata
+      - marking a pending gift-card redemption hides the signup promotion until that pending state is cleared
+      - malformed localStorage reads fail closed without crashing signup rendering
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "27337539317"
+        timestamp: "2026-06-11"
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_auth_endpoints.py
+    command: python3 -m pytest backend/tests/test_auth_endpoints.py -k pending_signup_gift_card
+    covers:
+      - AC-14
+    assertions:
+      - pending signup gift-card codes are normalized before backend validation
+      - only valid-looking codes call the gift-card lookup path
+      - unknown or invalid pending codes do not suppress normal promotion eligibility
+      - gift-card lookup errors fail closed and suppress the promotional grant
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-pending-signup-gift-card-6-passed
+        timestamp: "2026-06-11"
+
+implementation_plan:
+  existing_patterns:
+    - Use backend/core/api/app/routes/admin.py for admin-only /v1/admin routes and require_admin.
+    - Use backend/core/api/app/routes/settings.py server-status for safe public signup metadata.
+    - Use existing encrypted credit balance update patterns from payments.py and auth_gift.py.
+    - Use user_notification WebSocket handling for in-app translated user grant notification.
+    - Use email_tasks with EmailTemplateService for admin exhausted email.
+    - Use settings/elements components for new Server settings UI.
+  architecture: >
+    Add a small backend service for Free testing budget reads, admin writes, and
+    idempotent signup grant attempts. The service owns budget availability,
+    concurrency protection, user credit encryption, cache refresh, WebSocket
+    user_credits_updated broadcast, user notification broadcast, stats updates,
+    and exhausted-email enqueueing. Frontend signup only consumes safe public
+    promotion metadata and never calculates remaining budget itself.
+    The browser stores a first-party local marker after a successful grant or when
+    an authenticated account response reports an existing grant; signup promo
+    display checks that marker before rendering Free credits for testing.
+  data_flow:
+    - Admin saves budget in Server settings through an admin-only endpoint.
+    - Public server-status returns active promotion metadata when remaining budget covers a full grant.
+    - Signup basics renders Free credits for testing only from active public metadata.
+    - Signup completion calls backend grant path after account creation/session setup.
+    - Grant path atomically reserves budget, encrypts the new user credit balance, updates cache, broadcasts credit update and notification, and queues exhausted email if needed.
+    - Frontend observes the grant notification or authenticated user marker and sets a local device flag so the same browser no longer advertises the promotion.
+  affected_files:
+    - path: backend/core/directus/schemas/free_testing_credits_budget.yml
+      reason: Persistent server-level budget state or equivalent singleton schema.
+    - path: backend/core/directus/schemas/free_testing_credit_grants.yml
+      reason: Per-user idempotency ledger if not stored on directus_users.
+    - path: backend/core/api/app/services/free_testing_credits_service.py
+      reason: Central budget and grant logic.
+    - path: backend/core/api/app/schemas/user.py
+      reason: Authenticated account-level Free testing grant marker.
+    - path: backend/core/api/app/routes/auth_routes/auth_login.py
+      reason: Populate account-level grant marker on login responses.
+    - path: backend/core/api/app/routes/auth_routes/auth_session.py
+      reason: Populate account-level grant marker on session responses.
+    - path: backend/core/api/app/routes/admin.py
+      reason: Admin budget endpoints.
+    - path: backend/core/api/app/routes/settings.py
+      reason: Safe public promotion metadata in server-status.
+    - path: backend/core/api/app/routes/auth_routes/auth_password.py
+      reason: Password signup completion grant hook.
+    - path: backend/core/api/app/routes/auth_routes/auth_passkey.py
+      reason: Passkey signup completion grant hook.
+    - path: backend/core/api/app/routes/payments.py
+      reason: Official-cloud-only gift-card endpoint guards.
+    - path: frontend/packages/ui/src/components/Settings.svelte
+      reason: Hide cloud-only billing and server gift-card/free-testing routes on self-hosted.
+    - path: frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+      reason: Pass self-hosted state to settings sub-pages.
+    - path: frontend/packages/ui/src/components/signup/signupFlow.ts
+      reason: Remove legacy payment/credits step assumptions from active signup sequence.
+    - path: frontend/packages/ui/src/components/signup/Signup.svelte
+      reason: Remove legacy signup payment/credits handling and wire grant notification behavior if needed.
+    - path: frontend/packages/ui/src/components/signup/steps/basics/Basics.svelte
+      reason: Dynamic advantage text.
+    - path: frontend/packages/ui/src/stores/serverStatusStore.ts
+      reason: Safe promotion metadata and first-party local promo hiding flag.
+    - path: frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+      reason: Sync local promo hiding flag from authenticated login response.
+    - path: frontend/packages/ui/src/stores/authSessionActions.ts
+      reason: Sync local promo hiding flag from authenticated session response.
+    - path: frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+      reason: Sync local promo hiding flag from grant notification event.
+    - path: frontend/packages/ui/src/components/settings/SettingsServer.svelte
+      reason: Add Free testing budget entry.
+    - path: frontend/packages/ui/src/components/settings/server/SettingsFreeTestingBudget.svelte
+      reason: New admin settings page.
+    - path: frontend/packages/ui/src/components/settings/settingsRoutes.ts
+      reason: Register server/free-testing-budget route.
+    - path: frontend/packages/ui/src/i18n/sources/signup/main.yml
+      reason: Signup advantage and grant notification strings.
+    - path: frontend/packages/ui/src/i18n/sources/settings/main.yml
+      reason: Admin settings strings.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/free-testing-credits-budget/spec.yml
+    - python3 -m pytest backend/tests/test_server_status_response.py
+    - python3 -m pytest backend/tests/test_free_testing_credits_budget.py
+    - python3 scripts/run_tests.py --suite vitest
+    - python3 scripts/run_tests.py --spec signup-free-testing-credits.spec.ts
+    - python3 scripts/run_tests.py --spec server-free-testing-budget.spec.ts
+    - python3 scripts/run_tests.py --spec settings-buy-credits-bank-transfer.spec.ts
+    - python3 scripts/spec_verify.py docs/specs/free-testing-credits-budget/spec.yml
+
+tasks:
+  - id: TASK-1
+    title: Add backend Free testing budget contract
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-5
+        - AC-6
+        - AC-8
+        - AC-9
+        - AC-11
+    expected_files:
+      - backend/core/directus/schemas/free_testing_credits_budget.yml
+      - backend/core/api/app/services/free_testing_credits_service.py
+      - backend/core/api/app/routes/admin.py
+      - backend/core/api/app/routes/settings.py
+      - backend/core/api/app/schemas/user.py
+      - backend/core/api/app/routes/auth_routes/auth_login.py
+      - backend/core/api/app/routes/auth_routes/auth_session.py
+      - backend/tests/test_free_testing_credits_budget.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+  - id: TASK-2
+    title: Wire signup grant and translated user notification
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-5
+        - AC-7
+        - AC-8
+    expected_files:
+      - backend/core/api/app/routes/auth_routes/auth_password.py
+      - backend/core/api/app/routes/auth_routes/auth_passkey.py
+      - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    verification:
+      - T-PYTEST-001
+      - T-PLAYWRIGHT-001
+    independently_deployable: false
+  - id: TASK-3
+    title: Add web signup copy and Server settings UI
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-3
+        - AC-4
+        - AC-9
+        - AC-12
+    expected_files:
+      - frontend/packages/ui/src/stores/serverStatusStore.ts
+      - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+      - frontend/packages/ui/src/stores/authSessionActions.ts
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+      - frontend/packages/ui/src/components/signup/steps/basics/Basics.svelte
+      - frontend/packages/ui/src/components/settings/SettingsServer.svelte
+      - frontend/packages/ui/src/components/settings/server/SettingsFreeTestingBudget.svelte
+      - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+      - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    verification:
+      - T-PLAYWRIGHT-001
+      - T-PLAYWRIGHT-002
+      - T-VITEST-002
+    independently_deployable: false
+  - id: TASK-4
+    title: Remove legacy signup payment and credits paths
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-10
+    expected_files:
+      - frontend/packages/ui/src/components/signup/signupFlow.ts
+      - frontend/packages/ui/src/components/signup/Signup.svelte
+      - frontend/packages/ui/src/components/signup/SignupNav.svelte
+      - frontend/packages/ui/src/components/signup/steps/credits/CreditsTopContent.svelte
+      - frontend/packages/ui/src/components/signup/steps/payment/PaymentTopContent.svelte
+    verification:
+      - T-VITEST-001
+      - T-PLAYWRIGHT-001
+      - T-PLAYWRIGHT-003
+    independently_deployable: true
+  - id: TASK-5
+    title: Hide cloud-only Free testing and gift-card surfaces on self-hosted
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-13
+    expected_files:
+      - backend/core/api/app/routes/settings.py
+      - backend/core/api/app/routes/admin.py
+      - backend/core/api/app/routes/payments.py
+      - backend/core/api/app/routes/auth_routes/auth_password.py
+      - backend/core/api/app/routes/auth_routes/auth_passkey.py
+      - backend/tests/test_server_status_response.py
+      - frontend/packages/ui/src/components/Settings.svelte
+      - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+      - frontend/packages/ui/src/components/settings/SettingsServer.svelte
+    verification:
+      - T-PYTEST-002
+    independently_deployable: true
+
+risks:
+  - Concurrent signups can overspend the budget unless the backend grant path uses a transactional reservation or equivalent lock.
+  - Granting credits after account creation but before signup completion can create inconsistent state if one update succeeds and the other fails; idempotent retry and clear logging are required.
+  - Public server-status must not leak exact remaining promotional budget.
+  - Removing legacy signup payment components may affect tests or dormant deep links that still reference credits/payment steps.
+  - Admin exhausted email could spam without an exhausted_email_sent_at guard tied to budget configuration changes.
+  - Local device promo hiding is intentionally soft friction; users can clear browser storage, so backend grant idempotency remains the authoritative abuse control.
+
+open_questions:
+  - Should changing total_budget_credits after exhaustion reset exhausted_email_sent_at automatically, or only when the budget transitions from exhausted to active?

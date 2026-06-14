@@ -937,6 +937,31 @@ developers:
   he: מפתחים
   verified_by_human: []
 
+logs:
+  context: Route title for the settings sub-view that shows browser debug logs
+  en: Logs
+  de: Logs
+  zh: 日志
+  es: Registros
+  fr: Journaux
+  pt: Logs
+  ru: Журналы
+  ja: ログ
+  ko: 로그
+  it: Log
+  tr: Günlükler
+  vi: Nhật ký
+  id: Log
+  pl: Logi
+  nl: Logboeken
+  ar: السجلات
+  hi: लॉग
+  th: บันทึก
+  cs: Protokoly
+  sv: Loggar
+  he: יומנים
+  verified_by_human: []
+
 # Developer settings translations
 developers_title:
   context: Developers settings section title
@@ -1013,6 +1038,31 @@ developers_api_keys:
   he: מפתחות API
   verified_by_human: []
 
+developers.api_keys:
+  context: Route title for the developer sub-setting that manages API keys
+  en: API Keys
+  de: API-Schlüssel
+  zh: API 密钥
+  es: Claves API
+  fr: Clés API
+  pt: Chaves API
+  ru: API-ключи
+  ja: APIキー
+  ko: API 키
+  it: Chiavi API
+  tr: API Anahtarları
+  vi: Khóa API
+  id: Kunci API
+  pl: Klucze API
+  nl: API-sleutels
+  ar: مفاتيح API
+  hi: API कुंजियाँ
+  th: คีย์ API
+  cs: API klíče
+  sv: API-nycklar
+  he: מפתחות API
+  verified_by_human: []
+
 developers_api_keys_description:
   context: API keys description
   en: Create and manage API keys for external applications and integrations.
@@ -1040,6 +1090,31 @@ developers_api_keys_description:
 
 developers_devices_text:
   context: Devices menu item
+  en: Devices
+  de: Geräte
+  zh: 设备
+  es: Dispositivos
+  fr: Appareils
+  pt: Dispositivos
+  ru: Устройства
+  ja: デバイス
+  ko: 기기
+  it: Dispositivi
+  tr: Cihazlar
+  vi: Thiết bị
+  id: Perangkat
+  pl: Urządzenia
+  nl: Apparaten
+  ar: الأجهزة
+  hi: उपकरण
+  th: อุปกรณ์
+  cs: Zařízení
+  sv: Enheter
+  he: מכשירים
+  verified_by_human: []
+
+developers.devices:
+  context: Route title for the developer sub-setting that manages API key devices
   en: Devices
   de: Geräte
   zh: 设备
@@ -1565,6 +1640,31 @@ developers_devices_rename_empty_error:
 
 developers_webhooks:
   context: Webhooks menu item in developer settings
+  en: Webhooks
+  de: Webhooks
+  zh: Webhooks
+  es: Webhooks
+  fr: Webhooks
+  pt: Webhooks
+  ru: Webhooks
+  ja: Webhooks
+  ko: Webhooks
+  it: Webhook
+  tr: Webhooks
+  vi: Webhooks
+  id: Webhooks
+  pl: Webhooks
+  nl: Webhooks
+  ar: Webhooks
+  hi: Webhooks
+  th: Webhooks
+  cs: Webhooks
+  sv: Webhooks
+  he: Webhooks
+  verified_by_human: []
+
+developers.webhooks:
+  context: Route title for the developer sub-setting that manages webhooks
   en: Webhooks
   de: Webhooks
   zh: Webhooks
@@ -2585,6 +2685,54 @@ server:
   sv: Server
   he: שרת
   verified_by_human: []
+server.connection:
+  context: Server connection settings menu item
+  en: Server
+  de: Server
+  zh: 服务器
+  es: Servidor
+  fr: Serveur
+  pt: Servidor
+  ru: Сервер
+  ja: サーバー
+  ko: 서버
+  it: Server
+  tr: Sunucu
+  vi: Máy chủ
+  id: Server
+  pl: Serwer
+  nl: Server
+  ar: الخادم
+  hi: सर्वर
+  th: เซิร์ฟเวอร์
+  cs: Server
+  sv: Server
+  he: שרת
+  verified_by_human: []
+server.connection_description:
+  context: Description for server connection settings
+  en: Choose the OpenMates server domain
+  de: OpenMates-Serverdomain auswählen
+  zh: 选择 OpenMates 服务器域名
+  es: Elige el dominio del servidor de OpenMates
+  fr: Choisissez le domaine du serveur OpenMates
+  pt: Escolha o domínio do servidor OpenMates
+  ru: Выберите домен сервера OpenMates
+  ja: OpenMates サーバードメインを選択
+  ko: OpenMates 서버 도메인을 선택하세요
+  it: Scegli il dominio del server OpenMates
+  tr: OpenMates sunucu alan adını seçin
+  vi: Chọn miền máy chủ OpenMates
+  id: Pilih domain server OpenMates
+  pl: Wybierz domenę serwera OpenMates
+  nl: Kies het OpenMates-serverdomein
+  ar: اختر نطاق خادم OpenMates
+  hi: OpenMates सर्वर डोमेन चुनें
+  th: เลือกโดเมนเซิร์ฟเวอร์ OpenMates
+  cs: Vyberte doménu serveru OpenMates
+  sv: Välj OpenMates-serverdomänen
+  he: בחרו את דומיין השרת של OpenMates
+  verified_by_human: []
 server.community_suggestions:
   context: Community suggestions menu item
   en: Community Suggestions
@@ -2655,6 +2803,86 @@ server.gift_cards:
   cs: Dárkové karty
   sv: Presentkort
   he: כרטיסי מתנה
+  verified_by_human: []
+server.free_testing_budget.title:
+  context: Admin Server settings page title for configuring the Free testing credits signup promotion
+  en: Free testing credits
+  verified_by_human: []
+server.free_testing_credits:
+  context: Admin Server settings route title alias for the Free testing credits signup promotion
+  en: Free testing credits
+  verified_by_human: []
+server.free_testing_budget.subtitle:
+  context: Subtitle for admin Free testing credits budget settings menu item
+  en: Configure the signup testing credit budget
+  verified_by_human: []
+server.free_testing_budget.loading:
+  context: Loading state while fetching admin Free testing credits budget
+  en: Loading Free testing credits budget...
+  verified_by_human: []
+server.free_testing_budget.load_error:
+  context: Error shown when loading admin Free testing credits budget fails
+  en: Failed to load Free testing credits budget.
+  verified_by_human: []
+server.free_testing_budget.save_success:
+  context: Success notification after saving admin Free testing credits budget
+  en: Free testing credits budget saved.
+  verified_by_human: []
+server.free_testing_budget.save_error:
+  context: Error shown when saving admin Free testing credits budget fails
+  en: Failed to save Free testing credits budget.
+  verified_by_human: []
+server.free_testing_budget.status_active:
+  context: Status message when Free testing credits can be granted to new signups
+  en: Free testing credits are active for new signups.
+  verified_by_human: []
+server.free_testing_budget.status_exhausted:
+  context: Status message when Free testing credits budget is enabled but cannot grant another full user amount
+  en: The budget is exhausted and will not grant partial credits.
+  verified_by_human: []
+server.free_testing_budget.status_disabled:
+  context: Status message when Free testing credits are disabled or inactive
+  en: Free testing credits are currently inactive.
+  verified_by_human: []
+server.free_testing_budget.used:
+  context: Label for used Free testing credits budget
+  en: Used
+  verified_by_human: []
+server.free_testing_budget.remaining:
+  context: Label for remaining Free testing credits budget
+  en: Remaining
+  verified_by_human: []
+server.free_testing_budget.exhausted_email_sent:
+  context: Label for exhausted-budget admin email sent timestamp
+  en: Exhausted email sent
+  verified_by_human: []
+server.free_testing_budget.updated_at:
+  context: Label for Free testing credits budget updated timestamp
+  en: Updated
+  verified_by_human: []
+server.free_testing_budget.never:
+  context: Value shown when a Free testing credits timestamp has never been set
+  en: Never
+  verified_by_human: []
+server.free_testing_budget.enabled:
+  context: Toggle label for enabling Free testing credits promotion
+  en: Enable Free testing credits for new signups
+  verified_by_human: []
+server.free_testing_budget.total_budget:
+  context: Input label for total Free testing credits budget
+  en: Total budget credits
+  verified_by_human: []
+server.free_testing_budget.per_user_grant:
+  context: Input label for per-user Free testing credits grant amount
+  en: Credits per new signup
+  verified_by_human: []
+server.free_testing_budget.validation_below_used:
+  context: Validation message when total budget is below already used Free testing credits
+  en: Total budget cannot be below credits already granted.
+  verified_by_human: []
+server.free_testing_budget.validation_no_partial:
+  context: Validation message when remaining budget is below the per-user grant amount
+  en: Remaining budget must cover one full user grant. Partial grants are not allowed.
   verified_by_human: []
 server.gift_cards.title:
   context: Title shown at top of admin gift card generator page
@@ -6054,41 +6282,193 @@ newsletter_categories.heading:
   context: Heading for the per-category newsletter toggles section in Settings → Newsletter
   en: What do you want to receive?
   de: Was möchtest du erhalten?
+  zh: 你想接收哪些内容？
+  es: "¿Qué quieres recibir?"
+  fr: "Que souhaites-tu recevoir ?"
+  pt: "O que queres receber?"
+  ru: "Что ты хочешь получать?"
+  ja: 何を受け取りますか？
+  ko: "어떤 소식을 받고 싶나요?"
+  it: "Cosa vuoi ricevere?"
+  tr: "Neler almak istersin?"
+  vi: "Bạn muốn nhận nội dung gì?"
+  id: "Apa yang ingin kamu terima?"
+  pl: "Co chcesz otrzymywać?"
+  nl: "Wat wil je ontvangen?"
+  ar: ما الذي ترغب في تلقيه؟
+  hi: "आप क्या प्राप्त करना चाहते हैं?"
+  th: "คุณต้องการรับข่าวสารประเภทใด?"
+  cs: "Co chceš odebírat?"
+  sv: "Vad vill du få?"
+  he: "מה תרצה לקבל?"
   verified_by_human: []
 newsletter_categories.description:
   context: Short description under the newsletter categories heading
   en: Choose which types of newsletter emails you'd like to get. You can change these anytime.
   de: Wähle aus, welche Newsletter-E-Mails du erhalten möchtest. Du kannst das jederzeit ändern.
+  zh: 选择你想要接收的邮件订阅类型。你可以随时更改这些设置。
+  es: Elige qué tipos de boletines quieres recibir. Puedes cambiarlos en cualquier momento.
+  fr: Choisis les types de newsletters que tu souhaites recevoir. Tu peux modifier ces choix à tout moment.
+  pt: Escolhe que tipos de newsletters gostarias de receber. Podes alterá-los a qualquer momento.
+  ru: Выбери типы рассылок, которые хочешь получать. Это можно изменить в любое время.
+  ja: 受け取りたいニュースレターの種類を選択してください。設定はいつでも変更可能です。
+  ko: 받고 싶은 뉴스레터 유형을 선택하세요. 언제든지 변경할 수 있습니다.
+  it: Scegli quali tipi di newsletter vuoi ricevere. Puoi cambiare queste impostazioni in qualsiasi momento.
+  tr: Hangi tür bülten e-postalarını almak istediğini seç. Bunları istediğin zaman değiştirebilirsin.
+  vi: Chọn loại email bản tin bạn muốn nhận. Bạn có thể thay đổi bất cứ lúc nào.
+  id: Pilih jenis email buletin yang ingin kamu dapatkan. Kamu bisa mengubahnya kapan saja.
+  pl: Wybierz rodzaje newsletterów, które chcesz otrzymywać. Możesz je zmienić w dowolnym momencie.
+  nl: Kies welke soorten nieuwsbrieven je wilt ontvangen. Je kunt dit op elk moment wijzigen.
+  ar: اختر أنواع رسائل النشرة الإخبارية التي ترغب في الحصول عليها. يمكنك تغيير هذه الإعدادات في أي وقت.
+  hi: चुनें कि आप किस प्रकार के न्यूज़लेटर ईमेल प्राप्त करना चाहते हैं। आप इन्हें कभी भी बदल सकते हैं।
+  th: เลือกประเภทอีเมลจดหมายข่าวที่คุณต้องการรับ คุณสามารถเปลี่ยนได้ทุกเมื่อ
+  cs: Vyber si, které typy newsletterů chceš dostávat. Nastavení můžeš kdykoliv změnit.
+  sv: Välj vilka typer av nyhetsbrev du vill få. Du kan ändra dessa när som helst.
+  he: בחר את סוגי הניוזלטר שתרצה לקבל. ניתן לשנות זאת בכל עת.
   verified_by_human: []
 newsletter_categories.updates_and_announcements.title:
   context: Title for the Updates & Announcements newsletter category toggle
   en: Updates & Announcements
   de: Updates & Ankündigungen
+  zh: 更新与公告
+  es: Actualizaciones y anuncios
+  fr: Mises à jour et annonces
+  pt: Atualizações e Anúncios
+  ru: Обновления и анонсы
+  ja: アップデートと重要なお知らせ
+  ko: 업데이트 및 공지 사항
+  it: Aggiornamenti e annunci
+  tr: Güncellemeler ve Duyurular
+  vi: "Cập nhật & Thông báo"
+  id: "Pembaruan & Pengumuman"
+  pl: Aktualizacje i ogłoszenia
+  nl: "Updates & aankondigingen"
+  ar: التحديثات والإعلانات
+  hi: अपडेट और घोषणाएं
+  th: การอัปเดตและประกาศ
+  cs: Novinky a oznámení
+  sv: Uppdateringar och meddelanden
+  he: עדכונים והכרזות
   verified_by_human: []
 newsletter_categories.updates_and_announcements.description:
   context: Description for the Updates & Announcements newsletter category
   en: 1–2 emails per month about new features, OpenMates news, and important changes.
   de: 1–2 E-Mails pro Monat über neue Funktionen, OpenMates-Neuigkeiten und wichtige Änderungen.
+  zh: 每月 1–2 封邮件，包含新功能、OpenMates 新闻和重要变更。
+  es: 1 o 2 correos al mes sobre nuevas funciones, noticias de OpenMates y cambios importantes.
+  fr: "1 à 2 e-mails par mois sur les nouvelles fonctionnalités, les actualités d'OpenMates et les changements importants."
+  pt: 1–2 e-mails por mês sobre novas funcionalidades, notícias do OpenMates e alterações importantes.
+  ru: 1–2 письма в месяц о новых функциях, новостях OpenMates и важных изменениях.
+  ja: 新機能、OpenMatesのニュース、重要な変更に関するメールを月に1〜2通お届けします。
+  ko: 새로운 기능, OpenMates 소식, 중요 변경 사항에 대한 이메일을 월 1~2회 보내드립니다.
+  it: 1–2 email al mese su nuove funzionalità, novità di OpenMates e cambiamenti importanti.
+  tr: Yeni özellikler, OpenMates haberleri ve önemli değişiklikler hakkında ayda 1-2 e-posta.
+  vi: 1–2 email mỗi tháng về các tính năng mới, tin tức OpenMates và các thay đổi quan trọng.
+  id: 1–2 email per bulan tentang fitur baru, berita OpenMates, dan perubahan penting.
+  pl: 1–2 e-maile miesięcznie o nowych funkcjach, nowościach OpenMates i ważnych zmianach.
+  nl: 1–2 e-mails per maand over nieuwe functies, nieuws over OpenMates en belangrijke wijzigingen.
+  ar: رسالة أو رسالتان شهرياً حول الميزات الجديدة، وأخبار OpenMates، والتغييرات الهامة.
+  hi: नई सुविधाओं, OpenMates समाचार और महत्वपूर्ण बदलावों के बारे में प्रति माह 1–2 ईमेल।
+  th: อีเมล 1–2 ฉบับต่อเดือนเกี่ยวกับฟีเจอร์ใหม่ ข่าวสาร OpenMates และการเปลี่ยนแปลงที่สำคัญ
+  cs: 1–2 e-maily měsíčně o nových funkcích, novinkách z OpenMates a důležitých změnách.
+  sv: 1–2 mejl per månad om nya funktioner, nyheter från OpenMates och viktiga ändringar.
+  he: 1–2 אימיילים בחודש על תכונות חדשות, חדשות OpenMates ושינויים חשובים.
   verified_by_human: []
 newsletter_categories.tips_and_tricks.title:
   context: Title for the Tips & Tricks newsletter category toggle
   en: Tips & Tricks
   de: Tipps & Tricks
+  zh: 技巧与提示
+  es: Consejos y trucos
+  fr: Trucs et astuces
+  pt: Dicas e Truques
+  ru: Советы и хитрости
+  ja: ヒントとコツ
+  ko: 팁 및 요령
+  it: Trucchi e consigli
+  tr: İpuçları ve Püf Noktaları
+  vi: "Mẹo & Thủ thuật"
+  id: "Tips & Trik"
+  pl: Porady i wskazówki
+  nl: "Tips & tricks"
+  ar: نصائح وحيل
+  hi: टिप्स और ट्रिक्स
+  th: เคล็ดลับและเทคนิค
+  cs: Tipy a triky
+  sv: Tips och tricks
+  he: טיפים וטריקים
   verified_by_human: []
 newsletter_categories.tips_and_tricks.description:
   context: Description for the Tips & Tricks newsletter category
   en: Occasional tips on how to get more out of OpenMates, with short explainer clips.
   de: Gelegentliche Tipps, wie du mehr aus OpenMates herausholst, mit kurzen Erklär-Clips.
+  zh: 不定期发送关于如何更好地使用 OpenMates 的技巧，并附带简短的说明视频。
+  es: Consejos ocasionales sobre cómo sacar más provecho de OpenMates, con breves vídeos explicativos.
+  fr: "Des conseils occasionnels pour mieux profiter d'OpenMates, avec de courtes vidéos explicatives."
+  pt: Dicas ocasionais sobre como aproveitar melhor o OpenMates, com pequenos vídeos explicativos.
+  ru: Периодические советы о том, как извлечь максимум из OpenMates, с короткими поясняющими роликами.
+  ja: OpenMatesをより活用するためのヒントを、短い解説動画とともに定期的にお届けします。
+  ko: OpenMates 활용 팁과 짧은 설명 영상을 가끔 보내드립니다.
+  it: Suggerimenti occasionali su come ottenere il massimo da OpenMates, con brevi video esplicativi.
+  tr: "Kısa açıklayıcı videolarla OpenMates'ten nasıl daha fazla yararlanabileceğine dair ara sıra ipuçları."
+  vi: Thỉnh thoảng gửi mẹo về cách tận dụng OpenMates hiệu quả hơn, kèm theo các đoạn video giải thích ngắn.
+  id: Tips sesekali tentang cara memaksimalkan OpenMates, dengan klip penjelasan singkat.
+  pl: Okazjonalne porady, jak lepiej wykorzystać OpenMates, z krótkimi filmami objaśniającymi.
+  nl: "Af en toe tips over hoe je meer uit OpenMates kunt halen, met korte uitlegvideo's."
+  ar: نصائح من حين لآخر حول كيفية تحقيق أقصى استفادة من OpenMates، مع مقاطع توضيحية قصيرة.
+  hi: OpenMates का अधिक लाभ उठाने के बारे में कभी-कभार मिलने वाले टिप्स, छोटे व्याख्यात्मक क्लिप के साथ।
+  th: เคล็ดลับเป็นครั้งคราวเกี่ยวกับวิธีใช้งาน OpenMates ให้คุ้มค่าที่สุด พร้อมคลิปอธิบายสั้นๆ
+  cs: Občasné tipy, jak z OpenMates vytěžit maximum, s krátkými ukázkami.
+  sv: Enstaka tips om hur du får ut mer av OpenMates, med korta förklaringsklipp.
+  he: טיפים מדי פעם על איך להפיק יותר מ-OpenMates, בצירוף סרטוני הסבר קצרים.
   verified_by_human: []
 newsletter_categories.daily_inspirations.title:
   context: Title for the Daily Inspirations newsletter category toggle
   en: Daily Inspirations
   de: Tägliche Inspirationen
+  zh: 每日灵感
+  es: Inspiraciones diarias
+  fr: Inspirations quotidiennes
+  pt: Inspirações Diárias
+  ru: Ежедневное вдохновение
+  ja: 今日のインスピレーション
+  ko: 일일 영감
+  it: Ispirazioni quotidiane
+  tr: Günlük İlhamlar
+  vi: Cảm hứng hàng ngày
+  id: Inspirasi Harian
+  pl: Codzienne inspiracje
+  nl: Dagelijkse inspiratie
+  ar: إلهامات يومية
+  hi: दैनिक प्रेरणा
+  th: แรงบันดาลใจรายวัน
+  cs: Denní inspirace
+  sv: Daglig inspiration
+  he: השראות יומיות
   verified_by_human: []
 newsletter_categories.daily_inspirations.description:
   context: Description for the Daily Inspirations newsletter category
   en: A daily email with a curated inspiration based on your interests. Off by default.
   de: Eine tägliche E-Mail mit einer kuratierten Inspiration passend zu deinen Interessen. Standardmäßig aus.
+  zh: 每天一封根据你的兴趣精选的灵感邮件。默认关闭。
+  es: Un correo diario con una inspiración seleccionada según tus intereses. Desactivado por defecto.
+  fr: Un e-mail quotidien avec une inspiration sélectionnée selon tes intérêts. Désactivé par défaut.
+  pt: Um e-mail diário com uma inspiração selecionada com base nos teus interesses. Desativado por padrão.
+  ru: Ежедневное письмо с подборкой идей на основе твоих интересов. По умолчанию выключено.
+  ja: あなたの興味に基づいたインスピレーションを毎日お届けします。デフォルトではオフになっています。
+  ko: 관심사를 바탕으로 엄선된 영감을 매일 이메일로 보내드립니다. 기본적으로 해제되어 있습니다.
+  it: "Un'email quotidiana con un'ispirazione curata in base ai tuoi interessi. Disattivata per impostazione predefinita."
+  tr: İlgi alanlarına göre seçilmiş ilham verici içerikler içeren günlük bir e-posta. Varsayılan olarak kapalıdır.
+  vi: Email hàng ngày với nội dung truyền cảm hứng được chọn lọc dựa trên sở thích của bạn. Mặc định tắt.
+  id: Email harian dengan inspirasi pilihan berdasarkan minatmu. Nonaktif secara default.
+  pl: Codzienny e-mail z wybraną inspiracją opartą na Twoich zainteresowaniach. Domyślnie wyłączone.
+  nl: Een dagelijkse e-mail met geselecteerde inspiratie op basis van je interesses. Standaard uitgeschakeld.
+  ar: رسالة بريد إلكتروني يومية تحتوي على إلهام مختار بعناية بناءً على اهتماماتك. معطلة افتراضياً.
+  hi: आपकी रुचियों के आधार पर चुनी गई प्रेरणा के साथ एक दैनिक ईमेल। डिफ़ॉल्ट रूप से बंद।
+  th: อีเมลรายวันพร้อมแรงบันดาลใจที่คัดสรรมาตามความสนใจของคุณ ปิดไว้เป็นค่าเริ่มต้น
+  cs: Každodenní e-mail s vybranou inspirací podle tvých zájmů. Ve výchozím nastavení vypnuto.
+  sv: Ett dagligt mejl med utvald inspiration baserat på dina intressen. Avstängt som standard.
+  he: אימייל יומי עם השראה שנבחרה עבורך על בסיס תחומי העניין שלך. כבוי כברירת מחדל.
   verified_by_human: []
 newsletter_categories.save:
   context: Save button text for newsletter category preferences
@@ -9022,174 +9402,6 @@ report_issue.send_email_notification_hint:
   verified_by_human: []
   id: Kirim notifikasi email ke admin dan konfirmasi ke pelapor.
   vi: Gửi thông báo qua email cho quản trị viên và xác nhận cho người báo cáo.
-report_issue.agent_action_label:
-  context: Admin-only label for the agent action radio group in the issue report form
-  en: Agent action
-  de: Agenten-Aktion
-  zh: 代理操作
-  es: Acción del agente
-  fr: Action de l'agent
-  pt: Ação do agente
-  ru: Действие агента
-  ja: エージェントアクション
-  ko: 에이전트 작업
-  it: Azione dell'agente
-  tr: Ajan eylemi
-  vi: Hành động của agent
-  id: Tindakan agen
-  pl: Akcja agenta
-  nl: Agentactie
-  ar: إجراء الوكيل
-  hi: एजेंट कार्रवाई
-  th: การดำเนินการของเอเจนต์
-  cs: Akce agenta
-  sv: Agentåtgärd
-  he: פעולת סוכן
-  verified_by_human: []
-report_issue.agent_action_none:
-  context: Radio option label - no agent action on issue report
-  en: Do nothing
-  de: Nichts tun
-  zh: 不执行操作
-  es: No hacer nada
-  fr: Ne rien faire
-  pt: Não fazer nada
-  ru: Ничего не делать
-  ja: 何もしない
-  ko: 아무것도 안 함
-  it: Non fare nulla
-  tr: Hiçbir şey yapma
-  vi: Không làm gì
-  id: Tidak melakukan apa-apa
-  pl: Nic nie rób
-  nl: Niets doen
-  ar: لا تفعل شيئًا
-  hi: कुछ न करें
-  th: ไม่ทำอะไร
-  cs: Nedělat nic
-  sv: Gör ingenting
-  he: אל תעשה כלום
-  verified_by_human: []
-report_issue.agent_action_research:
-  context: Radio option label - research-only agent session
-  en: Research only
-  de: Nur Recherche
-  zh: 仅研究
-  es: Solo investigación
-  fr: Recherche uniquement
-  pt: Apenas pesquisa
-  ru: Только исследование
-  ja: 調査のみ
-  ko: 조사만
-  it: Solo ricerca
-  tr: Yalnızca araştırma
-  vi: Chỉ nghiên cứu
-  id: Riset saja
-  pl: Tylko badanie
-  nl: Alleen onderzoek
-  ar: بحث فقط
-  hi: केवल शोध
-  th: วิจัยเท่านั้น
-  cs: Pouze výzkum
-  sv: Endast forskning
-  he: מחקר בלבד
-  verified_by_human: []
-report_issue.agent_action_fix:
-  context: Radio option label - full fix attempt including research
-  en: Research + fix attempt
-  de: Recherche + Reparaturversuch
-  zh: 研究 + 修复尝试
-  es: Investigación + intento de corrección
-  fr: Recherche + tentative de correction
-  pt: Pesquisa + tentativa de correção
-  ru: Исследование + попытка исправления
-  ja: 調査 + 修正の試み
-  ko: 조사 + 수정 시도
-  it: Ricerca + tentativo di correzione
-  tr: Araştırma + düzeltme denemesi
-  vi: Nghiên cứu + thử sửa
-  id: Riset + upaya perbaikan
-  pl: Badanie + próba naprawy
-  nl: Onderzoek + reparatiepoging
-  ar: بحث + محاولة إصلاح
-  hi: शोध + सुधार प्रयास
-  th: วิจัย + ลองแก้ไข
-  cs: Výzkum + pokus o opravu
-  sv: Forskning + reparationsförsök
-  he: מחקר + ניסיון תיקון
-  verified_by_human: []
-report_issue.agent_action_hint_none:
-  context: Hint text when 'do nothing' agent action is selected
-  en: No agent investigation will be triggered for this report.
-  de: Für diesen Bericht wird keine Agentenuntersuchung ausgelöst.
-  zh: 此报告不会触发代理调查。
-  es: No se activará ninguna investigación de agente para este informe.
-  fr: Aucune investigation d'agent ne sera déclenchée pour ce signalement.
-  pt: Nenhuma investigação de agente será acionada para este relatório.
-  ru: Для этого отчёта расследование агентом не будет запущено.
-  ja: このレポートに対してエージェント調査はトリガーされません。
-  ko: 이 신고에 대해 에이전트 조사가 시작되지 않습니다.
-  it: Nessuna indagine dell'agente verrà attivata per questa segnalazione.
-  tr: Bu rapor için ajan araştırması tetiklenmeyecektir.
-  vi: Không có cuộc điều tra nào của agent được kích hoạt cho báo cáo này.
-  id: Tidak ada penyelidikan agen yang akan dipicu untuk laporan ini.
-  pl: Żadne dochodzenie agenta nie zostanie uruchomione dla tego zgłoszenia.
-  nl: Er wordt geen agentonderzoek geactiveerd voor dit rapport.
-  ar: لن يتم تشغيل أي تحقيق للوكيل لهذا التقرير.
-  hi: इस रिपोर्ट के लिए कोई एजेंट जांच शुरू नहीं की जाएगी।
-  th: ไม่มีการตรวจสอบโดยเอเจนต์สำหรับรายงานนี้
-  cs: Pro tento report nebude spuštěno žádné agentní šetření.
-  sv: Ingen agentundersökning kommer att triggas för denna rapport.
-  he: לא תתבצע חקירה על ידי סוכן עבור דיווח זה.
-  verified_by_human: []
-report_issue.agent_action_hint_research:
-  context: Hint text when 'research only' agent action is selected
-  en: A Claude Code agent will research the codebase and post findings — no code changes.
-  de: Ein Claude Code-Agent wird die Codebasis untersuchen und Ergebnisse veröffentlichen — keine Codeänderungen.
-  zh: Claude Code 代理将研究代码库并发布发现 — 不更改代码。
-  es: Un agente Claude Code investigará el código y publicará hallazgos — sin cambios de código.
-  fr: Un agent Claude Code recherchera dans le code et publiera ses conclusions — aucune modification du code.
-  pt: Um agente Claude Code pesquisará o código e publicará descobertas — sem alterações de código.
-  ru: Агент Claude Code исследует кодовую базу и опубликует результаты — без изменений кода.
-  ja: Claude Codeエージェントがコードベースを調査し結果を投稿します — コードは変更しません。
-  ko: Claude Code 에이전트가 코드베이스를 조사하고 결과를 게시합니다 — 코드 변경 없음.
-  it: Un agente Claude Code analizzerà il codice e pubblicherà i risultati — nessuna modifica al codice.
-  tr: Bir Claude Code ajanı kod tabanını araştıracak ve bulguları yayınlayacaktır — kod değişikliği yok.
-  vi: Một agent Claude Code sẽ nghiên cứu mã nguồn và đăng kết quả — không thay đổi mã.
-  id: Agen Claude Code akan meneliti basis kode dan memposting temuan — tanpa perubahan kode.
-  pl: Agent Claude Code zbada kod i opublikuje wyniki — bez zmian w kodzie.
-  nl: Een Claude Code-agent onderzoekt de codebase en plaatst bevindingen — geen codewijzigingen.
-  ar: سيبحث وكيل Claude Code في قاعدة الكود وينشر النتائج — بدون تغييرات في الكود.
-  hi: एक Claude Code एजेंट कोडबेस का शोध करेगा और निष्कर्ष पोस्ट करेगा — कोड में कोई बदलाव नहीं।
-  th: เอเจนต์ Claude Code จะวิจัยโค้ดเบสและโพสต์ผลการค้นพบ — ไม่มีการเปลี่ยนแปลงโค้ด
-  cs: Agent Claude Code prozkoumá kódovou základnu a zveřejní zjištění — žádné změny kódu.
-  sv: En Claude Code-agent kommer att undersöka kodbasen och publicera resultat — inga kodändringar.
-  he: סוכן Claude Code יחקור את בסיס הקוד ויפרסם ממצאים — ללא שינויי קוד.
-  verified_by_human: []
-report_issue.agent_action_hint_fix:
-  context: Hint text when 'research + fix' agent action is selected
-  en: A Claude Code agent will investigate, then attempt to implement and deploy a fix.
-  de: Ein Claude Code-Agent wird untersuchen und dann versuchen, eine Lösung zu implementieren und bereitzustellen.
-  zh: Claude Code 代理将进行调查，然后尝试实施和部署修复。
-  es: Un agente Claude Code investigará y luego intentará implementar y desplegar una corrección.
-  fr: Un agent Claude Code enquêtera, puis tentera d'implémenter et déployer un correctif.
-  pt: Um agente Claude Code investigará e tentará implementar e implantar uma correção.
-  ru: Агент Claude Code проведёт исследование, затем попытается реализовать и развернуть исправление.
-  ja: Claude Codeエージェントが調査し、修正の実装とデプロイを試みます。
-  ko: Claude Code 에이전트가 조사한 후 수정 사항을 구현하고 배포를 시도합니다.
-  it: Un agente Claude Code indagherà, quindi tenterà di implementare e distribuire una correzione.
-  tr: Bir Claude Code ajanı araştıracak, ardından bir düzeltmeyi uygulamayı ve dağıtmayı deneyecektir.
-  vi: Một agent Claude Code sẽ điều tra, sau đó cố gắng triển khai và deploy bản sửa lỗi.
-  id: Agen Claude Code akan menyelidiki, lalu mencoba mengimplementasikan dan men-deploy perbaikan.
-  pl: Agent Claude Code zbada sprawę, a następnie spróbuje wdrożyć i wdrożyć poprawkę.
-  nl: Een Claude Code-agent onderzoekt het probleem en probeert vervolgens een oplossing te implementeren en te deployen.
-  ar: سيقوم وكيل Claude Code بالتحقيق، ثم محاولة تنفيذ ونشر إصلاح.
-  hi: एक Claude Code एजेंट जांच करेगा, फिर सुधार को लागू और डिप्लॉय करने का प्रयास करेगा।
-  th: เอเจนต์ Claude Code จะตรวจสอบ แล้วพยายามใช้งานและ deploy การแก้ไข
-  cs: Agent Claude Code problém prošetří a poté se pokusí implementovat a nasadit opravu.
-  sv: En Claude Code-agent kommer att undersöka och sedan försöka implementera och distribuera en fix.
-  he: סוכן Claude Code יחקור, ואז ינסה ליישם ולפרוס תיקון.
-  verified_by_human: []
 logout_all:
   context: Menu item to log out of all devices and sessions
   en: Log out everywhere

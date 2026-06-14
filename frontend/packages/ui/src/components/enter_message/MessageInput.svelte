@@ -68,6 +68,7 @@
     import { classifyPastedContent, plainTextToDocumentHtml, type PastedContentKind } from './services/pasteClassification';
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
+    import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -185,6 +186,8 @@
         placeholderText?: string;
         /** Treat the field as a CTA that starts a fresh chat instead of composing a reply. */
         startNewChatOnClick?: boolean;
+        /** True when this composer is attached to the empty new-chat screen. */
+        isNewChatContext?: boolean;
         /** Compact single-line mode to match adjacent button height (~48px). Expands on focus/content. */
         inlineCompact?: boolean;
     }
@@ -205,6 +208,7 @@
         onIncognitoPillDeactivate = undefined,
         placeholderText = undefined,
         startNewChatOnClick = false,
+        isNewChatContext = false,
         inlineCompact = false
     }: Props = $props();
 
@@ -461,9 +465,23 @@
     interface AutoConvertedPasteCandidate {
         embedId: string;
         text: string;
+        dismissOnTextEdit: boolean;
     }
 
     let autoConvertedPasteCandidate = $state<AutoConvertedPasteCandidate | null>(null);
+    let pendingDefaultPasteTextForRecovery: string | null = null;
+
+    function setAutoConvertedPasteCandidate(embedId: string, text: string) {
+        autoConvertedPasteCandidate = { embedId, text, dismissOnTextEdit: false };
+        tick().then(() => {
+            if (autoConvertedPasteCandidate?.embedId === embedId) {
+                autoConvertedPasteCandidate = {
+                    ...autoConvertedPasteCandidate,
+                    dismissOnTextEdit: true,
+                };
+            }
+        });
+    }
 
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
@@ -503,7 +521,9 @@
     let queuedMessageText = $state<string | null>(null); // Message text when a message is queued
     let awaitingAITaskStart = $state(false); // Optimistic stop button immediately after send
     let cancelRequestedWhileAwaiting = $state(false); // If user clicks stop before task_id exists
+    let cancelRequestedChatId = $state<string | null>(null);
     let awaitingAITaskTimeoutId: NodeJS.Timeout | null = null;
+    let pendingNewChatDraftRestore = $state<{ chatId: string | null; text: string } | null>(null);
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
@@ -644,6 +664,29 @@
         }
     }
 
+    function updateDefaultPasteRecoveryCandidate(editor: Editor, pastedText: string | null) {
+        if (!pastedText || autoConvertedPasteCandidate) return;
+
+        let embedId: string | null = null;
+        editor.state.doc.descendants((node) => {
+            const attrs = node.attrs ?? {};
+            const embedType = typeof attrs.type === 'string' ? attrs.type : '';
+            if (
+                embedType.startsWith('code') ||
+                embedType.startsWith('docs') ||
+                embedType.startsWith('sheets')
+            ) {
+                embedId = (attrs.id as string | undefined) || null;
+                return false;
+            }
+            return true;
+        });
+
+        if (embedId) {
+            setAutoConvertedPasteCandidate(embedId, pastedText);
+        }
+    }
+
     async function replaceAutoConvertedPasteWithText() {
         if (!autoConvertedPasteCandidate || !editor || editor.isDestroyed) return;
         const candidate = autoConvertedPasteCandidate;
@@ -689,7 +732,7 @@
             try {
                 editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
                 editor.commands.focus('end');
-                autoConvertedPasteCandidate = { embedId, text: originalText };
+                setAutoConvertedPasteCandidate(embedId, originalText);
             } finally {
                 isConvertingEmbeds = false;
             }
@@ -746,7 +789,7 @@
 
         editor.commands.insertContent(' ');
         editor.commands.focus('end');
-        autoConvertedPasteCandidate = { embedId, text };
+        setAutoConvertedPasteCandidate(embedId, text);
         hasContent = !isContentEmptyExceptMention(editor);
     }
 
@@ -1567,6 +1610,18 @@
             : 'max-height: 250px;'
     );
 
+    let lastAuthMethod = $state<LastAuthMethod | null>(null);
+    let unauthenticatedCtaOpensLogin = $derived(!!lastAuthMethod);
+    let unauthenticatedCtaLabel = $derived(
+        unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
+    );
+
+    $effect(() => {
+        if (!$authStore.isAuthenticated) {
+            lastAuthMethod = getLastAuthMethod();
+        }
+    });
+
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
     // Handles embedUpdated events from chatSyncService for in-editor (draft) embeds
@@ -1581,6 +1636,8 @@
     // onMount, onDestroy, editor handlers, setupEventListeners, cleanup remain the same
 
     onMount(() => {
+        lastAuthMethod = getLastAuthMethod();
+
         if (!editorElement) {
             console.error("Editor element not found on mount.");
             return;
@@ -1863,18 +1920,20 @@
                     }
 
                     // No special handling needed - allow default paste.
-                    // Flag for immediate PII detection on the next editor update,
-                    // since pasted text may contain complete PII patterns.
-                    piiPasteDetectionPending = true;
+                        // Flag for immediate PII detection on the next editor update,
+                        // since pasted text may contain complete PII patterns.
+                        piiPasteDetectionPending = true;
+                        pendingDefaultPasteTextForRecovery = text.replace(/\r\n?/g, '\n');
 
-                    // If sanitization removed invisible characters, prevent default
-                    // paste and insert the cleaned text manually so TipTap doesn't
-                    // re-read the raw (unsanitized) clipboard data.
-                    if (rawPasteText && text !== rawPasteText) {
-                        event.preventDefault();
-                        editor.commands.insertContent(text);
-                        return true;
-                    }
+                        // If sanitization removed invisible characters, prevent default
+                        // paste and insert the cleaned text manually so TipTap doesn't
+                        // re-read the raw (unsanitized) clipboard data.
+                        if (rawPasteText && text !== rawPasteText) {
+                            event.preventDefault();
+                            pendingDefaultPasteTextForRecovery = null;
+                            editor.commands.insertContent(text);
+                            return true;
+                        }
 
                     return false;
                 },
@@ -2215,13 +2274,14 @@
                 .run();
         } else if (result.type === 'model') {
             // Use the custom AI model mention node for visual display
-            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id
+            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id:provider
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
                 .setAIModelMention({
                     modelId: result.id,
+                    modelProvider: (result as import('./services/mentionSearchService').ModelMentionResult).providerId,
                     displayName: result.mentionDisplayName
                 })
                 .insertContent(' ')
@@ -2540,6 +2600,14 @@
 
         updateAutoConvertedPasteCandidateVisibility(editor);
         
+        if (
+            textActuallyChanged &&
+            autoConvertedPasteCandidate &&
+            autoConvertedPasteCandidate.dismissOnTextEdit
+        ) {
+            autoConvertedPasteCandidate = null;
+        }
+
         if (textActuallyChanged) {
             lastEditorUpdateText = currentText;
         }
@@ -2588,6 +2656,15 @@
         // timer for regular characters. Must run BEFORE PII detection on paste so that
         // any content modifications (URL → embed conversion) complete first.
         scheduleHeavyParsing(editor, currentText, wasPaste);
+        if (wasPaste) {
+            const recoveryText = pendingDefaultPasteTextForRecovery;
+            pendingDefaultPasteTextForRecovery = null;
+            tick().then(() => {
+                if (editor && !editor.isDestroyed) {
+                    updateDefaultPasteRecoveryCandidate(editor, recoveryText);
+                }
+            });
+        }
 
         // PII Detection: immediate only on paste events; delimiter-triggered detection
         // uses the debounce fallback to avoid stacking with heavy parsing.
@@ -2863,6 +2940,7 @@
             activeAITaskId = null;
             awaitingAITaskStart = false;
             cancelRequestedWhileAwaiting = false;
+            cancelRequestedChatId = null;
             if (awaitingAITaskTimeoutId) {
                 clearTimeout(awaitingAITaskTimeoutId);
                 awaitingAITaskTimeoutId = null;
@@ -2874,15 +2952,27 @@
         console.debug('[MessageInput] handleAiTaskOrChatChange called');
         updateActiveAITaskStatus();
 
-        // If the user clicked stop before we had a task id, cancel as soon as it's known
-        if (cancelRequestedWhileAwaiting && activeAITaskId) {
-            const taskId = activeAITaskId;
-            console.info('[MessageInput] Cancelling AI task that started after user requested stop:', taskId);
+        const requestedChatTaskId = cancelRequestedChatId && chatSyncService
+            ? chatSyncService.getActiveAITaskIdForChat(cancelRequestedChatId)
+            : null;
+
+        // If the user clicked stop before we had a task id, cancel as soon as it's known.
+        // The current composer may already be back on a fresh temporary chat, so keep
+        // checking the original chat id captured at stop time.
+        const taskIdToCancel = activeAITaskId || requestedChatTaskId;
+        if (cancelRequestedWhileAwaiting && taskIdToCancel) {
+            const chatIdForCancel = activeAITaskId ? currentChatId : cancelRequestedChatId;
+            console.info('[MessageInput] Cancelling AI task that started after user requested stop:', taskIdToCancel);
             // Clear UI immediately
             cancelRequestedWhileAwaiting = false;
+            cancelRequestedChatId = null;
             awaitingAITaskStart = false;
             activeAITaskId = null;
-            void chatSyncService.sendCancelAiTask(taskId, currentChatId ?? undefined);
+            void chatSyncService.sendCancelAiTask(taskIdToCancel, chatIdForCancel ?? undefined);
+        }
+
+        if (activeAITaskId) {
+            pendingNewChatDraftRestore = null;
         }
     }
 
@@ -2903,6 +2993,7 @@
             updateActiveAITaskStatus();
             // Clear queued message text when task ends
             queuedMessageText = null;
+            pendingNewChatDraftRestore = null;
         }
     }
 
@@ -2916,10 +3007,15 @@
         if (!activeAITaskId && awaitingAITaskStart) {
             console.info('[MessageInput] Stop clicked before task id is known; will cancel as soon as task starts');
             cancelRequestedWhileAwaiting = true;
+            cancelRequestedChatId = currentChatId ?? null;
             awaitingAITaskStart = false; // Hide button immediately
             if (awaitingAITaskTimeoutId) {
                 clearTimeout(awaitingAITaskTimeoutId);
                 awaitingAITaskTimeoutId = null;
+            }
+            if (pendingNewChatDraftRestore) {
+                dispatch('newChatCreationCancelled', pendingNewChatDraftRestore);
+                pendingNewChatDraftRestore = null;
             }
             return;
         }
@@ -3125,6 +3221,37 @@
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
     async function handlePaste(event: ClipboardEvent) {
         await handleFilePaste(event, editor, $authStore.isAuthenticated);
+        if (!event.defaultPrevented && editor && !editor.isDestroyed) {
+            const rawPasteText = event.clipboardData?.getData('text/plain');
+            const text = rawPasteText ? sanitizeText(rawPasteText) : rawPasteText;
+            if (text) {
+                const normalizedPasteText = text.replace(/\r\n?/g, '\n');
+                const vsCodeEditorData = event.clipboardData?.getData('vscode-editor-data') || null;
+                const htmlPasteText = event.clipboardData?.getData('text/html') || null;
+                const vsCodeLanguage = detectLanguageFromVSCode(vsCodeEditorData);
+                const detectedLanguage = detectLanguageFromContent(normalizedPasteText);
+                const pasteClassification = classifyPastedContent({
+                    text: normalizedPasteText,
+                    html: htmlPasteText,
+                    vsCodeLanguage,
+                    detectedLanguage,
+                });
+
+                if (pasteClassification.kind !== 'text') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const embedKind = pasteClassification.kind;
+                    const embedContent =
+                        embedKind === 'document'
+                            ? (pasteClassification.documentHtml || plainTextToDocumentHtml(normalizedPasteText))
+                            : embedKind === 'sheet'
+                                ? (pasteClassification.sheetMarkdown || normalizedPasteText)
+                                : normalizedPasteText;
+                    const language = vsCodeLanguage || detectedLanguage || 'text';
+                    insertPreviewPasteEmbed(embedKind, normalizedPasteText, embedContent, language);
+                }
+            }
+        }
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             hasEmbedContent = editorHasEmbedContent(editor);
@@ -3984,7 +4111,8 @@
     function handleSendMessage() {
         // Guard: if there's no content, do nothing (handles edge cases where button
         // is visible but editor is actually empty).
-        if (!hasContent) return;
+        const editorHasContent = !!editor && !editor.isDestroyed && !editor.isEmpty;
+        if (!hasContent && !editorHasContent) return;
 
         if ($demoMode && !$authStore.isAuthenticated) {
             console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');
@@ -4011,6 +4139,12 @@
         if (editor && !editor.isDestroyed) {
             flushHeavyParsing(editor);
         }
+        pendingNewChatDraftRestore = isNewChatContext && editor && !editor.isDestroyed
+            ? {
+                chatId: currentChatId ?? null,
+                text: editor.getText()
+            }
+            : null;
         // Optimistically show stop button immediately after sending
         awaitingAITaskStart = true;
         cancelRequestedWhileAwaiting = false;
@@ -4023,6 +4157,7 @@
                 console.warn('[MessageInput] Timed out waiting for AI task to start; hiding stop button');
                 awaitingAITaskStart = false;
                 cancelRequestedWhileAwaiting = false;
+                cancelRequestedChatId = null;
             }
             awaitingAITaskTimeoutId = null;
         }, 15000);
@@ -4054,8 +4189,8 @@
     }
 
     /**
-     * Handle "Sign up" button click for non-authenticated users
-     * Saves the current draft message to sessionStorage so it can be restored after signup
+     * Handle auth CTA button click for non-authenticated users.
+     * Saves the current draft message to sessionStorage so it can be restored after signup/login.
      * Clears the editor content after saving to prevent search in new chat suggestions
      */
     /**
@@ -4071,8 +4206,8 @@
     async function handleSignUpClick() {
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
-            // Still open signup interface even if draft can't be saved
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            // Still open the auth interface even if draft can't be saved.
+            window.dispatchEvent(new CustomEvent(unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
             return;
         }
 
@@ -4120,8 +4255,7 @@
         
         console.debug('[MessageInput] Cleared editor content after saving draft for sign-up');
 
-        // Open the signup interface directly with alpha disclaimer
-        window.dispatchEvent(new CustomEvent('openSignupInterface'));
+        window.dispatchEvent(new CustomEvent(unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
     }
 
     function _handleInsertSpace() {
@@ -4722,6 +4856,7 @@
     role="none"
     onmousedown={handleMessageWrapperMouseDown}
     data-action="message-input"
+    data-current-chat-id={currentChatId ?? 'new-chat'}
 >
     <!-- Edit mode banner — shown when user is editing a previous message -->
     {#if $editMessageStore && $editMessageStore.chatId === currentChatId}
@@ -4942,6 +5077,7 @@
                     showSendButton={hasContent}
                     isAuthenticated={demoVisualAuthenticated}
                     {hasNoCredits}
+                    {unauthenticatedCtaLabel}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}

@@ -1,0 +1,257 @@
+# Verifies that the self-hosted edition can be installed and opened from a
+# clean GitHub Actions runner without provider API keys.
+name: "Self-Hosted: Install Smoke"
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Weekdays at 04:37 UTC. Runs the dedicated self-host stack smoke separately
+    # from normal Playwright because this spec provisions Docker Compose locally.
+    - cron: "37 4 * * 1-5"
+  pull_request:
+    branches: [dev]
+    paths:
+      - '.github/workflows/selfhost-smoke.yml'
+      - 'setup.sh'
+      - '.env.example'
+      - 'backend/core/docker-compose*.yml'
+      - 'backend/core/api/main.py'
+      - 'backend/core/api/wait-for-vault.sh'
+      - 'backend/core/api/app/routes/auth_routes/**'
+      - 'backend/core/api/app/routes/settings.py'
+      - 'backend/core/api/app/utils/invite_code.py'
+      - 'backend/core/directus/setup/setup_schemas.py'
+      - 'backend/core/vault/setup/**'
+      - 'backend/tests/test_self_host_signup_requirements.py'
+      - 'frontend/apps/web_app/Dockerfile'
+      - 'frontend/apps/web_app/tests/selfhost-smoke.spec.ts'
+      - 'frontend/packages/openmates-cli/**'
+      - 'frontend/packages/ui/src/stores/serverStatusStore.ts'
+      - 'frontend/packages/ui/src/stores/appSkillsStore.ts'
+      - 'frontend/packages/ui/src/services/sendersChatMessages.ts'
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/selfhost-smoke.yml'
+      - 'setup.sh'
+      - '.env.example'
+      - 'backend/core/docker-compose*.yml'
+      - 'backend/core/api/main.py'
+      - 'backend/core/api/wait-for-vault.sh'
+      - 'backend/core/api/app/routes/auth_routes/**'
+      - 'backend/core/api/app/routes/settings.py'
+      - 'backend/core/api/app/utils/invite_code.py'
+      - 'backend/core/directus/setup/setup_schemas.py'
+      - 'backend/core/vault/setup/**'
+      - 'backend/tests/test_self_host_signup_requirements.py'
+      - 'frontend/apps/web_app/Dockerfile'
+      - 'frontend/apps/web_app/tests/selfhost-smoke.spec.ts'
+      - 'frontend/packages/openmates-cli/**'
+      - 'frontend/packages/ui/src/stores/serverStatusStore.ts'
+      - 'frontend/packages/ui/src/stores/appSkillsStore.ts'
+      - 'frontend/packages/ui/src/services/sendersChatMessages.ts'
+
+concurrency:
+  group: selfhost-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  install-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SOURCE_INSTALL_PATH: /tmp/openmates-selfhost-source
+      IMAGE_INSTALL_PATH: /tmp/openmates-selfhost-image
+      PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
+      SELFHOST_API_URL: http://localhost:8000
+      COMPOSE_PARALLEL_LIMIT: 2
+      PLAYWRIGHT_BROWSER_CHANNEL: chrome
+      PLAYWRIGHT_VIDEO_MODE: off
+      IMAGE_TAG: selfhost-smoke-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build current branch CLI
+        run: pnpm --filter openmates build
+
+      - name: Install published CLI from npm
+        run: |
+          ALPHA_VERSION="$(npm view openmates@alpha version)"
+          npm install -g openmates@alpha
+          INSTALLED_VERSION="$(npm list -g openmates --depth=0 --json | node -e "let input=''; process.stdin.on('data', d => input += d); process.stdin.on('end', () => { const data = JSON.parse(input); console.log(data.dependencies.openmates.version); });")"
+          test "$INSTALLED_VERSION" = "$ALPHA_VERSION"
+          openmates --help
+          openmates server --help
+
+      - name: Source-mode timing baseline
+        # docAssert('openmates server install --source-path starts self-host smoke stack')
+        run: |
+          CLI="node $GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js"
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          start_all=$(date +%s)
+
+          install_start=$(date +%s)
+          $CLI server install --path "$SOURCE_INSTALL_PATH" --source-path "$GITHUB_WORKSPACE"
+          install_end=$(date +%s)
+
+          start_start=$(date +%s)
+          $CLI server start --path "$SOURCE_INSTALL_PATH" || {
+            echo "Initial source-mode startup failed; retrying once after Docker pull backoff."
+            sleep 30
+            $CLI server start --path "$SOURCE_INSTALL_PATH"
+          }
+          start_end=$(date +%s)
+
+          health_start=$(date +%s)
+          for i in {1..120}; do
+            if curl -fsS http://localhost:8000/health >/dev/null && curl -fsS http://localhost:5173 >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          curl -fsS http://localhost:8000/health >/dev/null
+          curl -fsS http://localhost:5173 >/dev/null
+          health_end=$(date +%s)
+          end_all=$(date +%s)
+
+          cat > "$GITHUB_WORKSPACE/test-results/selfhost-source-timing.json" <<JSON
+          {"mode":"source","install_s":$((install_end-install_start)),"start_s":$((start_end-start_start)),"health_wait_s":$((health_end-health_start)),"total_s":$((end_all-start_all)),"image_tag":""}
+          JSON
+          $CLI server uninstall --path "$SOURCE_INSTALL_PATH" --yes || true
+
+      - name: Build local image-mode images
+        run: |
+          build_with_retry() {
+            for attempt in 1 2 3; do
+              if docker build "$@"; then
+                return 0
+              fi
+              if [ "$attempt" = "3" ]; then
+                return 1
+              fi
+              echo "docker build failed on attempt $attempt; retrying after registry backoff..."
+              sleep $((attempt * 20))
+            done
+          }
+
+          build_with_retry -t ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG} -f backend/core/api/Dockerfile.selfhost .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-docs-worker:${IMAGE_TAG} --build-arg OPENMATES_IMAGE_TAG=${IMAGE_TAG} -f backend/core/api/Dockerfile.docs.selfhost .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-cms-setup:${IMAGE_TAG} -f backend/core/directus/Dockerfile.setup.selfhost backend/core/directus
+          build_with_retry -t ghcr.io/glowingkitty/openmates-vault-setup:${IMAGE_TAG} -f backend/core/vault/setup/Dockerfile backend/core/vault/setup
+          build_with_retry -t ghcr.io/glowingkitty/openmates-admin-sidecar:${IMAGE_TAG} -f backend/admin_sidecar/Dockerfile .
+          build_with_retry -t ghcr.io/glowingkitty/openmates-webapp:${IMAGE_TAG} --build-arg VITE_API_URL=http://localhost:8000 --build-arg VITE_ENV=self_hosted -f frontend/apps/web_app/Dockerfile .
+
+      - name: Image-mode self-hosted install and timing
+        # docAssert('self-host install smoke passes without provider API keys')
+        env:
+          OPENMATES_SELFHOST_TEMPLATE_DIR: ${{ github.workspace }}
+          OPENMATES_SKIP_IMAGE_PULL: "1"
+        run: |
+          CLI="node $GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js"
+          start_all=$(date +%s)
+
+          install_start=$(date +%s)
+          $CLI server install --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG"
+          install_end=$(date +%s)
+
+          start_start=$(date +%s)
+          $CLI server start --path "$IMAGE_INSTALL_PATH" || {
+            echo "Initial image-mode startup failed; retrying once after Docker pull backoff."
+            sleep 30
+            $CLI server start --path "$IMAGE_INSTALL_PATH"
+          }
+          start_end=$(date +%s)
+
+          health_start=$(date +%s)
+          for i in {1..120}; do
+            if curl -fsS http://localhost:8000/health >/dev/null && curl -fsS http://localhost:5173 >/dev/null; then
+              break
+            fi
+            sleep 5
+          done
+          curl -fsS http://localhost:8000/health >/dev/null
+          curl -fsS http://localhost:5173 >/dev/null
+          health_end=$(date +%s)
+          end_all=$(date +%s)
+
+          cat > "$GITHUB_WORKSPACE/test-results/selfhost-image-timing.json" <<JSON
+          {"mode":"image","install_s":$((install_end-install_start)),"start_s":$((start_end-start_start)),"health_wait_s":$((health_end-health_start)),"total_s":$((end_all-start_all)),"image_tag":"${IMAGE_TAG}"}
+          JSON
+
+      - name: Summarize setup timing
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const source = JSON.parse(fs.readFileSync('test-results/selfhost-source-timing.json', 'utf8'));
+          const image = JSON.parse(fs.readFileSync('test-results/selfhost-image-timing.json', 'utf8'));
+          const summary = [
+            '### Self-host setup timing',
+            '',
+            '| Mode | Install | Start | Health wait | Total |',
+            '| --- | ---: | ---: | ---: | ---: |',
+            `| Source | ${source.install_s}s | ${source.start_s}s | ${source.health_wait_s}s | ${source.total_s}s |`,
+            `| Image | ${image.install_s}s | ${image.start_s}s | ${image.health_wait_s}s | ${image.total_s}s |`,
+            '',
+            `Image tag: \`${image.image_tag}\``,
+          ].join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary + '\n');
+          console.log(summary);
+          NODE
+
+      - name: Check server status JSON
+        run: |
+          curl -fsS http://localhost:8000/v1/settings/server-status | tee /tmp/server-status.json
+          node -e "const s=require('/tmp/server-status.json'); if (!s.is_self_hosted || s.payment_enabled || s.ai_models_configured) { console.error(s); process.exit(1); }"
+
+      - name: Check backend and web Docker containers
+        run: |
+          for container in api webapp; do
+            status="$(docker inspect -f '{{.State.Running}} {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")"
+            echo "$container $status"
+            test "$status" = "true healthy"
+          done
+
+      - name: Verify Chrome browser
+        run: google-chrome --version
+
+      - name: Run self-hosted smoke spec
+        working-directory: frontend/apps/web_app
+        env:
+          SELFHOST_INSTALL_PATH: ${{ env.IMAGE_INSTALL_PATH }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          npx playwright test tests/selfhost-smoke.spec.ts --reporter=json > "$GITHUB_WORKSPACE/test-results/selfhost-smoke-playwright.json"
+
+      - name: Show self-hosted status and logs
+        if: always()
+        run: |
+          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server status --path "$IMAGE_INSTALL_PATH" || true
+          node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server logs --path "$IMAGE_INSTALL_PATH" --tail 200 || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selfhost-smoke-results
+          path: |
+            test-results/selfhost-smoke-playwright.json
+            test-results/selfhost-source-timing.json
+            test-results/selfhost-image-timing.json
+            frontend/apps/web_app/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Uninstall self-hosted edition
+        if: always()
+        run: node "$GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js" server uninstall --path "$IMAGE_INSTALL_PATH" --yes || true

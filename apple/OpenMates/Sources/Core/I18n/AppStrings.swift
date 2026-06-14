@@ -19,7 +19,9 @@ enum AppStrings {
     static var error: String { L("common.error") }
     static var success: String { L("common.success") }
     static var credits: String { L("common.credits") }
+    static var pricing: String { L("common.pricing") }
     static var back: String { L("common.back") }
+    static var showLess: String { L("common.show_less") }
     static var next: String { L("common.next") }
     static var skip: String { L("common.skip") }
     static var search: String { L("activity.search") }
@@ -83,6 +85,7 @@ enum AppStrings {
     static var openChat: String { L("chat.open_chat") }
     static var scrollToTop: String { L("chats.scroll_to_top") }
     static var scrollToBottom: String { L("chats.scroll_to_bottom") }
+    static var interactiveQuestionFailed: String { L("chat.interactive_question_failed") }
 
     static func welcomeHeyUser(_ username: String) -> String {
         LocalizationManager.shared.text("chat.welcome.hey_user", replacements: ["username": username])
@@ -150,6 +153,21 @@ enum AppStrings {
     static var installed: String { L("settings.app_store.installed") }
     static var searchApps: String { L("settings.app_store.search_apps") }
     static var apps: String { L("settings.apps") }
+    static var allAppsFilterAll: String { L("settings.app_store.all_apps.filter_all") }
+    static var allAppsFilterSettingsMemories: String { L("settings.app_store.all_apps.filter_settings_memories") }
+    static var allAppsFilterFocusModes: String { L("settings.app_store.all_apps.filter_focus_modes") }
+    static var allAppsFilterSkills: String { L("settings.app_store.all_apps.filter_skills") }
+    static var allAppsSortNewest: String { L("settings.app_store.all_apps.sort_by_newest") }
+    static var allAppsSortName: String { L("settings.app_store.all_apps.sort_by_name_asc") }
+    static var appStoreSkills: String { L("settings.app_store.skills.title") }
+    static var appStoreFocusModes: String { L("settings.app_store.focus_modes.title") }
+    static var appStoreMemories: String { L("settings.app_store.settings_memories.title") }
+    static var appStoreExamples: String { L("settings.app_store.skills.examples") }
+    static var appStoreHowToUse: String { L("settings.app_store.skills.how_to_use") }
+    static var appStoreProviders: String { L("settings.app_store.skills.providers") }
+    static var appStoreModels: String { L("settings.app_store.skills.models") }
+    static var appStoreSystemPrompt: String { L("settings.app_store.focus_modes.system_prompt") }
+    static var appStoreShowFullInstruction: String { L("settings.app_store.focus_modes.show_full_instruction") }
 
     // MARK: - Settings - Security
     static var passkeys: String { L("settings.passkeys") }
@@ -209,8 +227,9 @@ enum AppStrings {
 
     // MARK: - Settings - Server (admin)
     static var serverAdmin: String { L("settings.server") }
-    // Web hardcodes "Logs" for this admin-only entry (no i18n key exists)
-    static var logs: String { "Logs" }
+    static var serverConnection: String { L("settings.server.connection") }
+    static var serverConnectionDescription: String { L("settings.server.connection_description") }
+    static var logs: String { L("settings.logs") }
 
     // MARK: - Auth
     static var login: String { L("login.login") }
@@ -310,6 +329,9 @@ enum AppStrings {
     static var viaBraveSearch: String { L("embeds.via_brave_search") }
     static var via: String { L("embeds.via") }
     static var searchFailed: String { L("embeds.search_failed") }
+    static var embedStoredEncrypted: String { L("embeds.stored_encrypted") }
+    static var embedClickToShowDetails: String { L("embeds.click_to_show_details") }
+    static var embedTapToShowDetails: String { L("embeds.tap_to_show_details") }
     static var genericProcessingError: String { L("chat.an_error_occured") }
     static var imageSearchViewSource: String { L("embeds.image_search.view_source") }
     static var imageSearchOpenImage: String { L("embeds.image_search.open_image") }
@@ -322,7 +344,9 @@ enum AppStrings {
     static var codeRun: String { L("app_skills.code.run") }
     static var codeRunCode: String { L("app_skills.code.run_code") }
     static var codeRunOutput: String { L("app_skills.code.run.output") }
+    static var codeRunViewCode: String { L("app_skills.code.run.view_code") }
     static var codeRunAgain: String { L("app_skills.code.run.again") }
+    static var codeRunAskFollowup: String { L("app_skills.code.run.ask_followup") }
     static var codeRunCopyOutput: String { L("app_skills.code.run.copy_output") }
     static var codeRunOutputCopied: String { L("app_skills.code.run.output_copied") }
     static var codeRunOutputCopyFailed: String { L("app_skills.code.run.output_copy_failed") }
@@ -383,6 +407,7 @@ enum AppStrings {
     static var reconnecting: String { L("notifications.reconnecting") }
     static var incognitoModeOn: String { L("notifications.incognito_on") }
     static var incognitoModeOff: String { L("notifications.incognito_off") }
+    static var newMessageReceived: String { L("notifications.chat_message.new_message_received") }
     static var clickToRespond: String { L("notifications.click_to_respond") }
     static var incognitoDescription: String { L("settings.incognito.description") }
 
@@ -393,6 +418,8 @@ enum AppStrings {
     static var report: String { L("common.report") }
     static var send: String { L("common.send") }
     static var share: String { L("common.share") }
+    static var shareChat: String { L("settings.share.share_chat") }
+    static var sharingChatStatus: String { L("settings.share.sharing_chat_status") }
     static var pin: String { L("common.pin") }
     static var unpin: String { L("common.unpin") }
     static var archive: String { L("common.archive") }

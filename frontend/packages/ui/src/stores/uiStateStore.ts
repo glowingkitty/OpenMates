@@ -68,6 +68,10 @@ export const sessionExpiredWarning = writable<boolean>(false);
 // Used to hide header buttons (Sign In button and menu button) when login is shown
 export const loginInterfaceOpen = writable<boolean>(false);
 
+// One-shot request used by the auto-logout notification CTA to reopen login
+// with "Stay logged in" already enabled.
+export const loginStayLoggedInRequested = writable<boolean>(false);
+
 // True when the intro chat header banner is intersecting the viewport.
 // Used to hide the header Sign Up button while the banner CTA is visible.
 export const introBannerVisible = writable<boolean>(false);

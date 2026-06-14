@@ -490,6 +490,53 @@
 				inlineLinkText: 'TPS564257DRLR',
 				quoteText: 'TPS564257DRLR - Buck converter, 92.4% efficiency, 0.47 USD BOM.'
 			}
+		],
+		social_media: [
+			{
+				skillLabel: 'Get Posts',
+				appId: 'social_media',
+				previewPath: 'embeds/social_media/SocialMediaGetPostsEmbedPreview',
+				fullscreenPath: 'embeds/social_media/SocialMediaGetPostsEmbedFullscreen',
+				inlineLinkText: '@samplegarden.example',
+				quoteText: 'Recent posts from Sample Garden Log about balcony herbs, compost, and seedlings.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Search',
+				appId: 'social_media',
+				previewPath: 'embeds/social_media/SocialMediaSearchEmbedPreview',
+				fullscreenPath: 'embeds/social_media/SocialMediaSearchEmbedFullscreen',
+				inlineLinkText: 'Indie coffee setup inspiration',
+				quoteText: 'Found posts about compact espresso bars, home pourover stations, and menu photography.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Post',
+				appId: 'social_media',
+				previewPath: 'embeds/social_media/SocialMediaPostEmbedPreview',
+				fullscreenPath: 'embeds/social_media/SocialMediaPostEmbedFullscreen',
+				inlineLinkText: 'Small cafe bar layout notes',
+				quoteText: 'A compact espresso bar can still feel calm with warm task lighting and a narrow handoff shelf.'
+			}
+		],
+		weather: [
+			{
+				skillLabel: 'Forecast',
+				appId: 'weather',
+				previewPath: 'embeds/weather/WeatherForecastEmbedPreview',
+				fullscreenPath: 'embeds/weather/WeatherForecastEmbedFullscreen',
+				inlineLinkText: 'Berlin weather forecast',
+				quoteText: 'Berlin forecast: dry Tuesday, rain Wednesday, light rain Thursday.',
+				isAppSkill: true
+			},
+			{
+				skillLabel: 'Day',
+				appId: 'weather',
+				previewPath: 'embeds/weather/WeatherDayEmbedPreview',
+				fullscreenPath: 'embeds/weather/WeatherDayEmbedFullscreen',
+				inlineLinkText: 'Berlin rain on June 3',
+				quoteText: 'Rain expected in Berlin, 14-19 C, 5.8 mm total precipitation, 13 rain hours.'
+			}
 		]
 	};
 
@@ -515,7 +562,9 @@
 		shopping: 'shopping',
 		electronics: 'pcbdesign',
 		home: 'home',
-		nutrition: 'nutrition'
+		nutrition: 'nutrition',
+		social_media: 'socialmedia',
+		weather: 'weather'
 	};
 
 	const ALL_APPS = [
@@ -539,7 +588,9 @@
 		'shopping',
 		'electronics',
 		'home',
-		'nutrition'
+		'nutrition',
+		'social_media',
+		'weather'
 	];
 
 	// ─── Glob maps ────────────────────────────────────────────────────

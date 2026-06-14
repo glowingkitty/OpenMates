@@ -182,7 +182,7 @@ final class OfflineSyncBridge: ObservableObject {
         }
 
         for chat in chats.prefix(5) {
-            let messages = offlineStore.loadMessages(chatId: chat.id)
+            let messages = offlineStore.loadLatestMessageWindow(chatId: chat.id)
             if !messages.isEmpty {
                 chatStore.setMessages(for: chat.id, messages: messages)
             }

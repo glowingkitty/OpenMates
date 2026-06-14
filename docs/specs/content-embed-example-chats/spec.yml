@@ -1,0 +1,577 @@
+id: content-embed-example-chats
+title: Content Embed Types In App Settings With Example Chats
+status: draft
+
+goal: >
+  Add a first-class Content section to each app settings page so users can
+  discover durable content artifact embed types such as documents, code,
+  applications, sheets, emails, websites, videos, images, PDFs, recordings, and
+  math plots. Each listed content type must open a detail page with a clear
+  description and exactly one high-quality public example chat created from a
+  natural-language request that produced the real embed in an assistant response
+  or natural user-added content flow.
+
+scope:
+  in:
+    - Add content-catalog metadata to existing embed type definitions instead of hardcoding a separate settings list.
+    - Show a new Content section on app settings pages, grouped by app, using only production-safe catalog embed types.
+    - Add content embed detail pages under app settings with description text, creation guidance, and exactly one canonical example chat per content type.
+    - Extend example chat metadata and lookup helpers so content embed examples can be linked independently from app skill, focus mode, and memory examples.
+    - Create or curate one public example chat for each approved v1 content type from a natural-language prompt such as "Create a document for xy".
+    - Include standalone content artifacts that are meaningful outside a skill-run container, including selected direct types and selected standalone child types such as Git repo and website.
+    - Exclude app-skill parent/run containers such as web.search, images.search, and travel.search_connections because those remain skill examples.
+    - Update deterministic audits so every catalog content type has exactly one linked public-safe example chat with at least one matching renderable embed.
+    - Verify web settings behavior on the deployed dev app and record Apple app impact for the native app-store settings counterpart.
+  out:
+    - Adding new embed rendering capabilities; this spec catalogs existing content types and examples.
+    - Adding multiple examples per content type in v1, even when origins differ.
+    - Showing focus-mode activation as a Content type; focus modes already have their own section.
+    - Replacing existing Skills, Focus modes, Settings and memories, or My embeds sections.
+    - Showing skill-run parent embeds such as app-skill-use search containers in the Content section.
+    - Generating fake or manually invented transcripts that were not based on real OpenMates chat output.
+    - Publishing examples with private user data, raw vault keys, presigned S3 URLs, private buckets, or unreviewed low-quality output.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search failed with 401 bad credentials."
+    - "`gh issue list --repo glowingkitty/OpenMates --search \"content embed types example chats settings\" --state all --limit 20 --json number,title,state,labels,updatedAt,url` returned `[]`."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/specs/application-embeds/spec.yml
+    - docs/specs/remotion-video-create-embeds/spec.yml
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/frontend/data-driven-embed-fullscreen-routing.md
+  code_patterns:
+    - backend/apps/*/app.yml embed_types sections
+    - shared/config/embed_types.yml
+    - backend/shared/python_schemas/app_metadata_schemas.py:EmbedTypeDefinition
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    - frontend/packages/ui/scripts/generate-apps-metadata.js
+    - frontend/packages/ui/src/types/apps.ts:AppMetadata
+    - frontend/packages/ui/src/components/settings/AppDetails.svelte
+    - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - scripts/audit_example_chats.py
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+  tests:
+    - scripts/audit_example_chats.py
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
+  findings:
+    - Existing example chat metadata supports app_skill_examples, app_focus_mode_examples, and app_settings_memory_examples, but not content embed type examples.
+    - Existing app settings pages show Skills, Settings and memories, Focus modes, and authenticated My embeds, but no static Content catalog.
+    - Existing app.yml embed_types metadata is already used to generate frontend embed routing and is the correct source of truth for catalog membership.
+    - Some direct embed types should be excluded from Content, especially focus-mode activation, so v1 needs an explicit catalog flag rather than purely deriving from category: direct.
+    - The Apple app has a native settings app-store counterpart in SettingsAppsFull.swift, so Apple impact must be tracked even if native parity is implemented after the web slice.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
+  parity_expectations:
+    - The native app-store settings screen has a counterpart to the web Apps page. If the web Content section ships before native parity, the spec evidence must record that Apple is intentionally deferred with a follow-up task.
+    - When native parity is implemented, each app detail view should expose the same content type names and descriptions from the same metadata contract, and open the same canonical example chats when public example chat navigation exists natively.
+    - Apple must not hardcode user-visible strings; any new labels use AppStrings and generated translations.
+  verification:
+    - Run or attempt `python3 scripts/apple_remote.py status` plus `build-ios` after native-impacting implementation, or record a sanitized failure class.
+    - If native parity is deferred, record the explicit deferral and affected Swift files in the implementation summary.
+  intentional_native_differences:
+    - Native card layout and navigation chrome may differ, but the information architecture and catalog membership must match the web source of truth.
+
+clarification:
+  rounds:
+    - question: Should Content embed types include only user/assistant-created artifacts, or also skill result/search containers?
+      answer: >
+        Use an artifact-first rule. Include durable content artifacts that can be
+        inspected independently, and exclude app-skill parent/run containers.
+    - question: Should v1 require exactly one canonical example chat per content type, or allow multiple examples when origin differs?
+      answer: Require only one example per content embed type for now.
+    - question: Should Git repo be included under Code content?
+      answer: Include Git repo as a standalone content type, but not the code.search_repos skill-run container.
+    - question: What visible settings result is required?
+      answer: >
+        Each app settings page should include a Content section where its content
+        embed types are listed, for example Docs has document, Code has
+        application/code/Git repo, and so on.
+  vision_summary: >
+    App settings should teach users not only what skills, focus modes, and
+    memories exist, but also what durable content artifacts OpenMates can create
+    or work with. The Content section is metadata-driven, app-scoped, and links
+    each content type to a single polished public example chat based on a real
+    natural-language interaction. Skill-run containers remain in skill examples;
+    the Content catalog is for independently understandable artifacts.
+  approved_by_user: true
+
+content_type_policy:
+  rule: >
+    A content type is eligible when it represents a durable artifact or standalone
+    preview that can be opened independently from a skill execution container.
+  v1_candidate_types:
+    - app_id: docs
+      embed_type_id: doc
+      label: Document
+      frontend_type: docs-doc
+    - app_id: code
+      embed_type_id: application
+      label: Application
+      frontend_type: code-application
+    - app_id: code
+      embed_type_id: code
+      label: Code
+      frontend_type: code-code
+    - app_id: code
+      embed_type_id: repo
+      label: Git repo
+      frontend_type: code-repo
+    - app_id: sheets
+      embed_type_id: sheet
+      label: Sheet
+      frontend_type: sheets-sheet
+    - app_id: mail
+      embed_type_id: email
+      label: Email draft
+      frontend_type: mail-email
+    - app_id: web
+      embed_type_id: website
+      label: Website
+      frontend_type: web-website
+    - app_id: images
+      embed_type_id: image
+      label: Image
+      frontend_type: image
+    - app_id: videos
+      embed_type_id: video
+      label: Video
+      frontend_type: videos-video
+    - app_id: pdf
+      embed_type_id: pdf
+      label: PDF
+      frontend_type: pdf
+    - app_id: audio
+      embed_type_id: recording
+      label: Recording
+      frontend_type: recording
+    - app_id: math
+      embed_type_id: math-plot
+      label: Math plot
+      frontend_type: math-plot
+    - app_id: maps
+      embed_type_id: location
+      label: Location
+      frontend_type: maps
+  excluded_examples:
+    - app-skill-use parent containers such as web.search and images.search
+    - focus_mode_activation
+    - internal-only processing artifacts that users cannot understand or open independently
+
+scenarios:
+  - id: S-1
+    title: App details page lists content types from metadata
+    given:
+      - A production app has one or more embed_types marked for the content catalog.
+      - A user opens the app details page in Settings > Apps.
+    when:
+      - The settings page renders the app details body.
+    then:
+      - The page shows a Content section after the existing app capability sections.
+      - Each eligible content type for that app is shown as a clickable card or row with an icon, localized name, and short localized description.
+      - Ineligible internal or skill-run container embeds are not shown.
+      - Existing Skills, Settings and memories, Focus modes, Active reminders, and authenticated My embeds sections continue to render as before.
+
+  - id: S-2
+    title: Content type detail page explains the artifact and shows one example chat
+    given:
+      - A user opens a content type such as Docs > Document or Code > Application.
+      - That content type has a linked canonical example chat.
+    when:
+      - The detail page loads.
+    then:
+      - The page shows the content type name, description, and natural-language creation guidance.
+      - The page shows exactly one example chat preview card for that content type.
+      - Clicking the example chat opens the real public example chat and closes settings using the same behavior as existing skill example chat cards.
+      - The example chat contains at least one embed whose type matches the selected content type.
+
+  - id: S-3
+    title: Example chats are created from real natural-language interactions
+    given:
+      - A content type lacks a canonical example chat.
+      - A developer or agent needs to create one.
+    when:
+      - The example is generated or curated.
+    then:
+      - The source prompt is natural language and does not use hidden/debug syntax, raw embed JSON, or forced app-skill directives.
+      - The assistant response naturally creates or includes the target content artifact.
+      - The transcript is useful as a public demonstration and has been quality-reviewed by an agent before being checked in.
+      - The example metadata links to exactly one content type key.
+
+  - id: S-4
+    title: Deterministic audit enforces catalog coverage and public safety
+    given:
+      - The repository contains content catalog metadata and example chat fixtures.
+    when:
+      - A developer runs the example chat audit.
+    then:
+      - The audit fails if any catalog content type has zero or more than one linked example chat.
+      - The audit fails if a linked content example lacks a matching renderable embed.
+      - The audit fails on private URLs, vault keys, presigned URL errors, unresolved i18n keys, raw embed payloads, or broken public placeholders.
+      - The audit reports the content type key and affected example chat slug for each failure.
+
+  - id: S-5
+    title: Generated metadata stays in sync with app.yml and shared embed type sources
+    given:
+      - Content catalog fields are added to backend app.yml or shared/config/embed_types.yml.
+    when:
+      - Frontend metadata generation runs.
+    then:
+      - Generated TypeScript exposes the catalog content types with app ID, embed type ID, frontend type, icon, i18n namespace, and description key.
+      - AppMetadata includes enough information for AppDetails.svelte to render the Content section without duplicating a hardcoded list.
+      - Existing embed routing maps continue to match the embed preview and fullscreen registry.
+
+  - id: S-6
+    title: Deployed web settings page exposes content examples for anonymous and authenticated browsing
+    given:
+      - The implementation is deployed to app.dev.openmates.org.
+    when:
+      - A visitor opens Settings > Apps and navigates to apps with content types.
+    then:
+      - The Content section is visible for unauthenticated browsing where the app settings page is visible.
+      - Content detail pages show descriptions and example chats without requiring private user embeds.
+      - Existing authenticated My embeds remain separate from the static Content catalog.
+      - Opening a content example chat renders the transcript and matching embed preview without broken or missing embed markers.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Each app settings detail page renders a metadata-driven Content section for eligible content embed types only.
+  - id: AC-2
+    scenario: S-2
+    text: Each content type detail page shows localized description/guidance and exactly one linked example chat preview.
+  - id: AC-3
+    scenario: S-2
+    text: Opening a linked content example chat from settings uses the existing chat selection flow and renders the matching content embed.
+  - id: AC-4
+    scenario: S-3
+    text: Every v1 content example chat is based on a real natural-language OpenMates interaction and passes agent quality review before check-in.
+  - id: AC-5
+    scenario: S-4
+    text: Deterministic audits enforce exactly one public-safe matching example chat per catalog content type.
+  - id: AC-6
+    scenario: S-5
+    text: Catalog content metadata is generated from app.yml/shared embed type sources and does not require a duplicated hardcoded frontend list.
+  - id: AC-7
+    scenario: S-6
+    text: Deployed app settings pages expose Content descriptions and example chats for public browsing while keeping My embeds separate and authenticated.
+  - id: AC-8
+    scenario: S-6
+    text: Apple settings app-store impact is either implemented to parity or explicitly recorded as a native follow-up with remote build/status evidence when native files change.
+
+contracts:
+  data:
+    - "`EmbedTypeDefinition` accepts optional content catalog fields such as `content_catalog`, `content_name_translation_key`, `content_description_translation_key`, `content_creation_hint_translation_key`, and `content_example_key`."
+    - "Catalog keys use a stable format such as `<app_id>.<embed_type_id>` for direct types and explicit standalone child types."
+    - "ExampleChat metadata adds an optional `content_embed_examples` string array. Each v1 catalog key must be referenced by exactly one public example chat."
+    - "A content example chat must contain at least one embed whose frontend type, backend type, or configured child frontend type matches the catalog entry."
+    - "Catalog metadata must not expose internal-only embed types, focus activation artifacts, or skill-run parent containers."
+  ui_states:
+    - "AppDetails.svelte shows Content only when the app has at least one catalog content type."
+    - "AppDetailsWrapper.svelte supports a route such as `app_store/{app_id}/content/{content_type_id}` for detail pages."
+    - "Content detail pages reuse canonical settings elements and the existing ChatPreviewCard example pattern."
+    - "Unauthenticated users can browse static content descriptions and example chats; authenticated user-specific My embeds remain in the existing separate section."
+  generation_tooling:
+    - "`generate-embed-registry.js` or `generate-apps-metadata.js` emits content catalog metadata from source YAML."
+    - "Generated files remain generated-only; source edits happen in app.yml/shared config and i18n YAML sources."
+    - "`scripts/audit_example_chats.py` remains the deterministic coverage and public-safety gate for example chat fixtures."
+  privacy_security:
+    - "Public examples must contain no private user identifiers, raw vault keys, presigned S3 URLs, private bucket/object names, private file paths, API keys, or account identifiers."
+    - "Examples for website, repo, video, image, PDF, and recording content use public-safe URLs or checked-in fixture assets that work for unauthenticated visitors."
+    - "Generated application/code examples must not include secrets, credentials, destructive commands, or unsafe operational advice unless explicitly framed and required by the prompt."
+
+tests:
+  - id: T-AUDIT-001
+    type: unit
+    file: scripts/audit_example_chats.py
+    command: python3 scripts/audit_example_chats.py
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - fails when a catalog content type has no linked example chat
+      - fails when a catalog content type has two linked example chats
+      - fails when a linked content example does not include a matching embed type
+      - fails on private/public-safety markers in content examples
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-UNIT-001
+    type: unit
+    file: frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    command: python3 scripts/run_tests.py --suite vitest --filter embedRegistry
+    covers:
+      - AC-6
+    assertions:
+      - generated catalog metadata exists only for explicitly cataloged embed types
+      - catalog entries include appId, embed type ID, frontend type, icon, and i18n namespace or description keys
+      - focus-mode activation and app-skill-use parent containers are excluded from catalog metadata
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-001
+    type: playwright
+    file: frontend/apps/web_app/tests/content-embed-settings.spec.ts
+    command: python3 scripts/run_tests.py --spec content-embed-settings.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-7
+    assertions:
+      - Docs app settings show a Content section with Document
+      - Code app settings show Application, Code, and Git repo content entries
+      - Mail app settings show Email draft content entry
+      - Opening a content entry shows description/guidance and exactly one example chat card
+      - Clicking the example chat opens the public transcript with a matching finished embed preview
+      - My embeds remains separate and is not required for unauthenticated catalog browsing
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-002
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chats-load.spec.ts
+    command: python3 scripts/run_tests.py --spec example-chats-load.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+      - AC-5
+      - AC-7
+    assertions:
+      - every public example chat SSR page remains accessible and crawlable
+      - no content example page contains broken public markers or unresolved i18n keys
+      - catalog-linked examples render matching embed previews without raw payloads
+    red_phase:
+      required: false
+      expected: existing_spec_may_pass_before_change
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-001
+    type: manual
+    covers:
+      - AC-8
+    assertions:
+      - Apple app-store settings impact is recorded
+      - if native settings files change, remote Mac status and build/test evidence is recorded
+      - if native parity is deferred, a follow-up task and affected Swift files are recorded
+    red_phase:
+      required: false
+      expected: impact_record_only
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/components/settings/SkillExamplesSection.svelte
+    - frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+  architecture: >
+    Treat content embed catalog membership as part of the existing embed type
+    metadata contract. Source YAML marks eligible content types, the frontend
+    metadata generator exposes those entries, AppDetails renders an app-scoped
+    Content section, and a new content detail component reuses the existing chat
+    preview card flow to open exactly one linked public example chat.
+  data_flow:
+    - App YAML/shared embed config declares catalog metadata for a content type.
+    - Frontend generation emits content catalog metadata into static app or embed registry data.
+    - AppDetails reads app-scoped catalog entries and renders Content cards.
+    - Content detail route uses the catalog key to find description/guidance and one example chat.
+    - Example chat store resolves `content_embed_examples` metadata to ChatPreviewCard data.
+    - Audit validates coverage, matching embeds, and public safety.
+  affected_files:
+    - path: backend/shared/python_schemas/app_metadata_schemas.py
+      reason: Accept optional content catalog fields on embed type definitions.
+    - path: backend/apps/*/app.yml
+      reason: Mark eligible content artifact embed types and add catalog metadata.
+    - path: shared/config/embed_types.yml
+      reason: Mark virtual/standalone content types such as sheet and repo.
+    - path: frontend/packages/ui/scripts/generate-embed-registry.js
+      reason: Emit content catalog metadata from source YAML.
+    - path: frontend/packages/ui/src/types/apps.ts
+      reason: Type generated app/content catalog metadata for settings UI.
+    - path: frontend/packages/ui/src/components/settings/AppDetails.svelte
+      reason: Render app-scoped Content section.
+    - path: frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+      reason: Route to content type detail pages.
+    - path: frontend/packages/ui/src/components/settings/ContentEmbedDetails.svelte
+      reason: New detail page for content type description and example chat.
+    - path: frontend/packages/ui/src/demo_chats/types.ts
+      reason: Add content embed example metadata.
+    - path: frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      reason: Add lookup helper for content type examples.
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
+      reason: Add or update canonical content example chats.
+    - path: scripts/audit_example_chats.py
+      reason: Enforce content example coverage and matching embed types.
+    - path: frontend/apps/web_app/tests/content-embed-settings.spec.ts
+      reason: Verify deployed settings content catalog behavior.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/content-embed-example-chats/spec.yml
+    - python3 scripts/audit_example_chats.py
+    - python3 scripts/run_tests.py --suite vitest --filter embedRegistry
+    - python3 scripts/run_tests.py --spec content-embed-settings.spec.ts
+    - python3 scripts/run_tests.py --spec example-chats-load.spec.ts
+    - python3 scripts/apple_remote.py status and build-ios/test-ios if native files change
+  verification_order:
+    - Local deterministic audit and unit/generation tests first
+    - Web Playwright red phase before deploy for new settings coverage
+    - Deploy to dev and wait for Vercel Ready
+    - Web Playwright green phase on app.dev.openmates.org
+    - Apple remote status/build or recorded deferral after web evidence
+
+tasks:
+  - id: TASK-1
+    title: Add content catalog metadata contract
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-6
+    expected_files:
+      - backend/shared/python_schemas/app_metadata_schemas.py
+      - frontend/packages/ui/scripts/generate-embed-registry.js
+      - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    verification:
+      - T-UNIT-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement web settings Content section and detail route
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-7
+    expected_files:
+      - frontend/packages/ui/src/components/settings/AppDetails.svelte
+      - frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
+      - frontend/packages/ui/src/components/settings/ContentEmbedDetails.svelte
+      - frontend/apps/web_app/tests/content-embed-settings.spec.ts
+    verification:
+      - T-PLAYWRIGHT-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Create and audit canonical content example chats
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-2
+        - AC-4
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/types.ts
+      - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      - frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
+      - scripts/audit_example_chats.py
+    verification:
+      - T-AUDIT-001
+      - T-PLAYWRIGHT-002
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Record or implement Apple settings impact
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    verification:
+      - T-APPLE-001
+    independently_deployable: false
+
+open_questions:
+  - Should standalone child/result content types beyond Git repo and Website, such as events, products, places, stays, and travel connections, be added in a later v2 catalog pass?
+  - Should the Content section be ordered before or after Focus modes when an app has all capability sections?
+  - Should Apple native parity ship in the same implementation PR or be tracked as a follow-up after web settings launch?
+
+risks:
+  - Real example chats for generated artifacts can regress if the underlying assistant output quality is insufficient; each must be agent-reviewed before check-in.
+  - Catalog membership can drift if future embed types omit the explicit content catalog flag; the audit should fail missing coverage for flagged entries but not infer product intent for unflagged entries.
+  - Website and video examples can blur user-added, found-by-search, and assistant-created origins; v1 uses one canonical example per type and defers origin variants.

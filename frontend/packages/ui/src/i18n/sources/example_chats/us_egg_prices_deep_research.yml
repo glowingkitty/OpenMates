@@ -1,0 +1,1144 @@
+title:
+  context: "Title of example chat: Why US Egg Prices Stayed High"
+  en: "Why US Egg Prices Stayed High"
+  de: "Why US Egg Prices Stayed High"
+  zh: "Why US Egg Prices Stayed High"
+  es: "Why US Egg Prices Stayed High"
+  fr: "Why US Egg Prices Stayed High"
+  pt: "Why US Egg Prices Stayed High"
+  ru: "Why US Egg Prices Stayed High"
+  ja: "Why US Egg Prices Stayed High"
+  ko: "Why US Egg Prices Stayed High"
+  it: "Why US Egg Prices Stayed High"
+  tr: "Why US Egg Prices Stayed High"
+  vi: "Why US Egg Prices Stayed High"
+  id: "Why US Egg Prices Stayed High"
+  pl: "Why US Egg Prices Stayed High"
+  nl: "Why US Egg Prices Stayed High"
+  ar: "Why US Egg Prices Stayed High"
+  hi: "Why US Egg Prices Stayed High"
+  th: "Why US Egg Prices Stayed High"
+  cs: "Why US Egg Prices Stayed High"
+  sv: "Why US Egg Prices Stayed High"
+  he: "Why US Egg Prices Stayed High"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Why US Egg Prices Stayed High"
+  en: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  de: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  zh: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  es: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  fr: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  pt: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  ru: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  ja: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  ko: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  it: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  tr: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  vi: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  id: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  pl: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  nl: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  ar: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  hi: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  th: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  cs: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  sv: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  he: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  de: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  zh: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  es: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  fr: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  pt: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  ru: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  ja: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  ko: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  it: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  tr: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  vi: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  id: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  pl: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  nl: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  ar: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  hi: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  th: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  cs: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  sv: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  he: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  de: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  zh: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  es: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  fr: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  pt: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  ru: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  ja: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  ko: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  it: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  tr: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  vi: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  id: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  pl: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  nl: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  ar: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  hi: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  th: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  cs: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  sv: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  he: |
+    ## Short Answer
+    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    
+    ## Surface Explanation
+    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    
+    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    
+    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    
+    ## What Else May Be Going On
+    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    
+    **1. Market Concentration and Corporate Profit-Taking:**
+    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    
+    **2. Baseline Input Inflation:**
+    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    
+    ## Evidence
+    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    
+    **Confirmed Evidence:**
+    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
+    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
+    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    
+    **Inferred Evidence:**
+    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
+    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    
+    ## Counterarguments
+    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    
+    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
+    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    
+    ## Bottom Line
+    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+  verified_by_human: []
+
+sub_chat_1_title:
+  context: "Title of sub-chat 1 in example chat: Why US Egg Prices Stayed High"
+  en: "Research US egg supply recover"
+  de: "Research US egg supply recover"
+  zh: "Research US egg supply recover"
+  es: "Research US egg supply recover"
+  fr: "Research US egg supply recover"
+  pt: "Research US egg supply recover"
+  ru: "Research US egg supply recover"
+  ja: "Research US egg supply recover"
+  ko: "Research US egg supply recover"
+  it: "Research US egg supply recover"
+  tr: "Research US egg supply recover"
+  vi: "Research US egg supply recover"
+  id: "Research US egg supply recover"
+  pl: "Research US egg supply recover"
+  nl: "Research US egg supply recover"
+  ar: "Research US egg supply recover"
+  hi: "Research US egg supply recover"
+  th: "Research US egg supply recover"
+  cs: "Research US egg supply recover"
+  sv: "Research US egg supply recover"
+  he: "Research US egg supply recover"
+  verified_by_human: []
+
+sub_chat_1_summary:
+  context: "Summary of sub-chat 1 in example chat: Why US Egg Prices Stayed High"
+  en: ""
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+sub_chat_1_message_1:
+  context: "user message 1 in sub-chat 1 of example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  de: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  zh: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  es: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  fr: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  pt: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  ru: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  ja: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  ko: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  it: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  tr: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  vi: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  id: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  pl: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  nl: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  ar: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  hi: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  th: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  cs: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  sv: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  he: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  verified_by_human: []
+
+sub_chat_2_title:
+  context: "Title of sub-chat 2 in example chat: Why US Egg Prices Stayed High"
+  en: "Research alternative economic "
+  de: "Research alternative economic "
+  zh: "Research alternative economic "
+  es: "Research alternative economic "
+  fr: "Research alternative economic "
+  pt: "Research alternative economic "
+  ru: "Research alternative economic "
+  ja: "Research alternative economic "
+  ko: "Research alternative economic "
+  it: "Research alternative economic "
+  tr: "Research alternative economic "
+  vi: "Research alternative economic "
+  id: "Research alternative economic "
+  pl: "Research alternative economic "
+  nl: "Research alternative economic "
+  ar: "Research alternative economic "
+  hi: "Research alternative economic "
+  th: "Research alternative economic "
+  cs: "Research alternative economic "
+  sv: "Research alternative economic "
+  he: "Research alternative economic "
+  verified_by_human: []
+
+sub_chat_2_summary:
+  context: "Summary of sub-chat 2 in example chat: Why US Egg Prices Stayed High"
+  en: ""
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+sub_chat_2_message_1:
+  context: "user message 1 in sub-chat 2 of example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  de: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  zh: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  es: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  fr: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  pt: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  ru: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  ja: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  ko: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  it: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  tr: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  vi: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  id: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  pl: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  nl: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  ar: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  hi: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  th: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  cs: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  sv: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  he: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  verified_by_human: []
+
+sub_chat_3_title:
+  context: "Title of sub-chat 3 in example chat: Why US Egg Prices Stayed High"
+  en: "Research market concentration "
+  de: "Research market concentration "
+  zh: "Research market concentration "
+  es: "Research market concentration "
+  fr: "Research market concentration "
+  pt: "Research market concentration "
+  ru: "Research market concentration "
+  ja: "Research market concentration "
+  ko: "Research market concentration "
+  it: "Research market concentration "
+  tr: "Research market concentration "
+  vi: "Research market concentration "
+  id: "Research market concentration "
+  pl: "Research market concentration "
+  nl: "Research market concentration "
+  ar: "Research market concentration "
+  hi: "Research market concentration "
+  th: "Research market concentration "
+  cs: "Research market concentration "
+  sv: "Research market concentration "
+  he: "Research market concentration "
+  verified_by_human: []
+
+sub_chat_3_summary:
+  context: "Summary of sub-chat 3 in example chat: Why US Egg Prices Stayed High"
+  en: ""
+  de: ""
+  zh: ""
+  es: ""
+  fr: ""
+  pt: ""
+  ru: ""
+  ja: ""
+  ko: ""
+  it: ""
+  tr: ""
+  vi: ""
+  id: ""
+  pl: ""
+  nl: ""
+  ar: ""
+  hi: ""
+  th: ""
+  cs: ""
+  sv: ""
+  he: ""
+  verified_by_human: []
+
+sub_chat_3_message_1:
+  context: "user message 1 in sub-chat 3 of example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  de: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  zh: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  es: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  fr: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  pt: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  ru: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  ja: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  ko: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  it: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  tr: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  vi: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  id: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  pl: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  nl: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  ar: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  hi: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  th: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  cs: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  sv: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  he: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  verified_by_human: []
+

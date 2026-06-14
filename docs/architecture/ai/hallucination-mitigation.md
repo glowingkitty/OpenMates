@@ -2,14 +2,50 @@
 status: active
 last_verified: 2026-05-10
 key_files:
+- backend/apps/ai/processing/url_validator.py
+- backend/apps/ai/tasks/stream_consumer.py
+- backend/apps/ai/base_instructions.yml
+- backend/apps/ai/processing/preprocessor.py
+- backend/apps/ai/processing/main_processor.py
+- backend/apps/ai/tasks/ask_skill_task.py
+- backend/shared/python_utils/url_normalizer.py
+- backend/shared/providers/groq/safeguard.py
+claims:
+- id: arch-ai-hallucination-mitigation-behavior
+  type: unit
+  claim: Hallucination Mitigation is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/ai/processing/url_validator.py
   - backend/apps/ai/tasks/stream_consumer.py
   - backend/apps/ai/base_instructions.yml
   - backend/apps/ai/processing/preprocessor.py
   - backend/apps/ai/processing/main_processor.py
-  - backend/apps/ai/tasks/ask_skill_task.py
-  - backend/shared/python_utils/url_normalizer.py
-  - backend/shared/providers/groq/safeguard.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-ai-hallucination-mitigation-behavior
+  verified: '2026-06-11'
+- id: arch-ai-hallucination-mitigation-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-hallucination-mitigation-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/base_instructions.yml
+- id: arch-ai-hallucination-mitigation-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-hallucination-mitigation-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/main_processor.py
+- id: arch-ai-hallucination-mitigation-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-hallucination-mitigation-source-3
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/preprocessor.py
 ---
 
 # Hallucination Mitigation

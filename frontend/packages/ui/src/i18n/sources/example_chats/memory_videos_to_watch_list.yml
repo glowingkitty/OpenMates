@@ -1,0 +1,309 @@
+title:
+  context: "Title of example chat: Memory Videos To Watch List"
+  en: "Memory Videos To Watch List"
+  de: "Memory Videos To Watch List"
+  zh: "Memory Videos To Watch List"
+  es: "Memory Videos To Watch List"
+  fr: "Memory Videos To Watch List"
+  pt: "Memory Videos To Watch List"
+  ru: "Memory Videos To Watch List"
+  ja: "Memory Videos To Watch List"
+  ko: "Memory Videos To Watch List"
+  it: "Memory Videos To Watch List"
+  tr: "Memory Videos To Watch List"
+  vi: "Memory Videos To Watch List"
+  id: "Memory Videos To Watch List"
+  pl: "Memory Videos To Watch List"
+  nl: "Memory Videos To Watch List"
+  ar: "Memory Videos To Watch List"
+  hi: "Memory Videos To Watch List"
+  th: "Memory Videos To Watch List"
+  cs: "Memory Videos To Watch List"
+  sv: "Memory Videos To Watch List"
+  he: "Memory Videos To Watch List"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Memory Videos To Watch List"
+  en: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  de: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  zh: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  es: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  fr: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  pt: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  ru: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  ja: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  ko: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  it: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  tr: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  vi: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  id: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  pl: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  nl: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  ar: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  hi: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  th: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  cs: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  sv: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  he: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Memory Videos To Watch List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Memory Videos To Watch List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  de: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  zh: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  es: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  fr: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  pt: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  ru: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  ja: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  ko: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  it: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  tr: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  vi: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  id: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  pl: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  nl: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  ar: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  hi: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  th: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  cs: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  sv: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  he: |
+    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
+
+    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
+
+    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
+    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
+    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
+    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
+
+    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+  verified_by_human: []

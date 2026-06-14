@@ -143,6 +143,7 @@ HEALTH_CHECK_FAILURE_THRESHOLD = 3
 # would send ~576 image-POST requests/day (2 servers × 288 checks).
 SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
 SIGHTENGINE_USAGE_LIMIT_ERROR = "usage_limit"
+CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID = "gpt-oss-120b"
 
 # Minimal 8×8 white JPEG (631 bytes) used as the health check probe image for Sightengine.
 #
@@ -207,6 +208,14 @@ def _is_credential_error(error_message: Optional[str]) -> bool:
     ]
     
     return any(indicator in error_lower for indicator in credential_indicators)
+
+
+def _get_cerebras_health_check_model_id() -> str:
+    """Return the Cerebras production model used for low-cost provider probes."""
+    return os.getenv(
+        "CEREBRAS_HEALTH_CHECK_MODEL_ID",
+        CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID,
+    ).strip() or CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID
 
 
 def _sanitize_error_message(error_message: Optional[str]) -> Optional[str]:
@@ -360,6 +369,14 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
         if server_id == "openrouter":
             logger.debug("Using 'mistralai/mistral-small-3.2-24b-instruct' for OpenRouter health check")
             return "mistral/mistral-small-3.2-24b-instruct"
+
+        # For Cerebras, use a production catalog model instead of the cheapest
+        # configured app model. Preview models can be valid globally but not enabled
+        # for this account, which made provider health flap every check cycle.
+        if server_id == "cerebras":
+            model_id = _get_cerebras_health_check_model_id()
+            logger.debug("Using '%s' for Cerebras health check", model_id)
+            return f"cerebras/{model_id}"
 
         # For other servers, find the cheapest model by comparing input costs
         cheapest_candidate = None
@@ -582,6 +599,52 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
             except Exception as e:
                 response_time_ms = (time.time() - start_time) * 1000 if 'start_time' in locals() else None
                 logger.error(f"Exception during OpenRouter health check test request: {e}", exc_info=True)
+                return False, str(e), response_time_ms
+
+        # Special case: For Cerebras health checks, call the Cerebras client
+        # directly with an operator-configurable production model. The generic
+        # provider-config resolution intentionally routes app models to their
+        # default server, but provider health should test Cerebras availability,
+        # not whether a preview app model is enabled on this account.
+        if provider_id == "cerebras":
+            provider_client = _get_provider_client("cerebras")
+            if not provider_client:
+                return False, "Cerebras provider client not found", None
+
+            model_suffix = model_id.split("/", 1)[1] if "/" in model_id else model_id
+            test_messages = [
+                {"role": "system", "content": "Answer short"},
+                {"role": "user", "content": "1+2?"},
+            ]
+
+            start_time = time.time()
+            try:
+                response = await asyncio.wait_for(
+                    provider_client(
+                        task_id="health_check",
+                        model_id=model_suffix,
+                        messages=test_messages,
+                        secrets_manager=secrets_manager,
+                        tools=None,
+                        tool_choice=None,
+                        stream=False,
+                        temperature=0.0,
+                    ),
+                    timeout=15.0,
+                )
+                response_time_ms = (time.time() - start_time) * 1000
+                if hasattr(response, "success"):
+                    if response.success:
+                        return True, None, response_time_ms
+                    error_msg = getattr(response, "error_message", "Unknown error")
+                    return False, error_msg, response_time_ms
+                return False, f"Unexpected response type: {type(response)}", response_time_ms
+            except asyncio.TimeoutError:
+                response_time_ms = (time.time() - start_time) * 1000
+                return False, "Request timeout", response_time_ms
+            except Exception as e:
+                response_time_ms = (time.time() - start_time) * 1000
+                logger.error(f"Exception during Cerebras health check test request: {e}", exc_info=True)
                 return False, str(e), response_time_ms
 
         # Normal flow for other providers/models
@@ -1192,7 +1255,14 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
         
         # If first attempt failed, retry once
         if not worker_attempt1_success:
-            logger.warning(f"Health check: App '{app_id}' worker first attempt failed: {worker_attempt1_error}. Retrying...")
+            first_attempt_message = (
+                f"Health check: App '{app_id}' worker first attempt failed: "
+                f"{worker_attempt1_error}. Retrying..."
+            )
+            if worker_attempt1_error in {"No active Celery workers found", "no_worker"}:
+                logger.debug(first_attempt_message)
+            else:
+                logger.warning(first_attempt_message)
             await asyncio.sleep(1)
             worker_attempt2_success, worker_attempt2_error = await _check_app_worker_health(app_id)
             worker_healthy = worker_attempt2_success

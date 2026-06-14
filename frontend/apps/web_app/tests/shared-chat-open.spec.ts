@@ -117,3 +117,33 @@ test('stale shared chat link shows invalid-link error instead of decrypted dummy
 	await takeStepScreenshot(page, 'test-complete');
 	logCheckpoint('Stale shared chat link rejected successfully');
 });
+
+test('public shared chat shows audio transcript to logged-out visitors', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(120000);
+
+	const sharedChatUrl = 'https://app.dev.openmates.org/s/zuygP79v#BUw56h';
+
+	await page.goto(sharedChatUrl);
+
+	const audioEmbed = page.locator(
+		'[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]'
+	).first();
+	await expect(audioEmbed).toBeVisible({ timeout: 45000 });
+	await expect(audioEmbed).toHaveAttribute('data-status', 'finished', { timeout: 45000 });
+	await expect(audioEmbed.getByText(/signup to upload|signup to see transcript/i)).not.toBeVisible();
+
+	const transcriptPreview = audioEmbed.getByTestId('recording-preview');
+	await expect(transcriptPreview).toBeVisible();
+	await expect(async () => {
+		const previewText = (await transcriptPreview.textContent())?.trim() ?? '';
+		expect(previewText).not.toMatch(/signup to upload|signup to see transcript|no transcript/i);
+		expect(previewText.length).toBeGreaterThan(40);
+	}).toPass({ timeout: 10000 });
+
+	await assertNoMissingTranslations(page);
+});

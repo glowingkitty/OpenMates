@@ -8,7 +8,7 @@
  * Tests: frontend/packages/openmates-cli/tests/server.test.ts
  */
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -17,12 +17,20 @@ import { join, resolve } from "node:path";
 // ---------------------------------------------------------------------------
 
 export interface ServerConfig {
-  /** Absolute path to the cloned OpenMates repository */
+  /** Absolute path to the OpenMates server installation directory. */
   installPath: string;
   /** Timestamp when the server was installed */
   installedAt: number;
   /** Whether the override compose file is used (Directus, Grafana) */
   composeProfile: "core" | "full";
+  /** Distribution mode: prebuilt images by default, source builds for contributors/forks. */
+  installMode?: "image" | "source";
+  /** OpenMates image tag used by image-mode installs, e.g. v0.12.0-alpha.0. */
+  imageTag?: string;
+  /** API URL regular CLI commands should default to for this self-host install. */
+  apiUrl?: string;
+  /** Web app URL used for pair-login and share links for this self-host install. */
+  appUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,10 +79,11 @@ export function removeServerConfig(): void {
 // ---------------------------------------------------------------------------
 
 /** Marker file that confirms a directory is an OpenMates installation. */
-const COMPOSE_MARKER = join("backend", "core", "docker-compose.yml");
+const SOURCE_COMPOSE_MARKER = join("backend", "core", "docker-compose.yml");
+const IMAGE_COMPOSE_MARKER = join("backend", "core", "docker-compose.selfhost.yml");
 
 function isOpenMatesDir(dir: string): boolean {
-  return existsSync(join(dir, COMPOSE_MARKER));
+  return existsSync(join(dir, SOURCE_COMPOSE_MARKER)) || existsSync(join(dir, IMAGE_COMPOSE_MARKER));
 }
 
 /**
@@ -93,7 +102,7 @@ export function resolveServerPath(flags: Record<string, string | boolean>): stri
     if (!isOpenMatesDir(explicit)) {
       throw new Error(
         `${explicit} does not appear to be an OpenMates installation ` +
-        `(missing ${COMPOSE_MARKER}).`,
+        `(missing ${SOURCE_COMPOSE_MARKER} or ${IMAGE_COMPOSE_MARKER}).`,
       );
     }
     return explicit;

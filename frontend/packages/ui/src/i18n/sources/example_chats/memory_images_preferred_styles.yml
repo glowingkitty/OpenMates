@@ -1,0 +1,183 @@
+title:
+  context: "Title of example chat: Memory Images Preferred Styles"
+  en: "Memory Images Preferred Styles"
+  de: "Memory Images Preferred Styles"
+  zh: "Memory Images Preferred Styles"
+  es: "Memory Images Preferred Styles"
+  fr: "Memory Images Preferred Styles"
+  pt: "Memory Images Preferred Styles"
+  ru: "Memory Images Preferred Styles"
+  ja: "Memory Images Preferred Styles"
+  ko: "Memory Images Preferred Styles"
+  it: "Memory Images Preferred Styles"
+  tr: "Memory Images Preferred Styles"
+  vi: "Memory Images Preferred Styles"
+  id: "Memory Images Preferred Styles"
+  pl: "Memory Images Preferred Styles"
+  nl: "Memory Images Preferred Styles"
+  ar: "Memory Images Preferred Styles"
+  hi: "Memory Images Preferred Styles"
+  th: "Memory Images Preferred Styles"
+  cs: "Memory Images Preferred Styles"
+  sv: "Memory Images Preferred Styles"
+  he: "Memory Images Preferred Styles"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Memory Images Preferred Styles"
+  en: "OpenMates uses saved images preferred_styles memory in a real chat."
+  de: "OpenMates uses saved images preferred_styles memory in a real chat."
+  zh: "OpenMates uses saved images preferred_styles memory in a real chat."
+  es: "OpenMates uses saved images preferred_styles memory in a real chat."
+  fr: "OpenMates uses saved images preferred_styles memory in a real chat."
+  pt: "OpenMates uses saved images preferred_styles memory in a real chat."
+  ru: "OpenMates uses saved images preferred_styles memory in a real chat."
+  ja: "OpenMates uses saved images preferred_styles memory in a real chat."
+  ko: "OpenMates uses saved images preferred_styles memory in a real chat."
+  it: "OpenMates uses saved images preferred_styles memory in a real chat."
+  tr: "OpenMates uses saved images preferred_styles memory in a real chat."
+  vi: "OpenMates uses saved images preferred_styles memory in a real chat."
+  id: "OpenMates uses saved images preferred_styles memory in a real chat."
+  pl: "OpenMates uses saved images preferred_styles memory in a real chat."
+  nl: "OpenMates uses saved images preferred_styles memory in a real chat."
+  ar: "OpenMates uses saved images preferred_styles memory in a real chat."
+  hi: "OpenMates uses saved images preferred_styles memory in a real chat."
+  th: "OpenMates uses saved images preferred_styles memory in a real chat."
+  cs: "OpenMates uses saved images preferred_styles memory in a real chat."
+  sv: "OpenMates uses saved images preferred_styles memory in a real chat."
+  he: "OpenMates uses saved images preferred_styles memory in a real chat."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Memory Images Preferred Styles. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Memory Images Preferred Styles. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  de: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  zh: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  es: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  fr: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  pt: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  ru: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  ja: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  ko: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  it: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  tr: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  vi: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  id: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  pl: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  nl: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  ar: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  hi: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  th: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  cs: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  sv: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  he: |
+    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
+
+    **Prompt:**
+    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+  verified_by_human: []

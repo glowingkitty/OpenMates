@@ -147,6 +147,36 @@ function inspirationSurface(inspiration: DailyInspiration): DailyInspirationSurf
   return inspiration.surface ?? "chats";
 }
 
+function hasSameOrderedInspirationIds(
+  left: DailyInspiration[],
+  right: DailyInspiration[],
+): boolean {
+  if (left.length !== right.length) return false;
+  return left.every(
+    (inspiration, index) =>
+      inspiration.inspiration_id === right[index]?.inspiration_id,
+  );
+}
+
+function mergeIncomingInspirations(
+  incoming: DailyInspiration[],
+  existing: DailyInspiration[],
+): DailyInspiration[] {
+  return incoming.map((inspiration) => {
+    const existingInspiration = existing.find(
+      (candidate) => candidate.inspiration_id === inspiration.inspiration_id,
+    );
+    if (!existingInspiration) return inspiration;
+    return {
+      ...inspiration,
+      embed_id: inspiration.embed_id ?? existingInspiration.embed_id ?? null,
+      is_opened: inspiration.is_opened || existingInspiration.is_opened,
+      opened_chat_id:
+        inspiration.opened_chat_id ?? existingInspiration.opened_chat_id ?? null,
+    };
+  });
+}
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 const store = writable<DailyInspirationState>(initialState);
@@ -168,8 +198,15 @@ export const dailyInspirationStore = {
     options: { personalized?: boolean } = {},
   ): void => {
     const { personalized = false } = options;
-    const sliced = inspirations.slice(0, MAX_DAILY_INSPIRATIONS);
     store.update((state) => {
+      const sliced = inspirations.slice(0, MAX_DAILY_INSPIRATIONS);
+      const sameInspirationSet = hasSameOrderedInspirationIds(
+        state.inspirations,
+        sliced,
+      );
+      const merged = sameInspirationSet
+        ? mergeIncomingInspirations(sliced, state.inspirations)
+        : sliced;
       // Never overwrite personalized data with public defaults.
       // This prevents the fast unauthenticated default-inspirations REST call
       // from wiping out is_opened / opened_chat_id state that was just written
@@ -179,8 +216,10 @@ export const dailyInspirationStore = {
       }
       return {
         ...state,
-        inspirations: sliced,
-        currentIndex: preferredIndex(sliced),
+        inspirations: merged,
+        currentIndex: sameInspirationSet
+          ? Math.min(state.currentIndex, Math.max(merged.length - 1, 0))
+          : preferredIndex(merged),
         isPersonalized: personalized,
       };
     });

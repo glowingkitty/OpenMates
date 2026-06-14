@@ -17,6 +17,7 @@
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
     import { SettingsSectionHeading } from './elements';
     import type { AppMetadata, MemoryFieldMetadata, SkillMetadata } from '../../types/apps';
+    import { CONTENT_EMBED_CATALOG, type ContentEmbedCatalogItem } from '../../data/embedRegistry.generated';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     
@@ -42,6 +43,7 @@
     // Get app metadata from store
     let app = $derived<AppMetadata | undefined>(storeState.apps[appId]);
     let skills = $derived(app?.skills || []);
+    let contentTypes = $derived(CONTENT_EMBED_CATALOG.filter((item) => item.appId === appId));
     let focusModes = $derived(app?.focus_modes || []);
     let memoryFields = $derived(app?.settings_and_memories || []);
 
@@ -73,6 +75,20 @@
             icon_image: skill.icon_image || app.icon_image,
             icon_colorgradient: app.icon_colorgradient,
             providers: skill.providers || [],
+            skills: [],
+            focus_modes: [],
+            settings_and_memories: []
+        };
+    }
+
+    function contentToAppMetadata(content: ContentEmbedCatalogItem, appId: string, app: AppMetadata): AppMetadata {
+        return {
+            id: appId,
+            name: content.name,
+            description: content.description,
+            icon_image: `${content.icon || appId}.svg`,
+            icon_colorgradient: app.icon_colorgradient,
+            providers: [],
             skills: [],
             focus_modes: [],
             settings_and_memories: []
@@ -111,6 +127,16 @@
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: $text(skills.find(s => s.id === skillId)?.name_translation_key || skillId)
+        });
+    }
+
+    function handleContentSelect(contentTypeId: string) {
+        const content = contentTypes.find((item) => item.contentTypeId === contentTypeId);
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/content/${contentTypeId}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title: content?.name || contentTypeId
         });
     }
     
@@ -173,6 +199,28 @@
                                 skillProviders={skill.providers}
                                 onSelect={() => handleSkillSelect(skill.id)}
                             />
+                        {/each}
+                    </div>
+                </div>
+            </div>
+        {/if}
+
+        <!-- Content section - durable artifacts this app can create or display -->
+        {#if contentTypes.length > 0}
+            <div class="section">
+                <SettingsSectionHeading title={$text('settings.app_store.content.title')} icon="embed" />
+                <p class="section-description">{$text('settings.app_store.content.section_description')}</p>
+                <div class="items-scroll-container" data-testid="settings-content-cards-scroll">
+                    <div class="items-scroll">
+                        {#each contentTypes as content (content.id)}
+                            {@const contentApp = contentToAppMetadata(content, appId, app)}
+                            <div data-testid={`content-embed-card-${content.id}`}>
+                                <AppStoreCard
+                                    app={contentApp}
+                                    cardIconType="skill"
+                                    onSelect={() => handleContentSelect(content.contentTypeId)}
+                                />
+                            </div>
                         {/each}
                     </div>
                 </div>

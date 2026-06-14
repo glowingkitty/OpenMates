@@ -327,6 +327,7 @@ export interface Chat {
 
   // New encrypted fields for zero-knowledge architecture from message processing
   encrypted_chat_summary?: string | null; // Encrypted chat summary (max 20 words) generated during post-processing
+  encrypted_share_cta_text?: string | null; // Encrypted short call-to-open line for shared chat previews and OG images
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
@@ -337,6 +338,7 @@ export interface Chat {
   key_fingerprint?: string | null; // FNV-1a fingerprint of the raw chat key (not cryptographic). Stored server-side for decryption failure diagnosis.
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
+  encrypted_shared_short_url?: string | null; // Encrypted full /s/<token>#<shortKey> URL for reopening owner share UI
   encrypted_active_focus_id?: string | null; // Encrypted active focus mode ID (e.g., "jobs-career_insights"), set when a focus mode is activated for this chat
 
   // Cleartext fields for demo chats (already decrypted server-side, never encrypted client-side)
@@ -346,6 +348,7 @@ export interface Chat {
   icon?: string | null; // Cleartext icon name for demo chats
   category?: string | null; // Cleartext category for demo chats
   demo_chat_category?: string | null; // Target audience: "for_everyone" or "for_developers" (set by admin during approval)
+  active_focus_id?: string | null; // Cleartext active focus mode for public demo/example chats only
 
   // Local UI metadata derived from image-search embeds. Stored only in IndexedDB so
   // resume/recent chat cards can render decorative thumbnails without re-parsing messages.
@@ -357,6 +360,9 @@ export interface Chat {
   share_pii?: boolean; // Whether public shared-chat responses may include encrypted PII mappings. Defaults to false.
   share_highlights?: boolean; // Whether public shared-chat responses may include encrypted highlight/comment rows. Defaults to true.
   is_shared_by_others?: boolean; // Whether this chat was shared with the current user by someone else (user doesn't own this chat). Used for UI grouping.
+  shared_message_window_has_more_before?: boolean; // Shared-chat import loaded a bounded window and can fetch older pages from the public share endpoint.
+  shared_message_window_next_before_timestamp?: number | null; // Cursor for the next older shared-chat message window.
+  shared_message_window_next_before_message_id?: string | null; // Message-id tie breaker for older shared-chat windows with duplicate timestamps.
 
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)
@@ -789,6 +795,7 @@ export interface InitialSyncResponsePayload {
     encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption
     encrypted_icon?: string | null; // Encrypted icon name from Lucide library
     encrypted_category?: string | null; // Encrypted category name
+    encrypted_shared_short_url?: string | null;
     unread_count?: number;
     messages?: Message[];
     is_shared?: boolean; // Whether this chat has been shared (share link generated)

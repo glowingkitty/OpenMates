@@ -1,0 +1,499 @@
+id: interactive-questions-parity
+title: Interactive Questions Parity
+status: approved
+
+goal: >
+  Make interactive questions a reliable cross-platform protocol for structured
+  assistant follow-ups. Backend streaming must never persist malformed question
+  blocks, and web, CLI, and Apple must render, answer, lock, and recover from
+  interactive questions consistently without exposing protocol JSON to users.
+
+scope:
+  in:
+    - Backend validation and streaming protection for `interactive_question` and `interactive_response` fenced blocks.
+    - Backend/CLI support for `awaiting_user_input` sub-chat prompts without timing out parent chat collection.
+    - CLI TTY prompts for choice, input, slider, swipe, and rating questions.
+    - CLI non-TTY/JSON output that returns structured `waiting_for_user` state and supports a follow-up answer command.
+    - Web rendering and response cleanup so user bubbles show only the answer text, never `Selected: ...` or protocol JSON.
+    - Web malformed-question fallback using translated `Failed to display question.` copy.
+    - Apple native rendering and submission parity for choice, input, slider, swipe, and rating questions.
+    - Apple routing for backend `awaiting_user_input` events and hidden rendering of `interactive_response` protocol fences.
+  out:
+    - Repairing existing malformed messages in storage.
+    - Changing the encrypted message format or chat key design.
+    - Adding new interactive question types beyond choice, input, slider, swipe, and rating.
+    - Replacing the general markdown renderer or chat transcript architecture.
+    - Shipping Apple visual redesign unrelated to interactive question cards.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials; fallback `gh issue list --repo glowingkitty/OpenMates --state all --search \"interactive question OR interactive_question OR awaiting_user_input OR ask_user_input\" --json number,title,state,labels,updatedAt,url --limit 20` found no direct issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/architecture/apple/parity-matrix.md
+    - docs/specs/apple-chat-management-sharing-parity/spec.yml
+  code_patterns:
+    - backend/apps/ai/processing/main_processor.py:INTERACTIVE_QUESTIONS_INSTRUCTION and ask_user_input handling
+    - backend/apps/ai/tasks/stream_consumer.py:stream chunk handling, code block extraction, awaiting_user_input forwarding, final persistence
+    - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts:interactive_question and interactive_response parsing
+    - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte:response formatting and send flow
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts:answered-state scan
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts:handleAwaitingUserInputImpl
+    - frontend/packages/openmates-cli/src/ws.ts:collectAiResponse sub-chat event routing
+    - frontend/packages/openmates-cli/src/cli.ts:current awaiting_user_input warning-only behavior
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift:fenced code rendering and JSON embed handling
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift:normal user-message send pipeline
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift:inbound event routing
+  tests:
+    - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    - frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - backend/tests/test_code_block_detection.py
+    - scripts/audit_example_chats.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+  parity_expectations:
+    - Apple must natively render all supported interactive question types rather than showing code blocks.
+    - Apple user response bubbles must show only the human answer text and hide the protocol `interactive_response` block.
+    - Apple must show translated `Failed to display question.` for malformed question payloads.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or python3 scripts/apple_remote.py test-ios after CLI and web are green
+  intentional_native_differences:
+    - CLI can render terminal-native prompts rather than cards; Apple should use SwiftUI controls matching web behavior and tokens.
+
+clarification:
+  rounds:
+    - question: "Should the first implementation slice include full native Apple interactive-question UI for all 5 types, or Apple fallback only while backend/web/CLI are fixed?"
+      answer: Full implementation parity across all platforms is required.
+    - question: "Should CLI use interactive terminal prompts by default and structured JSON for automation?"
+      answer: Yes; TTY should prompt humans, while non-TTY/JSON should expose `waiting_for_user` and a follow-up command path.
+    - question: "Should user messages include `Selected: ...` before the answer?"
+      answer: No. User bubbles/output must show only the rendered answer text; protocol JSON can still exist in the message but must be hidden in rendering.
+    - question: "Should existing malformed interactive questions be repaired or rendered as a fallback?"
+      answer: Render a translated clear fallback, `Failed to display question.`, without storage repair.
+    - question: "What implementation and verification order should be followed?"
+      answer: Implement and test CLI/backend first, then web and its Playwright spec, then Apple last.
+  vision_summary: >
+    Interactive questions are a shared protocol, not web-only UI. Backend and CLI
+    must be proven first because they define durable data and automation behavior;
+    web then verifies product UX and live chat behavior; Apple follows once the
+    protocol and reference UI are stable. Across all platforms, users see only
+    their answer text in response bubbles/output and never the `Selected:` prefix
+    or hidden protocol JSON.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Backend protects interactive question persistence
+    given:
+      - The assistant streams markdown containing an `interactive_question` fence.
+    when:
+      - The provider emits malformed JSON, an unclosed fence, a later code fence, an embed JSON block, or a disclaimer during the same turn.
+    then:
+      - The backend does not persist a malformed `interactive_question` as renderable protocol content.
+      - Code/embed extraction does not run inside an open interactive question fence.
+      - Final persisted content is either a valid closed interactive question block or safe fallback prose.
+
+  - id: S-2
+    title: CLI answers interactive questions in TTY mode
+    given:
+      - Alice sends a CLI chat message from an interactive terminal.
+      - The assistant response contains a valid interactive question of any supported type.
+    when:
+      - Alice selects or enters an answer in the terminal prompt.
+    then:
+      - The CLI displays only user-friendly question controls and answer text.
+      - The CLI submits an `interactive_response` protocol block hidden from terminal output.
+      - The parent collection continues or ends without timing out.
+
+  - id: S-3
+    title: CLI exposes waiting-for-user state for automation
+    given:
+      - Alice sends a CLI chat message with `--json` or in a non-TTY environment.
+      - The assistant needs interactive input.
+    when:
+      - The CLI receives a normal `interactive_question` response or an `awaiting_user_input` sub-chat event.
+    then:
+      - The CLI result is valid JSON with `status: waiting_for_user`, chat/message identifiers, and a structured question payload.
+      - A follow-up CLI command can answer the question by id and send the same hidden protocol format used by web.
+      - Events with child `chat_id` and parent `parent_id` are not dropped for the active parent chat.
+
+  - id: S-4
+    title: Web renders and locks questions cleanly
+    given:
+      - Alice is using the web app and receives an interactive question.
+    when:
+      - Alice answers it and reloads the chat.
+    then:
+      - The assistant card renders and locks after the answer.
+      - The user message displays only the chosen/entered answer text.
+      - The hidden `interactive_response` JSON is not visible.
+      - A malformed question shows translated `Failed to display question.`.
+
+  - id: S-5
+    title: Apple renders and answers questions natively
+    given:
+      - Alice is using the Apple app and receives an interactive question.
+    when:
+      - Alice answers any supported type and later reloads from local persistence.
+    then:
+      - The native UI renders choice, input, slider, swipe, and rating questions.
+      - The answer is sent through the existing encrypted chat send pipeline.
+      - The user bubble shows only answer text and hides protocol JSON.
+      - Answered cards remain locked after reload.
+      - Malformed payloads show translated `Failed to display question.`.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Backend finalization validates interactive question fenced blocks before persistence and strips or downgrades malformed blocks to non-protocol fallback text.
+  - id: AC-2
+    scenario: S-1
+    text: Backend code/embed extraction and post-processing cannot append JSON embed references or disclaimers inside an unclosed interactive question block.
+  - id: AC-3
+    scenario: S-2
+    text: CLI TTY mode can prompt and submit choice, input, slider, swipe, and rating answers without exposing protocol JSON.
+  - id: AC-4
+    scenario: S-3
+    text: CLI JSON/non-TTY mode returns structured `waiting_for_user` output and supports a follow-up answer command.
+  - id: AC-5
+    scenario: S-3
+    text: CLI handles `awaiting_user_input` events for parent and child chat IDs without timing out or dropping active-parent events.
+  - id: AC-6
+    scenario: S-4
+    text: "Web user response bubbles render only the answer text, never `Selected: ...` or the hidden `interactive_response` JSON block."
+  - id: AC-7
+    scenario: S-4
+    text: Web locks answered questions after submit and after reload using the matching question id and message order.
+  - id: AC-8
+    scenario: S-4
+    text: Web shows translated `Failed to display question.` for malformed question payloads.
+  - id: AC-9
+    scenario: S-5
+    text: Apple renders all five question types natively with OpenMates tokens and no raw code-block fallback for valid payloads.
+  - id: AC-10
+    scenario: S-5
+    text: Apple submits hidden protocol responses through the encrypted send pipeline and renders only answer text in user bubbles.
+  - id: AC-11
+    scenario: S-5
+    text: Apple routes `awaiting_user_input`, preserves answered state after reload, and shows translated malformed-question fallback.
+
+contracts:
+  protocol:
+    - name: interactive_question
+      fence: "```interactive_question"
+      payload: "{ type: choice|input|slider|swipe|rating, id: string, question: string, ...typeSpecificFields }"
+      persistence: Must be closed and valid JSON to remain protocol content.
+      malformed_behavior: Render translated fallback in clients; backend must not create new malformed persisted protocol content.
+    - name: interactive_response
+      fence: "```interactive_response"
+      payload: "{ id: string, ...answerFields }"
+      display: Hidden from user-visible transcript on web, CLI, and Apple.
+      user_visible_answer: Only the selected/entered answer text, with no `Selected:` prefix.
+  websocket:
+    - event: awaiting_user_input
+      direction: server_to_client
+      payload: "{ type: awaiting_user_input, chat_id: string, parent_id?: string, message_id: string, task_id?: string, question: string }"
+      behavior:
+        - Web stores/renders the prompt for the child chat or parent-visible context.
+        - CLI matches either `chat_id` or `parent_id` against the active parent and resolves to a waiting state when no final answer follows.
+        - Apple routes the event to chat UI/state instead of treating it as unknown.
+  data:
+    - Existing malformed messages are left untouched in storage.
+    - New persisted assistant messages must not contain newly generated invalid interactive question blocks.
+    - Answered-state detection must consider message order so an older response with a reused id does not lock a newer question.
+  ui_states:
+    - Valid unanswered question.
+    - Valid answered/locked question.
+    - Malformed question fallback.
+    - Disabled submit until required answer data is present.
+    - CLI non-TTY `waiting_for_user` JSON.
+  privacy_security:
+    - Protocol JSON can remain encrypted in message content but must not be exposed as user-facing UI text.
+    - CLI and Apple must use existing encrypted send/persistence paths; no plaintext answer cache outside existing chat storage.
+
+tests:
+  - id: T-BACKEND-001
+    type: pytest
+    file: backend/tests/test_interactive_questions_streaming.py
+    command: python3 -m pytest backend/tests/test_interactive_questions_streaming.py
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - Valid interactive question content remains unchanged.
+      - Unclosed or invalid interactive question content is downgraded before persistence.
+      - Code/embed JSON after an open malformed interactive question is not converted into a visible trailing protocol leak.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_interactive_questions_streaming.py"
+        timestamp: "2026-06-12"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_interactive_questions_streaming.py (5 passed, 6 warnings)"
+        timestamp: "2026-06-12"
+
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/ws.test.ts tests/interactiveQuestions.test.ts
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+    assertions:
+      - TTY prompt formatting for all supported question types produces hidden protocol response plus answer-only display text.
+      - JSON/non-TTY mode returns structured waiting-for-user output.
+      - "`awaiting_user_input` with child chat_id and parent_id is routed to the active parent collector."
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/interactiveQuestions.test.ts; missing src/interactiveQuestions.ts"
+        timestamp: "2026-06-12"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/ws.test.ts tests/interactiveQuestions.test.ts (9 passed); npm run build passed"
+        timestamp: "2026-06-12"
+
+  - id: T-WEB-UNIT-001
+    type: vitest
+    file: frontend/packages/ui/src/components/interactive_questions/utils/__tests__/questionState.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-6
+      - AC-7
+      - AC-8
+    assertions:
+      - "Response display text omits `Selected:` and hides the protocol fence."
+      - Matching uses message order and does not let older answers lock newer reused ids.
+      - Malformed payloads resolve to translated fallback state.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 scripts/run_tests.py --suite vitest; missing answer-only/locking utility coverage before implementation"
+        timestamp: "2026-06-12"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/run_tests.py --suite vitest (GitHub Actions 27419101708, 373/373 passed)"
+        timestamp: "2026-06-12"
+
+  - id: T-WEB-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/interactive-questions.spec.ts
+    command: python3 scripts/run_tests.py --spec interactive-questions.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-6
+      - AC-7
+      - AC-8
+    assertions:
+      - Live chat question can be answered.
+      - User bubble contains answer text only.
+      - Reload preserves answered/locked state.
+      - Malformed question preview renders translated fallback.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_reproduced_existing_spec_passed
+        run_id: "python3 scripts/run_tests.py --suite playwright --spec interactive-questions.spec.ts (old spec passed before answer-only assertion was added; GitHub Actions 27419630077)"
+        timestamp: "2026-06-12"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "python3 scripts/run_tests.py --suite playwright --spec interactive-questions.spec.ts (GitHub Actions 27420887742, passed; tested head ef6db6c includes 1a8e169)"
+        timestamp: "2026-06-12"
+
+  - id: T-APPLE-001
+    type: unit
+    file: apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios
+    covers:
+      - AC-9
+      - AC-10
+      - AC-11
+    assertions:
+      - Markdown parser identifies interactive_question and hides interactive_response.
+      - Response formatter produces answer-only display text plus hidden protocol content.
+      - Answered-state detection survives reload from persisted messages.
+      - WebSocket awaiting_user_input routes to app state.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: "Apple native answering tests were not added in this checkpoint; only markdown rendering safeguards were implemented."
+        timestamp: "2026-06-12"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_remote.py repo -- bash -lc \"xcodebuild test -quiet -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing OpenMatesTests/InteractiveQuestionsParityTests\" -> exit_code=0 after native answer controls, hidden response formatting, and awaiting_user_input routing were added. Coverage is unit/build-level; no Apple UI automation was added in this slice."
+        timestamp: "2026-06-12"
+
+implementation_plan:
+  existing_patterns:
+    - backend/apps/ai/tasks/stream_consumer.py code-fence state and post-processing helpers
+    - frontend/packages/ui/src/components/interactive_questions/types.ts payload schema
+    - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts response scanning
+    - frontend/packages/openmates-cli/src/ws.ts collectAiResponse event collection
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift markdown block parsing
+  architecture: >
+    Add a small shared protocol layer per platform: backend validates final
+    interactive fences before persistence; CLI and clients parse the same payload
+    shape and format response messages as answer text plus hidden protocol fence;
+    renderers hide protocol fences and show a translated failure fallback for bad
+    payloads.
+  data_flow:
+    - Assistant streams markdown containing an interactive question.
+    - Backend protects the interactive fence while streaming and validates final content.
+    - Client renders native/terminal/web controls from the JSON payload.
+    - User answer is formatted as answer-only display text plus hidden `interactive_response` JSON.
+    - Existing encrypted send/sync paths persist the response.
+    - Renderers scan later messages by order and id to lock the answered question.
+  affected_files:
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Validate/protect interactive question protocol before persistence.
+    - path: backend/tests/test_interactive_questions_streaming.py
+      reason: Backend regression tests.
+    - path: frontend/packages/openmates-cli/src/ws.ts
+      reason: Waiting-for-user routing and collector status.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: TTY prompt and answer command UX.
+    - path: frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+      reason: CLI protocol tests.
+    - path: frontend/packages/ui/src/components/interactive_questions/**
+      reason: Web response formatting, fallback, and answer locking.
+    - path: frontend/apps/web_app/tests/interactive-questions.spec.ts
+      reason: Web E2E regression.
+    - path: apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+      reason: Native markdown parsing/rendering.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/InteractiveQuestionView.swift
+      reason: Native cards for supported types.
+    - path: apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+      reason: Apple unit parity tests.
+  verification_strategy:
+    - Run backend and CLI red/green tests first.
+    - Run web unit and Playwright tests only after CLI/backend are green; Playwright green happens after deploy.
+    - Run Apple remote status and test/build last.
+  verification_order:
+    - Backend + CLI tests first.
+    - Web unit + Playwright second.
+    - Apple remote tests/build third.
+
+tasks:
+  - id: TASK-1
+    title: Add backend and CLI red tests
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/tests/test_interactive_questions_streaming.py
+      - frontend/packages/openmates-cli/tests/interactiveQuestions.test.ts
+    verification:
+      - T-BACKEND-001
+      - T-CLI-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement backend and CLI protocol fixes
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/apps/ai/tasks/stream_consumer.py
+      - frontend/packages/openmates-cli/src/ws.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+    verification:
+      - T-BACKEND-001
+      - T-CLI-001
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Implement and verify web parity
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-6
+        - AC-7
+        - AC-8
+    expected_files:
+      - frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
+      - frontend/packages/ui/src/components/interactive_questions/utils/questionState.ts
+      - frontend/packages/ui/src/i18n/sources/**/*.yml
+      - frontend/apps/web_app/tests/interactive-questions.spec.ts
+    verification:
+      - T-WEB-UNIT-001
+      - T-WEB-E2E-001
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Implement and verify Apple parity
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-9
+        - AC-10
+        - AC-11
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/InteractiveQuestionView.swift
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      - apple/OpenMatesTests/InteractiveQuestionsParityTests.swift
+    verification:
+      - T-APPLE-001
+    independently_deployable: true
+
+risks:
+  - Backend over-sanitizing could remove valid assistant content; tests must cover valid blocks unchanged.
+  - CLI prompting could block automation if TTY/non-TTY detection is wrong; JSON mode must never prompt.
+  - Apple parity may require new Swift UI components and i18n accessors; remote Mac verification may fail for environment reasons.
+
+open_questions:
+  - none

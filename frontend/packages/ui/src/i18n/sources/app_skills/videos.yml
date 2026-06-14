@@ -2,6 +2,25 @@ generate:
   context: Skill name for video generation
   en: Generate
   de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Создать видео
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Buat
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: जनरेट करें
+  th: สร้างวิดีโอ
+  cs: Generovat
+  sv: Generera
+  he: יצירה
   verified_by_human:
     - en
     - de
@@ -10,6 +29,145 @@ generate.description:
   context: Description for generated video skill
   en: Generate a short AI video from a text prompt.
   de: Erstelle ein kurzes KI-Video aus einer Texteingabe.
+  zh: 根据文本提示词生成一段 AI 短视频。
+  es: Genera un video corto de IA a partir de un mensaje de texto.
+  fr: "Génère une courte vidéo par IA à partir d'une invite textuelle."
+  pt: Gera um vídeo curto de IA a partir de um comando de texto.
+  ru: Создавай короткие ИИ-видео по текстовому описанию.
+  ja: テキストプロンプトから短いAI動画を生成します。
+  ko: 텍스트 프롬프트로 짧은 AI 비디오를 생성합니다.
+  it: Genera un breve video AI da un prompt di testo.
+  tr: Metin isteminden kısa bir yapay zeka videosu oluştur.
+  vi: Tạo video AI ngắn từ lời nhắc văn bản.
+  id: Buat video AI pendek dari perintah teks.
+  pl: Generuj krótkie wideo AI na podstawie opisu tekstowego.
+  nl: Genereer een korte AI-video op basis van een tekstprompt.
+  ar: إنشاء فيديو قصير بالذكاء الاصطناعي من مطالبة نصية.
+  hi: टेक्स्ट प्रॉम्प्ट से एक छोटा AI वीडियो जनरेट करें।
+  th: สร้างวิดีโอ AI สั้นๆ จากข้อความพรอมต์
+  cs: Generuj krátké AI video z textového zadání.
+  sv: Generera en kort AI-video från en textprompt.
+  he: יצירת סרטון AI קצר מהנחיית טקסט.
+  verified_by_human:
+    - en
+    - de
+
+create:
+  context: Skill name for Remotion video creation
+  en: Create Video
+  de: Video erstellen
+  verified_by_human:
+    - en
+    - de
+
+create.description:
+  context: Description for Remotion video creation skill
+  en: Create deterministic videos with editable Remotion code.
+  de: Erstelle deterministische Videos mit bearbeitbarem Remotion-Code.
+  verified_by_human:
+    - en
+    - de
+
+create.view.video:
+  context: Tab label for Remotion video playback view
+  en: Video
+  de: Video
+  verified_by_human:
+    - en
+    - de
+
+create.view.timeline:
+  context: Tab label for Remotion video timeline view
+  en: Timeline
+  de: Timeline
+  verified_by_human:
+    - en
+    - de
+
+create.view.code:
+  context: Tab label for Remotion video source code view
+  en: Code
+  de: Code
+  verified_by_human:
+    - en
+    - de
+
+create.status.rendering:
+  context: Status text while a Remotion video is rendering
+  en: Rendering video...
+  de: Video wird gerendert...
+  verified_by_human:
+    - en
+    - de
+
+create.status.processing:
+  context: Status text while Remotion source is being prepared
+  en: Preparing Remotion source...
+  de: Remotion-Quelle wird vorbereitet...
+  verified_by_human:
+    - en
+    - de
+
+create.status.cancelled:
+  context: Status text after a Remotion render was cancelled
+  en: Render stopped
+  de: Rendern gestoppt
+  verified_by_human:
+    - en
+    - de
+
+create.status.needs_rerender:
+  context: Status text when Remotion source changed and needs a new render
+  en: Needs rerender
+  de: Muss neu gerendert werden
+  verified_by_human:
+    - en
+    - de
+
+create.status.error:
+  context: Status text when a Remotion render failed
+  en: Render failed
+  de: Rendern fehlgeschlagen
+  verified_by_human:
+    - en
+    - de
+
+create.status.unavailable:
+  context: Placeholder when a Remotion video file is not yet available
+  en: Video is not available yet.
+  de: Das Video ist noch nicht verfügbar.
+  verified_by_human:
+    - en
+    - de
+
+create.action.rerender:
+  context: Button label to rerender the current Remotion video source
+  en: Rerender
+  de: Neu rendern
+  verified_by_human:
+    - en
+    - de
+
+create.action.render_this_version:
+  context: Button label to render a selected Remotion source version
+  en: Render this version
+  de: Diese Version rendern
+  verified_by_human:
+    - en
+    - de
+
+create.action.stop_render:
+  context: Button label to stop an active Remotion render
+  en: Stop render
+  de: Rendern stoppen
+  verified_by_human:
+    - en
+    - de
+
+create.header.subtitle:
+  context: Header subtitle for Remotion video create embeds, with version and status
+  en: Remotion · v{version} · {status}
+  de: Remotion · v{version} · {status}
   verified_by_human:
     - en
     - de

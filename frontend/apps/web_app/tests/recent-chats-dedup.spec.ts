@@ -77,7 +77,23 @@ async function performLogin(
 }
 
 /**
- * Open the sidebar and return the titles of the first N user chats.
+ * Check if a chat ID is a public/demo/intro/legal/newsletter chat.
+ * Mirrors isPublicChat() from the frontend — demo, legal, example, and newsletter IDs.
+ */
+function isPublicChatId(chatId: string): boolean {
+	return (
+		chatId.startsWith('demo-') ||
+		chatId.startsWith('legal-') ||
+		chatId.startsWith('announcements-') ||
+		chatId.startsWith('tips-') ||
+		chatId === 'example-for-everyone' ||
+		chatId === 'example-for-developers'
+	);
+}
+
+/**
+ * Open the sidebar and return the titles of the first N user-owned chats
+ * (excluding public/demo/intro/legal/newsletter chats).
  * Closes the sidebar afterwards.
  */
 async function getSidebarChatTitles(
@@ -96,13 +112,16 @@ async function getSidebarChatTitles(
 		await page.waitForTimeout(2000);
 	}
 
-	// Get chat titles (skip encrypted/unnamed chats)
-	const chatItems = page.locator('[data-testid="chat-item"] .chat-title');
-	const chatCount = await chatItems.count();
+	// Get user-owned chat titles (skip public/demo/intro, encrypted, and unnamed chats)
+	const chatWrappers = page.locator('[data-testid="chat-item-wrapper"]');
+	const wrapperCount = await chatWrappers.count();
 	const titles: string[] = [];
-	for (let i = 0; i < Math.min(chatCount, count); i++) {
-		const text = (await chatItems.nth(i).textContent())?.trim() || '';
-		// Skip encrypted blobs and processing placeholders
+	for (let i = 0; i < Math.min(wrapperCount, count * 3); i++) {
+		if (titles.length >= count) break;
+		const chatId = await chatWrappers.nth(i).getAttribute('data-chat-id');
+		if (!chatId || isPublicChatId(chatId)) continue;
+		const titleEl = chatWrappers.nth(i).locator('.chat-title');
+		const text = (await titleEl.textContent())?.trim() || '';
 		if (
 			text &&
 			!text.includes('+') &&
@@ -113,7 +132,7 @@ async function getSidebarChatTitles(
 			titles.push(text);
 		}
 	}
-	logStep(`Sidebar has ${titles.length} readable chats (of ${chatCount} total)`);
+	logStep(`Sidebar has ${titles.length} user-owned chats (scanned ${Math.min(wrapperCount, count * 3)})`);
 	return titles;
 }
 

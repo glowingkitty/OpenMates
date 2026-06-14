@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 
 logger = logging.getLogger(__name__)
 
@@ -657,7 +657,7 @@ async def _search_doctors(
     max_doctors: int,
 ) -> List[Dict[str, Any]]:
     """
-    POST /phs_proxy/raw?page=N to search for doctors.
+    POST /patient-health-search/api/v1/hcp/search?page=N to search for doctors.
 
     Returns up to max_doctors provider dicts. Each provider includes:
     - name, firstName, title, gender, type (PERSON/ORGANIZATION)
@@ -684,13 +684,13 @@ async def _search_doctors(
             payload["filters"]["telehealth"] = True
         if language:
             payload["filters"]["languages"] = [language]
-        # NOTE: Do NOT pass 'availabilitiesBefore' to /phs_proxy/raw.
+        # NOTE: Do NOT pass 'availabilitiesBefore' to the provider search.
         # Empirically, that filter causes Doctolib to return 0 results regardless
         # of actual availability. The days_ahead window is already applied per-doctor
         # via the 'limit' parameter in _fetch_availability() → /search/availabilities.json.
         # days_ahead is intentionally unused in this search phase.
 
-        url = f"{DOCTOLIB_BASE_URL}/phs_proxy/raw?page={page}"
+        url = f"{DOCTOLIB_BASE_URL}/patient-health-search/api/v1/hcp/search?page={page}"
         logger.debug(
             "[health:search_appointments] Fetching doctor page %d: %s", page, url
         )
@@ -1765,16 +1765,24 @@ class SearchAppointmentsSkill(BaseSkill):
         if error_response:
             return error_response
 
-        # Validate and normalise the requests array
-        validated, err = self._validate_requests_array(
+        validated, invalid_grouped_results, validation_errors, err = self._partition_requests_by_required_fields(
             requests=requests,
-            required_field="speciality",
-            field_display_name="speciality",
+            required_fields=["speciality"],
+            field_display_names={"speciality": "speciality"},
             empty_error_message="No appointment search requests provided. 'requests' array must contain at least one request with a 'speciality' field.",
             logger=logger,
         )
         if err:
             return SearchAppointmentsResponse(error=err)
+        if not validated:
+            return self._build_response_with_errors(
+                response_class=SearchAppointmentsResponse,
+                grouped_results=invalid_grouped_results,
+                errors=validation_errors,
+                provider="Doctolib, Jameda",
+                suggestions=self.FOLLOW_UP_SUGGESTIONS,
+                logger=logger,
+            )
 
         # Load proxy credentials from Vault if secrets_manager is available.
         # We use Webshare rotating residential proxies (same as url_validator.py)
@@ -1828,7 +1836,12 @@ class SearchAppointmentsSkill(BaseSkill):
 
         # Group results by request ID
         grouped, errors = self._group_results_by_request_id(
-            all_results, validated, logger
+            all_results, requests, logger
+        )
+        grouped = self._merge_grouped_results_preserving_request_order(
+            grouped,
+            invalid_grouped_results,
+            requests,
         )
 
         # Derive provider label from the requests

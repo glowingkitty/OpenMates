@@ -787,7 +787,7 @@ class UserDatabaseService {
 
       idRequest.onsuccess = () => {
         profile.user_id = idRequest.result || null;
-        console.warn(
+        console.debug(
           "[UserDatabase] idRequest success, result:",
           idRequest.result,
           "profile.user_id:",

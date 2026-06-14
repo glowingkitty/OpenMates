@@ -22,8 +22,12 @@ import {
   encryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
   base64ToBytes,
-  bytesToBase64,
   hashItemKey,
+  createRecoveryKeyMaterial,
+  createSignupCryptoMaterial,
+  hashEmail,
+  type RecoveryKeyMaterial,
+  type SignupCryptoMaterial,
 } from "./crypto.js";
 import { OpenMatesHttpClient } from "./http.js";
 import {
@@ -38,10 +42,17 @@ import {
   clearSyncCache,
   isSyncCacheFresh,
 } from "./storage.js";
-import { OpenMatesWsClient } from "./ws.js";
+import { loadServerConfig } from "./serverConfig.js";
+import {
+  OpenMatesWsClient,
+  type AppSettingsMemoriesRequestEvent,
+  type SendEmbedDataFrame,
+  type SubChatEvent,
+} from "./ws.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
-import type { EncryptedEmbed } from "./embedCreator.js";
+import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
+import { computeSHA256, encryptEmbed } from "./embedCreator.js";
 import {
   generateChatShareBlob,
   generateEmbedShareBlob,
@@ -50,6 +61,189 @@ import {
   buildEmbedShareUrl,
   type ShareDuration,
 } from "./shareEncryption.js";
+
+function normalizeUnixSeconds(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return fallback;
+  }
+  return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
+}
+
+export function getClientMessagesVersionForSync(cached: CachedChat): number {
+  if (cached.messages.length === 0) return 0;
+  return typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
+}
+
+export interface CliSubChatRequest {
+  id?: string;
+  chat_id?: string;
+  user_message_id?: string;
+  message_id?: string;
+  prompt?: string;
+  wait_for_completion?: boolean;
+}
+
+export interface SubChatEncryptedMetadataPayload {
+  chat_id: string;
+  parent_id: string;
+  is_sub_chat: true;
+  message_id: string;
+  encrypted_content: string;
+  encrypted_sender_name: string;
+  encrypted_title: string;
+  created_at: number;
+  encrypted_chat_key?: string | null;
+  versions: {
+    messages_v: number;
+    title_v: number;
+    last_edited_overall_timestamp: number;
+  };
+}
+
+export interface SubChatApprovalRequest {
+  chatId: string;
+  taskId: string;
+  subChats: CliSubChatRequest[];
+  maxAutoSubChats: number | null;
+  maxDirectSubChats: number | null;
+  existingSubChats: number | null;
+  remainingSubChats: number | null;
+}
+
+export interface AppSettingsMemorySystemMessage {
+  message_id: string;
+  role: "system";
+  content: string;
+  created_at: number;
+  user_message_id: string;
+}
+
+type AppSettingsMemoryResponseCategory = {
+  appId: string;
+  itemType: string;
+  entryCount: number;
+};
+
+export function buildSubChatConfirmationPayload(params: {
+  chatId: string;
+  taskId: string;
+  approved: boolean;
+  approveCount?: number;
+}): {
+  chat_id: string;
+  task_id: string;
+  action: "approve" | "cancel";
+  approve_count: number | null;
+} {
+  return {
+    chat_id: params.chatId,
+    task_id: params.taskId,
+    action: params.approved ? "approve" : "cancel",
+    approve_count: params.approved ? params.approveCount ?? null : null,
+  };
+}
+
+function categoryFromMemoryKey(key: string): { appId: string; itemType: string } | null {
+  const separator = key.indexOf("-");
+  if (separator <= 0 || separator === key.length - 1) return null;
+  return {
+    appId: key.slice(0, separator),
+    itemType: key.slice(separator + 1),
+  };
+}
+
+export function buildAppSettingsMemoryRequestSystemMessage(params: {
+  userMessageId: string;
+  requestId: string;
+  requestedKeys: string[];
+  createdAt: number;
+}): AppSettingsMemorySystemMessage {
+  const seen = new Set<string>();
+  const categories: Array<{ appId: string; itemType: string; entryCount: number }> = [];
+  for (const key of params.requestedKeys) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const parsed = categoryFromMemoryKey(key);
+    if (!parsed) continue;
+    categories.push({
+      ...parsed,
+      entryCount: 0,
+    });
+  }
+
+  return {
+    message_id: params.requestId,
+    role: "system",
+    content: JSON.stringify({
+      type: "app_settings_memories_request",
+      user_message_id: params.userMessageId,
+      request_id: params.requestId,
+      requested_keys: params.requestedKeys,
+      categories,
+    }),
+    created_at: params.createdAt,
+    user_message_id: params.userMessageId,
+  };
+}
+
+export function buildAppSettingsMemoryResponseSystemMessage(params: {
+  userMessageId: string;
+  messageId: string;
+  action: "included" | "rejected";
+  categories?: AppSettingsMemoryResponseCategory[];
+  createdAt: number;
+}): AppSettingsMemorySystemMessage {
+  return {
+    message_id: params.messageId,
+    role: "system",
+    content: JSON.stringify({
+      type: "app_settings_memories_response",
+      user_message_id: params.userMessageId,
+      action: params.action,
+      categories: params.action === "included" ? params.categories : undefined,
+    }),
+    created_at: params.createdAt,
+    user_message_id: params.userMessageId,
+  };
+}
+
+export async function buildSubChatEncryptedMetadataPayloads(params: {
+  parentChatId: string;
+  parentChatKey: Uint8Array;
+  encryptedParentChatKey: string | null;
+  subChats: CliSubChatRequest[];
+  createdAt?: number;
+}): Promise<SubChatEncryptedMetadataPayload[]> {
+  const createdAt = params.createdAt ?? Math.floor(Date.now() / 1000);
+  const payloads: SubChatEncryptedMetadataPayload[] = [];
+
+  for (const subChat of params.subChats) {
+    const chatId = subChat.id || subChat.chat_id;
+    const messageId = subChat.user_message_id || subChat.message_id;
+    const prompt = subChat.prompt || "";
+    if (!chatId || !messageId) continue;
+
+    const title = prompt.substring(0, 30);
+    payloads.push({
+      chat_id: chatId,
+      parent_id: params.parentChatId,
+      is_sub_chat: true,
+      message_id: messageId,
+      encrypted_content: await encryptWithAesGcmCombined(prompt, params.parentChatKey),
+      encrypted_sender_name: await encryptWithAesGcmCombined("User", params.parentChatKey),
+      encrypted_title: await encryptWithAesGcmCombined(title, params.parentChatKey),
+      created_at: createdAt,
+      encrypted_chat_key: params.encryptedParentChatKey,
+      versions: {
+        messages_v: 1,
+        title_v: 0,
+        last_edited_overall_timestamp: createdAt,
+      },
+    });
+  }
+
+  return payloads;
+}
 
 // ---------------------------------------------------------------------------
 // Memory type registry — mirrors all production-stage entries from app.yml files.
@@ -90,10 +284,9 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       title: { type: "string" },
       tone: {
         type: "string",
-        enum: ["formal", "casual", "friendly", "professional"],
+        enum: ["formal", "casual", "friendly", "professional", "conversational"],
       },
-      verbosity: { type: "string", enum: ["concise", "balanced", "detailed"] },
-      notes: { type: "string" },
+      verbosity: { type: "string", enum: ["concise", "balanced", "detailed", "very_detailed"] },
     },
   },
   "ai/learning_preferences": {
@@ -105,11 +298,11 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       title: { type: "string" },
       learning_type: {
         type: "string",
-        enum: ["visual", "reading", "hands_on", "audio", "mixed"],
+        enum: ["visual", "auditory", "reading", "hands-on", "video", "interactive", "written", "discussion"],
       },
       preference_strength: {
         type: "string",
-        enum: ["strong", "moderate", "slight"],
+        enum: ["strongly_prefer", "prefer", "neutral", "avoid"],
       },
       notes: { type: "string" },
     },
@@ -173,7 +366,7 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       name: { type: "string" },
       status: {
         type: "string",
-        enum: ["active", "paused", "completed", "archived"],
+        enum: ["active", "planned", "completed"],
       },
       description: { type: "string" },
       git_repo_url: { type: "string" },
@@ -194,12 +387,12 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     properties: {
       workspace: {
         type: "string",
-        enum: ["local", "remote", "cloud", "mixed"],
+        enum: ["ide", "terminal", "web_ui", "mixed"],
       },
-      ai_level: { type: "string", enum: ["minimal", "moderate", "extensive"] },
+      ai_level: { type: "string", enum: ["off", "low", "medium", "high"] },
       input_style: {
         type: "string",
-        enum: ["keyboard_only", "mixed", "voice_primary"],
+        enum: ["guided_choices", "free_text", "mixed"],
       },
       notes: { type: "string" },
     },
@@ -211,12 +404,30 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     required: ["name"],
     properties: { name: { type: "string" }, description: { type: "string" } },
   },
+  "events/saved_events": {
+    appId: "events",
+    itemType: "saved_events",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      embed_id: { type: "string" },
+      title: { type: "string" },
+      provider: { type: "string" },
+      url: { type: "string" },
+      date_start: { type: "string" },
+      date_end: { type: "string" },
+      location: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
   "health/appointments": {
     appId: "health",
     itemType: "appointments",
     entryType: "list",
     required: ["appointment_type", "date"],
     properties: {
+      embed_id: { type: "string" },
+      title: { type: "string" },
       appointment_type: { type: "string" },
       where: { type: "string" },
       date: { type: "string" },
@@ -233,16 +444,33 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
         type: "string",
         enum: [
           "surgery",
-          "condition",
+          "chronic_condition",
           "allergy",
           "medication",
           "vaccination",
+          "injury",
           "other",
         ],
       },
       name: { type: "string" },
       date: { type: "string" },
       details: { type: "string" },
+    },
+  },
+  "home/saved_listings": {
+    appId: "home",
+    itemType: "saved_listings",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      embed_id: { type: "string" },
+      title: { type: "string" },
+      url: { type: "string" },
+      provider: { type: "string" },
+      price_label: { type: "string" },
+      address: { type: "string" },
+      available_from: { type: "string" },
+      notes: { type: "string" },
     },
   },
   "images/preferred_styles": {
@@ -264,12 +492,16 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       footer: { type: "string" },
     },
   },
-  "maps/favorite_places": {
-    appId: "maps",
-    itemType: "favorite_places",
+  "reminder/saved_item_reminder_defaults": {
+    appId: "reminder",
+    itemType: "saved_item_reminder_defaults",
     entryType: "list",
-    required: ["name"],
-    properties: { name: { type: "string" }, address: { type: "string" } },
+    required: ["item_kind", "offsets_minutes"],
+    properties: {
+      item_kind: { type: "string", enum: ["event", "travel_connection", "travel_stay", "home_listing", "health_appointment"] },
+      offsets_minutes: { type: "string" },
+      notes: { type: "string" },
+    },
   },
   "study/learning_goals": {
     appId: "study",
@@ -298,6 +530,40 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
       notes: { type: "string" },
     },
   },
+  "travel/saved_connections": {
+    appId: "travel",
+    itemType: "saved_connections",
+    entryType: "list",
+    required: ["title"],
+    properties: {
+      embed_id: { type: "string" },
+      title: { type: "string" },
+      transport_method: { type: "string" },
+      origin: { type: "string" },
+      destination: { type: "string" },
+      departure: { type: "string" },
+      arrival: { type: "string" },
+      booking_url: { type: "string" },
+      provider: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
+  "travel/saved_stays": {
+    appId: "travel",
+    itemType: "saved_stays",
+    entryType: "list",
+    required: ["name"],
+    properties: {
+      embed_id: { type: "string" },
+      name: { type: "string" },
+      property_type: { type: "string" },
+      url: { type: "string" },
+      price: { type: "string" },
+      rating: { type: "number" },
+      location: { type: "string" },
+      notes: { type: "string" },
+    },
+  },
   "travel/preferred_airlines": {
     appId: "travel",
     itemType: "preferred_airlines",
@@ -310,7 +576,9 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     itemType: "preferred_transport_methods",
     entryType: "list",
     required: ["method"],
-    properties: { method: { type: "string" } },
+    properties: {
+      method: { type: "string", enum: ["bike", "public_transport", "train", "plane", "car", "walking"] },
+    },
   },
   "travel/preferred_activities": {
     appId: "travel",
@@ -326,12 +594,12 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     required: ["title"],
     properties: {
       title: { type: "string" },
-      year: { type: "number" },
+      year: { type: "integer" },
       director: { type: "string" },
       rating: { type: "number" },
-      tmdb_id: { type: "number" },
+      tmdb_id: { type: "integer" },
       notes: { type: "string" },
-      genre: { type: "string" },
+      genre: { type: "array" },
     },
   },
   "tv/watched_tv_shows": {
@@ -341,17 +609,17 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     required: ["title"],
     properties: {
       title: { type: "string" },
-      year: { type: "number" },
-      tmdb_id: { type: "number" },
+      year: { type: "integer" },
+      tmdb_id: { type: "integer" },
       status: {
         type: "string",
-        enum: ["watching", "completed", "dropped", "on_hold"],
+        enum: ["watching", "completed", "on_hold", "dropped"],
       },
-      seasons_watched: { type: "number" },
+      seasons_watched: { type: "integer" },
       latest_episode: { type: "string" },
       rating: { type: "number" },
       notes: { type: "string" },
-      genre: { type: "string" },
+      genre: { type: "array" },
     },
   },
   "tv/to_watch_list": {
@@ -361,12 +629,12 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     required: ["title", "type"],
     properties: {
       title: { type: "string" },
-      year: { type: "number" },
+      year: { type: "integer" },
       type: { type: "string", enum: ["movie", "tv_show"] },
-      tmdb_id: { type: "number" },
+      tmdb_id: { type: "integer" },
       director: { type: "string" },
       priority: { type: "string", enum: ["high", "medium", "low"] },
-      genre: { type: "string" },
+      genre: { type: "array" },
       reason: { type: "string" },
     },
   },
@@ -408,7 +676,7 @@ interface PairBundle {
   master_key_exported: string;
 }
 
-interface ChatListItem {
+export interface ChatListItem {
   id: string;
   shortId: string;
   title: string | null;
@@ -416,6 +684,7 @@ interface ChatListItem {
   updatedAt: number | null;
   category: string | null;
   mateName: string | null;
+  source?: "example";
 }
 
 /** A single parameter extracted from the OpenAPI skill schema. */
@@ -574,6 +843,64 @@ export interface DownloadedDocument {
   data: Uint8Array;
 }
 
+export interface BankTransferOrderDetails {
+  order_id: string;
+  reference: string;
+  iban: string;
+  bic: string;
+  bank_name: string;
+  account_holder_name: string;
+  account_holder_address_line1?: string;
+  account_holder_address_line2?: string;
+  account_holder_postal_code?: string;
+  account_holder_city?: string;
+  account_holder_country?: string;
+  amount_eur: string;
+  credits_amount: number;
+  expires_at: string;
+}
+
+export interface BankTransferStatus {
+  order_id: string;
+  status: string;
+  credits_amount: number;
+  amount_eur: string;
+  reference: string;
+  expires_at: string;
+  created_at?: string;
+}
+
+export interface GiftCardBankTransferStatus extends BankTransferStatus {
+  gift_card_code?: string | null;
+}
+
+export interface AuthMethodsStatus {
+  has_passkey?: boolean;
+  has_2fa?: boolean;
+  has_password?: boolean;
+  has_recovery_key?: boolean;
+}
+
+export interface CliSignupResult {
+  success: boolean;
+  message: string;
+  user?: Record<string, unknown>;
+  crypto: SignupCryptoMaterial;
+}
+
+export interface TotpSetupStartResult {
+  success: boolean;
+  message: string;
+  secret?: string | null;
+  otpauth_url?: string | null;
+}
+
+export interface BackupCodesResult {
+  success: boolean;
+  message: string;
+  backup_codes: string[];
+}
+
 interface TaskStatusResponse {
   task_id: string;
   status: "pending" | "processing" | "completed" | "failed" | string;
@@ -585,11 +912,27 @@ interface TaskStatusResponse {
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_API_URL =
-  process.env.OPENMATES_API_URL ?? "https://api.openmates.org";
+const CLOUD_API_URL = "https://api.openmates.org";
+const DEFAULT_API_URL = process.env.OPENMATES_API_URL ?? CLOUD_API_URL;
 const SETTINGS_GET_RATE_LIMIT_RETRY_MS = 61_000;
 const SKILL_TASK_POLL_INTERVAL_MS = 2_000;
 const SKILL_TASK_POLL_TIMEOUT_MS = 300_000;
+
+function normalizeOrigin(url: URL): string {
+  url.pathname = "";
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/, "");
+}
+
+function isLocalHost(hostname: string): boolean {
+  return ["localhost", "127.0.0.1", "::1"].includes(hostname);
+}
+
+function loadDefaultServerApiUrl(): string | null {
+  const config = loadServerConfig();
+  return config?.apiUrl?.replace(/\/$/, "") ?? null;
+}
 
 /**
  * Derive the web app URL from the API URL so the pair token is always looked
@@ -600,16 +943,30 @@ export function deriveAppUrl(apiUrl: string): string {
   if (process.env.OPENMATES_APP_URL) {
     return process.env.OPENMATES_APP_URL.replace(/\/$/, "");
   }
-  if (apiUrl.includes("api.dev.openmates.org")) {
-    return "https://app.dev.openmates.org";
+
+  const serverAppUrl = loadServerConfig()?.appUrl;
+  if (serverAppUrl && apiUrl.replace(/\/$/, "") === loadDefaultServerApiUrl()) {
+    return serverAppUrl.replace(/\/$/, "");
   }
-  if (apiUrl.includes("api.openmates.org")) {
+
+  try {
+    const url = new URL(apiUrl);
+    if (url.hostname === "api.dev.openmates.org") {
+      return "https://app.dev.openmates.org";
+    }
+    if (url.hostname === "api.openmates.org") {
+      return "https://openmates.org";
+    }
+    if (isLocalHost(url.hostname)) {
+      return "http://localhost:5173";
+    }
+    if (url.hostname.startsWith("api.")) {
+      url.hostname = `app.${url.hostname.slice(4)}`;
+    }
+    return normalizeOrigin(url);
+  } catch {
     return "https://openmates.org";
   }
-  if (apiUrl.includes("localhost")) {
-    return "http://localhost:5173";
-  }
-  return "https://openmates.org";
 }
 
 const CLI_DEVICE_NAME_PREFIX = "OpenMates CLI";
@@ -634,12 +991,18 @@ const BLOCKED_SETTINGS_MUTATE_PATHS = new Set<string>([
 
 export class OpenMatesClient {
   readonly apiUrl: string;
-  private readonly session: OpenMatesSession | null;
+  private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
 
   constructor(options: OpenMatesClientOptions = {}) {
-    this.apiUrl = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
     const diskSession = options.session ?? this.getValidSessionFromDisk();
+    this.apiUrl = (
+      options.apiUrl ??
+      process.env.OPENMATES_API_URL ??
+      diskSession?.apiUrl ??
+      loadDefaultServerApiUrl() ??
+      DEFAULT_API_URL
+    ).replace(/\/$/, "");
     this.session = diskSession;
     this.http = new OpenMatesHttpClient({
       apiUrl: this.apiUrl,
@@ -764,6 +1127,7 @@ export class OpenMatesClient {
     const response = await this.http.post<{
       success?: boolean;
       user?: Record<string, unknown>;
+      ws_token?: string;
     }>(
       "/v1/auth/session",
       { session_id: session.sessionId },
@@ -772,6 +1136,11 @@ export class OpenMatesClient {
     if (!response.ok || !response.data.success) {
       throw new Error("Session is invalid. Please run `openmates login`.");
     }
+    if (response.data.ws_token) {
+      session.wsToken = response.data.ws_token;
+    }
+    session.cookies = this.http.getCookieMap();
+    saveSession(session);
     return response.data.user ?? {};
   }
 
@@ -782,6 +1151,198 @@ export class OpenMatesClient {
         .catch(() => undefined);
     }
     clearSession();
+  }
+
+  async requestSignupEmailCode(params: {
+    email: string;
+    inviteCode?: string;
+    language?: string;
+    darkmode?: boolean;
+  }): Promise<unknown> {
+    const hashedEmail = await hashEmail(params.email.trim().toLowerCase());
+    const response = await this.http.post(
+      "/v1/auth/request_confirm_email_code",
+      {
+        email: params.email.trim().toLowerCase(),
+        hashed_email: hashedEmail,
+        invite_code: params.inviteCode ?? "",
+        language: params.language ?? "en",
+        darkmode: params.darkmode ?? false,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `Email code request failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async verifySignupEmailCode(params: {
+    email: string;
+    username: string;
+    inviteCode?: string;
+    code: string;
+    language?: string;
+    darkmode?: boolean;
+  }): Promise<unknown> {
+    const response = await this.http.post(
+      "/v1/auth/check_confirm_email_code",
+      {
+        code: params.code,
+        email: params.email.trim().toLowerCase(),
+        username: params.username,
+        invite_code: params.inviteCode ?? "",
+        language: params.language ?? "en",
+        darkmode: params.darkmode ?? false,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `Email code verification failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async setupPasswordAccount(params: {
+    email: string;
+    username: string;
+    password: string;
+    inviteCode?: string;
+    language?: string;
+    darkmode?: boolean;
+  }): Promise<CliSignupResult> {
+    const material = await createSignupCryptoMaterial(params.email, params.password);
+    const response = await this.http.post<{ success?: boolean; message?: string; user?: Record<string, unknown> }>(
+      "/v1/auth/setup_password",
+      {
+        hashed_email: material.hashedEmail,
+        encrypted_email: material.encryptedEmail,
+        user_email_salt: material.userEmailSaltB64,
+        username: params.username,
+        invite_code: params.inviteCode ?? "",
+        encrypted_master_key: material.encryptedMasterKey,
+        key_iv: material.keyIv,
+        salt: material.saltB64,
+        lookup_hash: material.lookupHash,
+        language: params.language ?? "en",
+        darkmode: params.darkmode ?? false,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.success) {
+      throw new Error(response.data.message ?? `Password signup failed (HTTP ${response.status})`);
+    }
+
+    const session: OpenMatesSession = {
+      apiUrl: this.apiUrl,
+      sessionId: randomUUID(),
+      wsToken: null,
+      cookies: this.http.getCookieMap(),
+      masterKeyExportedB64: material.masterKeyB64,
+      emailEncryptionKeyB64: material.emailEncryptionKeyB64,
+      hashedEmail: material.hashedEmail,
+      userEmailSalt: material.userEmailSaltB64,
+      createdAt: Date.now(),
+      authorizerDeviceName: null,
+      autoLogoutMinutes: null,
+    };
+    saveSession(session);
+    this.session = session;
+    return {
+      success: true,
+      message: response.data.message ?? "Account created.",
+      user: response.data.user,
+      crypto: material,
+    };
+  }
+
+  async startTotpSetup(): Promise<TotpSetupStartResult> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post<TotpSetupStartResult>(
+      "/v1/auth/2fa/setup/initiate",
+      { email_encryption_key: emailEncryptionKey },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.success) {
+      throw new Error(response.data.message ?? `2FA setup failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  renderTotpQrCode(otpauthUrl: string): void {
+    qrcode.generate(otpauthUrl, { small: true });
+  }
+
+  async verifyTotpSetup(code: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/auth/2fa/setup/verify-signup",
+      { code },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `2FA verification failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async setTotpProvider(provider: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/auth/2fa/setup/provider",
+      { provider },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `2FA provider save failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async requestBackupCodes(): Promise<BackupCodesResult> {
+    this.requireSession();
+    const response = await this.http.get<BackupCodesResult>(
+      "/v1/auth/2fa/setup/request-backup-codes",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.success) {
+      throw new Error(response.data.message ?? `Backup-code request failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async confirmBackupCodesStored(): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/auth/2fa/setup/confirm-codes-stored",
+      { confirmed: true },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `Backup-code confirmation failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async createAndConfirmRecoveryKey(): Promise<RecoveryKeyMaterial> {
+    const session = this.requireSession();
+    const material = await createRecoveryKeyMaterial(session.masterKeyExportedB64, session.userEmailSalt);
+    const response = await this.http.post(
+      "/v1/auth/recovery-key/confirm-stored",
+      {
+        confirmed: true,
+        lookup_hash: material.lookupHash,
+        wrapped_master_key: material.wrappedMasterKey,
+        key_iv: material.keyIv,
+        salt: material.saltB64,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || (response.data as { success?: boolean }).success === false) {
+      throw new Error((response.data as { message?: string }).message ?? `Recovery-key confirmation failed (HTTP ${response.status})`);
+    }
+    return material;
   }
 
   // -------------------------------------------------------------------------
@@ -1098,6 +1659,7 @@ export class OpenMatesClient {
         content = parseYamlLikeContent(rawContent);
       }
     }
+    content = await this.refreshRemotionVideoCreateContent(embedId, content);
 
     // Derive type/appId/skillId from content if not on the embed record itself
     const strVal = (v: unknown) =>
@@ -1122,6 +1684,32 @@ export class OpenMatesClient {
       skillId: resolvedSkillId,
       createdAt: typeof embed.created_at === "number" ? embed.created_at : null,
     };
+  }
+
+  private async refreshRemotionVideoCreateContent(
+    embedId: string,
+    content: Record<string, unknown> | null,
+  ): Promise<Record<string, unknown> | null> {
+    if (!content || content.app_id !== "videos" || content.skill_id !== "create") {
+      return content;
+    }
+    const status = typeof content.status === "string" ? content.status : "";
+    if (!["processing", "rendering", "needs_rerender"].includes(status)) {
+      return content;
+    }
+
+    const response = await this.http.get<{
+      content?: Record<string, unknown>;
+      status?: string;
+    }>(`/v1/videos/remotion/${encodeURIComponent(embedId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data?.content) {
+      return content;
+    }
+    const refreshed = response.data.content;
+    if (refreshed.app_id !== "videos" || refreshed.skill_id !== "create") {
+      return content;
+    }
+    return refreshed;
   }
 
   /**
@@ -1418,16 +2006,39 @@ export class OpenMatesClient {
     incognito?: boolean;
     /** Streaming callback — fires for typing, chunk, and done events. */
     onStream?: (event: import("./ws.js").StreamEvent) => void;
+    /** Sub-chat lifecycle callback for progress/status output. */
+    onSubChatEvent?: (event: SubChatEvent) => void;
+    /** Approval callback used when the server asks before starting a large sub-chat batch. */
+    onSubChatApprovalRequest?: (
+      request: SubChatApprovalRequest,
+    ) => boolean | Promise<boolean>;
+    /** Explicit opt-in for automatic sub-chat approval in non-interactive runs. */
+    autoApproveSubChats?: boolean;
+    /** Explicit opt-in to approve server-requested memory categories in non-interactive runs. */
+    autoApproveMemories?: boolean;
     /** Encrypted file embeds to attach to the message (code, images, PDFs). */
     encryptedEmbeds?: EncryptedEmbed[];
+    /** Prepared embeds to encrypt after the real chat/message IDs are known. */
+    preparedEmbeds?: PreparedEmbed[];
   }): Promise<{
+    status: "completed" | "waiting_for_user";
     chatId: string;
+    messageId: string | null;
     assistant: string;
     category: string | null;
     modelName: string | null;
     mateName: string | null;
     /** Follow-up suggestions from post-processing (may be empty for incognito chats). */
     followUpSuggestions: string[];
+    /** Sub-chat lifecycle frames observed while collecting the parent response. */
+    subChatEvents: SubChatEvent[];
+    /** Memory permission requests observed and optionally approved while collecting the response. */
+    appSettingsMemoryRequests: Array<{
+      requestId: string | null;
+      requestedKeys: string[];
+      approvedKeys: string[];
+      entryCount: number;
+    }>;
   }> {
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
@@ -1445,6 +2056,26 @@ export class OpenMatesClient {
       chatId = resolved;
     } else {
       chatId = params.chatId;
+    }
+
+    let availableMemories: DecryptedMemoryEntry[] = [];
+    let memoryMetadataKeys: string[] = [];
+    if (!params.incognito) {
+      try {
+        availableMemories = await this.listMemories();
+        memoryMetadataKeys = [
+          ...new Set(
+            availableMemories
+              .filter((memory) => memory.app_id && memory.item_type)
+              .map((memory) => `${memory.app_id}-${memory.item_type}`),
+          ),
+        ];
+      } catch (error) {
+        if (params.autoApproveMemories) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new Error(`Failed to load memories for auto-approval: ${message}`);
+        }
+      }
     }
 
     const { ws, session } = await this.openWsClient();
@@ -1473,11 +2104,16 @@ export class OpenMatesClient {
       },
     };
 
+    if (memoryMetadataKeys.length > 0) {
+      messagePayload.app_settings_memories_metadata = memoryMetadataKeys;
+    }
+
     // For non-incognito chats, resolve or generate the chat key and include
     // the encrypted_chat_key in Phase 1 so the server can store it for sync.
     // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage() key logic
     let chatKeyBytes: Uint8Array | null = null;
     let encryptedChatKey: string | null = null;
+    let baselineMessagesV = 0;
 
     if (!params.incognito) {
       const masterKey = this.getMasterKeyBytes();
@@ -1508,6 +2144,10 @@ export class OpenMatesClient {
             String(c.details.id ?? "").startsWith(chatId),
         );
         if (chat) {
+          baselineMessagesV =
+            typeof chat.details.messages_v === "number"
+              ? chat.details.messages_v
+              : 0;
           const encKey =
             typeof chat.details.encrypted_chat_key === "string"
               ? chat.details.encrypted_chat_key
@@ -1520,10 +2160,36 @@ export class OpenMatesClient {
       }
     }
 
-    // Attach encrypted file embeds if present
-    // Mirrors: chatSyncServiceSenders.ts encrypted_embeds array
-    if (params.encryptedEmbeds && params.encryptedEmbeds.length > 0) {
-      messagePayload.encrypted_embeds = params.encryptedEmbeds;
+    if (params.preparedEmbeds && params.preparedEmbeds.length > 0) {
+      messagePayload.embeds = params.preparedEmbeds.map((embed) => ({
+        embed_id: embed.embedId,
+        type: embed.type,
+        content: embed.content,
+        status: embed.status,
+        text_preview: embed.textPreview,
+      }));
+    }
+
+    const encryptedEmbeds: EncryptedEmbed[] = [...(params.encryptedEmbeds ?? [])];
+    if (!params.incognito && params.preparedEmbeds && params.preparedEmbeds.length > 0) {
+      const masterKey = this.getMasterKeyBytes();
+      for (const embed of params.preparedEmbeds) {
+        const encrypted = await encryptEmbed(
+          embed,
+          masterKey,
+          chatKeyBytes,
+          chatId,
+          messageId,
+          session.hashedEmail,
+        );
+        if (encrypted) encryptedEmbeds.push(encrypted);
+      }
+    }
+
+    // Attach encrypted client-created embeds if present.
+    // Mirrors: chatSyncServiceSenders.ts encrypted_embeds array.
+    if (encryptedEmbeds.length > 0) {
+      messagePayload.encrypted_embeds = encryptedEmbeds;
     }
 
     ws.send("chat_message_added", messagePayload);
@@ -1560,28 +2226,331 @@ export class OpenMatesClient {
     }
 
     let assistant = "";
+    let assistantMessageId: string | null = null;
     let category: string | null = null;
     let modelName: string | null = null;
     let followUpSuggestions: string[] = [];
-    const streamOpts = { onStream: params.onStream };
+    let subChatEvents: SubChatEvent[] = [];
+    const appSettingsMemoryRequests: Array<{
+      requestId: string | null;
+      requestedKeys: string[];
+      approvedKeys: string[];
+      entryCount: number;
+    }> = [];
+
+    const numberOrNull = (value: unknown): number | null =>
+      typeof value === "number" && Number.isFinite(value) ? value : null;
+
+    const isApprovalWithinServerLimits = (request: SubChatApprovalRequest): boolean => {
+      const count = request.subChats.length;
+      if (count === 0) return false;
+      if (request.remainingSubChats !== null && count > request.remainingSubChats) {
+        return false;
+      }
+      if (
+        request.maxDirectSubChats !== null &&
+        request.existingSubChats !== null &&
+        request.existingSubChats + count > request.maxDirectSubChats
+      ) {
+        return false;
+      }
+      return true;
+    };
+
+    const isAutoApprovalWithinServerLimits = (
+      request: SubChatApprovalRequest,
+    ): boolean => {
+      if (!isApprovalWithinServerLimits(request)) return false;
+      return (
+        request.maxAutoSubChats === null ||
+        request.subChats.length <= request.maxAutoSubChats
+      );
+    };
+
+    const handleSubChatEvent = async (event: SubChatEvent) => {
+      params.onSubChatEvent?.(event);
+
+      if (event.type === "spawn_sub_chats") {
+        if (params.incognito || !chatKeyBytes) return;
+        const rawSubChats = event.payload.sub_chats;
+        if (!Array.isArray(rawSubChats)) return;
+
+        const metadataPayloads = await buildSubChatEncryptedMetadataPayloads({
+          parentChatId: chatId,
+          parentChatKey: chatKeyBytes,
+          encryptedParentChatKey: encryptedChatKey,
+          subChats: rawSubChats as CliSubChatRequest[],
+        });
+        for (const metadataPayload of metadataPayloads) {
+          await ws.sendAsync("encrypted_chat_metadata", metadataPayload);
+        }
+        return;
+      }
+
+      if (event.type !== "sub_chat_confirmation_required") return;
+
+      const payload = event.payload;
+      const confirmationChatId =
+        typeof payload.chat_id === "string" ? payload.chat_id : chatId;
+      const taskId = typeof payload.task_id === "string" ? payload.task_id : null;
+      const subChats = Array.isArray(payload.sub_chats)
+        ? (payload.sub_chats as CliSubChatRequest[])
+        : [];
+      if (!taskId) return;
+
+      const request: SubChatApprovalRequest = {
+        chatId: confirmationChatId,
+        taskId,
+        subChats,
+        maxAutoSubChats: numberOrNull(payload.max_auto_sub_chats),
+        maxDirectSubChats: numberOrNull(payload.max_direct_sub_chats),
+        existingSubChats: numberOrNull(payload.existing_sub_chats),
+        remainingSubChats: numberOrNull(payload.remaining_sub_chats),
+      };
+      const withinLimits = isApprovalWithinServerLimits(request);
+      const approved = params.autoApproveSubChats
+        ? isAutoApprovalWithinServerLimits(request)
+        : withinLimits && params.onSubChatApprovalRequest
+          ? await params.onSubChatApprovalRequest(request)
+          : false;
+
+      await ws.sendAsync(
+        "sub_chat_confirmation",
+        buildSubChatConfirmationPayload({
+          chatId: request.chatId,
+          taskId: request.taskId,
+          approved,
+          approveCount: approved ? request.subChats.length : undefined,
+        }),
+      );
+    };
+
+    const persistSystemMessage = async (systemMessage: AppSettingsMemorySystemMessage) => {
+      if (!chatKeyBytes) return;
+      await ws.sendAsync("chat_system_message_added", {
+        chat_id: chatId,
+        message: {
+          message_id: systemMessage.message_id,
+          role: "system",
+          encrypted_content: await encryptWithAesGcmCombined(
+            systemMessage.content,
+            chatKeyBytes,
+          ),
+          created_at: systemMessage.created_at,
+          user_message_id: systemMessage.user_message_id,
+        },
+      });
+      await ws.waitForMessage(
+        "system_message_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.message_id === systemMessage.message_id;
+        },
+        20_000,
+      );
+    };
+
+    const persistMemoryRequestSystemMessage = async (
+      event: AppSettingsMemoriesRequestEvent,
+    ) => {
+      const requestId = event.requestId ?? `${messageId}-memory-request`;
+      await persistSystemMessage(buildAppSettingsMemoryRequestSystemMessage({
+        userMessageId: messageId,
+        requestId,
+        requestedKeys: event.requestedKeys,
+        createdAt: Math.floor(Date.now() / 1000),
+      }));
+    };
+
+    const responseCategoriesFromMemories = (
+      approvedMemories: Array<{ app_id: string; item_key: string }>,
+    ): AppSettingsMemoryResponseCategory[] => {
+      const counts = new Map<string, AppSettingsMemoryResponseCategory>();
+      for (const memory of approvedMemories) {
+        const key = `${memory.app_id}-${memory.item_key}`;
+        const existing = counts.get(key);
+        if (existing) {
+          existing.entryCount += 1;
+        } else {
+          counts.set(key, {
+            appId: memory.app_id,
+            itemType: memory.item_key,
+            entryCount: 1,
+          });
+        }
+      }
+      return [...counts.values()];
+    };
+
+    const handleAppSettingsMemoriesRequest = async (
+      event: AppSettingsMemoriesRequestEvent,
+    ) => {
+      await persistMemoryRequestSystemMessage(event);
+
+      if (params.autoApproveMemories) {
+        const requested = new Set(event.requestedKeys);
+        const unadvertisedKeys = event.requestedKeys.filter(
+          (key) => !memoryMetadataKeys.includes(key),
+        );
+        if (unadvertisedKeys.length > 0) {
+          throw new Error(
+            `Refusing to auto-approve unadvertised memory categories: ${unadvertisedKeys.join(", ")}`,
+          );
+        }
+
+        const approvedMemories = availableMemories
+          .filter((memory) => requested.has(`${memory.app_id}-${memory.item_type}`))
+          .map((memory) => ({
+            app_id: memory.app_id,
+            item_key: memory.item_type,
+            content: memory.data,
+          }));
+        const approvedKeys = [
+          ...new Set(approvedMemories.map((memory) => `${memory.app_id}-${memory.item_key}`)),
+        ];
+        const categories = responseCategoriesFromMemories(approvedMemories);
+
+        appSettingsMemoryRequests.push({
+          requestId: event.requestId,
+          requestedKeys: event.requestedKeys,
+          approvedKeys,
+          entryCount: approvedMemories.length,
+        });
+
+        await ws.sendAsync("app_settings_memories_confirmed", {
+          chat_id: event.chatId,
+          app_settings_memories: approvedMemories,
+        });
+        await persistSystemMessage(buildAppSettingsMemoryResponseSystemMessage({
+          userMessageId: messageId,
+          messageId: `${messageId}-memory-response`,
+          action: "included",
+          categories,
+          createdAt: Math.floor(Date.now() / 1000),
+        }));
+        return;
+      }
+
+      appSettingsMemoryRequests.push({
+        requestId: event.requestId,
+        requestedKeys: event.requestedKeys,
+        approvedKeys: [],
+        entryCount: 0,
+      });
+      throw new Error(
+        `The assistant requested memories (${event.requestedKeys.join(", ")}). ` +
+          "Rerun with --auto-approve-memories to explicitly approve requested memory categories from the CLI, " +
+          "or continue this chat in the web app to approve or reject the request.",
+      );
+    };
+
+    const streamOpts = {
+      onStream: params.onStream,
+      onSubChatEvent: handleSubChatEvent,
+      onAppSettingsMemoriesRequest: handleAppSettingsMemoriesRequest,
+    };
 
     if (params.incognito) {
       try {
         const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
+        assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
+        subChatEvents = resp.subChatEvents;
         // Incognito chats are not post-processed — follow-up suggestions are not stored.
+        if (resp.status === "waiting_for_user") {
+          return {
+            status: resp.status,
+            chatId,
+            messageId: assistantMessageId,
+            assistant,
+            category,
+            modelName,
+            mateName: category ? MATE_NAMES[category] ?? null : null,
+            followUpSuggestions,
+            subChatEvents,
+            appSettingsMemoryRequests,
+          };
+        }
       } finally {
         ws.close();
       }
     } else {
       try {
         const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
+        assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;
         modelName = resp.modelName;
         followUpSuggestions = resp.followUpSuggestions;
+        subChatEvents = resp.subChatEvents;
+
+        if (resp.status === "waiting_for_user") {
+          return {
+            status: resp.status,
+            chatId,
+            messageId: assistantMessageId,
+            assistant,
+            category,
+            modelName,
+            mateName: category ? MATE_NAMES[category] ?? null : null,
+            followUpSuggestions,
+            subChatEvents,
+            appSettingsMemoryRequests,
+          };
+        }
+
+        if (chatKeyBytes && assistant) {
+          const completedAt = Math.floor(Date.now() / 1000);
+          const encryptedAssistantContent = await encryptWithAesGcmCombined(
+            assistant,
+            chatKeyBytes,
+          );
+          const encryptedCategory = category
+            ? await encryptWithAesGcmCombined(category, chatKeyBytes)
+            : undefined;
+          const encryptedModelName = modelName
+            ? await encryptWithAesGcmCombined(modelName, chatKeyBytes)
+            : undefined;
+          const persistedAssistantMessageId = assistantMessageId ?? randomUUID();
+
+          ws.send("ai_response_completed", {
+            chat_id: chatId,
+            message: {
+              message_id: persistedAssistantMessageId,
+              chat_id: chatId,
+              role: "assistant",
+              created_at: completedAt,
+              status: "synced",
+              user_message_id: messageId,
+              encrypted_content: encryptedAssistantContent,
+              encrypted_category: encryptedCategory,
+              encrypted_model_name: encryptedModelName,
+            },
+            versions: {
+              messages_v: baselineMessagesV + 2,
+              last_edited_overall_timestamp: completedAt,
+            },
+          });
+
+          await ws.waitForMessage(
+            "ai_response_storage_confirmed",
+            (payload) => {
+              const p = payload as Record<string, unknown>;
+              return p.message_id === persistedAssistantMessageId;
+            },
+            20_000,
+          );
+          await this.persistStreamedEmbeds({
+            ws,
+            embeds: resp.embeds,
+            chatId,
+            chatKeyBytes,
+            fallbackMessageId: persistedAssistantMessageId,
+          });
+          clearSyncCache();
+        }
       } finally {
         ws.close();
       }
@@ -1589,13 +2558,150 @@ export class OpenMatesClient {
 
     const mateName = category ? (MATE_NAMES[category] ?? null) : null;
     return {
+      status: "completed",
       chatId,
+      messageId: assistantMessageId,
       assistant,
       category,
       modelName,
       mateName,
       followUpSuggestions,
+      subChatEvents,
+      appSettingsMemoryRequests,
     };
+  }
+
+  private async persistStreamedEmbeds(params: {
+    ws: OpenMatesWsClient;
+    embeds: SendEmbedDataFrame[];
+    chatId: string;
+    chatKeyBytes: Uint8Array;
+    fallbackMessageId: string;
+  }): Promise<void> {
+    const finalized = new Map(
+      params.embeds
+        .filter((embed) => {
+          const status = embed.status ?? "finished";
+          return (
+            embed.embed_id &&
+            embed.content &&
+            status !== "processing" &&
+            status !== "error" &&
+            status !== "cancelled"
+          );
+        })
+        .map((embed) => [embed.embed_id, embed]),
+    );
+    if (finalized.size === 0) return;
+
+    const session = this.requireSession();
+    const masterKey = this.getMasterKeyBytes();
+    const parentKeys = new Map<string, Uint8Array>();
+    const processed = new Set<string>();
+
+    const makeKey = () => {
+      const key = new Uint8Array(32);
+      globalThis.crypto.getRandomValues(key);
+      return key;
+    };
+
+    const persistOne = async (
+      embed: SendEmbedDataFrame,
+      embedKey: Uint8Array,
+      isChild: boolean,
+    ) => {
+      const now = Math.floor(Date.now() / 1000);
+      const createdAt = normalizeUnixSeconds(embed.createdAt, now);
+      const updatedAt = normalizeUnixSeconds(embed.updatedAt, now);
+      const messageId = embed.message_id || params.fallbackMessageId;
+      const userId = embed.user_id || session.hashedEmail;
+      const hashedChatId = computeSHA256(params.chatId);
+      const hashedMessageId = computeSHA256(messageId);
+      const hashedUserId = computeSHA256(userId);
+      const hashedEmbedId = computeSHA256(embed.embed_id);
+      const encryptedContent = await encryptWithAesGcmCombined(
+        embed.content ?? "",
+        embedKey,
+      );
+      const encryptedType = await encryptWithAesGcmCombined(
+        embed.type || "app_skill_use",
+        embedKey,
+      );
+      const encryptedTextPreview = embed.text_preview
+        ? await encryptWithAesGcmCombined(embed.text_preview, embedKey)
+        : undefined;
+
+      await params.ws.sendAsync("store_embed", {
+        embed_id: embed.embed_id,
+        encrypted_type: encryptedType,
+        encrypted_content: encryptedContent,
+        encrypted_text_preview: encryptedTextPreview,
+        status: embed.status || "finished",
+        hashed_chat_id: hashedChatId,
+        hashed_message_id: hashedMessageId,
+        hashed_task_id: embed.task_id ? computeSHA256(embed.task_id) : undefined,
+        hashed_user_id: hashedUserId,
+        embed_ids: embed.embed_ids,
+        parent_embed_id: embed.parent_embed_id || undefined,
+        version_number: embed.version_number,
+        file_path: embed.file_path,
+        content_hash: embed.content_hash,
+        text_length_chars: embed.text_length_chars,
+        is_private: embed.is_private ?? false,
+        is_shared: embed.is_shared ?? false,
+        created_at: createdAt,
+        updated_at: updatedAt,
+      });
+
+      if (!isChild) {
+        const keys: EmbedKeyWrapper[] = [
+          {
+            hashed_embed_id: hashedEmbedId,
+            key_type: "master",
+            hashed_chat_id: null,
+            encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey),
+            hashed_user_id: hashedUserId,
+            created_at: now,
+          },
+          {
+            hashed_embed_id: hashedEmbedId,
+            key_type: "chat",
+            hashed_chat_id: hashedChatId,
+            encrypted_embed_key: await encryptBytesWithAesGcm(
+              embedKey,
+              params.chatKeyBytes,
+            ),
+            hashed_user_id: hashedUserId,
+            created_at: now,
+          },
+        ];
+        await params.ws.sendAsync("store_embed_keys", { keys });
+        parentKeys.set(embed.embed_id, embedKey);
+      }
+    };
+
+    let madeProgress = true;
+    while (processed.size < finalized.size && madeProgress) {
+      madeProgress = false;
+      for (const embed of finalized.values()) {
+        if (processed.has(embed.embed_id)) continue;
+        const parentId = embed.parent_embed_id || null;
+        if (parentId && finalized.has(parentId) && !parentKeys.has(parentId)) {
+          continue;
+        }
+
+        const parentKey = parentId ? parentKeys.get(parentId) : undefined;
+        await persistOne(embed, parentKey ?? makeKey(), Boolean(parentKey));
+        processed.add(embed.embed_id);
+        madeProgress = true;
+      }
+    }
+
+    for (const embed of finalized.values()) {
+      if (processed.has(embed.embed_id)) continue;
+      await persistOne(embed, makeKey(), false);
+      processed.add(embed.embed_id);
+    }
   }
 
   /**
@@ -1947,6 +3053,28 @@ export class OpenMatesClient {
     return this.resolveAsyncSkillResponse(response.data, headers);
   }
 
+  async getCodeRunStreamAuth(): Promise<{ sessionId: string; token: string; fallbackToken?: string } | null> {
+    const session = this.session;
+    if (!session) return null;
+    await this.refreshWsToken();
+    const token = session.wsToken || session.cookies.auth_refresh_token;
+    if (!token) return null;
+    const fallbackToken = session.cookies.auth_refresh_token;
+    return { sessionId: session.sessionId, token, fallbackToken };
+  }
+
+  async getCodeRunStatus(path: string, apiKey?: string): Promise<Record<string, unknown>> {
+    const headers: Record<string, string> = {
+      ...this.getCliRequestHeaders(),
+    };
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const response = await this.http.get<Record<string, unknown>>(path, headers);
+    if (!response.ok) {
+      throw new Error(`Code Run status request failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
   // -------------------------------------------------------------------------
   // Travel: booking link resolution
   // -------------------------------------------------------------------------
@@ -2088,10 +3216,11 @@ export class OpenMatesClient {
     current_credits: number;
     message: string;
   }> {
-    this.requireSession();
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
     const response = await this.http.post(
       "/v1/payments/redeem-gift-card",
-      { code },
+      { code, email_encryption_key: emailEncryptionKey },
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
@@ -2115,6 +3244,92 @@ export class OpenMatesClient {
       throw new Error(
         `Failed to fetch redeemed gift cards (HTTP ${response.status})`,
       );
+    }
+    return response.data;
+  }
+
+  async listPurchasedGiftCards(): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.get(
+      "/v1/payments/purchased-gift-cards",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch purchased gift cards (HTTP ${response.status})`,
+      );
+    }
+    return response.data;
+  }
+
+  async createBankTransferOrder(creditsAmount: number): Promise<BankTransferOrderDetails> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post<BankTransferOrderDetails>(
+      "/v1/payments/create-bank-transfer-order",
+      {
+        credits_amount: creditsAmount,
+        currency: "eur",
+        email_encryption_key: emailEncryptionKey,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Bank transfer order failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async createGiftCardBankTransferOrder(creditsAmount: number): Promise<BankTransferOrderDetails> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post<BankTransferOrderDetails>(
+      "/v1/payments/create-gift-card-bank-transfer-order",
+      {
+        credits_amount: creditsAmount,
+        currency: "eur",
+        email_encryption_key: emailEncryptionKey,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Gift card bank transfer order failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async getBankTransferStatus(orderId: string): Promise<BankTransferStatus> {
+    this.requireSession();
+    const response = await this.http.get<BankTransferStatus>(
+      `/v1/payments/bank-transfer-status/${encodeURIComponent(orderId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch bank transfer status (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async listBankTransferOrders(): Promise<BankTransferStatus[]> {
+    this.requireSession();
+    const response = await this.http.get<BankTransferStatus[]>(
+      "/v1/payments/bank-transfer-pending",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch bank transfer orders (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async getGiftCardPurchaseStatus(orderId: string): Promise<GiftCardBankTransferStatus> {
+    this.requireSession();
+    const response = await this.http.get<GiftCardBankTransferStatus>(
+      `/v1/payments/gift-card-purchase-status/${encodeURIComponent(orderId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch gift card purchase status (HTTP ${response.status})`);
     }
     return response.data;
   }
@@ -2156,6 +3371,67 @@ export class OpenMatesClient {
     if (!response.ok) {
       throw new Error(`Refund request failed (HTTP ${response.status})`);
     }
+    return response.data;
+  }
+
+  async getAuthMethodsStatus(): Promise<AuthMethodsStatus> {
+    this.requireSession();
+    const response = await this.http.get<AuthMethodsStatus>(
+      "/v1/payments/user-auth-methods",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch auth methods (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async requestDeleteAccountEmailCode(): Promise<unknown> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post(
+      "/v1/settings/request-action-verification",
+      { action: "delete_account", email_encryption_key: emailEncryptionKey },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to request account deletion email code (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async verifyDeleteAccountEmailCode(code: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post(
+      "/v1/settings/verify-action-code",
+      { action: "delete_account", code },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Account deletion email code verification failed (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async deleteAccountWithCliVerification(totpCode?: string): Promise<unknown> {
+    const session = this.requireSession();
+    const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
+    const response = await this.http.post(
+      "/v1/settings/delete-account",
+      {
+        confirm_data_deletion: true,
+        auth_method: totpCode ? "2fa_otp" : "email_otp",
+        auth_code: totpCode,
+        email_encryption_key: emailEncryptionKey,
+        require_email_verification: true,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Account deletion failed (HTTP ${response.status})`);
+    }
+    clearSession();
+    clearSyncCache();
     return response.data;
   }
 
@@ -2255,6 +3531,33 @@ export class OpenMatesClient {
       return ack.payload;
     } finally {
       ws.close();
+    }
+  }
+
+  async listNotifications(limit = 50): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.get(
+      `/v1/notifications?limit=${encodeURIComponent(String(limit))}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch notifications (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async *streamNotifications(): AsyncGenerator<unknown> {
+    this.requireSession();
+    for await (const message of this.http.streamSse(
+      "/v1/notifications/stream",
+      this.getCliRequestHeaders(),
+    )) {
+      if (message.event && message.event !== "notification") continue;
+      try {
+        yield JSON.parse(message.data);
+      } catch {
+        yield { event: message.event ?? "message", data: message.data };
+      }
     }
   }
 
@@ -3046,10 +4349,7 @@ export class OpenMatesClient {
         if (!id) continue;
         clientChatIds.push(id);
         clientChatVersions[id] = {
-          messages_v:
-            typeof chat.details.messages_v === "number"
-              ? chat.details.messages_v
-              : 0,
+          messages_v: getClientMessagesVersionForSync(chat),
           title_v:
             typeof chat.details.title_v === "number"
               ? chat.details.title_v
@@ -3070,8 +4370,8 @@ export class OpenMatesClient {
 
     const { ws } = await this.openWsClient();
     const chats: CachedChat[] = [];
-    let embeds: Record<string, unknown>[] = [];
-    let embedKeys: Record<string, unknown>[] = [];
+    const embeds: Record<string, unknown>[] = [];
+    const embedKeys: Record<string, unknown>[] = [];
     let newChatSuggestions: Record<string, unknown>[] = [];
     let totalChatCount = 0;
 

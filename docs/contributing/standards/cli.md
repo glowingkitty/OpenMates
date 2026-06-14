@@ -7,7 +7,7 @@ last_verified: 2026-03-24
 
 Standards for modifying CLI code in `frontend/packages/openmates-cli/` — the `openmates` npm package that lets users interact with the API from a terminal.
 
-Architecture context: [CLI Package Architecture](../../architecture/apps/cli-package.md)
+Architecture context: [CLI Package Architecture](../../architecture/platforms/cli-package.md)
 
 ---
 

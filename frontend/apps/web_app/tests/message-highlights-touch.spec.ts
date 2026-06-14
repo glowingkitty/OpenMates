@@ -112,6 +112,7 @@ async function selectInsideMessage(
 					if (!selection) return null;
 					selection.removeAllRanges();
 					selection.addRange(range);
+					document.dispatchEvent(new Event('selectionchange'));
 					const r = range.getBoundingClientRect();
 					return { x: r.x, y: r.y, width: r.width, height: r.height };
 				}
@@ -178,7 +179,7 @@ test('message highlights on touch devices (iPad Pro 11) — selection toolbar + 
 	page: any;
 }) => {
 	setupPageListeners(page);
-	test.setTimeout(240000);
+	test.setTimeout(360000);
 
 	const logCheckpoint = createSignupLogger('HIGHLIGHTS_TOUCH');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {

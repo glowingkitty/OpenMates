@@ -437,6 +437,7 @@ export async function sendPostProcessingMetadataImpl(
 	encrypted_top_recommended_apps: string = "",
 	encrypted_quick_tip_slugs: string = "",
 	encrypted_updated_title: string = "",
+	encrypted_share_cta_text: string = "",
 	encrypted_chat_key: string = ""
 ): Promise<void> {
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
@@ -456,6 +457,7 @@ export async function sendPostProcessingMetadataImpl(
 			encrypted_top_recommended_apps_for_chat?: string;
 			encrypted_quick_tip_slugs?: string;
 			encrypted_title?: string; // OPE-265: Updated title from post-processing
+			encrypted_share_cta_text?: string;
 			encrypted_chat_key?: string; // OPE-314: Include for server-side key validation
 			title_v?: number;
 		}
@@ -482,6 +484,10 @@ export async function sendPostProcessingMetadataImpl(
 		// OPE-265: Include updated title from post-processing if the conversation drifted
 		if (encrypted_updated_title) {
 			payload.encrypted_title = encrypted_updated_title;
+		}
+
+		if (encrypted_share_cta_text) {
+			payload.encrypted_share_cta_text = encrypted_share_cta_text;
 		}
 
 		// OPE-314: Include encrypted_chat_key so server can validate metadata was

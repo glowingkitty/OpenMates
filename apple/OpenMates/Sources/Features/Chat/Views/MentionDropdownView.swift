@@ -76,7 +76,7 @@ struct MentionDropdownView: View {
                 Icon("close", size: 16)
                     .foregroundStyle(Color.fontTertiary)
                     .frame(width: 32, height: 32)
-                    .background(Color.grey15)
+                    .background(Color.grey10)
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
             }
             .buttonStyle(.plain)
@@ -121,6 +121,7 @@ struct MentionDropdownView: View {
     }
 }
 
+@MainActor
 struct MentionItem: Identifiable, Equatable {
     let id: String
     let type: MentionType
@@ -133,6 +134,7 @@ struct MentionItem: Identifiable, Equatable {
     var name: String { AppStrings.localized(nameKey) }
     var subtitle: String { AppStrings.localized(subtitleKey) }
 
+    @MainActor
     enum MentionType: String, Equatable {
         case modelAlias
         case mate
@@ -225,6 +227,15 @@ struct MentionItem: Identifiable, Equatable {
             iconAppId: "web",
             mentionSyntax: "@focus:web:check_reputation",
             searchTerms: ["focus", "research", "web"]
+        ),
+        MentionItem(
+            id: "focus:jobs:career_insights",
+            type: .focusMode,
+            nameKey: "app_focus_modes.jobs.career_insights",
+            subtitleKey: "app_focus_modes.jobs.career_insights.description",
+            iconAppId: "jobs",
+            mentionSyntax: "@focus:jobs:career_insights",
+            searchTerms: ["focus", "career", "jobs", "professional"]
         )
     ]
 }

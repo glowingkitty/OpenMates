@@ -267,5 +267,6 @@ export const rightToRepairLawsEuUsChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 9,
+    app_skill_examples: ["news.search"],
   },
 };

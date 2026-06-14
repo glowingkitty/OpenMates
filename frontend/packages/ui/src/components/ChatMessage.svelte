@@ -13,9 +13,18 @@
     if (!forceRefresh && pending) return pending;
 
     const loadPromise = (async () => {
-      const { getSubChatsForParent } = await import('../services/db/chatCrudOperations');
-      const { chatDB } = await import('../services/db');
-      const subChats = await getSubChatsForParent(chatDB, parentChatId);
+      const [{ getSubChatsForParent }, { chatDB }, { getExampleSubChats }] = await Promise.all([
+        import('../services/db/chatCrudOperations'),
+        import('../services/db'),
+        import('../demo_chats'),
+      ]);
+      const exampleSubChats = getExampleSubChats(parentChatId);
+      const dbSubChats = await getSubChatsForParent(chatDB, parentChatId);
+      const seenChatIds = new Set(exampleSubChats.map((chat) => chat.chat_id));
+      const subChats = [
+        ...exampleSubChats,
+        ...dbSubChats.filter((chat) => !seenChatIds.has(chat.chat_id)),
+      ];
       subChatsByParentCache.set(parentChatId, subChats);
       return subChats;
     })().finally(() => {
@@ -81,6 +90,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   import { decryptWithChatKey } from '../services/encryption/MessageEncryptor';
   import { copyChatToClipboard } from '../services/chatExportService';
   import { downloadChatAsZip } from '../services/zipExportService';
+  import { buildChatMessageLink } from '../services/deepLinkHandler';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
   
   // Define types for message content parts
@@ -151,7 +161,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     isFirstMessage = false,
     isCreditsRestored = false,
     onResend = undefined,
-    canAnnotate = true
+    canAnnotate = true,
   }: {
     role?: MessageRole;
     category?: string;
@@ -263,10 +273,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       const msgTime = original_message?.created_at || 0;
       // Filter sub-chats created close to this assistant message (within 60s)
       const matchingSubChats = all
-        .filter(c => 
-          (c.is_sub_chat || c.parent_id !== null) &&
-          Math.abs(c.created_at - msgTime) < 60
-        );
+        .filter(c => {
+          const isSubChat = c.is_sub_chat || c.parent_id !== null;
+          if (!isSubChat) return false;
+          if (currentChatId.startsWith('example-')) return c.parent_id === currentChatId;
+          return Math.abs(c.created_at - msgTime) < 60;
+        });
       const previews: SubChatPreview[] = [];
       const fallbackKey = await chatKeyManager.getKey(currentChatId);
 
@@ -646,7 +658,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       if (selectionToolbarVisible) {
         if (_toolbarHideTimer === null) {
           _toolbarHideTimer = setTimeout(() => {
-            selectionToolbarVisible = false;
+            // Re-check the actual selection state — the selection may still be
+            // valid even after a spurious collapsed event (common on iOS/touch
+            // where selection-handle init fires a stray selectionchange).
+            const recheck = window.getSelection();
+            if (!recheck || recheck.rangeCount === 0 || recheck.isCollapsed) {
+              selectionToolbarVisible = false;
+            }
             _toolbarHideTimer = null;
           }, TOOLBAR_COMMIT_DEBOUNCE_MS);
         }
@@ -735,6 +753,37 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
   function handleToolbarHighlightAndComment() {
     commitToolbarAction(true);
+  }
+
+  async function handleExplainInNewChatFromSelection() {
+    if (_toolbarCommitTimer !== null) {
+      clearTimeout(_toolbarCommitTimer);
+      _toolbarCommitTimer = null;
+    }
+
+    const liveAnchor = captureAnchorNow();
+    const anchor = liveAnchor ?? committedToolbarAnchor ?? cachedSelectionAnchor;
+    selectionToolbarVisible = false;
+    committedToolbarAnchor = null;
+    cachedSelectionAnchor = null;
+    window.getSelection()?.removeAllRanges();
+
+    if (!anchor?.exact || role !== 'assistant' || !messageId || !currentChatId || isForkDisabled || isSharedReadOnly) {
+      return;
+    }
+
+    try {
+      const { startExplainInNewChat } = await import('../services/forkChatService');
+      await startExplainInNewChat({
+        sourceChatId: currentChatId,
+        upToMessageId: messageId,
+        selectedText: anchor.exact,
+      });
+    } catch (error) {
+      console.error('[ChatMessage] Failed to start explain-in-new-chat flow:', error);
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.error($text('chats.explain_in_new_chat.failed'));
+    }
   }
   // ─── End highlights ────────────────────────────────────────────────────────
   
@@ -1107,23 +1156,33 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       // We queue the pulse in a rAF so that the highlight $effect has a chance to
       // run first (it also uses rAF internally).
       let rafHandle: number | null = null;
+      let timerHandle: ReturnType<typeof setTimeout> | null = null;
       rafHandle = requestAnimationFrame(() => {
+        if (!container.isConnected) return;
+
         const marks = Array.from(container.querySelectorAll('mark.search-match'));
         for (const mark of marks) {
           mark.classList.add('search-match-active');
         }
         // Remove the active class after animation completes
-        const timer = setTimeout(() => {
+        timerHandle = setTimeout(() => {
+          if (!container.isConnected) return;
+
           const activeMarks = Array.from(container.querySelectorAll('mark.search-match-active'));
           for (const mark of activeMarks) {
             mark.classList.remove('search-match-active');
           }
-          messageHighlightStore.set(null);
+          const hashStillTargetsMessage = typeof window !== 'undefined'
+            && original_message?.message_id
+            && new URLSearchParams(window.location.hash.replace(/^#/, '')).get('message-id') === original_message.message_id;
+          if (!hashStillTargetsMessage) {
+            messageHighlightStore.set(null);
+          }
         }, 1200);
-        return () => clearTimeout(timer);
       });
       return () => {
         if (rafHandle !== null) cancelAnimationFrame(rafHandle);
+        if (timerHandle !== null) clearTimeout(timerHandle);
       };
     }
   });
@@ -1584,6 +1643,19 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       );
     } catch (error) {
       console.error('[ChatMessage] Failed to copy message:', error);
+    }
+  }
+
+  async function handleCopyMessageLink() {
+    if (!original_message?.chat_id || !messageId) return;
+    try {
+      const link = buildChatMessageLink(original_message.chat_id, messageId);
+      const clipResult = await copyToClipboard(link);
+      if (!clipResult.success) throw new Error(clipResult.error || 'Copy link failed');
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.success('Message link copied to clipboard');
+    } catch (error) {
+      console.error('[ChatMessage] Failed to copy message link:', error);
     }
   }
 
@@ -2878,6 +2950,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           anchorRect={selectionToolbarRect}
           onHighlight={handleToolbarHighlight}
           onHighlightAndComment={handleToolbarHighlightAndComment}
+          showExplainInNewChat={role === 'assistant' && !isForkDisabled && !isSharedReadOnly}
+          onExplainInNewChat={handleExplainInNewChatFromSelection}
         />
 
         <!-- Keep sub-chat delegation previews pinned at the top of this assistant turn,
@@ -3190,9 +3264,10 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            x={messageMenuX}
            y={messageMenuY}
            show={showMessageMenu}
-           onClose={() => showMessageMenu = false}
-           onCopy={handleCopyMessage}
-           onSelect={handleSelectMessage}
+            onClose={() => showMessageMenu = false}
+            onCopy={handleCopyMessage}
+            onCopyLink={messageId && original_message?.chat_id && !isSharedReadOnly ? handleCopyMessageLink : undefined}
+            onSelect={handleSelectMessage}
            onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
            disableDelete={isFirstMessage}
            onEdit={role === 'user' && messageId ? handleEdit : undefined}
@@ -3200,6 +3275,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
            disableFork={isForkDisabled}
            onHighlight={messageId && !isSharedReadOnly ? handleHighlightAction : undefined}
            onHighlightAndComment={messageId && !isSharedReadOnly ? handleHighlightAndCommentAction : undefined}
+           onExplainInNewChat={messageId && !isSharedReadOnly && !isForkDisabled ? handleExplainInNewChatFromSelection : undefined}
            hideHighlight={!cachedSelectionAnchor || isSharedReadOnly}
            {messageId}
            {userMessageId}
@@ -3271,7 +3347,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     <!-- This data comes from system messages stored in chat history and synced across devices -->
     <!-- Display name and icon are loaded client-side from app metadata (not stored in message) -->
     {#if role === 'user' && appSettingsMemoriesResponse}
-      <div class="app-settings-memories-summary">
+      <div class="app-settings-memories-summary" data-testid="app-settings-memories-summary">
         {#if appSettingsMemoriesResponse.action === 'included' && appSettingsMemoriesResponse.categories}
           <span class="summary-label">{$text('chat.permissions.included_summary')}:</span>
           <div class="summary-categories">
@@ -3279,6 +3355,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
               <button 
                 type="button"
                 class="category-badge"
+                data-testid="app-settings-memory-category-badge"
                 onclick={() => {
                   // Navigate to app settings/memories category via deep link
                   const path = `app_store/${cat.appId}/settings_memories/${cat.itemType}`;

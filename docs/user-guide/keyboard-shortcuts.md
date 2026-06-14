@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-keyboard-shortcuts-source
+    type: unit
+    claim: Keyboard shortcut guidance is grounded in chat UI sources that implement chat actions.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-keyboard-shortcuts-source
 ---
 
 # Keyboard Shortcuts

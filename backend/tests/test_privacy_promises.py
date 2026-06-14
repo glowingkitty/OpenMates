@@ -265,7 +265,8 @@ def _validate(instance: Any, schema: dict, root: dict, path: str = "$") -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_registry_matches_schema(registry, schema):
+def test_registry_matches_schema(registry, schema, doc_assert):
+    doc_assert("privacy-promises-registry-matches-schema")
     _validate(registry, schema, schema)
 
 
@@ -301,12 +302,13 @@ def test_documentation_promises_have_docs(promises):
                 assert _enforcement_root(d).exists(), f"{p['id']}: docs file missing: {d}"
 
 
-def test_test_files_contain_marker(promises):
+def test_test_files_contain_marker(promises, doc_assert):
     """Every linked test must contain a matching @privacy-promise: <id> marker.
 
     The self-hosted meta-test file (this file) is exempt — its markers live in
     inline test functions below rather than as file-level comments.
     """
+    doc_assert("privacy-promises-linked-tests-contain-markers")
     failures: list[str] = []
     self_name = Path(__file__).name  # language-agnostic self-detection
     for p in promises:
@@ -395,12 +397,13 @@ def _affirmative_hits(text: str, term: str) -> list[int]:
         start = idx + len(term)
 
 
-def test_forbidden_terms_absent(promises):
+def test_forbidden_terms_absent(promises, doc_assert):
     """No surfaced heading, description, or architecture doc may claim 'E2EE'.
 
     Only affirmative uses count — explicit disclaimers like 'this is NOT
     end-to-end encryption' are allowed (and in fact encouraged).
     """
+    doc_assert("privacy-promises-forbidden-terms-are-absent")
     offenders: list[str] = []
 
     # 1. Registry strings — any affirmative match in the registry itself is a bug.
@@ -486,12 +489,13 @@ def test_no_third_party_tracking_dependencies():
     assert not offenders, "Forbidden analytics SDK(s) detected:\n" + "\n".join(offenders)
 
 
-def test_logging_redaction_filter():
+def test_logging_redaction_filter(doc_assert):
     """@privacy-promise: logging-redaction
 
     Instantiate SensitiveDataFilter and verify it redacts email and bearer
     token from a LogRecord message.
     """
+    doc_assert("privacy-promises-logging-redacts-sensitive-data")
     import sys
 
     api_root = REPO_ROOT / "backend" / "core" / "api"
@@ -613,6 +617,7 @@ _SKIP_EXTERNAL_SCAN = (
     "/legal/",
     "/config/links.ts",
     "/config/api.ts",
+    "/demo_chats/data/example_chats/",
     "/i18n/",
     "/dev/preview/",
     "ExternalLink",
@@ -702,7 +707,7 @@ def test_no_external_resources():
     )
 
 
-def test_cryptographic_erasure_phase_order():
+def test_cryptographic_erasure_phase_order(doc_assert):
     """@privacy-promise: cryptographic-erasure
 
     Static check: the phased deletion task destroys the encryption-key cache
@@ -711,6 +716,7 @@ def test_cryptographic_erasure_phase_order():
 
     This is a placeholder until Phase 3 adds a dedicated deletion E2E spec.
     """
+    doc_assert("privacy-promises-cryptographic-erasure-deletes-keys-first")
     path = _enforcement_root("backend/core/api/app/tasks/user_cache_tasks.py")
     src = path.read_text(encoding="utf-8")
     low = src.lower()

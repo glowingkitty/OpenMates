@@ -10,7 +10,7 @@ Passkey Management - View, rename, delete, and add passkeys
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import { createEventDispatcher } from 'svelte';
     import SettingsInput from './elements/SettingsInput.svelte';
-    import { encryptWithMasterKey, decryptWithMasterKey, getEmailDecryptedWithMasterKey, hashEmail, getEmailSalt, deriveWrappingKeyFromPRF, encryptKey, hashKeyFromPRF, uint8ArrayToBase64 } from '../../services/cryptoService';
+    import { encryptWithMasterKey, decryptWithMasterKey, getEmailDecryptedWithMasterKey, hashEmail, getEmailSalt, deriveWrappingKeyFromPRF, encryptKey, hashKeyFromPRF, uint8ArrayToBase64, getPRFSignatureForPasskeyRegistration } from '../../services/cryptoService';
     import { getMasterKeyFromIndexedDB, isDeviceTrusted } from '../../services/cryptoKeyStorage';
     import { userProfile } from '../../stores/userProfile';
     import { generateDeviceName } from '../../utils/deviceName';
@@ -34,6 +34,11 @@ Passkey Management - View, rename, delete, and add passkeys
     let editingDeviceName = $state('');
     let deletingPasskeyId = $state<string | null>(null);
     let isDeviceTrustedState = $state<boolean | null>(null);
+
+    type PasskeyListItem = {
+        id: string;
+        device_name: string | null;
+    };
 
     // Format date for display
     // Handles various date formats from Directus (ISO strings, Unix timestamps, etc.)
@@ -128,7 +133,7 @@ Passkey Management - View, rename, delete, and add passkeys
     }
 
     // Start editing a passkey name
-    function startEdit(passkey: any) {
+    function startEdit(passkey: PasskeyListItem) {
         editingPasskeyId = passkey.id;
         editingDeviceName = passkey.device_name || 'Unknown Device';
     }
@@ -372,18 +377,19 @@ Passkey Management - View, rename, delete, and add passkeys
                 credential = await navigator.credentials.create({
                     publicKey: publicKeyCredentialCreationOptions
                 }) as PublicKeyCredential;
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('[SettingsPasskeys] WebAuthn credential creation failed:', error);
-                if (error.name === 'NotSupportedError' || 
-                    error.message?.includes('PRF') || 
-                    error.message?.includes('prf') ||
-                    error.message?.toLowerCase().includes('extension')) {
+                const webauthnError = error as Error & { name?: string };
+                if (webauthnError.name === 'NotSupportedError' || 
+                    webauthnError.message?.includes('PRF') || 
+                    webauthnError.message?.includes('prf') ||
+                    webauthnError.message?.toLowerCase().includes('extension')) {
                     throw new Error('Your device does not support PRF extension, which is required for passkey authentication. Please use a device that supports PRF (e.g., iOS 18+, recent Chrome, Android with Google Password Manager).');
                 }
-                if (error.name === 'NotAllowedError') {
+                if (webauthnError.name === 'NotAllowedError') {
                     throw new Error('Passkey registration was cancelled or not allowed.');
                 }
-                throw new Error(error.message || 'Failed to create passkey. Please try again.');
+                throw new Error(webauthnError.message || 'Failed to create passkey. Please try again.');
             }
 
             if (!credential || !(credential instanceof PublicKeyCredential)) {
@@ -392,40 +398,15 @@ Passkey Management - View, rename, delete, and add passkeys
 
             const response = credential.response as AuthenticatorAttestationResponse;
 
-            // Step 8: Check PRF extension support (CRITICAL for zero-knowledge encryption)
-            const clientExtensionResults = credential.getClientExtensionResults();
-            console.log('[SettingsPasskeys] Client extension results:', clientExtensionResults);
-            const prfResults = clientExtensionResults?.prf as any;
-
-            if (!prfResults || prfResults.enabled === false) {
-                throw new Error('PRF extension is required for passkey authentication. Your device does not support PRF. Please use a device that supports PRF (e.g., iOS 18+, recent Chrome, Android with Google Password Manager).');
-            }
-
-            // Step 9: Extract PRF signature
-            const prfSignatureBuffer = prfResults.results?.first;
-            if (!prfSignatureBuffer) {
-                throw new Error('PRF signature not found. Your device may not support PRF extension.');
-            }
-
-            // Convert PRF signature to Uint8Array
-            let prfSignature: Uint8Array;
-            if (typeof prfSignatureBuffer === 'string') {
-                const hexString = prfSignatureBuffer;
-                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
-                prfSignature = new Uint8Array(prfSignatureBuffer);
-            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
-                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
-            } else {
-                throw new Error('PRF signature is in unknown format');
-            }
-
-            // Validate PRF signature length
-            if (prfSignature.length < 16 || prfSignature.length > 64) {
-                throw new Error('PRF signature has invalid length');
-            }
-
-            console.log('[SettingsPasskeys] PRF signature validated successfully');
+            // Step 8: Get PRF output (CRITICAL for zero-knowledge encryption)
+            const prfSignature = await getPRFSignatureForPasskeyRegistration({
+                credential,
+                challenge,
+                rpId: initiateData.rp.id,
+                timeout: initiateData.timeout,
+                userVerification: publicKeyCredentialCreationOptions.authenticatorSelection?.userVerification as UserVerificationRequirement | undefined,
+                prfEvalFirst: base64UrlToArrayBuffer(initiateData.extensions?.prf?.eval?.first || initiateData.challenge)
+            }, 'SettingsPasskeys');
 
             // Step 10: Derive wrapping key from PRF signature using existing email salt
             const wrappingKey = await deriveWrappingKeyFromPRF(prfSignature, emailSalt);
@@ -892,4 +873,3 @@ Passkey Management - View, rename, delete, and add passkeys
         }
     }
 </style>
-

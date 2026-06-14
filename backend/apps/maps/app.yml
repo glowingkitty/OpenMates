@@ -33,6 +33,14 @@ embed_types:
     icon: maps
     gradient_var: "--color-app-maps"
     i18n_namespace: embeds.maps.location
+    content_catalog:
+      enabled: true
+      content_type_id: location
+      name: Map location
+      description: Pinned places and map locations with address and coordinate metadata.
+      icon: maps
+      example_key: maps.location
+      order: 10
 settings_and_memories:
   - id: favorite_places
     name_translation_key: maps.favorite_places

@@ -77,6 +77,7 @@ export interface MentionParseResult {
 export interface ModelInfo {
   id: string;
   name: string;
+  providerId?: string;
 }
 
 /** Minimal app info from /v1/apps */
@@ -146,9 +147,9 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "kimi-k2.5", name: "Kimi K2.5" },
   { id: "kimi-k2.6", name: "Kimi K2.6" },
   { id: "zai-glm-4.7", name: "GLM 4.7" },
-  { id: "mistral-medium-latest", name: "Mistral Medium" },
-  { id: "mistral-small-2506", name: "Mistral Small 3.2" },
-  { id: "mistral-small-latest", name: "Mistral Small 4" },
+  { id: "mistral-medium-latest", name: "Mistral Medium 3.5", providerId: "mistral" },
+  { id: "mistral-small-2506", name: "Mistral Small 3.2", providerId: "mistral" },
+  { id: "mistral-small-latest", name: "Mistral Small 4", providerId: "mistral" },
   { id: "devstral-2512", name: "Devstral 2" },
 ];
 
@@ -234,6 +235,21 @@ function resolveToken(
   token: string,
   context: MentionContext,
 ): ResolvedMention | null {
+  const wireFocusMatch = token.match(/^focus:([a-z0-9_-]+):([a-z0-9_-]+)$/i);
+  if (wireFocusMatch) {
+    const [, appId, focusModeId] = wireFocusMatch;
+    const app = context.apps.find((candidate) => candidate.id === appId);
+    const focusMode = app?.focus_modes?.find((candidate) => candidate.id === focusModeId);
+    if (app && focusMode) {
+      return {
+        original: `@${token}`,
+        type: "focus_mode",
+        wireSyntax: `@focus:${app.id}:${focusMode.id}`,
+        displayName: `@${capitalize(app.name)}-${capitalize(focusMode.name).replace(/\s+/g, "-")}`,
+      };
+    }
+  }
+
   const normalized = normalize(token);
 
   // 1. Model alias (@best, @fast)
@@ -252,7 +268,7 @@ function resolveToken(
       return {
         original: `@${token}`,
         type: "model",
-        wireSyntax: `@ai-model:${model.id}`,
+        wireSyntax: `@ai-model:${model.id}${model.providerId ? `:${model.providerId}` : ""}`,
         displayName: `@${model.name.replace(/\s+/g, "-")}`,
       };
     }

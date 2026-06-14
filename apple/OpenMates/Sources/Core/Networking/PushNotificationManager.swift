@@ -69,10 +69,19 @@ final class PushNotificationManager: NSObject, ObservableObject {
         print("[Push] Device token: \(tokenString)")
 
         Task {
+            let publicKey = NotificationPreviewCrypto.loadOrCreatePublicKey()
+            var body: [String: Any] = [
+                "token": tokenString,
+                "platform": "apns",
+                "encryption_version": NotificationPreviewCrypto.encryptionVersion
+            ]
+            if let publicKey {
+                body["notification_public_key"] = publicKey
+            }
             try? await APIClient.shared.request(
                 .post,
                 path: "/v1/notifications/register-device",
-                body: ["token": tokenString, "platform": "apns"]
+                body: body
             ) as Data
         }
     }
@@ -89,7 +98,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
         #endif
     }
 
-    func showChatMessageNotification(chatId: String, title: String?, body: String) async {
+    func showChatMessageNotification(chatId: String) async {
         let center = UNUserNotificationCenter.current()
         configureChatMessageCategory(center: center)
 
@@ -99,8 +108,8 @@ final class PushNotificationManager: NSObject, ObservableObject {
         }
 
         let content = UNMutableNotificationContent()
-        content.title = title?.isEmpty == false ? title! : AppStrings.openMatesName
-        content.body = body
+        content.title = AppStrings.openMatesName
+        content.body = AppStrings.newMessageReceived
         content.sound = .default
         content.categoryIdentifier = NotificationAction.chatMessageCategory
         content.threadIdentifier = chatId

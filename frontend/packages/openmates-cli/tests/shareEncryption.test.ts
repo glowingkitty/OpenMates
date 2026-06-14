@@ -23,6 +23,17 @@ import {
 
 const crypto = webcrypto as unknown as Crypto;
 
+function docAssert(claimId: string, assertion: () => void): void {
+  try {
+    assertion();
+  } catch (error) {
+    if (error instanceof Error) {
+      error.message = `[doc-assert:${claimId}] ${error.message}`;
+    }
+    throw error;
+  }
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 function randomKey(): Uint8Array {
@@ -120,9 +131,11 @@ describe("generateChatShareBlob", () => {
     const blob = await generateChatShareBlob(chatId, chatKey, 0);
     const decoded = await decryptChatBlob(chatId, blob);
 
-    assert.equal(decoded.chat_encryption_key, chatKeyB64);
-    assert.equal(decoded.duration_seconds, 0);
-    assert.equal(decoded.pwd, 0);
+    docAssert("cli-share-links-encrypt-chat-keys", () => {
+      assert.equal(decoded.chat_encryption_key, chatKeyB64);
+      assert.equal(decoded.duration_seconds, 0);
+      assert.equal(decoded.pwd, 0);
+    });
   });
 
   it("embeds the correct expiry duration", async () => {
@@ -191,6 +204,10 @@ describe("deriveWebOrigin", () => {
     assert.equal(deriveWebOrigin("https://api.openmates.org"), "https://openmates.org");
   });
 
+  it("maps self-hosted api subdomains to app subdomains", () => {
+    assert.equal(deriveWebOrigin("https://api.example.com"), "https://app.example.com");
+  });
+
   it("handles dev subdomain", () => {
     assert.equal(deriveWebOrigin("https://api.dev.openmates.org"), "https://app.dev.openmates.org");
   });
@@ -203,7 +220,9 @@ describe("deriveWebOrigin", () => {
 describe("buildChatShareUrl / buildEmbedShareUrl", () => {
   it("builds chat share URL", () => {
     const url = buildChatShareUrl("https://openmates.org", "chat-123", "blobdata");
-    assert.equal(url, "https://openmates.org/share/chat/chat-123#key=blobdata");
+    docAssert("cli-share-links-use-web-share-routes", () => {
+      assert.equal(url, "https://openmates.org/share/chat/chat-123#key=blobdata");
+    });
   });
 
   it("builds embed share URL", () => {

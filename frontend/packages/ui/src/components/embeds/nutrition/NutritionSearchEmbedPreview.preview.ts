@@ -7,7 +7,7 @@
 
 const sampleResults = [
   {
-    uid: 'rewe-recipe-001',
+    uid: 'edamam-recipe-001',
     title: 'Spaghetti Aglio e Olio',
     description: 'Klassisches italienisches Knoblauch-Pasta-Gericht',
     image_url: null,
@@ -19,7 +19,7 @@ const sampleResults = [
     servings: 4
   },
   {
-    uid: 'rewe-recipe-002',
+    uid: 'edamam-recipe-002',
     title: 'Penne Arrabiata mit frischen Tomaten',
     description: 'Scharfe Tomatensoße mit Penne',
     image_url: null,
@@ -31,7 +31,7 @@ const sampleResults = [
     servings: 4
   },
   {
-    uid: 'rewe-recipe-003',
+    uid: 'edamam-recipe-003',
     title: 'Tagliatelle mit Pilzrahmsauce',
     description: 'Cremige Pilzsauce mit frischen Kräutern',
     image_url: null,
@@ -48,7 +48,7 @@ const sampleResults = [
 const defaultProps = {
   id: 'preview-nutrition-search-1',
   query: 'vegetarische Pasta',
-  provider: 'REWE',
+  provider: 'Edamam',
   status: 'finished' as const,
   results: sampleResults,
   isMobile: false,
@@ -63,7 +63,7 @@ export const variants = {
   processing: {
     id: 'preview-nutrition-search-processing',
     query: 'schnelle Abendessen Rezepte',
-    provider: 'REWE',
+    provider: 'Edamam',
     status: 'processing' as const,
     results: [],
     isMobile: false,
@@ -74,7 +74,7 @@ export const variants = {
   error: {
     id: 'preview-nutrition-search-error',
     query: 'vegane Kuchen',
-    provider: 'REWE',
+    provider: 'Edamam',
     status: 'error' as const,
     results: [],
     isMobile: false,
@@ -85,7 +85,7 @@ export const variants = {
   cancelled: {
     id: 'preview-nutrition-search-cancelled',
     query: 'low carb Rezepte',
-    provider: 'REWE',
+    provider: 'Edamam',
     status: 'cancelled' as const,
     results: [],
     isMobile: false,

@@ -21,7 +21,7 @@ const {
 	setToggleChecked,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
@@ -30,7 +30,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
  * Backup code setup and login flow test against a deployed web app.
  *
  * ARCHITECTURE NOTES:
- * - Uses the existing test account (must have password + 2FA configured).
+ * - Uses isolated account slot 15 because this flow rotates the TOTP secret.
  * - Phase 1: Logs in with password + OTP, navigates to Settings > Security > 2FA,
  *   triggers "Change App" to regenerate backup codes, captures a code.
  * - Phase 2: Logs out, then logs back in using the captured backup code instead of OTP.
@@ -38,20 +38,18 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
  *   login flow end-to-end.
  *
  * REQUIRED ENV VARS:
- * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of the existing test account.
- * - OPENMATES_TEST_ACCOUNT_PASSWORD: Password for the test account.
- * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
+ * - Isolated slot 15 credentials, routed by scripts/run_tests.py.
  */
 
 const {
 	email: OPENMATES_TEST_ACCOUNT_EMAIL,
 	password: OPENMATES_TEST_ACCOUNT_PASSWORD,
 	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
-} = getTestAccount();
+} = getIsolatedTestAccount('backup-code-login-flow.spec.ts');
 
 // This test mutates the account's TFA secret (via "Change App"), so retries would fail
 // because the OTP key in env no longer matches the new server-side secret.
-test.describe.configure({ retries: 0 });
+test.describe.configure({ mode: 'serial', retries: 0 });
 
 test('sets up backup codes in settings and logs in with a backup code', async ({
 	page,

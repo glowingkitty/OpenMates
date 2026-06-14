@@ -37,6 +37,7 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 
 // Import logout state to prevent database re-initialization during logout
 import { get } from "svelte/store";
+import { browser } from "$app/environment";
 import {
   forcedLogoutInProgress,
   isLoggingOut,
@@ -160,7 +161,12 @@ class ChatDatabase {
     this.DAILY_INSPIRATIONS_STORE_NAME,
     this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME,
   ];
+  private readonly DATA_BEARING_STORE_NAMES = [
+    ...this.REQUIRED_STORE_NAMES,
+    "user_drafts",
+  ];
   private initializationPromise: Promise<void> | null = null;
+  private catastrophicSchemaRepairAttempted = false;
 
   // Flag to prevent new operations during database deletion
   private isDeleting: boolean = false;
@@ -255,6 +261,44 @@ class ChatDatabase {
     }
     this.db = null;
     this.initializationPromise = null;
+  }
+
+  private canRepairCatastrophicMissingStoreSchema(db: IDBDatabase): boolean {
+    if (this.catastrophicSchemaRepairAttempted) return false;
+
+    const hasAnyDataBearingStore = this.DATA_BEARING_STORE_NAMES.some(
+      (storeName) => db.objectStoreNames.contains(storeName),
+    );
+    return !hasAnyDataBearingStore;
+  }
+
+  private async repairCatastrophicMissingStoreSchema(
+    missingStores: string[],
+  ): Promise<boolean> {
+    const invalidDb = this.db;
+    if (!invalidDb || !this.canRepairCatastrophicMissingStoreSchema(invalidDb)) {
+      return false;
+    }
+
+    this.catastrophicSchemaRepairAttempted = true;
+    console.warn(
+      `[ChatDatabase] Catastrophic empty schema detected; deleting ${this.DB_NAME} so sync can rebuild it. Missing store(s): ${missingStores.join(", ")}`,
+    );
+
+    try {
+      invalidDb.close();
+    } catch (error) {
+      console.warn(
+        "[ChatDatabase] Error closing catastrophically invalid schema connection:",
+        error,
+      );
+    }
+
+    this.db = null;
+    this.initializationPromise = null;
+    chatKeyManager.clearAll({ broadcast: false });
+    await this.deleteDatabase();
+    return true;
   }
 
   /**
@@ -545,6 +589,19 @@ class ChatDatabase {
 
         const missingStores = this.getMissingRequiredStores(this.db);
         if (missingStores.length > 0) {
+          const repaired = await this.repairCatastrophicMissingStoreSchema(
+            missingStores,
+          );
+          if (repaired) {
+            try {
+              await this.init(options);
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+            return;
+          }
+
           this.closeInvalidSchemaConnection(
             missingStores,
             "Database opened without required stores after migration",
@@ -556,6 +613,8 @@ class ChatDatabase {
           );
           return;
         }
+
+        this.catastrophicSchemaRepairAttempted = false;
 
         // Set marker in localStorage to indicate database has been initialized
         // This is used by orphaned database detection to know if cleanup is needed
@@ -1467,6 +1526,14 @@ class ChatDatabase {
     return messageOps.getMessagesForChat(this, chat_id, transaction);
   }
 
+  async getMessageWindowForChat(
+    chat_id: string,
+    options: messageOps.MessageWindowOptions = {},
+    transaction?: IDBTransaction,
+  ): Promise<messageOps.MessageWindowResult> {
+    return messageOps.getMessageWindowForChat(this, chat_id, options, transaction);
+  }
+
   async getMessage(
     message_id: string,
     transaction?: IDBTransaction,
@@ -2245,13 +2312,15 @@ export const chatDB = new ChatDatabase();
  * If init() throws (e.g. blocked during logout), the promise stays pending —
  * callers should add a timeout guard for that edge case.
  */
-export const cryptoReady: Promise<void> = chatDB
-  .init()
-  .then(() => chatDB.loadChatKeysFromDatabase())
-  .catch((err) => {
-    // Non-fatal: if init fails (e.g. during logout), log and let the UI handle it
-    console.warn(
-      "[db] cryptoReady init failed (may be expected during logout):",
-      err,
-    );
-  });
+export const cryptoReady: Promise<void> = browser
+  ? chatDB
+      .init()
+      .then(() => chatDB.loadChatKeysFromDatabase())
+      .catch((err) => {
+        // Non-fatal: if init fails (e.g. during logout), log and let the UI handle it
+        console.warn(
+          "[db] cryptoReady init failed (may be expected during logout):",
+          err,
+        );
+      })
+  : Promise.resolve();

@@ -8,7 +8,13 @@
  * Tests: exercised indirectly via CLI chat command tests and manual runs.
  */
 
-import WebSocket, { type RawData } from "ws";
+import { createRequire } from "node:module";
+import type { IncomingMessage } from "node:http";
+
+const require = createRequire(import.meta.url);
+const WebSocket = require("ws");
+
+type RawData = Buffer | ArrayBuffer | Buffer[];
 
 export interface WsEnvelope<T = unknown> {
   type: string;
@@ -27,8 +33,65 @@ export interface StreamEvent {
   modelName: string | null;
 }
 
+export interface SendEmbedDataFrame {
+  embed_id: string;
+  type?: string;
+  content?: string;
+  status?: string;
+  text_preview?: string;
+  chat_id?: string;
+  message_id?: string;
+  user_id?: string;
+  embed_ids?: string[];
+  parent_embed_id?: string | null;
+  task_id?: string;
+  version_number?: number;
+  file_path?: string;
+  content_hash?: string;
+  text_length_chars?: number;
+  is_private?: boolean;
+  is_shared?: boolean;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+export type SubChatEventType =
+  | "spawn_sub_chats"
+  | "sub_chat_progress"
+  | "sub_chat_confirmation_required"
+  | "sub_chat_confirmation_resolved"
+  | "awaiting_sub_chats_completion"
+  | "sub_chat_completed"
+  | "awaiting_user_input";
+
+export interface SubChatEvent {
+  type: SubChatEventType;
+  payload: Record<string, unknown>;
+}
+
+export interface AppSettingsMemoriesRequestEvent {
+  requestId: string | null;
+  chatId: string;
+  requestedKeys: string[];
+  payload: Record<string, unknown>;
+}
+
+const SUB_CHAT_EVENT_TYPES = new Set<string>([
+  "spawn_sub_chats",
+  "sub_chat_progress",
+  "sub_chat_confirmation_required",
+  "sub_chat_confirmation_resolved",
+  "awaiting_sub_chats_completion",
+  "sub_chat_completed",
+  "awaiting_user_input",
+]);
+
+const SUB_CHAT_PARENT_STATUS_MESSAGE =
+  "I've started the sub-chats and will continue once they finish.";
+const SUB_CHAT_COMPLETION_TIMEOUT_MS = 10 * 60_000;
+
 export class OpenMatesWsClient {
-  private readonly socket: WebSocket;
+  private readonly socket: InstanceType<typeof WebSocket>;
 
   constructor(options: {
     apiUrl: string;
@@ -77,14 +140,14 @@ export class OpenMatesWsClient {
         clearTimeout(timeout);
         resolve();
       });
-      this.socket.once("error", (error) => {
+      this.socket.once("error", (error: Error) => {
         clearTimeout(timeout);
         reject(error);
       });
       // ws library emits 'unexpected-response' when the server returns a non-101
       // status. When this listener exists, ws does NOT emit the generic 'error'
       // event for the upgrade failure, so there is no double-reject risk.
-      this.socket.once("unexpected-response", (_req, res) => {
+      this.socket.once("unexpected-response", (_req: unknown, res: IncomingMessage) => {
         clearTimeout(timeout);
         if (res.statusCode === 401 || res.statusCode === 403) {
           reject(
@@ -107,6 +170,15 @@ export class OpenMatesWsClient {
 
   send(type: string, payload: unknown): void {
     this.socket.send(JSON.stringify({ type, payload }));
+  }
+
+  sendAsync(type: string, payload: unknown): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.socket.send(JSON.stringify({ type, payload }), (error?: Error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
   }
 
   waitForMessage(
@@ -224,55 +296,236 @@ export class OpenMatesWsClient {
     chatId: string,
     options?: {
       timeoutMs?: number;
+      asyncEmbedWaitMs?: number;
       onStream?: (event: StreamEvent) => void;
+      onSubChatEvent?: (event: SubChatEvent) => void | Promise<void>;
+      onAppSettingsMemoriesRequest?: (
+        event: AppSettingsMemoriesRequestEvent,
+      ) => void | Promise<void>;
     },
   ): Promise<{
+    status: "completed" | "waiting_for_user";
+    messageId: string | null;
+    taskId: string | null;
     content: string;
     category: string | null;
     modelName: string | null;
     followUpSuggestions: string[];
+    embeds: SendEmbedDataFrame[];
+    subChatEvents: SubChatEvent[];
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
     const onStream = options?.onStream;
+    const asyncEmbedWaitMs = options?.asyncEmbedWaitMs ?? 120_000;
 
     return new Promise((resolve, reject) => {
       let latestContent = "";
+      let messageId: string | null = null;
+      let taskId: string | null = null;
       let category: string | null = null;
       let modelName: string | null = null;
       let followUpSuggestions: string[] = [];
+      const subChatEvents: SubChatEvent[] = [];
+      const pendingSubChatHandlers = new Set<Promise<void>>();
+      const pendingMemoryRequestHandlers = new Set<Promise<void>>();
+      const embeds = new Map<string, SendEmbedDataFrame>();
+      const processingEmbedIds = new Set<string>();
+      let waitingForUserPayload: Record<string, unknown> | null = null;
       // Track whether the AI response is done so we can wait for post-processing.
       let aiResponseDone = false;
+      let postProcessingDone = false;
       // Post-processing metadata arrives up to ~10 s after the AI response.
       // We wait a short window for it so follow-up suggestions are available.
       const POST_PROCESSING_WINDOW_MS = 12_000;
       let postProcessingTimer: ReturnType<typeof setTimeout> | null = null;
+      let asyncEmbedTimer: ReturnType<typeof setTimeout> | null = null;
 
-      const timeout = setTimeout(() => {
-        cleanup();
-        reject(new Error("Timed out waiting for AI response"));
-      }, timeoutMs);
+      const startTimeout = (ms: number) =>
+        setTimeout(() => {
+          cleanup();
+          reject(new Error("Timed out waiting for AI response"));
+        }, ms);
+      let timeout = startTimeout(timeoutMs);
+      let awaitingSubChatsCompletion = false;
+
+      const resetTimeout = (ms: number) => {
+        clearTimeout(timeout);
+        timeout = startTimeout(ms);
+      };
 
       const capture = (p: Record<string, unknown>) => {
+        if (typeof p.message_id === "string" && p.message_id)
+          messageId = p.message_id;
+        if (typeof p.task_id === "string" && p.task_id) taskId = p.task_id;
         if (typeof p.category === "string" && p.category) category = p.category;
         if (typeof p.model_name === "string" && p.model_name)
           modelName = p.model_name;
       };
 
-      // Called once AI response is done. Start a short window to wait for
-      // post_processing_metadata which may carry follow-up suggestions.
-      const scheduleResolve = (content: string) => {
-        aiResponseDone = true;
-        latestContent = content;
-        // Start the post-processing window — resolve early if we get suggestions.
-        postProcessingTimer = setTimeout(() => {
+      const extractMessageContent = (message: Record<string, unknown>): string => {
+        if (typeof message.content === "string") return message.content;
+        const content = message.content;
+        if (!content || typeof content !== "object") return "";
+        try {
+          const root = content as {
+            content?: Array<{ content?: Array<{ text?: unknown }> }>;
+          };
+          const text = root.content?.[0]?.content?.[0]?.text;
+          return typeof text === "string" ? text : "";
+        } catch {
+          return "";
+        }
+      };
+
+      const finishPostProcessingWait = () => {
+        postProcessingDone = true;
+        maybeResolve();
+      };
+
+      const maybeResolve = () => {
+        if (waitingForUserPayload) {
+          if (pendingSubChatHandlers.size > 0) return;
           cleanup();
           resolve({
+            status: "waiting_for_user",
+            messageId,
+            taskId,
             content: latestContent,
             category,
             modelName,
             followUpSuggestions,
+            embeds: [...embeds.values()],
+            subChatEvents,
           });
-        }, POST_PROCESSING_WINDOW_MS);
+          return;
+        }
+        if (!aiResponseDone || !postProcessingDone) return;
+        if (pendingSubChatHandlers.size > 0) return;
+        if (pendingMemoryRequestHandlers.size > 0) return;
+        if (processingEmbedIds.size > 0 && !asyncEmbedTimer) {
+          asyncEmbedTimer = setTimeout(() => {
+            cleanup();
+            resolve({
+              status: "completed",
+              messageId,
+              taskId,
+              content: latestContent,
+              category,
+              modelName,
+              followUpSuggestions,
+              embeds: [...embeds.values()],
+              subChatEvents,
+            });
+          }, asyncEmbedWaitMs);
+          return;
+        }
+        if (processingEmbedIds.size > 0) return;
+        cleanup();
+        resolve({
+          status: "completed",
+          messageId,
+          taskId,
+          content: latestContent,
+          category,
+          modelName,
+          followUpSuggestions,
+          embeds: [...embeds.values()],
+          subChatEvents,
+        });
+      };
+
+      const handleSubChatEvent = (type: string, p: Record<string, unknown>) => {
+        const eventPayload =
+          p.payload && typeof p.payload === "object" && !Array.isArray(p.payload)
+            ? (p.payload as Record<string, unknown>)
+            : p;
+        const eventChatId =
+          type === "awaiting_user_input" && typeof eventPayload.parent_id === "string"
+            ? eventPayload.parent_id
+            : typeof eventPayload.chat_id === "string"
+              ? eventPayload.chat_id
+              : typeof eventPayload.parent_id === "string"
+                ? eventPayload.parent_id
+                : null;
+        if (eventChatId && eventChatId !== chatId) return;
+
+        const event = { type: type as SubChatEventType, payload: eventPayload };
+        subChatEvents.push(event);
+        if (type === "awaiting_user_input") {
+          waitingForUserPayload = eventPayload;
+          messageId = typeof eventPayload.message_id === "string" ? eventPayload.message_id : messageId;
+          taskId = typeof eventPayload.task_id === "string" ? eventPayload.task_id : taskId;
+          latestContent = typeof eventPayload.question === "string" ? eventPayload.question : latestContent;
+          postProcessingDone = true;
+        }
+        if (type === "awaiting_sub_chats_completion") {
+          awaitingSubChatsCompletion = true;
+          resetTimeout(SUB_CHAT_COMPLETION_TIMEOUT_MS);
+        }
+        const handler = options?.onSubChatEvent;
+        if (!handler) return;
+
+        const pending = Promise.resolve(handler(event));
+        pendingSubChatHandlers.add(pending);
+        pending
+          .catch((error: unknown) => {
+            cleanup();
+            reject(error instanceof Error ? error : new Error(String(error)));
+          })
+          .finally(() => {
+            pendingSubChatHandlers.delete(pending);
+            maybeResolve();
+          });
+      };
+
+      const handleAppSettingsMemoriesRequest = (p: Record<string, unknown>) => {
+        const eventChatId = typeof p.chat_id === "string" ? p.chat_id : null;
+        if (eventChatId !== chatId) return;
+
+        const handler = options?.onAppSettingsMemoriesRequest;
+        if (!handler) return;
+
+        resetTimeout(timeoutMs);
+        const requestedKeys = Array.isArray(p.requested_keys)
+          ? (p.requested_keys as unknown[]).filter(
+              (key): key is string => typeof key === "string" && key.length > 0,
+            )
+          : [];
+        const event: AppSettingsMemoriesRequestEvent = {
+          requestId: typeof p.request_id === "string" ? p.request_id : null,
+          chatId: eventChatId,
+          requestedKeys,
+          payload: p,
+        };
+
+        const pending = Promise.resolve(handler(event));
+        pendingMemoryRequestHandlers.add(pending);
+        pending
+          .catch((error: unknown) => {
+            cleanup();
+            reject(error instanceof Error ? error : new Error(String(error)));
+          })
+          .finally(() => {
+            pendingMemoryRequestHandlers.delete(pending);
+            maybeResolve();
+          });
+      };
+
+      // Called once AI response is done. Start a short window to wait for
+      // post_processing_metadata which may carry follow-up suggestions.
+      const scheduleResolve = (content: string) => {
+        if (
+          awaitingSubChatsCompletion &&
+          content.trim().startsWith(SUB_CHAT_PARENT_STATUS_MESSAGE)
+        ) {
+          latestContent = "";
+          return;
+        }
+        aiResponseDone = true;
+        latestContent = content;
+        clearTimeout(timeout);
+        // Start the post-processing window — resolve early if we get suggestions.
+        postProcessingTimer = setTimeout(finishPostProcessingWait, POST_PROCESSING_WINDOW_MS);
       };
 
       const onMessage = (rawData: RawData) => {
@@ -295,10 +548,41 @@ export class OpenMatesWsClient {
             return;
           }
 
+          if (SUB_CHAT_EVENT_TYPES.has(type)) {
+            handleSubChatEvent(type, p);
+            return;
+          }
+
+          if (type === "request_app_settings_memories") {
+            handleAppSettingsMemoriesRequest(p);
+            return;
+          }
+
+          if (type === "send_embed_data") {
+            const embedPayload = (p.payload && typeof p.payload === "object"
+              ? p.payload
+              : p) as Record<string, unknown>;
+            if (typeof embedPayload.chat_id === "string" && embedPayload.chat_id !== chatId) {
+              return;
+            }
+            const embedId = embedPayload.embed_id;
+            if (typeof embedId === "string" && embedId) {
+              const status = typeof embedPayload.status === "string" ? embedPayload.status : "finished";
+              embeds.set(embedId, embedPayload as unknown as SendEmbedDataFrame);
+              if (status === "processing") {
+                processingEmbedIds.add(embedId);
+              } else {
+                processingEmbedIds.delete(embedId);
+              }
+              maybeResolve();
+            }
+            return;
+          }
+
           // Active-chat streaming: incremental chunks
           if (type === "ai_message_update") {
             const msgId = p.user_message_id ?? p.userMessageId;
-            if (msgId !== userMessageId) return;
+            if (msgId !== userMessageId && p.chat_id !== chatId) return;
             capture(p);
             if (typeof p.full_content_so_far === "string") {
               latestContent = p.full_content_so_far;
@@ -325,13 +609,35 @@ export class OpenMatesWsClient {
           // Background path: single completion event
           if (type === "ai_background_response_completed") {
             const msgId = p.user_message_id ?? p.userMessageId;
-            if (msgId && msgId !== userMessageId) return;
+            if (msgId && msgId !== userMessageId && p.chat_id !== chatId) return;
             if (!msgId && p.chat_id !== chatId) return;
             capture(p);
             const content =
               typeof p.full_content === "string"
                 ? p.full_content
                 : latestContent;
+            onStream?.({ kind: "done", content, category, modelName });
+            scheduleResolve(content);
+            return;
+          }
+
+          // Fallback path: the server may broadcast a completed assistant
+          // message via chat_message_added even when stream frames were missed.
+          if (type === "chat_message_added") {
+            if (p.chat_id !== chatId) return;
+            const rawMessage = p.message;
+            if (!rawMessage || typeof rawMessage !== "object") return;
+            const message = rawMessage as Record<string, unknown>;
+            if (message.role !== "assistant") return;
+            const content = extractMessageContent(message);
+            if (!content) return;
+            capture(message);
+            if (typeof message.category === "string" && message.category) {
+              category = message.category;
+            }
+            if (typeof message.model_name === "string" && message.model_name) {
+              modelName = message.model_name;
+            }
             onStream?.({ kind: "done", content, category, modelName });
             scheduleResolve(content);
             return;
@@ -366,13 +672,7 @@ export class OpenMatesWsClient {
                 clearTimeout(postProcessingTimer);
                 postProcessingTimer = null;
               }
-              cleanup();
-              resolve({
-                content: latestContent,
-                category,
-                modelName,
-                followUpSuggestions,
-              });
+              finishPostProcessingWait();
             }
             return;
           }
@@ -390,10 +690,15 @@ export class OpenMatesWsClient {
         if (aiResponseDone) {
           cleanup();
           resolve({
+            status: "completed",
+            messageId,
+            taskId,
             content: latestContent,
             category,
             modelName,
             followUpSuggestions,
+            embeds: [...embeds.values()],
+            subChatEvents,
           });
           return;
         }
@@ -406,6 +711,10 @@ export class OpenMatesWsClient {
         if (postProcessingTimer) {
           clearTimeout(postProcessingTimer);
           postProcessingTimer = null;
+        }
+        if (asyncEmbedTimer) {
+          clearTimeout(asyncEmbedTimer);
+          asyncEmbedTimer = null;
         }
         this.socket.off("message", onMessage);
         this.socket.off("error", onError);

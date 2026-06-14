@@ -181,8 +181,17 @@ class AppSkillsStore {
             for (const [appId, appMetadata] of Object.entries(annotatedApps)) {
                 const availableSkillIds = userSkillsState.skillsByApp[appId];
                 if (availableSkillIds === undefined) {
-                    // App not returned by backend (e.g. container not running) — include as-is
-                    userFilteredApps[appId] = appMetadata;
+                    const hasNonSkillComponents =
+                        (appMetadata.focus_modes?.length ?? 0) > 0 ||
+                        (appMetadata.settings_and_memories?.length ?? 0) > 0;
+
+                    if (hasNonSkillComponents) {
+                        userFilteredApps[appId] = {
+                            ...appMetadata,
+                            skills: [],
+                            providers: [],
+                        };
+                    }
                     continue;
                 }
 
@@ -245,4 +254,3 @@ class AppSkillsStore {
 
 // Export singleton instance
 export const appSkillsStore = new AppSkillsStore();
-

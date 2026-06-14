@@ -257,5 +257,14 @@ test.describe('InteractiveQuestions Chat Integration', () => {
 		await expect(submitBtn).not.toHaveClass(/disabled/);
 
 		await screenshot(page, 'quiz-option-selected');
+
+		await submitBtn.click();
+		const latestUserMessage = page.getByTestId('user-message-content').last();
+		await expect(latestUserMessage).toBeVisible({ timeout: 10000 });
+		await expect(latestUserMessage).not.toContainText('I selected');
+		await expect(latestUserMessage).not.toContainText('Selected:');
+		await expect(latestUserMessage).not.toContainText('interactive_response');
+		await expect(questionCard).toHaveClass(/locked/, { timeout: 10000 });
+		await screenshot(page, 'quiz-answer-submitted-answer-only');
 	});
 });

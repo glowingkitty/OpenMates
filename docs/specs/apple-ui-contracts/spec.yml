@@ -1,0 +1,507 @@
+id: apple-ui-contracts
+title: Apple Web UI Contract Parity Pipeline
+status: approved
+
+goal: >
+  Create a deterministic pipeline that captures browser-rendered web UI
+  contracts from Playwright and uses them to guard Apple UI parity. The first
+  slice focuses on the chat message input and attachment states needed by the
+  next Apple end-to-end tests, while making structural/testability drift fail
+  by default and visual/style drift warning-only until each surface is reviewed
+  and promoted.
+
+scope:
+  in:
+    - Playwright extraction of normalized rendered UI contracts for selected web chat/message-input states.
+    - Versioned JSON fixtures that Apple tests and audits can read.
+    - Apple-side contract checking for accessibility identifiers, hierarchy, required states, and warning-level visual/style drift.
+    - First Apple tests for message input attachment parity using image/file/audio-oriented composer states where simulator-safe.
+    - Remote Mac build/test verification for the Apple test target.
+    - A follow-up plan for expanding the contract pipeline across other web specs and Apple tests.
+  out:
+    - Pixel-perfect screenshot failure gates for all Apple UI surfaces in the first slice.
+    - Real physical-device camera capture proof in the first slice.
+    - Rewriting the Apple chat composer or embed architecture unless the first tests expose a required minimal testability gap.
+    - Editing unrelated Playwright specs beyond shared helper extraction or the new contract spec.
+    - Committing private test credentials, host details, raw logs, or private screenshots.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials."
+    - "gh CLI fallback search for 'apple ui parity contract web css tests' returned no matching issues."
+  docs:
+    - docs/architecture/apple/parity-matrix.md
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - .claude/rules/apple-ui.md
+  code_patterns:
+    - scripts/apple_parity_audit.py
+    - scripts/apple_chat_parity_audit.py
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    - frontend/packages/ui/src/components/enter_message/CameraView.svelte
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/CameraView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+  tests:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/CameraView.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+  parity_expectations:
+    - Web Playwright captures are generated from the rendered browser DOM and computed CSS, not from Svelte source alone.
+    - Apple product UI must expose stable accessibility identifiers for mapped controls and states before visual comparison can be trusted.
+    - Structural and testability mismatches fail by default; visual/style mismatches are warning-only until reviewed and promoted per contract item.
+  verification:
+    - Playwright contract extraction run through `python3 scripts/run_tests.py --spec apple-ui-contracts.spec.ts` after deployment when it becomes a Playwright spec.
+    - Linux-safe validation of the generated JSON schema and committed fixture shape.
+    - Remote Mac `xcodebuild test` for the Apple message input tests.
+    - Remote Mac screenshot or attachment evidence for the first composer contract states.
+  intentional_native_differences:
+    - OS-owned PhotosPicker, document picker, microphone permission, and camera controllers may remain native even when the surrounding composer UI is contract-checked.
+    - Screenshot/pixel comparisons use tolerances and warning severity first because SwiftUI/browser text rasterization and platform chrome differ.
+    - Simulator camera capture can use a test-only fixture injection path; real camera capture requires a physical iOS device.
+
+clarification:
+  rounds:
+    - question: Should contract mismatches fail immediately or start warning-only?
+      answer: >
+        Use a hybrid gate: deterministic structural/testability breaks fail by
+        default, while visual/style mismatches warn by default and can be
+        promoted to failures per surface after review.
+  vision_summary: >
+    The web app remains the source of truth, but Apple parity should be guarded
+    by machine-readable contracts extracted from the rendered web app rather
+    than source-code guesses. The first slice should make the message input
+    parity tests practical, fail on missing mapped structure/identifiers, warn
+    on visual drift, and leave a clear plan to extend the method across other
+    specs.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Playwright captures rendered message input contracts
+    given:
+      - The deployed dev web app can render a chat composer at an iPhone-comparable viewport.
+      - The contract extractor has a list of important selector/state definitions.
+    when:
+      - The `apple-ui-contracts.spec.ts` Playwright spec runs.
+    then:
+      - It writes a normalized JSON contract for the default, focused, image-attachment, file-attachment, and recording-overlay composer states.
+      - Each captured element includes semantic identity, required children, bounding box, computed typography, colors, spacing, radii, shadows, and severity metadata.
+      - The output excludes private user data and volatile values such as generated chat IDs.
+
+  - id: S-2
+    title: Contract fixtures are validated and intentionally promoted
+    given:
+      - Playwright has produced a contract artifact.
+      - A reviewer wants Apple tests to use it as a stable source of truth.
+    when:
+      - The fixture validation or promotion script runs.
+    then:
+      - The JSON schema is validated.
+      - Missing required contract sections fail.
+      - Promoted committed fixtures are stored under the Apple UI test fixture directory.
+      - Generated artifacts are not silently committed without an explicit promotion path.
+
+  - id: S-3
+    title: Apple contract audit fails on deterministic structural drift
+    given:
+      - A committed web UI contract fixture exists for the message input surface.
+      - The Apple source and/or XCUITest hierarchy can be inspected.
+    when:
+      - The Apple contract audit runs.
+    then:
+      - Missing mapped Apple accessibility identifiers fail.
+      - Missing required Apple states or forbidden native product controls fail.
+      - Required hierarchy/order mismatches fail when they are explicitly marked structural.
+      - Visual/style differences are reported as warnings unless that specific contract item is marked as failure.
+
+  - id: S-4
+    title: Apple image/file attachment UI test uses the web contract
+    given:
+      - The native iOS app is logged into a live dev test account on a simulator.
+      - The message input contract fixture is available to the UI test bundle or audit script.
+    when:
+      - The Apple message-input attachment UI test attaches an image or file fixture through the simulator-safe test path.
+    then:
+      - The composer shows a pending embed preview equivalent to the web `embed-full-width-wrapper` state.
+      - Sending the message renders a user message with an embed preview and no raw JSON leakage.
+      - Structural parity checks pass and visual differences are attached as warnings for review.
+
+  - id: S-5
+    title: Apple audio recording UI test covers press-hold parity
+    given:
+      - The simulator can grant microphone permission or the app exposes a simulator-safe audio fixture path.
+      - The web contract fixture includes the record button and recording overlay states.
+    when:
+      - The Apple audio recording UI test performs a short tap, a long press, and a release or injected recording completion.
+    then:
+      - Short tap shows the press-and-hold hint without inserting an embed.
+      - Long press shows a recording overlay equivalent to the web release/timer/cancel structure.
+      - Release or test fixture completion inserts an audio pending embed or a documented native transcript+embed state.
+      - Structural parity checks pass and visual differences are warning-level unless promoted.
+
+  - id: S-6
+    title: Future parity rollout plan covers other specs and Apple tests
+    given:
+      - The message input contract pipeline works for the first surface.
+    when:
+      - The implementation is complete.
+    then:
+      - A task plan lists the next web specs/surfaces to instrument.
+      - The plan identifies which Apple tests can consume contracts next.
+      - The plan includes criteria for promoting warning-level visual checks to failures.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A Playwright contract extractor captures normalized rendered DOM/computed-style data for message input states needed by Apple attachment/audio tests.
+  - id: AC-2
+    scenario: S-2
+    text: A schema validation and promotion path prevents stale or malformed web UI contracts from being used by Apple tests.
+  - id: AC-3
+    scenario: S-3
+    text: Apple contract checks fail on deterministic structural/testability mismatches and forbidden controls, while reporting first-slice visual drift as warnings.
+  - id: AC-4
+    scenario: S-4
+    text: Apple image/file attachment UI tests prove composer pending embeds and sent-message embeds match required web contract structure without raw JSON leakage.
+  - id: AC-5
+    scenario: S-5
+    text: Apple audio recording UI tests prove short-tap, long-press overlay, and release/completion states match required web contract structure or document intentional native differences.
+  - id: AC-6
+    scenario: S-6
+    text: A follow-up rollout plan identifies the next web specs and Apple tests to convert to the contract pipeline.
+
+contracts:
+  api:
+    - No product API changes are required for the first slice.
+    - Simulator-safe fixture injection, if needed, must be gated by UI-test launch arguments and must not affect normal app behavior.
+  data:
+    - Web contract artifact schema includes `schemaVersion`, `surface`, `generatedAt`, `viewport`, `states`, `elements`, `severity`, `structure`, `computedStyle`, and optional screenshot metadata.
+    - Committed fixtures live under `apple/OpenMatesUITests/Fixtures/WebUIContracts/` or another Apple-test-bundled fixture directory.
+    - Runtime/generated Playwright artifacts live under `test-results/apple-ui-contracts/` and are not automatically treated as approved fixtures.
+  ui_states:
+    - Message input default and focused states.
+    - Image/file pending embed preview state.
+    - Sent user message with embed preview state.
+    - Record button short-tap hint.
+    - Recording overlay with release text, timer pill, cancel hint, and mic control.
+  privacy_security:
+    - Contract fixtures must not contain credentials, private emails, raw chat IDs, private user content, local hostnames, IP addresses, or device names.
+    - Screenshots used as committed fixtures must be synthetic or sanitized; private real-account screenshots remain test artifacts only.
+    - UI-test launch arguments for fixture injection must not expose upload keys, encryption keys, or server secrets.
+
+tests:
+  - id: T-PLAYWRIGHT-CONTRACTS
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    command: python3 scripts/run_tests.py --spec apple-ui-contracts.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - default/focused composer states produce valid contract JSON
+      - image/file composer states include `embed-full-width-wrapper` and `embed-preview` equivalents
+      - recording overlay contract includes release text, timer pill, cancel hint, and mic control
+      - contract output strips volatile/private values
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Initial Playwright contract run failed before the extractor used the unauthenticated demo/new-chat composer path.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: "27210515644"
+        timestamp: "2026-06-09"
+        notes: python3 scripts/run_tests.py --suite playwright --spec apple-ui-contracts.spec.ts passed against deployed dev app.
+
+  - id: T-CONTRACT-SCHEMA
+    type: lint
+    file: scripts/apple_ui_contracts.py
+    command: python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - schema rejects missing required states or elements
+      - schema rejects invalid severity values
+      - schema rejects private or volatile values in committed fixtures
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Validation failed before the promoted message-input fixture satisfied required schema states and elements.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        command: python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+
+  - id: T-APPLE-CONTRACT-AUDIT
+    type: lint
+    file: scripts/apple_ui_contracts.py
+    command: python3 scripts/apple_ui_contracts.py audit --surface message-input
+    covers:
+      - AC-3
+      - AC-6
+    assertions:
+      - mapped web `data-testid` concepts have Apple accessibility identifiers or documented native differences
+      - forbidden native product controls fail for mapped composer files
+      - structural contract mismatches fail
+      - visual/style mismatches emit warnings unless marked as failure
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Audit failed before native message-input identifiers and fixture hooks were added.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        command: python3 scripts/apple_ui_contracts.py audit --surface message-input
+        notes: PASS message-input audit; visual/style checks remain warning-only by spec.
+
+  - id: T-APPLE-ATTACHMENT-UI
+    type: manual
+    file: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    command: python3 scripts/apple_remote.py repo env OPENMATES_TEST_ACCOUNT_EMAIL="<secret>" OPENMATES_TEST_ACCOUNT_PASSWORD="<secret>" OPENMATES_TEST_ACCOUNT_OTP_KEY="<secret>" xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    covers:
+      - AC-4
+      - AC-3
+    assertions:
+      - native composer exposes attach, send, and pending embed identifiers required by the contract
+      - image or file fixture creates a pending composer embed
+      - sent user message renders an embed preview and no raw JSON leakage
+      - visual parity warnings are attached for review without failing the first slice
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Remote attachment UI test failed until simulator-safe pending composer embed fixture exposure was added.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+        notes: Remote Mac iPhone 17 simulator returned TEST SUCCEEDED.
+
+  - id: T-APPLE-AUDIO-UI
+    type: manual
+    file: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    command: python3 scripts/apple_remote.py repo env OPENMATES_TEST_ACCOUNT_EMAIL="<secret>" OPENMATES_TEST_ACCOUNT_PASSWORD="<secret>" OPENMATES_TEST_ACCOUNT_OTP_KEY="<secret>" xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    covers:
+      - AC-5
+      - AC-3
+    assertions:
+      - native composer exposes record button and recording overlay identifiers required by the contract
+      - short tap shows press-and-hold hint without inserting an embed
+      - long press shows release/timer/cancel overlay structure
+      - release or simulator-safe fixture completion creates an audio pending embed or documented native transcript+embed state
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-06-09"
+        notes: Remote audio UI test failed until the recording preview route and overlay accessibility child exposure were added.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        commit: 72e7998
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+        notes: Remote Mac iPhone 17 simulator returned TEST SUCCEEDED.
+
+  - id: T-ROLLOUT-PLAN
+    type: manual
+    file: docs/specs/apple-ui-contracts/spec.yml
+    covers:
+      - AC-6
+    assertions:
+      - completed implementation summary lists next specs/surfaces to instrument
+      - plan includes promotion criteria for warning-level checks
+      - plan separates simulator-safe tests from physical-device camera/APNs tests
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-06-09"
+        notes: Rollout plan is recorded in spec.yml under rollout_plan with next web specs, Apple tests, promotion criteria, and simulator/device split.
+
+implementation_plan:
+  existing_patterns:
+    - scripts/apple_parity_audit.py
+    - scripts/apple_chat_parity_audit.py
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+  architecture: >
+    Add a small contract utility that validates/promotes/audits normalized web UI
+    contracts. Add one Playwright spec to capture message-input states from the
+    rendered dev web app, then add Apple identifiers and UI tests that consume or
+    audit against the promoted fixture. Use hard failures for structural and
+    testability drift, and warning records for visual/style drift until each
+    check is promoted.
+  data_flow:
+    - Playwright opens the dev web app and reaches the message input states.
+    - Contract extraction reads selected DOM nodes, bounding boxes, and computed styles.
+    - Generated artifact is validated and explicitly promoted to an Apple test fixture.
+    - Linux-safe audit compares fixture requirements against Swift source identifiers and forbidden-control rules.
+    - Apple XCUITest opens the native app, exercises the matching composer flow, and records pass/fail plus visual warnings.
+  affected_files:
+    - path: frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+      reason: Rendered web contract extraction for message-input states.
+    - path: frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+      reason: Reusable computed-style extraction helpers for future specs.
+    - path: scripts/apple_ui_contracts.py
+      reason: Validate, promote, and audit web UI contract fixtures.
+    - path: apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+      reason: Approved first message-input contract fixture.
+    - path: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+      reason: Native image/file attachment parity coverage.
+    - path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+      reason: Native audio recording parity coverage.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      reason: Add missing stable accessibility identifiers and possible UI-test fixture hooks.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+      reason: Add pending embed accessibility identifiers and type metadata for tests.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+      reason: Add recording overlay accessibility identifiers matching web concepts.
+    - path: apple/OpenMates.xcodeproj/project.pbxproj
+      reason: Include new UI tests and fixtures in the test target when required.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-ui-contracts/spec.yml
+    - python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+    - python3 scripts/apple_ui_contracts.py audit --surface message-input
+    - python3 scripts/run_tests.py --spec apple-ui-contracts.spec.ts
+    - python3 scripts/apple_remote.py repo xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    - python3 scripts/apple_remote.py repo xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+  risks:
+    - Contract extraction can become flaky if it captures dynamic dimensions before animations settle; helpers must wait for stable boxes.
+    - Native visual warnings may be noisy at first; severity must be explicit and ratcheted gradually.
+    - iOS simulator camera and microphone behavior may require fixture injection or physical-device follow-up.
+    - Running Playwright specs requires deploy-to-dev first, while Apple simulator tests run from the Mac checkout.
+
+rollout_plan:
+  next_web_specs:
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts: promote sent-message embed preview and fullscreen image states after message-input contract stabilizes.
+    - frontend/apps/web_app/tests/audio-recording.spec.ts: split short-tap hint, active recording overlay, cancel, and completion into separate reusable contract states.
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts: capture assistant image-view embed cards and fullscreen image viewer states.
+    - frontend/apps/web_app/tests/chat-flow.spec.ts: capture chat header, transcript, streaming indicator, and follow-up suggestion states.
+  next_apple_tests:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift: consume transcript/header/streaming contracts after live-dev chat flow remains stable for two green runs.
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift: consume deterministic transcript contract fixtures for seeded preview coverage.
+    - Future physical-device camera/APNs tests: consume camera capture and real notification contracts once device signing/entitlements are available.
+  promotion_criteria:
+    - A visual/style warning can become a failure only after a reviewer compares web and Apple screenshots for that surface and confirms the computed value is a product contract, not platform noise.
+    - Structural/testability identifiers remain failure-level from the first slice.
+    - Pixel or screenshot-diff gates require stable deterministic fixture data and at least two clean Mac simulator runs before promotion.
+  simulator_vs_device:
+    - Simulator-safe now: pending attachment fixture injection, recording overlay structure, local contract schema/audit checks.
+    - Physical device later: real camera capture, real APNs delivery, platform microphone behavior beyond structural overlay exposure.
+
+tasks:
+  - id: TASK-1
+    title: Add web UI contract extraction helper and message-input Playwright spec
+    covers:
+      scenarios: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    expected_files:
+      - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+      - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+    verification: [T-PLAYWRIGHT-CONTRACTS]
+    independently_deployable: true
+  - id: TASK-2
+    title: Add contract validation, promotion, and audit script
+    covers:
+      scenarios: [S-2, S-3]
+      acceptance_criteria: [AC-2, AC-3]
+    expected_files:
+      - scripts/apple_ui_contracts.py
+      - apple/OpenMatesUITests/Fixtures/WebUIContracts/message-input.json
+    verification: [T-CONTRACT-SCHEMA, T-APPLE-CONTRACT-AUDIT]
+    independently_deployable: true
+  - id: TASK-3
+    title: Add Apple composer identifiers and attachment UI test
+    covers:
+      scenarios: [S-3, S-4]
+      acceptance_criteria: [AC-3, AC-4]
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+      - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+      - apple/OpenMates.xcodeproj/project.pbxproj
+    verification: [T-APPLE-ATTACHMENT-UI, T-APPLE-CONTRACT-AUDIT]
+    independently_deployable: true
+  - id: TASK-4
+    title: Add Apple audio recording identifiers and UI test
+    covers:
+      scenarios: [S-3, S-5]
+      acceptance_criteria: [AC-3, AC-5]
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+      - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+      - apple/OpenMates.xcodeproj/project.pbxproj
+    verification: [T-APPLE-AUDIO-UI, T-APPLE-CONTRACT-AUDIT]
+    independently_deployable: true
+  - id: TASK-5
+    title: Publish rollout plan for remaining web specs and Apple tests
+    covers:
+      scenarios: [S-6]
+      acceptance_criteria: [AC-6]
+    expected_files:
+      - docs/specs/apple-ui-contracts/spec.yml
+    verification: [T-ROLLOUT-PLAN]
+    independently_deployable: true

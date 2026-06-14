@@ -1,0 +1,565 @@
+id: apple-chat-opening-parity
+title: Apple Chat Opening Scalability And Web Parity
+status: implementing
+
+goal: >
+  Make the Apple app open large encrypted chats quickly and safely by matching
+  the web app's bounded chat-window loading model, while preserving visual and
+  interaction parity for the visible chat-flow UI. A deterministic live-dev iOS
+  simulator test should prove a seeded large chat opens without loading or
+  decrypting the full chat, without sending a new AI message.
+
+scope:
+  in:
+    - Authenticated Apple iOS chat opening for existing user-owned chats.
+    - Deterministic seeded large chat for a live dev backend test account.
+    - Initial open at the latest user/assistant turn using a bounded message window.
+    - Older message hydration on explicit upward scroll or equivalent native action.
+    - Lightweight embed preview loading for visible-window embeds only.
+    - Deferring full child embed content decryption/loading until explicit fullscreen/open/copy/download actions.
+    - Multiple compression summaries represented as lightweight window metadata, without loading forgotten message ranges on initial open.
+    - Debug counters or signposts proving bounded reads, decryptions, embed hydration, and first useful render timing.
+    - Native iOS UI test target and simulator test that logs into the live dev backend, opens the seeded chat, and verifies load behavior only.
+    - Web-rendered CSS inspection for visible chat-flow UI elements, with a deterministic parity check where practical.
+  out:
+    - Sending a new chat prompt or waiting for a new AI response in the large-chat load test.
+    - Replacing the zero-knowledge encryption model.
+    - Shared-chat recipient implementation in the first Apple slice.
+    - Full Apple implementation of message deep links and copy-link actions in the first slice.
+    - Rewriting the whole app shell to UIKit.
+    - Hard performance tuning for exact device classes beyond a first generous simulator threshold.
+    - Storing private test credentials, private chat IDs, raw logs, or device/host details in git.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials."
+    - "gh CLI fallback search for 'Apple chat parity long chats embeds opening chat' returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - .claude/rules/apple-ui.md
+    - docs/contributing/guides/testing.md
+  code_patterns:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+  tests:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - docs/specs/scalable-chat-embed-loading/spec.yml tests section
+    - "No existing apple/**/*Test*.swift, apple/**/Tests/**/*.swift, or *.xctestplan files found."
+    - "apple/OpenMates.xcodeproj currently has app, widget, notification, share extension, and macOS targets, but no UI test target."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+  parity_expectations:
+    - The visible chat-flow UI in the Apple app must match the rendered web app source of truth for the chat shell, chat header, message bubbles, composer, embed preview cards, loading states, and sidebar-open/closed assumptions that apply on iPhone.
+    - Browser-rendered computed CSS values must be inspected before visual Swift changes; Svelte/CSS source alone is not enough when computed values differ.
+    - The Apple data-flow contract must match the web scalability contract at the storage/sync boundary, not merely render a 50-message subset after full data has already been loaded or decrypted.
+  verification:
+    - Remote Mac or XcodeBuildMCP build of OpenMates_iOS.
+    - Remote Mac or XcodeBuildMCP `xcodebuild test` for the new iOS UI test target against the live dev backend.
+    - Remote Mac credentialed `xcodebuild test` for the real-account Apple chat flow when `OPENMATES_TEST_ACCOUNT_EMAIL`, `OPENMATES_TEST_ACCOUNT_PASSWORD`, and `OPENMATES_TEST_ACCOUNT_OTP_KEY` are available to the test runner.
+    - Simulator screenshot evidence of the seeded large chat after initial open.
+    - Deterministic parity check output comparing captured web computed values against Apple token/constant mappings where practical.
+  intentional_native_differences:
+    - Native simulator tests use XCTest/XCUITest instead of Playwright.
+    - Native can use UIKit/AppKit wrappers for the transcript hot path if SwiftUI profiling or the spec test shows scroll/render jank.
+    - OS-owned controls remain native where `apple/AGENTS.md` explicitly allows them.
+
+clarification:
+  rounds:
+    - question: Should the Apple simulator E2E use the live dev backend/test account like chat-flow.spec.ts, or a deterministic seeded/debug fixture for the long-chat/embed stress case?
+      answer: >
+        Use the live dev backend/test account like chat-flow.spec.ts.
+    - question: Should the test create a deterministic chat or reuse an existing persistent test-account chat, and should it send a new prompt?
+      answer: >
+        Create a deterministic chat and only test loading the chat, not responding to it.
+    - question: Should the first performance gate use bounded-work counters only or also a user-visible speed threshold?
+      answer: >
+        Use the recommended approach: both bounded-work counters and a generous
+        first visible-load threshold.
+    - question: Should chat-flow UI element parity be included using browser-rendered CSS as the source of truth, and should we look for a deterministic check?
+      answer: >
+        Yes. Ensure visible chat-flow UI elements render like the web app by
+        opening the web app in a browser, analyzing exact rendered CSS values,
+        using those as the source of truth for Apple, and checking whether a
+        deterministic parity check can improve reliability.
+  vision_summary: >
+    The Apple app should open a seeded large encrypted chat on live dev quickly
+    without loading or decrypting all messages, child embeds, or compression
+    ranges. The simulator E2E should verify only the load/open path and visible
+    chat-flow parity, not AI response generation. Visual behavior should be
+    grounded in browser-rendered web CSS values and backed by deterministic
+    parity checks where they are reliable.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Apple opens a seeded large chat at the latest turn
+    given:
+      - The iOS simulator is logged into a live dev test account.
+      - A deterministic dev seed helper has created a large encrypted chat with hundreds of messages, many embeds, and multiple compression summaries.
+      - The latest turn is a visible user message followed by a visible assistant response.
+    when:
+      - The UI test opens the seeded chat in the Apple app.
+    then:
+      - The latest user and assistant messages become visible within the initial generous threshold.
+      - Initial open reads and decrypts only a bounded latest-turn message window.
+      - Older message ranges and forgotten/compressed ranges are not loaded or decrypted during initial open.
+      - The app remains responsive and the simulator can capture a screenshot of the loaded chat.
+
+  - id: S-2
+    title: Apple hydrates older messages only after explicit upward navigation
+    given:
+      - The seeded large chat has opened at the latest turn.
+      - Older messages exist above the visible window.
+    when:
+      - The user scrolls upward or taps the native load-earlier control.
+    then:
+      - Apple requests, reads, and decrypts the next bounded older-message page.
+      - The scroll anchor is preserved enough that the visible content does not jump unexpectedly.
+      - Additional pages are not fetched until another explicit upward navigation trigger.
+
+  - id: S-3
+    title: Apple keeps full embed content lazy during initial chat open
+    given:
+      - The visible latest-turn window references parent embeds and child embeds.
+      - Parent embed records include enough lightweight preview metadata to render useful preview cards.
+    when:
+      - The chat initially opens.
+    then:
+      - Visible parent embed previews render useful status, title, app/skill identity, and preview metadata.
+      - Child embed content and full encrypted embed payloads are not decrypted or loaded for preview-only rendering.
+      - Opening an embed fullscreen triggers on-demand full embed hydration for the selected embed only.
+
+  - id: S-4
+    title: Apple treats compression summaries as lightweight window metadata
+    given:
+      - The seeded chat has multiple compression summaries and forgotten message ranges.
+    when:
+      - Apple opens the chat at the latest turn.
+    then:
+      - The initial window can show relevant latest summary context if needed.
+      - Forgotten ranges behind compression summaries are not loaded or decrypted during initial open.
+      - Explicit older-message navigation can load a bounded page around a summary boundary.
+
+  - id: S-5
+    title: Apple chat-flow UI matches the rendered web source of truth
+    given:
+      - The web app chat flow is opened in a browser at the matching viewport and state.
+      - Computed CSS values are captured for the visible chat shell, header, message bubbles, composer, embed previews, loading states, and sidebar-open/closed behavior.
+    when:
+      - The Apple app renders the same visible chat-flow state in the iOS simulator.
+    then:
+      - SwiftUI/Native values use generated tokens or documented justified literals that match the browser-computed CSS contract.
+      - Product UI does not regress to default native controls forbidden by `apple/AGENTS.md`.
+      - Any intentional native difference is documented in the spec evidence or parity report.
+
+  - id: S-6
+    title: Deterministic checks guard the scalable-loading and UI parity contracts
+    given:
+      - The Apple project has new tests/scripts for bounded loading and parity checking.
+    when:
+      - CI or a remote Mac runs the documented verification commands.
+    then:
+      - A native unit test fails if initial chat open requires full-chat in-memory arrays before rendering.
+      - The UI test fails if initial load exceeds the first threshold or counters show full-chat decrypt/load work.
+      - A deterministic parity audit flags drift for mapped chat-flow dimensions, tokens, identifiers, or forbidden native controls where practical.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple opens a seeded large live-dev chat at the latest turn without reading, decrypting, or publishing the full message history before first useful render.
+  - id: AC-2
+    scenario: S-2
+    text: Older messages hydrate in bounded pages only after explicit upward navigation, with visible scroll position preserved.
+  - id: AC-3
+    scenario: S-3
+    text: Initial chat open renders useful lightweight parent embed previews while deferring child/full embed content hydration until explicit embed actions.
+  - id: AC-4
+    scenario: S-4
+    text: Compression summaries and forgotten ranges do not cause full pre-checkpoint message loads during initial Apple chat open.
+  - id: AC-5
+    scenario: S-5
+    text: Visible Apple chat-flow UI matches browser-rendered web computed values for the mapped chat shell, header, messages, composer, embed previews, and loading states, except documented intentional native differences.
+  - id: AC-6
+    scenario: S-6
+    text: Native tests and deterministic audits catch regressions in bounded loading, live-dev large-chat opening, testability identifiers, and mapped chat-flow visual constants.
+
+contracts:
+  api:
+    - route: "Test-only deterministic seed path for live dev large chat"
+      request: "Authenticated or admin/test-only request with placeholder test user, deterministic fixture name, message count, embed count, compression summary count, and idempotency key."
+      response: "Seeded chat id, latest user message id, latest assistant message id, expected bounded counts, and optional cleanup metadata."
+      errors:
+        - Unavailable outside dev/test environments.
+        - Unauthorized without approved test credentials.
+        - Must not expose plaintext private user data, credentials, or raw keys in logs or responses.
+    - route: "Existing or successor Apple chat window sync/read path"
+      request: "chat id plus optional anchor, direction, and bounded limit."
+      response: "Encrypted bounded message window, lightweight embed preview metadata, compression summary metadata, and key wrappers needed for visible content only."
+      errors:
+        - Unauthorized when the user cannot access the chat.
+  data:
+    - "`ChatStore` must not require complete `messagesByChat[chatId]` or `embedsByChat[chatId]` arrays before `ChatView` can first render a large existing chat."
+    - "`OfflineStore` needs bounded message-window reads and, where needed, bounded embed/preview reads keyed by visible message refs."
+    - "`ChatViewModel` should accept a chat-window source or cursor model rather than treating `allMessages` as the full chat history for existing synced chats."
+    - Compression summaries should be represented as lightweight window metadata and not force forgotten message ranges into memory.
+    - Debug counters/signposts must expose initial message rows read, message decrypt attempts, embed records read, full embed decrypt attempts, compression ranges read, and first useful render time.
+  ui_states:
+    - Initial large-chat loading.
+    - Latest-turn visible.
+    - Older-page loading.
+    - Lightweight embed preview visible.
+    - Full embed loading after explicit action.
+    - Compression summary visible/collapsed older range.
+    - Error state for failed seed/open/load.
+  privacy_security:
+    - Seeded live-dev chats must use test-only users and sanitized deterministic content.
+    - Test credentials and seeded chat IDs must stay in local environment, CI secrets, or test artifacts, not committed specs/docs.
+    - No test or debug counter may log plaintext encrypted message content, raw encryption keys, private emails, hostnames, IPs, or device names.
+    - Client-side decryption remains local to the Apple app.
+
+tests:
+  - id: T-APPLE-UNIT-WINDOWS
+    type: unit
+    file: apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    command: xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" -only-testing:OpenMatesTests/ChatWindowLoadingTests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+    assertions:
+      - bounded latest-turn query returns only the configured message window for a synthetic large local store
+      - older-page query returns one bounded page and does not materialize all older messages
+      - compression summary metadata is returned without loading forgotten message ranges
+      - first-render path can be driven without passing full-chat arrays through ChatStore
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: remote-mac-xcodebuild-test-before-openmatestests-target-2026-06-08
+        timestamp: "2026-06-08T22:44:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-mac-xcodebuild-test-openmatestests-chatwindow-2026-06-08-post-deploy
+        timestamp: "2026-06-08T23:42:45Z"
+
+  - id: T-APPLE-UI-LARGE-CHAT-OPEN
+    type: manual
+    file: apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatOpeningScalabilityUITests
+    covers:
+      - AC-1
+      - AC-3
+      - AC-4
+      - AC-6
+    assertions:
+      - test launches the debug-only deterministic large-chat preview without credentials or live user data
+      - opening the seeded chat shows the latest assistant message on the simulator
+      - bounded-work counter text shows the initial rendered message count is 50 out of 250 seeded messages
+      - the oldest seeded message is not present in the initial rendered accessibility tree
+      - simulator screenshot is captured after latest turn is visible
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: remote-mac-xcodebuild-test-before-label-query-2026-06-08
+        timestamp: "2026-06-08T22:36:13Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatopening-2026-06-08-post-deploy
+        timestamp: "2026-06-08T23:43:01Z"
+
+  - id: T-APPLE-UI-CHAT-FLOW-PARITY
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    command: xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" -only-testing:OpenMatesUITests/ChatFlowParityUITests/testVisibleChatFlowElementsMatchWebParitySnapshot
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - test opens the seeded chat in the Apple simulator and screenshots the visible chat-flow state
+      - visible elements have stable accessibility identifiers matching web data-testid concepts where applicable
+      - forbidden default native controls are not present in the visible product UI hierarchy
+      - manual evidence links the screenshot to a browser-computed CSS parity capture for the same state
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: remote-mac-xcodebuild-test-before-chatflowparity-file-2026-06-08
+        timestamp: "2026-06-08T22:46:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatflowparity-2026-06-08-post-deploy
+        timestamp: "2026-06-08T23:44:06Z"
+
+  - id: T-APPLE-UI-REAL-CHAT-FLOW
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py repo env OPENMATES_TEST_ACCOUNT_EMAIL="<secret>" OPENMATES_TEST_ACCOUNT_PASSWORD="<secret>" OPENMATES_TEST_ACCOUNT_OTP_KEY="<secret>" xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesUITests/ChatFlowRealAccountUITests
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - test logs into the native iOS app with password plus OTP, using the same reserved real test-account secret names as web chat-flow.spec.ts
+      - test uses a UI-test-only launch argument to prefer password login when the account also advertises passkey, without changing normal user behavior
+      - test starts a new chat from the native welcome/new-chat composer and sends the marker prompt `Kyoto and Osaka quick tip test`
+      - test verifies the user message appears and an assistant streaming state or assistant response appears in the real app
+      - test skips explicitly when credential environment variables are not available, without logging secret values
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_run_existing_gap_no_native_real_account_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: false
+      expected: pass_when_credentials_available
+      evidence:
+        status: passed
+        run_id: remote-mac-xcodebuild-test-openmatesuitests-chatflowrealaccount-clean-install-67ed60b-2026-06-09
+        timestamp: "2026-06-09T09:14:00Z"
+
+  - id: T-APPLE-PARITY-AUDIT
+    type: lint
+    file: scripts/apple_chat_parity_audit.py
+    command: python3 scripts/apple_chat_parity_audit.py --surface chat-flow
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - audit compares a maintained web computed-style snapshot for chat-flow visible elements against Apple token/constant mappings where deterministic
+      - audit verifies mapped web data-testid names have Apple accessibilityIdentifier counterparts or documented native differences
+      - audit flags forbidden native product controls in mapped Apple chat files
+      - audit avoids fragile pixel-perfect screenshot comparison unless a stable local baseline is explicitly approved
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: local-audit-before-bounded-window-slice
+        timestamp: "2026-06-08T22:01:34Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-apple-chat-parity-audit-2026-06-08
+        timestamp: "2026-06-08T22:01:34Z"
+
+  - id: T-XCODE-BUILD
+    type: build
+    file: apple/OpenMates.xcodeproj/project.pbxproj
+    command: xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" build
+    covers:
+      - AC-6
+    assertions:
+      - OpenMates_iOS builds after the chat-window data-source changes and new test target additions
+      - generated token usage remains valid and no invalid token names are introduced
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-mac-wrapper-build-ios-2026-06-08
+        timestamp: "2026-06-08T22:01:34Z"
+
+implementation_plan:
+  existing_patterns:
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+  architecture: >
+    Add an Apple-native chat-window loading abstraction that mirrors the web
+    bounded loading model. `MainAppView` should pass chat identity and lightweight
+    metadata into `ChatView`, while `ChatViewModel` requests/decrypts only the
+    latest visible window first and hydrates older pages on demand. Add a UI test
+    target and live-dev seed helper to verify opening a deterministic large chat.
+  data_flow:
+    - UI test logs into the live dev Apple app with a reserved test account.
+    - Test seed helper creates or resets a deterministic encrypted large chat for that account.
+    - App opens the seeded chat and obtains chat metadata plus a bounded latest-turn window.
+    - ChatViewModel decrypts only visible messages and lightweight preview records.
+    - Debug counters/signposts are exposed to the UI test through a test-only channel.
+    - Older messages and full embeds hydrate only after explicit user action.
+  affected_files:
+    - path: scripts/apple_remote.py
+      reason: Provide redacted local-only remote Mac/Xcode verification wrapper for Linux sessions.
+    - path: backend/tests/test_apple_remote.py
+      reason: Guard Apple remote wrapper discovery, redaction, cleanup, and destructive-command behavior without network access.
+    - path: apple/OpenMates.xcodeproj/project.pbxproj
+      reason: Add OpenMatesTests/OpenMatesUITests targets or equivalent test target wiring.
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Stop passing full per-chat arrays as the initial open dependency for large user chats.
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Introduce bounded source/cursor loading, counters, older-page hydration, and lazy embed behavior.
+    - path: apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      reason: Add bounded local message/embed/compression metadata reads.
+    - path: apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+      reason: Track chat metadata and visible windows without requiring complete per-chat arrays.
+    - path: apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+      reason: Request and apply bounded content windows when opening a chat.
+    - path: apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+      reason: Route any bounded chat-window response events needed by native open flow.
+    - path: apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+      reason: Ensure preview cards render from lightweight parent metadata and trigger full hydration only on explicit open.
+    - path: apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+      reason: Live-dev simulator E2E for seeded large chat opening.
+    - path: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+      reason: Simulator parity screenshot and visible hierarchy checks.
+    - path: apple/OpenMatesTests/ChatWindowLoadingTests.swift
+      reason: Fast native unit coverage for bounded local window reads and compression metadata.
+    - path: scripts/apple_chat_parity_audit.py
+      reason: Deterministic parity guard for mapped chat-flow constants, identifiers, and forbidden native controls.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-chat-opening-parity/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/apple-chat-opening-parity/spec.yml --phase red
+    - xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" -only-testing:OpenMatesTests/ChatWindowLoadingTests
+    - python3 scripts/apple_chat_parity_audit.py --surface chat-flow
+    - xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" -only-testing:OpenMatesUITests/ChatOpeningScalabilityUITests/testSeededLargeChatOpensWithinBoundedWork
+    - xcodebuild test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=<simulator>" -only-testing:OpenMatesUITests/ChatFlowParityUITests/testVisibleChatFlowElementsMatchWebParitySnapshot
+    - python3 scripts/spec_verify.py docs/specs/apple-chat-opening-parity/spec.yml
+
+tasks:
+  - id: TASK-1
+    title: Add native test targets and seeded large-chat test contract
+    covers:
+      scenarios:
+        - S-1
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-6
+    expected_files:
+      - apple/OpenMates.xcodeproj/project.pbxproj
+      - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+      - apple/OpenMatesTests/ChatWindowLoadingTests.swift
+    verification:
+      - T-APPLE-UNIT-WINDOWS
+      - T-APPLE-UI-LARGE-CHAT-OPEN
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement bounded Apple chat-window source
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+      - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+      - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    verification:
+      - T-APPLE-UNIT-WINDOWS
+      - T-APPLE-UI-LARGE-CHAT-OPEN
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Make Apple embed previews lazy on chat open
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    verification:
+      - T-APPLE-UI-LARGE-CHAT-OPEN
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Capture web CSS source of truth and add deterministic parity guard
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+    expected_files:
+      - scripts/apple_chat_parity_audit.py
+      - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+      - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Auth/Views/AuthFlowView.swift
+      - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    verification:
+      - T-APPLE-PARITY-AUDIT
+      - T-APPLE-UI-CHAT-FLOW-PARITY
+      - T-APPLE-UI-REAL-CHAT-FLOW
+    independently_deployable: false
+
+risks:
+  - Adding an Xcode test target by editing project.pbxproj is fragile; verify with a real Xcode build/test on the Mac immediately after target wiring.
+  - Live-dev UI tests can become flaky if they depend on real network latency; keep the threshold generous and prioritize bounded-work counters for regressions.
+  - Browser CSS parity can become brittle if implemented as pixel-perfect screenshots; prefer token/constant/identifier audits and keep screenshot comparison manual unless a stable baseline is proven.
+  - A test-only seed path must be locked to dev/test environments and must never expose private data or secrets.
+  - Moving from full-chat arrays to bounded windows can affect notification replies, offline sends, previous/next navigation, and Handoff; include targeted review before deploy.
+
+open_questions:
+  - Which exact reserved Apple UI test account slot and seed endpoint name should be used? Keep the answer in environment/CI config, not in this spec.
+  - Should the first seed helper live in an existing backend test/admin route, or in a dedicated dev-only test fixture route?
+  - Which browser automation tool should capture the first web computed-style snapshot for the parity audit in this repo environment?

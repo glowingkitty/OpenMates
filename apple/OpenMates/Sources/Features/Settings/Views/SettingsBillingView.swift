@@ -14,6 +14,12 @@
 import SwiftUI
 import StoreKit
 
+enum BillingUITestFixture {
+    static var enabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-billing-fixture")
+    }
+}
+
 struct SettingsBillingView: View {
     private enum BillingRoute: String {
         case buyCredits
@@ -43,21 +49,32 @@ struct SettingsBillingView: View {
 
     private var billingHub: some View {
         OMSettingsPage(title: AppStrings.settingsBilling, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-billing-hub")
+
             billingBalanceDisplay
 
             OMSettingsSection {
                 OMSettingsRow(title: AppStrings.buyCredits, icon: "coins") {
                     route = .buyCredits
                 }
+                .accessibilityIdentifier("settings-billing-buy-credits-row")
+
                 OMSettingsRow(title: AppStrings.autoTopUp, icon: "reload") {
                     route = .autoTopUp
                 }
+                .accessibilityIdentifier("settings-billing-auto-topup-row")
+
                 OMSettingsRow(title: AppStrings.invoices, icon: "document") {
                     route = .invoices
                 }
+                .accessibilityIdentifier("settings-billing-invoices-row")
+
                 OMSettingsRow(title: AppStrings.giftCards, icon: "gift") {
                     route = .giftCards
                 }
+                .accessibilityIdentifier("settings-billing-gift-cards-row")
             }
 
             billingDivider
@@ -94,6 +111,7 @@ struct SettingsBillingView: View {
                 .background(Color.grey20)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("settings-billing-subview-back")
 
             switch route {
             case .buyCredits:
@@ -146,6 +164,13 @@ struct SettingsBillingView: View {
     }
 
     private func loadBillingHub() async {
+        if BillingUITestFixture.enabled {
+            balance = 12_345
+            usageCredits = 42.125
+            usageMessages = 19
+            return
+        }
+
         await loadBalance()
         await loadUsage()
     }
@@ -185,15 +210,32 @@ struct SettingsBillingView: View {
 struct BuyCreditsView: View {
     @StateObject private var storeManager = StoreManager.shared
 
+    struct FixtureCreditPackage: Identifiable {
+        let id: String
+        let credits: Int
+        let price: String
+        let isRecommended: Bool
+    }
+
+    private let fixturePackages: [FixtureCreditPackage] = [
+        FixtureCreditPackage(id: "org.openmates.credits.1000", credits: 1_000, price: "€5.99", isRecommended: false),
+        FixtureCreditPackage(id: "org.openmates.credits.10000", credits: 10_000, price: "€49.99", isRecommended: true),
+        FixtureCreditPackage(id: "org.openmates.credits.21000", credits: 21_000, price: "€99.99", isRecommended: false),
+        FixtureCreditPackage(id: "org.openmates.credits.54000", credits: 54_000, price: "€249.99", isRecommended: false),
+    ]
+
     var body: some View {
-        List {
+        OMSettingsPage(title: AppStrings.buyCredits, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-billing-buy-credits-page")
+
             switch storeManager.purchaseState {
             case .success(let credits):
-                Section {
+                OMSettingsSection {
                     VStack(spacing: .spacing4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.green)
+                        Icon("check", size: 40)
+                            .foregroundStyle(Color.buttonPrimary)
                         Text(LocalizationManager.shared.text("settings.billing.purchase_complete"))
                             .font(.omH4).fontWeight(.semibold)
                         if credits > 0 {
@@ -203,8 +245,7 @@ struct BuyCreditsView: View {
                         Button(AppStrings.done) {
                             storeManager.resetState()
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Color.buttonPrimary)
+                        .buttonStyle(OMPrimaryButtonStyle())
                         .accessibleButton(AppStrings.done, hint: LocalizationManager.shared.text("settings.billing.done_hint"))
                     }
                     .frame(maxWidth: .infinity)
@@ -212,18 +253,26 @@ struct BuyCreditsView: View {
                 }
 
             default:
-                Section {
+                OMSettingsSection {
                     Text(LocalizationManager.shared.text("settings.billing.credits_description"))
                         .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing3)
                 }
 
-                Section(LocalizationManager.shared.text("settings.billing.credit_packages")) {
-                    if storeManager.products.isEmpty {
-                        HStack {
+                OMSettingsSection(LocalizationManager.shared.text("settings.billing.credit_packages"), icon: "coins") {
+                    if BillingUITestFixture.enabled {
+                        ForEach(fixturePackages) { package in
+                            FixtureCreditProductRow(package: package)
+                        }
+                    } else if storeManager.products.isEmpty {
+                        HStack(spacing: .spacing3) {
                             ProgressView()
                             Text(LocalizationManager.shared.text("settings.billing.loading_products"))
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing3)
                     } else {
                         ForEach(storeManager.products, id: \.id) { product in
                             CreditProductRow(
@@ -238,33 +287,39 @@ struct BuyCreditsView: View {
                 }
 
                 if storeManager.purchaseState == .purchasing {
-                    Section {
-                        HStack {
+                    OMSettingsSection {
+                        HStack(spacing: .spacing3) {
                             ProgressView()
                             Text(LocalizationManager.shared.text("settings.billing.processing_purchase"))
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing3)
                     }
                 }
 
                 if storeManager.purchaseState == .verifying {
-                    Section {
-                        HStack {
+                    OMSettingsSection {
+                        HStack(spacing: .spacing3) {
                             ProgressView()
                             Text(LocalizationManager.shared.text("settings.billing.verifying_with_server"))
                                 .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing3)
                     }
                 }
 
                 if let error = storeManager.lastError {
-                    Section {
+                    OMSettingsSection {
                         Text(error)
                             .font(.omSmall).foregroundStyle(Color.error)
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing3)
                     }
                 }
 
-                Section {
+                OMSettingsSection {
                     Button(LocalizationManager.shared.text("settings.billing.restore_purchases")) {
                         Task { await storeManager.restorePurchases() }
                     }
@@ -273,11 +328,71 @@ struct BuyCreditsView: View {
                         LocalizationManager.shared.text("settings.billing.restore_purchases"),
                         hint: LocalizationManager.shared.text("settings.billing.restore_hint")
                     )
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing3)
+                    .accessibilityIdentifier("settings-billing-restore-purchases-row")
+                }
+
+                OMSettingsSection(LocalizationManager.shared.text("settings.billing.bank_transfer"), icon: "document") {
+                    Text(LocalizationManager.shared.text("settings.billing.bank_transfer_credits_info"))
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing3)
+                        .accessibilityIdentifier("settings-billing-bank-transfer-web-only")
                 }
             }
         }
-        .navigationTitle(AppStrings.buyCredits)
-        .task { await storeManager.loadProducts() }
+        .task {
+            if !BillingUITestFixture.enabled {
+                await storeManager.loadProducts()
+            }
+        }
+    }
+}
+
+private struct FixtureCreditProductRow: View {
+    let package: BuyCreditsView.FixtureCreditPackage
+
+    var body: some View {
+        HStack(spacing: .spacing4) {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                HStack(spacing: .spacing3) {
+                    Text("\(package.credits.formatted()) \(AppStrings.credits)")
+                        .font(.omP.weight(.semibold))
+                        .foregroundStyle(Color.fontPrimary)
+
+                    if package.isRecommended {
+                        Text(LocalizationManager.shared.text("settings.billing.best_value"))
+                            .font(.omTiny.weight(.bold))
+                            .foregroundStyle(Color.fontButton)
+                            .padding(.horizontal, .spacing2)
+                            .padding(.vertical, 2)
+                            .background(Color.buttonPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                            .accessibilityIdentifier("settings-billing-best-value-badge")
+                    }
+                }
+
+                Text(package.id)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontTertiary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Text(package.price)
+                .font(.omSmall.weight(.semibold))
+                .foregroundStyle(Color.fontButton)
+                .padding(.horizontal, .spacing4)
+                .padding(.vertical, .spacing2)
+                .background(Color.buttonPrimary)
+                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing3)
+        .accessibilityIdentifier("settings-billing-product-\(package.credits)")
     }
 }
 
@@ -292,7 +407,7 @@ struct CreditProductRow: View {
         HStack {
             VStack(alignment: .leading, spacing: .spacing2) {
                 HStack(spacing: .spacing3) {
-                    Text("\(product.formattedCredits) credits")
+                    Text("\(product.formattedCredits) \(AppStrings.credits)")
                         .font(.omP).fontWeight(.semibold)
 
                     if product.isRecommended {
@@ -359,31 +474,43 @@ struct PurchaseHistoryView: View {
     }
 
     var body: some View {
-        List {
+        OMSettingsPage(title: AppStrings.purchaseHistory, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-billing-purchase-history-page")
+
             if isLoading {
                 ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.spacing8)
             } else if transactions.isEmpty {
-                Section {
+                OMSettingsSection {
                     Text(LocalizationManager.shared.text("settings.billing.no_purchase_history"))
                         .foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing3)
                 }
             } else {
-                ForEach(transactions) { tx in
-                    HStack {
-                        VStack(alignment: .leading, spacing: .spacing1) {
-                            Text("\(tx.credits.formatted()) credits")
-                                .font(.omSmall).fontWeight(.medium)
-                            Text(tx.purchaseDate.formatted(date: .abbreviated, time: .shortened))
-                                .font(.omXs).foregroundStyle(Color.fontTertiary)
+                OMSettingsSection {
+                    ForEach(transactions) { tx in
+                        HStack(spacing: .spacing4) {
+                            VStack(alignment: .leading, spacing: .spacing1) {
+                                Text("\(tx.credits.formatted()) \(AppStrings.credits)")
+                                    .font(.omSmall).fontWeight(.medium)
+                                    .foregroundStyle(Color.fontPrimary)
+                                Text(tx.purchaseDate.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.omXs).foregroundStyle(Color.fontTertiary)
+                            }
+                            Spacer()
+                            Text(tx.price)
+                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
                         }
-                        Spacer()
-                        Text(tx.price)
-                            .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing3)
                     }
                 }
             }
         }
-        .navigationTitle(AppStrings.purchaseHistory)
         .task { await loadHistory() }
     }
 
@@ -418,60 +545,85 @@ struct AutoTopUpView: View {
     @State private var monthlyProductID = "org.openmates.credits.10000"
     @State private var isLoading = true
 
+    private var productOptions: [OMDropdownOption] {
+        StoreManager.productIDs.map { productID in
+            let credits = StoreManager.creditsByProductID[productID] ?? 0
+            return OMDropdownOption(productID, label: "\(credits.formatted()) \(AppStrings.credits)")
+        }
+    }
+
     var body: some View {
-        List {
-            Section(LocalizationManager.shared.text("settings.billing.low_balance_auto_topup")) {
-                Toggle(AppStrings.enabled, isOn: $isLowBalanceEnabled)
-                    .tint(Color.buttonPrimary)
+        OMSettingsPage(title: AppStrings.autoTopUp, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-billing-auto-topup-page")
+
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.spacing8)
+            }
+
+            OMSettingsSection(LocalizationManager.shared.text("settings.billing.low_balance_auto_topup"), icon: "reload") {
+                OMSettingsToggleRow(
+                    title: AppStrings.enabled,
+                    subtitle: LocalizationManager.shared.text("settings.billing.low_balance_description"),
+                    isOn: $isLowBalanceEnabled
+                )
                     .onChange(of: isLowBalanceEnabled) { _, _ in save() }
-                    .accessibleToggle(LocalizationManager.shared.text("settings.billing.low_balance_auto_topup"), isOn: isLowBalanceEnabled)
+                    .accessibilityIdentifier("settings-billing-low-balance-toggle")
 
                 if isLowBalanceEnabled {
-                    HStack {
-                        Text(LocalizationManager.shared.text("settings.billing.when_below"))
-                        Spacer()
-                        Text(String(format: "%.1f credits", lowBalanceThreshold))
-                            .foregroundStyle(Color.fontSecondary)
-                    }
+                    OMSettingsStaticRow(
+                        title: LocalizationManager.shared.text("settings.billing.when_below"),
+                        value: String(format: "%.1f %@", lowBalanceThreshold, AppStrings.credits)
+                    )
+                    .accessibilityIdentifier("settings-billing-low-balance-threshold")
 
-                    Picker(LocalizationManager.shared.text("settings.billing.topup_package"), selection: $lowBalanceProductID) {
-                        ForEach(StoreManager.productIDs, id: \.self) { productID in
-                            let credits = StoreManager.creditsByProductID[productID] ?? 0
-                            Text("\(credits.formatted()) credits").tag(productID)
-                        }
-                    }
+                    OMSettingsPickerRow(
+                        title: LocalizationManager.shared.text("settings.billing.topup_package"),
+                        options: productOptions,
+                        selection: $lowBalanceProductID
+                    )
                     .onChange(of: lowBalanceProductID) { _, _ in save() }
-
-                    Text(LocalizationManager.shared.text("settings.billing.low_balance_description"))
-                        .font(.omXs).foregroundStyle(Color.fontTertiary)
+                    .accessibilityIdentifier("settings-billing-low-balance-package")
                 }
             }
 
-            Section(LocalizationManager.shared.text("settings.billing.monthly_auto_topup")) {
-                Toggle(AppStrings.enabled, isOn: $isMonthlyEnabled)
-                    .tint(Color.buttonPrimary)
+            OMSettingsSection(LocalizationManager.shared.text("settings.billing.monthly_auto_topup"), icon: "time") {
+                OMSettingsToggleRow(
+                    title: AppStrings.enabled,
+                    subtitle: LocalizationManager.shared.text("settings.billing.monthly_description"),
+                    isOn: $isMonthlyEnabled
+                )
                     .onChange(of: isMonthlyEnabled) { _, _ in save() }
-                    .accessibleToggle(LocalizationManager.shared.text("settings.billing.monthly_auto_topup"), isOn: isMonthlyEnabled)
+                    .accessibilityIdentifier("settings-billing-monthly-toggle")
 
                 if isMonthlyEnabled {
-                    Picker(LocalizationManager.shared.text("settings.billing.monthly_package"), selection: $monthlyProductID) {
-                        ForEach(StoreManager.productIDs, id: \.self) { productID in
-                            let credits = StoreManager.creditsByProductID[productID] ?? 0
-                            Text("\(credits.formatted()) credits").tag(productID)
-                        }
-                    }
+                    OMSettingsPickerRow(
+                        title: LocalizationManager.shared.text("settings.billing.monthly_package"),
+                        options: productOptions,
+                        selection: $monthlyProductID
+                    )
                     .onChange(of: monthlyProductID) { _, _ in save() }
-
-                    Text(LocalizationManager.shared.text("settings.billing.monthly_description"))
-                        .font(.omXs).foregroundStyle(Color.fontTertiary)
+                    .accessibilityIdentifier("settings-billing-monthly-package")
                 }
             }
         }
-        .navigationTitle(AppStrings.autoTopUp)
         .task { await loadSettings() }
     }
 
     private func loadSettings() async {
+        if BillingUITestFixture.enabled {
+            isLowBalanceEnabled = true
+            lowBalanceThreshold = 1.0
+            lowBalanceProductID = "org.openmates.credits.10000"
+            isMonthlyEnabled = true
+            monthlyProductID = "org.openmates.credits.21000"
+            isLoading = false
+            return
+        }
+
         do {
             let response: [String: AnyCodable] = try await APIClient.shared.request(
                 .get, path: "/v1/settings/billing/auto-topup"
@@ -488,6 +640,8 @@ struct AutoTopUpView: View {
     }
 
     private func save() {
+        guard !BillingUITestFixture.enabled else { return }
+
         Task {
             try? await APIClient.shared.request(
                 .post, path: "/v1/settings/billing/auto-topup",
@@ -519,68 +673,97 @@ struct InvoicesView: View {
     }
 
     var body: some View {
-        List {
+        OMSettingsPage(title: AppStrings.invoices, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-billing-invoices-page")
+
             if isLoading {
                 ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.spacing8)
             } else if invoices.isEmpty {
-                Section {
+                OMSettingsSection {
                     Text(LocalizationManager.shared.text("settings.billing.no_invoices"))
                         .foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing3)
+                        .accessibilityIdentifier("settings-billing-no-invoices")
                 }
             } else {
-                ForEach(invoices) { invoice in
-                    HStack {
-                        VStack(alignment: .leading, spacing: .spacing1) {
-                            Text(String(format: "%@ %.2f", invoice.currency?.uppercased() ?? "USD", invoice.amount ?? 0))
-                                .font(.omSmall).fontWeight(.medium)
-                            if let date = invoice.createdAt {
-                                Text(date)
-                                    .font(.omXs).foregroundStyle(Color.fontTertiary)
+                OMSettingsSection {
+                    ForEach(invoices) { invoice in
+                        HStack(spacing: .spacing4) {
+                            VStack(alignment: .leading, spacing: .spacing1) {
+                                Text(String(format: "%@ %.2f", invoice.currency?.uppercased() ?? "USD", invoice.amount ?? 0))
+                                    .font(.omSmall).fontWeight(.medium)
+                                    .foregroundStyle(Color.fontPrimary)
+                                if let date = invoice.createdAt {
+                                    Text(date)
+                                        .font(.omXs).foregroundStyle(Color.fontTertiary)
+                                }
+                            }
+                            Spacer()
+                            if let status = invoice.status {
+                                Text(status.capitalized)
+                                    .font(.omTiny).fontWeight(.medium)
+                                    .foregroundStyle(status == "paid" ? Color.buttonPrimary : Color.fontSecondary)
+                                    .padding(.horizontal, .spacing2)
+                                    .padding(.vertical, 2)
+                                    .background(status == "paid" ? Color.buttonPrimary.opacity(0.1) : Color.grey10)
+                                    .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                            }
+                            if invoice.pdfUrl != nil {
+                                Icon("document", size: 18)
+                                    .foregroundStyle(Color.buttonPrimary)
+                                    .accessibilityHidden(true)
                             }
                         }
-                        Spacer()
-                        if let status = invoice.status {
-                            Text(status.capitalized)
-                                .font(.omTiny).fontWeight(.medium)
-                                .foregroundStyle(status == "paid" ? .green : Color.fontSecondary)
-                                .padding(.horizontal, .spacing2)
-                                .padding(.vertical, 2)
-                                .background(status == "paid" ? Color.green.opacity(0.1) : Color.grey10)
-                                .clipShape(RoundedRectangle(cornerRadius: .radius1))
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing3)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if let url = invoice.pdfUrl, let downloadURL = URL(string: url) {
+                                #if os(iOS)
+                                UIApplication.shared.open(downloadURL)
+                                #elseif os(macOS)
+                                NSWorkspace.shared.open(downloadURL)
+                                #endif
+                            }
                         }
-                        if invoice.pdfUrl != nil {
-                            Image(systemName: "arrow.down.doc")
-                                .foregroundStyle(Color.buttonPrimary)
-                                .accessibilityHidden(true)
-                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel({
+                            let amount = String(format: "%@ %.2f", invoice.currency?.uppercased() ?? "USD", invoice.amount ?? 0)
+                            let status = invoice.status?.capitalized ?? ""
+                            let date = invoice.createdAt ?? ""
+                            return "\(amount), \(status), \(date)"
+                        }())
+                        .accessibilityHint(invoice.pdfUrl != nil ? LocalizationManager.shared.text("settings.billing.tap_to_download") : "")
+                        .accessibilityAddTraits(invoice.pdfUrl != nil ? .isButton : [])
+                        .accessibilityIdentifier("settings-billing-invoice-row")
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if let url = invoice.pdfUrl, let downloadURL = URL(string: url) {
-                            #if os(iOS)
-                            UIApplication.shared.open(downloadURL)
-                            #elseif os(macOS)
-                            NSWorkspace.shared.open(downloadURL)
-                            #endif
-                        }
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel({
-                        let amount = String(format: "%@ %.2f", invoice.currency?.uppercased() ?? "USD", invoice.amount ?? 0)
-                        let status = invoice.status?.capitalized ?? ""
-                        let date = invoice.createdAt ?? ""
-                        return "\(amount), \(status), \(date)"
-                    }())
-                    .accessibilityHint(invoice.pdfUrl != nil ? LocalizationManager.shared.text("settings.billing.tap_to_download") : "")
-                    .accessibilityAddTraits(invoice.pdfUrl != nil ? .isButton : [])
                 }
             }
+
+            OMSettingsSection(LocalizationManager.shared.text("settings.billing.bank_transfer_details"), icon: "document") {
+                Text(LocalizationManager.shared.text("settings.billing.bank_transfer_awaiting"))
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing3)
+                    .accessibilityIdentifier("settings-billing-invoices-web-only-fallback")
+            }
         }
-        .navigationTitle(AppStrings.invoices)
         .task { await loadInvoices() }
     }
 
     private func loadInvoices() async {
+        if BillingUITestFixture.enabled {
+            invoices = []
+            isLoading = false
+            return
+        }
+
         do {
             invoices = try await APIClient.shared.request(
                 .get, path: "/v1/settings/billing/invoices"

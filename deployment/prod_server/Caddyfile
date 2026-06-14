@@ -12,6 +12,67 @@
 	email letsencrypt83hd@openmates.org
 }
 
+# Private network listener for satellite services such as upload.openmates.org.
+# The API container is bound to localhost only; this listener exposes only the
+# internal service-to-service routes on the Hetzner private network.
+http://:8008 {
+	@private_internal {
+		remote_ip 10.0.0.0/8
+		path /internal/* /health
+	}
+
+	handle @private_internal {
+		reverse_proxy localhost:8000 {
+			header_up Host {http.request.host}
+		}
+	}
+
+	handle {
+		abort
+	}
+}
+
+*.openmatesusercontent.org {
+	# User-content origin for generated application previews.
+	# Each preview session gets a unique preview-* hostname. Only the signed preview
+	# gateway is exposed here; OpenMates API/auth routes stay on api.openmates.org
+	# so app cookies are never sent to previews.
+	tls {
+		dns gandi {env.GANDI_BEARER_TOKEN}
+	}
+
+	log {
+		output file /var/log/caddy/openmatesusercontent.org.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Robots-Tag "noindex, nofollow"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), clipboard-read=(), clipboard-write=()"
+		-Server
+	}
+
+	@preview_gateway path /t/*
+
+	handle @preview_gateway {
+		reverse_proxy localhost:8000 {
+			header_up Host {http.request.host}
+		}
+	}
+
+	handle {
+		abort
+	}
+}
+
 api.openmates.org {
 	# Enable structured logging (JSON format) suitable for log processors like Fail2Ban
 	log {
@@ -88,6 +149,7 @@ api.openmates.org {
 	# Includes /v1/apps/travel/booking-link because the webapp uses session auth
 	# (credentials: include) and needs FastAPI to return the specific origin, not wildcard
 	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
+	# Includes /v1/applications/* — authenticated generated application preview sessions.
 	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
 	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	# NOTE: Do NOT add /v1/apps/* broadly here — it would break external developer API
@@ -96,7 +158,7 @@ api.openmates.org {
 	# calls it with credentials: include (session cookie) — browsers block wildcard CORS
 	# with credentials, so it must go through FastAPI's CORSMiddleware (specific origin).
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/referrals/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/travel/flight-details /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/code/run /v1/code/run/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/push /v1/push/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/telemetry/* /v1/client-logs
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/referrals/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/travel/flight-details /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/code/run /v1/code/run/* /v1/applications/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/push /v1/push/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/telemetry/* /v1/client-logs
 		method OPTIONS
 	}
 
@@ -106,13 +168,14 @@ api.openmates.org {
 	# Includes /v1/apps/travel/booking-link for webapp session auth (credentials: include
 	# requires specific origin in CORS response, not wildcard)
 	# Includes /v1/apps/audio/skills/transcribe — webapp uses credentials: include for audio transcription
+	# Includes /v1/applications/* — authenticated generated application preview sessions.
 	# Includes /v1/daily-inspirations/* — daily inspiration persistence (session auth, credentials: include)
 	# Includes /v1/embeds/presigned-url — webapp uses credentials: include for session-authenticated
 	# presigned S3 URL generation; browsers block wildcard CORS with credentials.
 	# NOTE: /v1/geocode/* is intentionally NOT here — it is public (no auth) and handled
 	# by @public_api_paths with wildcard CORS so unauthenticated users can access it.
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/referrals/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/travel/flight-details /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/code/run /v1/code/run/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/push /v1/push/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/telemetry/* /v1/client-logs
+		path /v1/auth/* /v1/settings/* /v1/payments/* /v1/projects /v1/projects/* /v1/referrals/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/debug/* /v1/demo/* /v1/apps/travel/booking-link /v1/apps/travel/flight-details /v1/apps/audio/skills/transcribe /v1/apps/reminder/skills/* /v1/code/run /v1/code/run/* /v1/applications/* /v1/daily-inspirations /v1/daily-inspirations/* /v1/embeds/presigned-url /v1/push /v1/push/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/telemetry/* /v1/client-logs
 		not method OPTIONS
 	}
 

@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-onboarding-source
+    type: unit
+    claim: Onboarding guide behavior is grounded in Suki onboarding metadata and share-usecase sources.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-onboarding-source
 ---
 
 # Onboarding

@@ -1,0 +1,435 @@
+id: unified-notifications
+title: Unified Notifications And Private Push Payloads
+status: approved
+
+goal: >
+  OpenMates should have one notification event model that can drive in-app UI,
+  email, APNs, future Web Push, developer webhooks, and a public SSE stream.
+  Chat assistant notifications must never expose chat titles or assistant
+  response content to APNs, browser push providers, or developer notification
+  streams unless the content is explicitly encrypted for a user device.
+
+scope:
+  in:
+    - Backend notification event contract for user notification events.
+    - Authenticated GET /v1/notifications for recent safe notification events.
+    - Authenticated GET /v1/notifications/stream for SSE delivery.
+    - OpenMates CLI access to list and stream safe notification events.
+    - Dispatch path for assistant-message notifications using the unified event contract.
+    - APNs alert payloads that show only localized or generic safe text by default.
+    - APNs custom encrypted payload metadata for device-local preview decryption.
+    - Apple client support for encrypted notification payload registration and decryption.
+    - Tests proving plaintext assistant responses and chat titles are not sent to APNs alert fields or public notification streams.
+  out:
+    - Restoring browser Web Push service worker support.
+    - Android FCM or UnifiedPush implementation.
+    - Outgoing developer webhooks with plaintext chat content.
+    - Server-side storage of decrypted assistant notification previews.
+    - Directus schema migration for a persistent notification table in the first slice unless implementation discovery proves persistence is required.
+
+context_discovery:
+  docs:
+    - docs/architecture/android/notifications.md
+  code_patterns:
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/tasks/push_notification_task.py
+    - backend/core/api/app/services/cache.py
+    - frontend/packages/ui/src/i18n/sources/notifications.yml
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+  tests:
+    - backend/tests/test_unified_notifications.py
+    - backend/tests/test_notifications_api.py
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+
+clarification:
+  rounds:
+    - question: Should encrypted preview generation be enabled by default for Apple devices, or gated behind a user preference?
+      answer: Open question from the legacy spec; resolve before implementing encrypted previews.
+    - question: How long should recent notifications remain available from GET /v1/notifications before durable storage exists?
+      answer: Open question from the legacy spec; Redis-only recent events are planned for the first slice.
+  vision_summary: >
+    The first slice creates safe notification events, authenticated list/SSE
+    access, CLI list/stream commands, and safe APNs payload construction. Apple
+    local decryption can follow once Xcode project verification is available.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Offline assistant response creates safe notification event
+    given:
+      - Alice has a chat named Private medical plan.
+      - An assistant completes a response containing private content.
+      - Alice has no active websocket connections.
+    when:
+      - OpenMates creates the notification event.
+    then:
+      - The event type is chat.assistant_message_received.
+      - Safe text uses localization keys, not chat title or response text.
+      - APNs alert title and body do not contain the chat title or response text.
+      - The event keeps routing metadata such as chat_id for opening the chat.
+  - id: S-2
+    title: Apple receives generic localized fallback
+    given:
+      - Alice has registered an APNs device.
+    when:
+      - OpenMates sends an assistant-message APNs notification.
+    then:
+      - aps.alert contains only generic app/title text and localized fallback body.
+      - aps.alert contains no assistant response preview.
+      - aps.alert contains no chat title.
+      - Tapping or replying still routes to the target chat using safe metadata.
+  - id: S-3
+    title: Apple can decrypt an optional encrypted preview locally
+    given:
+      - Alice's Apple app has registered a notification encryption public key.
+      - The backend can encrypt a preview to that device key.
+    when:
+      - APNs delivers a notification with mutable-content enabled.
+    then:
+      - Apple servers only receive ciphertext for the preview.
+      - The Notification Service Extension decrypts locally.
+      - The displayed notification may show decrypted preview lines on device.
+      - If decryption fails, the notification displays the generic fallback.
+  - id: S-4
+    title: Developer SSE receives safe events only
+    given:
+      - Alice connects to /v1/notifications/stream.
+    when:
+      - A new assistant-message notification event is created.
+    then:
+      - The SSE stream emits a safe event with ID, type, timestamp, safe text keys, and routing metadata.
+      - The SSE event does not include assistant response content or chat title.
+      - The stream sends heartbeats while idle.
+  - id: S-5
+    title: Recent notification list is safe and authorized
+    given:
+      - Alice requests GET /v1/notifications.
+    when:
+      - Notification events exist for Alice.
+    then:
+      - Alice receives only her own notification events.
+      - The payload contains safe fields only by default.
+      - Bob cannot fetch Alice's events.
+  - id: S-6
+    title: Existing email notification behavior remains compatible
+    given:
+      - Alice has email notifications enabled for AI responses.
+    when:
+      - An assistant response completes while Alice is offline.
+    then:
+      - Existing email fallback behavior still works.
+      - The first implementation does not broaden email content beyond the current email preference and encryption model.
+  - id: S-7
+    title: CLI can list and stream notifications
+    given:
+      - Alice has paired the OpenMates CLI.
+    when:
+      - She runs openmates settings notifications list --json.
+    then:
+      - The CLI returns recent safe notification events from /v1/notifications.
+      - openmates settings notifications stream --count 1 --json reads one safe SSE notification event and exits.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A unified notification event schema exists in backend code and is used by the assistant-message offline notification path.
+  - id: AC-2
+    scenario: S-5
+    text: GET /v1/notifications returns authenticated, user-scoped, safe recent notification events.
+  - id: AC-3
+    scenario: S-4
+    text: GET /v1/notifications/stream emits SSE events and heartbeats for authenticated clients.
+  - id: AC-4
+    scenario: S-2
+    text: APNs chat-message alert title/body never include chat titles or assistant response content.
+  - id: AC-5
+    scenario: S-3
+    text: APNs chat-message payload includes mutable-content when an encrypted device payload is present.
+  - id: AC-6
+    scenario: S-3
+    text: Apple device registration can register notification encryption material without storing private keys on the server.
+  - id: AC-7
+    scenario: S-3
+    text: Apple notification decryption falls back to localized New message received text when encrypted preview data is absent or invalid.
+  - id: AC-8
+    scenario: S-1
+    text: Automated tests cover safe APNs payload construction and safe SSE event serialization.
+  - id: AC-9
+    scenario: S-3
+    text: Translation sources include the generic notification body and generated locale JSON is rebuilt.
+  - id: AC-10
+    scenario: S-7
+    text: OpenMates CLI exposes safe notification list and SSE stream commands.
+
+contracts:
+  api:
+    - GET /v1/notifications?limit=50&after=<cursor> returns recent safe events for the authenticated user.
+    - GET /v1/notifications/stream returns text/event-stream for authenticated clients.
+    - POST /v1/notifications/register-device accepts optional notification_public_key and encryption_version.
+  data:
+    - First slice may store short-lived events in Redis for SSE/recent-list support.
+    - Durable storage can be added later if product requires notification history across restarts.
+    - APNs registration stores public encryption material only.
+  ui_states:
+    - Web and Apple show generic safe text for assistant-message notifications when no local decrypted preview is available.
+    - Apple Notification Service Extension may replace the generic text with a decrypted preview only on device.
+    - SSE consumers receive safe fallback text keys and routing metadata only.
+  privacy_security:
+    - No assistant response plaintext or chat title plaintext in APNs alert fields.
+    - No assistant response plaintext or chat title plaintext in SSE payloads.
+    - Encrypted APNs preview ciphertext is allowed as custom payload metadata.
+    - Notification encryption is device-targeted; private keys must not leave the user's Apple device.
+    - Public developer streams are authenticated and user-scoped.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_unified_notifications.py
+    command: python3 -m pytest backend/tests/test_unified_notifications.py
+    covers:
+      - AC-1
+      - AC-4
+      - AC-5
+      - AC-8
+    assertions:
+      - safe notification events use localization keys
+      - APNs alert fields exclude chat titles and assistant responses
+      - encrypted custom payload metadata can set mutable-content
+      - email fallback behavior is not broadened
+    red_phase:
+      required: true
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_notifications_api.py
+    command: python3 -m pytest backend/tests/test_notifications_api.py
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - notification list is authenticated and user-scoped
+      - SSE emits safe events and heartbeats
+      - Bob cannot fetch Alice's notification events
+    red_phase:
+      required: true
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+  - id: T-APPLE-001
+    type: unit
+    file: apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    command: xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' build
+    covers:
+      - AC-6
+      - AC-7
+    assertions:
+      - Apple device registration sends public encryption material only
+      - notification decryption falls back to generic localized text
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: false
+      expected: pass
+  - id: T-APPLE-002
+    type: unit
+    file: apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    command: python3 scripts/apple_background_notification_simulator_test.py --push-delay 75
+    covers:
+      - AC-4
+      - AC-7
+    assertions:
+      - A backgrounded native app can receive a simulator-injected server-shaped APNs payload.
+      - SpringBoard displays only the generic OpenMates title and New message received body.
+      - This simulator test does not prove real APNs delivery from OpenMates servers.
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-mac-xcodebuild-2026-06-09-134205
+        timestamp: "2026-06-09T13:43:11+02:00"
+        commit: 250c2cc
+        notes: "Focused remote Mac run on iPhone 17 simulator: BackgroundChatNotificationUITests/testBackgroundedAppShowsSimulatedServerPushNotification passed, 1 test, 0 failures; simctl push reported Notification sent to org.openmates.app. Real APNs/device delivery remains out of scope for simulator verification."
+  - id: T-I18N-001
+    type: build
+    file: frontend/packages/ui/src/i18n/sources/notifications.yml
+    command: cd frontend/packages/ui && npm run build:translations
+    covers:
+      - AC-9
+    assertions:
+      - generic notification body key exists
+      - generated locale JSON is rebuilt from sources
+    red_phase:
+      required: false
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-10
+    assertions:
+      - CLI exposes notification list command
+      - CLI exposes notification stream command
+      - JSON output contains safe notification fields only
+    red_phase:
+      required: true
+      expected: fail
+    green_phase:
+      required: true
+      expected: pass
+
+implementation_plan:
+  existing_patterns:
+    - backend/core/api/app/routes/push.py
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/cache.py
+    - frontend/packages/ui/src/i18n/sources/notifications.yml
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+  architecture: >
+    Build a provider-agnostic notification event layer without introducing a
+    Directus migration in the first slice. NotificationEventService owns safe
+    event creation, Redis retention, and SSE publish. APNs and future push
+    channels remain channel adapters.
+  data_flow:
+    - Assistant finishes response while the user is offline.
+    - Websocket handler asks NotificationEventService to create a safe event.
+    - The event is cached in Redis and published to the user's notification channel.
+    - SSE subscribers receive only safe JSON.
+    - APNs sends generic alert text plus optional encrypted custom ciphertext.
+    - Apple decrypts locally and falls back to generic safe text on failure.
+    - Simulator UI coverage injects a server-shaped APNs payload with simctl push while the app is backgrounded.
+  affected_files:
+    - path: backend/core/api/app/services/notification_event_service.py
+      reason: Event schema, Redis storage, pub/sub, and safe serialization.
+    - path: backend/core/api/app/routes/notifications.py
+      reason: List and SSE routes.
+    - path: backend/core/api/main.py
+      reason: Include notification routes.
+    - path: backend/core/api/app/routes/push.py
+      reason: APNs token registration with encryption public key.
+    - path: backend/core/api/app/services/push_notification_service.py
+      reason: Encrypted APNs custom payload and mutable-content.
+    - path: backend/core/api/app/tasks/push_notification_task.py
+      reason: Pass encrypted notification payload fields.
+    - path: backend/core/api/app/routes/websockets.py
+      reason: Use event service for assistant-message notification dispatch.
+    - path: backend/tests/test_unified_notifications.py
+      reason: Safe event and APNs privacy tests.
+    - path: backend/tests/test_notifications_api.py
+      reason: List and SSE API tests.
+    - path: apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+      reason: Key generation and registration.
+    - path: apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+      reason: Simulator-backed safe notification display coverage.
+    - path: scripts/apple_background_notification_simulator_test.py
+      reason: Host-side simctl push coordination for the Apple UI test.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Notification list/stream client methods.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: CLI commands.
+  verification_strategy:
+    - python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_notifications_api.py
+    - python3 -m py_compile backend/core/api/app/services/notification_event_service.py backend/core/api/app/routes/notifications.py backend/core/api/app/services/push_notification_service.py
+    - cd frontend/packages/ui && npm run build:translations
+    - python3 scripts/run_tests.py --suite vitest
+    - python3 scripts/apple_background_notification_simulator_test.py --push-delay 75
+  risks:
+    - Notification Service Extension setup may require Xcode project changes that are hard to fully verify on Linux.
+    - Persisting notification history may require Directus schema work; avoid this in the first slice unless required.
+    - Encrypted previews protect against Apple seeing content, but not against the OpenMates backend seeing previews if the backend generates them from plaintext.
+    - Simulator push verification proves client handling/display only; real APNs delivery still requires a physical iOS device and Push Notifications entitlement.
+
+tasks:
+  - id: TASK-1
+    title: Add backend notification event service with safe schema
+    covers:
+      scenarios: [S-1, S-4, S-5]
+      acceptance_criteria: [AC-1]
+    expected_files:
+      - backend/core/api/app/services/notification_event_service.py
+      - backend/tests/test_unified_notifications.py
+    verification: [T-PYTEST-001]
+    independently_deployable: true
+  - id: TASK-2
+    title: Expose authenticated notification list and SSE stream
+    covers:
+      scenarios: [S-4, S-5]
+      acceptance_criteria: [AC-2, AC-3]
+    expected_files:
+      - backend/core/api/app/routes/notifications.py
+      - backend/core/api/main.py
+      - backend/tests/test_notifications_api.py
+    verification: [T-PYTEST-002]
+    independently_deployable: true
+  - id: TASK-3
+    title: Wire assistant-message offline path to notification events and safe APNs payloads
+    covers:
+      scenarios: [S-1, S-2, S-6]
+      acceptance_criteria: [AC-1, AC-4, AC-8]
+    expected_files:
+      - backend/core/api/app/routes/websockets.py
+      - backend/core/api/app/tasks/push_notification_task.py
+      - backend/core/api/app/services/push_notification_service.py
+      - backend/tests/test_unified_notifications.py
+    verification: [T-PYTEST-001]
+    independently_deployable: true
+  - id: TASK-4
+    title: Add APNs encryption public key registration and encrypted custom payload construction
+    covers:
+      scenarios: [S-2, S-3]
+      acceptance_criteria: [AC-5, AC-6, AC-8]
+    expected_files:
+      - backend/core/api/app/routes/push.py
+      - backend/core/api/app/services/push_notification_service.py
+      - backend/tests/test_unified_notifications.py
+    verification: [T-PYTEST-001]
+    independently_deployable: true
+  - id: TASK-5
+    title: Add Apple notification encryption key registration and service-extension decryption
+    covers:
+      scenarios: [S-2, S-3]
+      acceptance_criteria: [AC-6, AC-7]
+    expected_files:
+      - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+      - apple/OpenMates/NotificationServiceExtension
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    verification: [T-APPLE-001]
+    independently_deployable: false
+  - id: TASK-6
+    title: Add OpenMates CLI notification list and stream commands
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-10]
+    expected_files:
+      - frontend/packages/openmates-cli/src/http.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification: [T-CLI-001]
+    independently_deployable: true
+  - id: TASK-7
+    title: Rebuild translations and verify full spec
+    covers:
+      scenarios: [S-2, S-3]
+      acceptance_criteria: [AC-7, AC-9]
+    expected_files:
+      - frontend/packages/ui/src/i18n/sources/notifications.yml
+      - docs/specs/unified-notifications/spec.yml
+    verification: [T-I18N-001]
+    independently_deployable: true

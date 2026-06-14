@@ -836,7 +836,15 @@
       // CRITICAL: Make this reactive to auth state changes
       // When auth state changes, we need to re-check sessionStorage for demo chats
       const _authState = $authStore.isAuthenticated; // Reference to trigger reactivity
-      updateDisplayInfo(chat);
+      // Fetch fresh chat from IDB — the prop may be stale if encrypted fields
+      // (e.g. encrypted_active_focus_id) were written after the chat list loaded.
+      // Using the prop directly would re-decrypt metadata without those fields,
+      // overwriting cachedMetadata and hiding the focus-mode badge.
+      chatDB.getChat(chat.chat_id).then(freshChat => {
+        updateDisplayInfo(freshChat ?? chat);
+      }).catch(() => {
+        updateDisplayInfo(chat);
+      });
       
       // Set gradient colors based on chat category (only if category is set)
       // If category is null, gradient will be null too - this makes it clear when data is missing
@@ -884,8 +892,16 @@
         }
       }
       
-      // For other update types, use the existing chat object
-      await updateDisplayInfo(chat); 
+      // For other update types, always fetch the freshest chat from IndexedDB.
+      // The prop may be stale if encrypted fields (e.g. encrypted_active_focus_id)
+      // were written after the chat list loaded — using the prop would re-decrypt
+      // metadata without those fields, overwriting cachedMetadata and hiding badges.
+      try {
+        const freshChat = await chatDB.getChat(chat.chat_id);
+        await updateDisplayInfo(freshChat ?? chat);
+      } catch {
+        await updateDisplayInfo(chat);
+      }
     }
   }
 
@@ -976,7 +992,16 @@
 
   onMount(() => {
     if (chat) {
-        updateDisplayInfo(chat); 
+        // Fetch the freshest data from IndexedDB. The `chat` prop may be stale if encrypted
+        // fields (e.g. encrypted_active_focus_id) were written after the sidebar loaded the
+        // chat list but before this component mounted. This can happen when focus mode was
+        // activated while the sidebar was closed — the focusModeActivated event fires before
+        // this component exists, so handleFocusModeChange never runs.
+        chatDB.getChat(chat.chat_id).then(freshChat => {
+            updateDisplayInfo(freshChat ?? chat);
+        }).catch(() => {
+            updateDisplayInfo(chat);
+        });
     }
     
     // Listen to local draft changes for immediate UI updates

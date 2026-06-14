@@ -10,8 +10,8 @@
     "icon_names": [
       "map"
     ],
-    "selected_model_id": "moonshot/kimi-k2.5",
-    "selected_model_name": "Kimi K2.5",
+    "selected_model_id": "moonshot/kimi-k2.7-code",
+    "selected_model_name": "Kimi K2.7 Code",
     "mate_id": "george",
     "chat_summary": "User asked for the capital city of Germany.",
     "chat_tags": [
@@ -26,8 +26,8 @@
   },
   "typing_started": {
     "category": "general_knowledge",
-    "model_name": "Kimi K2.5",
-    "provider_name": "Together AI",
+    "model_name": "Kimi K2.7 Code",
+    "provider_name": "OpenRouter",
     "server_region": "US",
     "icon_names": [
       "map"
@@ -40,6 +40,6 @@
     "prompt_tokens": null,
     "completion_tokens": null,
     "total_credits": null,
-    "model_name": "Kimi K2.5"
+    "model_name": "Kimi K2.7 Code"
   }
 }

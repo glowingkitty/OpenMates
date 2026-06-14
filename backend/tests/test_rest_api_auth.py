@@ -55,8 +55,9 @@ class TestLoginEndpoint:
     verify it returns a proper JSON response with success=False.
     """
 
-    def test_login_with_invalid_credentials_returns_json(self):
+    def test_login_with_invalid_credentials_returns_json(self, doc_assert):
         """Login with wrong credentials should return 4xx/JSON, not 500."""
+        doc_assert("auth-rest-endpoints-return-errors-not-500")
         with httpx.Client(
             base_url=API_BASE_URL,
             headers={"Origin": "https://app.dev.openmates.org"},
@@ -81,8 +82,9 @@ class TestLoginEndpoint:
                 f"Expected 'success', 'detail', or 'error' field in response, got: {data}"
             )
 
-    def test_login_with_missing_hashed_email_returns_422(self):
+    def test_login_with_missing_hashed_email_returns_422(self, doc_assert):
         """Missing required field should return 422 validation error."""
+        doc_assert("auth-rest-endpoints-return-errors-not-500")
         with httpx.Client(
             base_url=API_BASE_URL,
             headers={"Origin": "https://app.dev.openmates.org"},
@@ -97,8 +99,9 @@ class TestLoginEndpoint:
                 f"Expected 422/400 for missing field, got {resp.status_code}: {resp.text}"
             )
 
-    def test_login_with_missing_lookup_hash_returns_422(self):
+    def test_login_with_missing_lookup_hash_returns_422(self, doc_assert):
         """Missing required field should return 422 validation error."""
+        doc_assert("auth-rest-endpoints-return-errors-not-500")
         with httpx.Client(
             base_url=API_BASE_URL,
             headers={"Origin": "https://app.dev.openmates.org"},
@@ -219,8 +222,9 @@ class TestSessionEndpoint:
     This exercises the verify_authenticated_user cache-miss fallback path.
     """
 
-    def test_session_without_auth_returns_401(self):
+    def test_session_without_auth_returns_401(self, doc_assert):
         """Session check without cookies should return auth error, not 500."""
+        doc_assert("auth-rest-endpoints-return-errors-not-500")
         with httpx.Client(
             base_url=API_BASE_URL,
             headers={"Origin": "https://app.dev.openmates.org"},

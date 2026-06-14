@@ -122,6 +122,24 @@
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
     import { OPENMATES_EVENTS, type OpenMatesEvent } from '../data/openmatesEvents';
+    import {
+        AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS,
+        formatOpenMatesEventContinueTitle,
+        formatOpenMatesEventSummary,
+        getOgExampleResumeChat,
+        getContinueGradientColors,
+        getResumeCardGradientStyle,
+        getResumeLargeCardStyle,
+        hasOpenMatesEventEnded,
+        isOgExampleSharedChatCuttlefish,
+    } from './activeChatUtils';
+    import {
+        cloneMessagesForReplay,
+        getReplayDelay,
+        resolveReplayPair,
+        splitReplayContent,
+        type ChatReplayOptions,
+    } from './activeChatReplayUtils';
     import { getApiEndpoint } from '../config/api';
     import {
         getReminderByTargetChatId,
@@ -138,6 +156,7 @@
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
     import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
+    import { autoStartCreatedApplicationPreview } from '../services/applicationPreviewService';
 
     function loadWikipediaFullscreenComponent() {
         return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
@@ -154,38 +173,6 @@
     type EventListenerCallback = (event: Event) => void;
     type UserProfileRecord = { user_id?: string | null };
     type HiddenChatFlag = { is_hidden?: boolean | null };
-
-    const OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH = 'shared_chat_cuttlefish';
-    const AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS = new Set([
-        'export-data',
-        'incognito-mode',
-    ]);
-
-    function isOgExampleSharedChatCuttlefish(): boolean {
-        if (typeof window === 'undefined') {
-            return false;
-        }
-        const searchParams = new URLSearchParams(window.location.search);
-        return searchParams.get('og') === '1' && searchParams.get('og_example') === OG_EXAMPLE_SHARED_CHAT_CUTTLEFISH;
-    }
-
-    function getOgExampleResumeChat(): Chat {
-        const nowTs = Math.floor(Date.now() / 1000);
-        return {
-            chat_id: 'c3343b34-c645-4576-be38-87bef9d0b899',
-            encrypted_title: null,
-            messages_v: 0,
-            title_v: 0,
-            last_edited_overall_timestamp: nowTs,
-            unread_count: 0,
-            created_at: nowTs,
-            updated_at: nowTs,
-            title: 'Cuttlefish Camouflage Mechanism',
-            chat_summary: 'Exploring cuttlefish camouflage mechanisms and examples.',
-            category: 'general_knowledge',
-            icon: 'sparkles'
-        };
-    }
 
     type ChatHistoryRef = {
         updateMessages: (messages: ChatMessageModel[], isNewChat?: boolean) => void;
@@ -220,6 +207,19 @@
     };
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
+
+    function shouldAutoStartCreatedApplicationPreview(chat: Chat | null): boolean {
+        if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito) return false;
+        if (isPublicChat(chat.chat_id) || isDemoChat(chat.chat_id) || isExampleChat(chat.chat_id) || isLegalChat(chat.chat_id) || isNewsletterChat(chat.chat_id)) return false;
+        return true;
+    }
+
+    function maybeAutoStartCreatedApplicationPreview(message: ChatMessageModel) {
+        if (!shouldAutoStartCreatedApplicationPreview(currentChat)) return;
+        const markdown = typeof message.content === 'string' ? message.content : '';
+        if (!markdown) return;
+        void autoStartCreatedApplicationPreview(message.chat_id, message.message_id, markdown);
+    }
 
     function shouldPreserveLiveEmbedOnlyDraft(chatId: string): boolean {
         const draftState = get(draftEditorUIState);
@@ -2821,6 +2821,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // during rapid sync events (matching Chats.svelte's 300ms debounce pattern).
     let _carouselRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     let _priorityRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let hasContinueItems = $derived.by(() =>
+        priorityContinueItems.length > 0 ||
+        !!resumeChatData ||
+        ($authStore.isAuthenticated && recentChats.length > 0)
+    );
+    let isContinueChatsLoading = $derived.by(() => {
+        const userHasEncryptedHistory =
+            !!$userProfile.last_opened ||
+            ($userProfile.total_chat_count ?? 0) > 0 ||
+            !!$phasedSyncState.phase1ChatId;
+
+        return showWelcome &&
+            $authStore.isAuthenticated &&
+            !$activeChatStore &&
+            userHasEncryptedHistory &&
+            !$phasedSyncState.initialSyncCompleted &&
+            !hasContinueItems;
+    });
 
     async function buildRecentChatMeta(chat: Chat): Promise<RecentChatMeta> {
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
@@ -3156,30 +3174,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.error('[ActiveChat] Failed to open priority embed:', error);
             notificationStore.error('Failed to open saved item.');
         }
-    }
-
-    function hasOpenMatesEventEnded(event: OpenMatesEvent): boolean {
-        const endDate = new Date(event.date_end || event.date_start);
-        return Number.isNaN(endDate.getTime()) || endDate.getTime() < Date.now();
-    }
-
-    function formatOpenMatesEventSummary(event: OpenMatesEvent): string | null {
-        const start = new Date(event.date_start);
-        const date = Number.isNaN(start.getTime())
-            ? ''
-            : start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-        const time = Number.isNaN(start.getTime())
-            ? ''
-            : start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-        return [date, time, event.venue?.city].filter(Boolean).join(' · ') || event.summary || null;
-    }
-
-    function formatOpenMatesEventContinueTitle(event: OpenMatesEvent): string {
-        const start = new Date(event.date_start);
-        const date = Number.isNaN(start.getTime())
-            ? ''
-            : start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        return date ? `${date}: ${event.title}` : event.title;
     }
 
     function openOpenMatesEventEmbed(event: OpenMatesEvent): void {
@@ -3848,17 +3842,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    type ChatReplayOptions = {
-        /** Assistant message to replay. Defaults to the latest assistant message in the open chat. */
-        messageId?: string;
-        /** Playback speed multiplier. Values above 1 make the replay faster. */
-        speed?: number;
-        /** Optional delay before the assistant bubble appears, before speed scaling. */
-        initialDelayMs?: number;
-        /** Optional delay between paragraph chunks, before speed scaling. */
-        paragraphDelayMs?: number;
-    };
-
     type ChatReplayCommand = {
         start: (options?: ChatReplayOptions) => Promise<void>;
         stop: () => void;
@@ -3868,70 +3851,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let replayGeneration = 0;
     let replayOriginalMessages: ChatMessageModel[] | null = null;
 
-    function cloneMessagesForReplay(messages: ChatMessageModel[]): ChatMessageModel[] {
-        return messages.map((message) => ({ ...message }));
-    }
-
-    function getReplayDelay(baseMs: number, speed: number): number {
-        return Math.max(40, Math.round(baseMs / Math.max(0.1, speed)));
-    }
-
     function waitForReplay(ms: number, generation: number): Promise<boolean> {
         return new Promise((resolve) => {
             setTimeout(() => resolve(replayGeneration === generation), ms);
         });
-    }
-
-    function splitReplayContent(content: string): string[] {
-        const paragraphs = content
-            .split(/\n{2,}/)
-            .map((part) => part.trim())
-            .filter(Boolean);
-
-        if (paragraphs.length > 1) {
-            return paragraphs.map((_, index) => paragraphs.slice(0, index + 1).join('\n\n'));
-        }
-
-        const sentences = content.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g)?.map((part) => part.trim()).filter(Boolean) ?? [];
-        if (sentences.length > 1) {
-            return sentences.map((_, index) => sentences.slice(0, index + 1).join(' '));
-        }
-
-        return [content];
-    }
-
-    function resolveReplayPair(options: ChatReplayOptions) {
-        const assistantIndex = options.messageId
-            ? currentMessages.findIndex((message) => message.message_id === options.messageId && message.role === 'assistant')
-            : (() => {
-                for (let index = currentMessages.length - 1; index >= 0; index -= 1) {
-                    if (currentMessages[index].role === 'assistant') return index;
-                }
-                return -1;
-            })();
-
-        if (assistantIndex === -1) {
-            throw new Error('No assistant message found to replay in the open chat.');
-        }
-
-        const assistantMessage = currentMessages[assistantIndex];
-        const linkedUserIndex = assistantMessage.user_message_id
-            ? currentMessages.findIndex((message) => message.message_id === assistantMessage.user_message_id)
-            : -1;
-        const userIndex = linkedUserIndex !== -1
-            ? linkedUserIndex
-            : (() => {
-                for (let index = assistantIndex - 1; index >= 0; index -= 1) {
-                    if (currentMessages[index].role === 'user') return index;
-                }
-                return -1;
-            })();
-
-        if (userIndex === -1) {
-            throw new Error('No user message found before the assistant message to replay.');
-        }
-
-        return { assistantIndex, userIndex, assistantMessage, userMessage: currentMessages[userIndex] };
     }
 
     function updateReplayMessages(messages: ChatMessageModel[]) {
@@ -3968,7 +3891,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const speed = options.speed ?? 4;
         const initialDelay = getReplayDelay(options.initialDelayMs ?? 900, speed);
         const paragraphDelay = getReplayDelay(options.paragraphDelayMs ?? 650, speed);
-        const { assistantIndex, userIndex, assistantMessage, userMessage } = resolveReplayPair(options);
+        const { assistantIndex, userIndex, assistantMessage, userMessage } = resolveReplayPair(currentMessages, options);
         const beforePair = cloneMessagesForReplay(currentMessages.slice(0, userIndex));
         const replayUserMessage: ChatMessageModel = { ...userMessage, status: 'sending' };
         const replayAssistantMessage: ChatMessageModel = {
@@ -4152,50 +4075,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         return `perspective(${RESUME_CARD_TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${RESUME_CARD_TILT_SCALE})`;
     });
-
-    /**
-     * Build the inline style string for the large resume card.
-     * Accepts a background CSS declaration and an optional gradient color pair.
-     * Emits --orb-color-a / --orb-color-b CSS custom properties consumed by
-     * the living gradient orb animation (same system as ChatHeader + DailyInspirationBanner).
-     */
-    function getResumeCardGradientStyle(
-        orbColors?: { start: string; end: string } | null,
-    ): string {
-        const start = orbColors?.start ?? '#4867cd';
-        const end = orbColors?.end ?? '#a0beff';
-
-        return [
-            `background: linear-gradient(135deg, ${start}, ${end})`,
-            `--orb-color-a: ${start}`,
-            `--orb-color-b: ${end}`,
-        ].join('; ');
-    }
-
-    function getResumeLargeCardStyle(
-        orbColors?: { start: string; end: string } | null,
-    ): string {
-        const parts = [getResumeCardGradientStyle(orbColors)];
-        if (resumeLargeCardTiltTransform) {
-            parts.push(`transform: ${resumeLargeCardTiltTransform}`);
-        }
-        return parts.join('; ');
-    }
-
-    function getAppGradientColors(appId: string | null | undefined): { start: string; end: string } | null {
-        if (!appId || !/^[a-z0-9_-]+$/.test(appId)) return null;
-        return {
-            start: `var(--color-app-${appId}-start, #4867cd)`,
-            end: `var(--color-app-${appId}-end, #a0beff)`,
-        };
-    }
-
-    function getContinueGradientColors(
-        category: string | null | undefined,
-        appId?: string | null,
-    ): { start: string; end: string } | null {
-        return getAppGradientColors(appId) ?? (category ? getCategoryGradientColors(category) : null);
-    }
 
     function handleResumeLargeCardMouseEnter(e: MouseEvent) {
         isResumeLargeCardHovering = true;
@@ -4591,9 +4470,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
-    let currentChat = $state<Chat | null>(initialPublicChat);
-    let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
-    let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
+     let currentChat = $state<Chat | null>(initialPublicChat);
+     let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+     let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
+     let currentMessageWindowHasMoreBefore = $state(false);
+     let olderMessageWindowLoading = $state(false);
 
     async function loadCompressionCheckpointsForChat(chatId: string): Promise<ChatCompressionCheckpoint[]> {
         const checkpoints = await chatDB.getChatCompressionCheckpoints(chatId);
@@ -4665,6 +4546,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Updated whenever the chat changes or a focus_mode_activated / focusModeDeactivated event fires.
     // Used to render the "Focus active" header banner in the chat view.
     let activeFocusId = $state<string | null>(null);
+    // Guard flag: set by focusModeActivatedHandler to prevent the $effect async metadata
+    // load from overwriting activeFocusId with a stale null when the WebSocket event
+    // fires before the focus_id has been persisted to IndexedDB.
+    let focusPillSetByEvent = false;
+    // Tracks the last chat_id for which the $effect ran, so we can detect a genuine
+    // chat switch (where focusPillSetByEvent must be reset) vs. a same-chat refresh
+    // (where the guard must be preserved).
+    let lastLoadedChatId: string | null = null;
     // App ID extracted from the active focus ID (e.g. "jobs" from "jobs-career_insights")
     let activeFocusAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
     // Focus mode key within the app (e.g. "career_insights" from "jobs-career_insights")
@@ -4803,22 +4692,39 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Uses chatMetadataCache to decrypt encrypted_active_focus_id from IndexedDB.
     $effect(() => {
         const chatId = currentChat?.chat_id;
+        // Reset the event-guard flag when the chat identity changes so a fresh
+        // metadata load from a new chat is not erroneously suppressed by a prior
+        // activation event.
+        if (chatId !== lastLoadedChatId) {
+            focusPillSetByEvent = false;
+        }
         if (!chatId) {
             activeFocusId = null;
+            lastLoadedChatId = null;
             return;
         }
+        if (currentChat?.active_focus_id) {
+            activeFocusId = currentChat.active_focus_id;
+            lastLoadedChatId = chatId;
+            return;
+        }
+        const loadedChatId = chatId;
+        lastLoadedChatId = chatId;
         // Read asynchronously — use the cached value if available
         (async () => {
             try {
                 const { chatMetadataCache } = await import('../services/chatMetadataCache');
                 const metadata = await chatMetadataCache.getDecryptedMetadata(currentChat!);
                 // Only update if the chat hasn't changed since we started loading
-                if (currentChat?.chat_id === chatId) {
+                // AND the event handler hasn't already set a more current value.
+                if (currentChat?.chat_id === loadedChatId && !focusPillSetByEvent) {
                     activeFocusId = metadata?.activeFocusId ?? null;
                 }
             } catch (e) {
                 console.warn('[ActiveChat] Could not load active focus ID:', e);
-                activeFocusId = null;
+                if (!focusPillSetByEvent) {
+                    activeFocusId = null;
+                }
             }
         })();
     });
@@ -5605,13 +5511,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug('[ActiveChat] Incognito message already has synced status, skipping save');
                         }
                     } else {
-                        // Save to IndexedDB
-                        // Only save if the status actually changed to prevent unnecessary saves
+                        // Save to IndexedDB. The aiTaskEnded fallback can mark a streaming
+                        // message as synced before the final chunk arrives, so status alone
+                        // is not enough to decide whether the final content was persisted.
                         const existingMessage = await chatDB.getMessage(updatedFinalMessage.message_id);
-                        if (!existingMessage || existingMessage.status !== 'synced') {
+                        const shouldSaveFinalMessage =
+                            !existingMessage ||
+                            existingMessage.status !== updatedFinalMessage.status ||
+                            existingMessage.content !== updatedFinalMessage.content ||
+                            existingMessage.model_name !== updatedFinalMessage.model_name ||
+                            existingMessage.thinking_content !== updatedFinalMessage.thinking_content ||
+                            existingMessage.thinking_signature !== updatedFinalMessage.thinking_signature ||
+                            existingMessage.thinking_token_count !== updatedFinalMessage.thinking_token_count ||
+                            existingMessage.has_thinking !== updatedFinalMessage.has_thinking;
+                        if (shouldSaveFinalMessage) {
                             await chatDB.saveMessage(updatedFinalMessage);
                         } else {
-                            console.debug('[ActiveChat] Message already has synced status, skipping save');
+                            console.debug('[ActiveChat] Final AI message already persisted, skipping save');
                         }
                     }
                 } catch (error) {
@@ -5635,7 +5551,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } else {
                     console.debug('[ActiveChat] Skipping server storage for incognito chat - not persisted on server');
                 }
-                
+
+                maybeAutoStartCreatedApplicationPreview(updatedFinalMessage);
+
                 if (chatHistoryRef) {
                     chatHistoryRef.updateMessages(currentMessages);
                 }
@@ -5905,6 +5823,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 embedFullscreenData = null;
             }
             
+            let hydratedMessagesForChat: ChatMessageModel[] = [];
+
             // Force update currentChat immediately (fallback to DB if newChat wasn't provided)
             if (newChat) {
                 currentChat = newChat;
@@ -5915,10 +5835,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     const incognitoChat = await incognitoChatService.getChat(message.chat_id);
                     if (incognitoChat) {
                         currentChat = incognitoChat as Chat;
+                        hydratedMessagesForChat = await incognitoChatService.getMessagesForChat(message.chat_id);
                     } else {
                         const dbChat = await chatDB.getChat(message.chat_id);
                         if (dbChat) {
                             currentChat = dbChat as Chat;
+                            hydratedMessagesForChat = await chatDB.getMessagesForChat(message.chat_id);
                         } else {
                             // Minimal fallback to keep UI consistent; DB should catch up shortly
                             currentChat = { chat_id: message.chat_id } as Chat;
@@ -5942,6 +5864,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } else {
                     currentMessages = [message]; // Initialize messages with the first message
                 }
+            } else if (hydratedMessagesForChat.length > 0) {
+                currentMessages = hydratedMessagesForChat.some(m => m.message_id === message.message_id)
+                    ? hydratedMessagesForChat
+                    : [...hydratedMessagesForChat, message];
             } else {
                 currentMessages = [message]; // Initialize messages with the first message
             }
@@ -5960,6 +5886,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // ChatHeader's closed-sidebar navigation state in sync explicitly.
             chatListCache.upsertChat(currentChat);
             updateNavFromCache(currentChat.chat_id);
+
+            const createdChatId = currentChat.chat_id;
+            if (!currentChat.is_incognito) {
+                void import('../services/chatSyncServiceHandlersAI')
+                    .then(({ flushPendingFinalizedEmbedsForChat }) =>
+                        flushPendingFinalizedEmbedsForChat(chatSyncService, createdChatId)
+                    )
+                    .catch(err => {
+                        console.warn('[ActiveChat] Failed to flush queued finalized embeds after new-chat send:', err);
+                    });
+            }
 
             // Notify backend about the active chat, but only if not in signup flow
             // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
@@ -6085,6 +6022,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // should ideally update the message status in DB, and that change should flow
         // back via messageStatusChanged event if sendNewMessage fails at WebSocket level.
         // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
+    }
+
+    async function handleNewChatCreationCancelled(event: CustomEvent) {
+        const { chatId, text } = event.detail as { chatId?: string | null; text?: string };
+        const cancelledChatId = chatId || currentChat?.chat_id || temporaryChatId || null;
+
+        if (cancelledChatId) {
+            try {
+                await chatDB.deleteChat(cancelledChatId);
+                chatListCache.removeChat(cancelledChatId);
+                window.dispatchEvent(new CustomEvent('localChatListChanged', {
+                    detail: { chat_id: cancelledChatId }
+                }));
+            } catch (err) {
+                console.warn('[ActiveChat] Failed to delete cancelled new chat locally:', err);
+            }
+        }
+
+        await handleNewChatClick();
+        await tick();
+
+        if (text && messageInputFieldRef?.setSuggestionText) {
+            messageInputFieldRef.setSuggestionText(text);
+            messageInputFieldRef.focus();
+        }
     }
 
     /**
@@ -7493,7 +7455,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             console.debug('[ActiveChat] handleChatUpdated: messagesUpdated=true but no messages in event. Reloading from IndexedDB for chat:', currentChat.chat_id);
             try {
-                const freshMessages: ChatMessageModel[] = await chatDB.getMessagesForChat(currentChat.chat_id);
+                const freshWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
+                const freshMessages: ChatMessageModel[] = freshWindow.messages;
+                currentMessageWindowHasMoreBefore = freshWindow.hasMoreBefore;
 
                 // Preserve any in-flight streaming messages — the DB won't have
                 // the latest streaming content, so keep our local copies.
@@ -7537,7 +7501,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     async function _loadMessagesForCurrentChat() {
         if (currentChat?.chat_id) {
             console.debug(`[ActiveChat] Reloading messages for chat: ${currentChat.chat_id}`);
-            currentMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+            const messageWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
+            currentMessages = messageWindow.messages;
+            currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
             if (chatHistoryRef) {
                 chatHistoryRef.updateMessages(currentMessages);
             }
@@ -7649,6 +7615,102 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }, 1000);
     }
 
+    async function handleLoadOlderMessages(event: CustomEvent) {
+        if (!currentChat?.chat_id || olderMessageWindowLoading) return;
+        if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
+        const { beforeTimestamp, beforeMessageId, firstMessageId } = event.detail as { beforeTimestamp?: number; beforeMessageId?: string; firstMessageId?: string };
+        if (!beforeTimestamp || !beforeMessageId) return;
+
+        olderMessageWindowLoading = true;
+        try {
+            if (currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before && currentChat.shared_message_window_next_before_timestamp && currentChat.shared_message_window_next_before_message_id) {
+                const params = new URLSearchParams({
+                    before_timestamp: String(currentChat.shared_message_window_next_before_timestamp),
+                    before_message_id: currentChat.shared_message_window_next_before_message_id,
+                    limit: '40',
+                });
+                const response = await fetch(getApiEndpoint(`/v1/share/chat/${currentChat.chat_id}/messages?${params.toString()}`));
+                if (!response.ok) throw new Error(`Shared older-window fetch failed: ${response.status}`);
+                const payload = await response.json() as {
+                    messages?: Array<string | Record<string, unknown>>;
+                    has_more?: boolean;
+                    next_before_timestamp?: number | null;
+                    next_before_message_id?: string | null;
+                };
+                const parsedMessages: ChatMessageModel[] = (payload.messages || []).flatMap((raw) => {
+                    const messageObj = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
+                    const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
+                    if (typeof messageId !== 'string') return [];
+                    return [{
+                        message_id: messageId,
+                        chat_id: currentChat!.chat_id,
+                        role: messageObj.role === 'assistant' || messageObj.role === 'system' ? messageObj.role : 'user',
+                        created_at: typeof messageObj.created_at === 'number' ? messageObj.created_at : Math.floor(Date.now() / 1000),
+                        status: 'synced' as const,
+                        encrypted_content: typeof messageObj.encrypted_content === 'string' ? messageObj.encrypted_content : '',
+                        encrypted_sender_name: typeof messageObj.encrypted_sender_name === 'string' ? messageObj.encrypted_sender_name : undefined,
+                        encrypted_category: typeof messageObj.encrypted_category === 'string' ? messageObj.encrypted_category : undefined,
+                        encrypted_model_name: typeof messageObj.encrypted_model_name === 'string' ? messageObj.encrypted_model_name : undefined,
+                        user_message_id: typeof messageObj.user_message_id === 'string' ? messageObj.user_message_id : undefined,
+                        encrypted_pii_mappings: typeof messageObj.encrypted_pii_mappings === 'string' ? messageObj.encrypted_pii_mappings : undefined,
+                        client_message_id: typeof messageObj.client_message_id === 'string' ? messageObj.client_message_id : undefined,
+                    }];
+                });
+                if (parsedMessages.length > 0) {
+                    await chatDB.batchSaveMessages(parsedMessages);
+                    currentChat = {
+                        ...currentChat,
+                        shared_message_window_has_more_before: !!payload.has_more,
+                        shared_message_window_next_before_timestamp: payload.next_before_timestamp ?? null,
+                        shared_message_window_next_before_message_id: payload.next_before_message_id ?? null,
+                    };
+                    currentMessageWindowHasMoreBefore = !!payload.has_more;
+                    await chatDB.updateChat(currentChat);
+                    const existingIds = new Set(currentMessages.map((message) => message.message_id));
+                    currentMessages = [
+                        ...parsedMessages.filter((message) => !existingIds.has(message.message_id)),
+                        ...currentMessages,
+                    ];
+                    chatHistoryRef?.updateMessages(currentMessages);
+                    if (firstMessageId) {
+                        await tick();
+                        chatHistoryRef?.restoreScrollPosition(firstMessageId);
+                    }
+                } else {
+                    currentChat = { ...currentChat, shared_message_window_has_more_before: false, shared_message_window_next_before_timestamp: null, shared_message_window_next_before_message_id: null };
+                }
+                return;
+            }
+            if (!currentMessageWindowHasMoreBefore) return;
+            const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+            const olderWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+                direction: 'before',
+                beforeTimestamp,
+                beforeMessageId,
+                compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
+            });
+            if (olderWindow.messages.length === 0) {
+                currentMessageWindowHasMoreBefore = false;
+                return;
+            }
+            const existingIds = new Set(currentMessages.map((message) => message.message_id));
+            currentMessages = [
+                ...olderWindow.messages.filter((message) => !existingIds.has(message.message_id)),
+                ...currentMessages,
+            ];
+            currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
+            chatHistoryRef?.updateMessages(currentMessages);
+            if (firstMessageId) {
+                await tick();
+                chatHistoryRef?.restoreScrollPosition(firstMessageId);
+            }
+        } catch (error) {
+            console.error('[ActiveChat] Failed to load older message window:', error);
+        } finally {
+            olderMessageWindowLoading = false;
+        }
+    }
+
     // Handle scrolled to bottom (mark as read)
     async function handleScrolledToBottom() {
         // Update isAtBottom state to show action buttons
@@ -7679,15 +7741,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
      // Update the loadChat function
-     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean }) {
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null }) {
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
          // On slow devices (iPad), this window can be 100-500ms, long enough for sync events to
          // append messages from the wrong chat. The generation counter prevents stale completions
          // from overwriting currentMessages after a newer loadChat has started.
-         const thisLoadGeneration = ++loadChatGeneration;
-         currentCompressionCheckpoints = [];
+          const thisLoadGeneration = ++loadChatGeneration;
+          currentCompressionCheckpoints = [];
+          currentMessageWindowHasMoreBefore = false;
+          olderMessageWindowLoading = false;
 
          // Clear any active processing phase indicator from the previous chat
          clearProcessingPhase();
@@ -8058,7 +8122,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } else {
                     // Try to load messages from IndexedDB (might be a real chat)
                     try {
-                        newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+                        const windowResult = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+                            direction: options?.messageId ? 'around' : 'latest',
+                            anchorMessageId: options?.messageId ?? undefined,
+                        });
+                        newMessages = windowResult.messages;
+                        currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
                         console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                     } catch (error) {
                         // If database is unavailable, use empty messages
@@ -8070,8 +8139,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // For authenticated users, load messages from IndexedDB
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
                 try {
-                    newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
                     currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
+                    const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+                    const windowResult = await chatDB.getMessageWindowForChat(currentChat.chat_id, {
+                        direction: options?.messageId ? 'around' : 'latest',
+                        anchorMessageId: options?.messageId ?? undefined,
+                        compressedUpToTimestamp: latestCheckpoint && !options?.messageId
+                            ? latestCheckpoint.compressed_up_to_timestamp
+                            : undefined,
+                    });
+                    newMessages = windowResult.messages;
+                    currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                 } catch (error) {
                     // If database is unavailable (e.g., being deleted during logout), use empty messages
@@ -8389,6 +8467,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }, 200);
                 // When coming from a background-chat notification, scroll to the top of the
                 // latest assistant message so the user can read the reply from the beginning.
+                } else if (options?.messageId) {
+                    chatHistoryRef.restoreScrollPosition(options.messageId);
+                    console.debug('[ActiveChat] Message deep link - scrolled to target message:', options.messageId);
+                    setTimeout(() => {
+                        isAtBottom = false;
+                    }, 200);
                 } else if (options?.scrollToLatestResponse) {
                     chatHistoryRef.scrollToLatestAssistantMessage();
                     console.debug('[ActiveChat] Notification navigation - scrolled to top of latest assistant message');
@@ -9053,6 +9137,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const { chat_id, focus_id } = event.detail || {};
             if (chat_id && focus_id && currentChat?.chat_id === chat_id) {
                 console.debug('[ActiveChat] Focus mode activated, updating banner:', focus_id);
+                focusPillSetByEvent = true;
                 activeFocusId = focus_id;
             }
         };
@@ -10000,7 +10085,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const { chat_id } = event.detail;
             if (chat_id === currentChat?.chat_id) {
                 currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(chat_id);
-                currentMessages = await chatDB.getMessagesForChat(chat_id);
+                const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
+                const messageWindow = await chatDB.getMessageWindowForChat(chat_id, {
+                    direction: 'latest',
+                    compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
+                });
+                currentMessages = messageWindow.messages;
+                currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
                 chatHistoryRef?.updateMessages(currentMessages);
             }
         }) as EventListenerCallback;
@@ -10344,7 +10435,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (currentMessages.some((m: Record<string, unknown>) => m._decryptionPending)) {
                 console.info(`[ActiveChat] Key ready for chat ${readyChatId}, re-decrypting pending messages`);
                 try {
-                    const freshMessages = await chatDB.getMessagesForChat(readyChatId);
+                    const messageWindow = await chatDB.getMessageWindowForChat(readyChatId, { direction: 'latest' });
+                    const freshMessages = messageWindow.messages;
+                    currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
                     if (freshMessages && freshMessages.length > 0) {
                         currentMessages = freshMessages;
                         if (chatHistoryRef) {
@@ -10710,9 +10803,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                         {/each}
                                     </h2>
-                                    <!-- Subtitle: "Continue where you left off" when resume chat or recent chats, "Explore OpenMates:" for non-auth scrollable list, else default prompt -->
-                                    {#if priorityContinueItems.length > 0 || resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
-                                        <p>{$text('chats.resume_last_chat.title')}</p>
+                                    <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
+                                    {#if isContinueChatsLoading}
+                                        <p class="decrypting-chats-text" transition:fade={fadeParams}>
+                                            {$text('chats.resume_last_chat.decrypting')}
+                                        </p>
+                                    {:else if hasContinueItems}
+                                        <p transition:fade={fadeParams}>{$text('chats.resume_last_chat.title')}</p>
                                     {:else if !$authStore.isAuthenticated}
                                         <p>{$text('chats.explore_openmates.title')}</p>
                                     {:else}
@@ -10726,11 +10823,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             </div>
 
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
-                            {#if priorityContinueItems.length > 0 || resumeChatData || ($authStore.isAuthenticated && recentChats.length > 0)}
+                            {#if hasContinueItems}
                                 <div
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
+                                    transition:fade={fadeParams}
                                 >
                                     <!-- Reminder/date-priority items outrank the normal last-opened and pinned chat order in this welcome carousel only. -->
                                     {#each priorityContinueItems as item (item.kind === 'chat' ? `chat:${item.chat.chat_id}` : `embed:${item.embedId}`)}
@@ -10847,7 +10945,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 bind:this={resumeLargeCardElement}
                                                 class="resume-chat-large-card" data-testid="resume-chat-large-card"
                                                 class:hovering={isResumeLargeCardHovering}
-                                                style={getResumeLargeCardStyle(gradientColors)}
+                                                style={getResumeLargeCardStyle(gradientColors, resumeLargeCardTiltTransform)}
                                                 data-chat-id={resumeChatData.chat_id}
                                                 onclick={handleResumeLastChat}
                                                 oncontextmenu={(e) => { if (resumeChatData) handleResumeCardContextMenu(e, resumeChatData); }}
@@ -11207,7 +11305,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           isIncognito={!!currentChat?.is_incognito}
                            isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id) && !$demoMode}
                            isSharedChat={!!currentChat?.is_shared_by_others && !$demoMode}
-                          canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
+                           canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                            videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
                            videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}
                            videoTeaserMp4Url={activeLocaleVideo?.teaser_mp4_url ?? activePublicChatMetadata?.video_teaser_mp4_url ?? null}
@@ -11221,8 +11319,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onSuggestionClick={handleFollowUpSuggestionClick}
                           on:quickTipAction={handleQuickTipAction}
                           on:messagesChange={handleMessagesChange}
-                         on:chatUpdated={handleChatUpdated}
-                         on:scrollPositionUI={handleScrollPositionUI}
+                          on:chatUpdated={handleChatUpdated}
+                          on:loadOlderMessages={handleLoadOlderMessages}
+                          on:scrollPositionUI={handleScrollPositionUI}
                          on:scrollPositionChanged={handleScrollPositionChanged}
                          on:scrolledToBottom={handleScrolledToBottom}
                      />
@@ -11379,6 +11478,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <MessageInput
                                     bind:this={messageInputFieldRef}
                                     currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
+                                    isNewChatContext={showWelcome && !currentChat?.chat_id}
                                     showActionButtons={showActionButtons}
                                     inlineCompact={showNewChatButtonBesideInput && !messageInputFocused}
                                     activeFocusId={!showWelcome ? activeFocusId : null}
@@ -11405,6 +11505,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:pdffullscreen={handlePdfFullscreen}
                                     on:recordingfullscreen={handleRecordingFullscreen}
                                     on:sendMessage={handleSendMessage}
+                                    on:newChatCreationCancelled={handleNewChatCreationCancelled}
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
                                     on:draftSaved={handleDraftSaved}
@@ -12276,6 +12377,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         margin: 8px 0 0;
         color: var(--color-grey-60);
         font-size: var(--font-size-p);
+    }
+
+    .welcome-text .decrypting-chats-text {
+        background: linear-gradient(
+            90deg,
+            var(--color-grey-60) 0%,
+            var(--color-grey-60) 40%,
+            var(--color-grey-40) 50%,
+            var(--color-grey-60) 60%,
+            var(--color-grey-60) 100%
+        );
+        background-size: 200% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        animation: decrypting-chats-shimmer 1.5s infinite linear;
+    }
+
+    @keyframes decrypting-chats-shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
     }
 
     .message-input-wrapper {

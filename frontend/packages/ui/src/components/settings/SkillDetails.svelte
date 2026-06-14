@@ -395,7 +395,12 @@
             {/if}
 
             <!-- Examples section (real embed previews from curated skill runs) — above How to Use -->
-            <SkillExamplesSection {appId} {skillId} />
+            <SkillExamplesSection
+                {appId}
+                {skillId}
+                on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+                on:closeSettings={() => dispatch('closeSettings')}
+            />
 
             <!-- How to use section (after examples) -->
             {#if howToUseExamples.length > 0}
@@ -479,7 +484,12 @@
             </div>
 
             <!-- Examples section (real embed previews from curated skill runs) — above How to Use -->
-            <SkillExamplesSection {appId} {skillId} />
+            <SkillExamplesSection
+                {appId}
+                {skillId}
+                on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+                on:closeSettings={() => dispatch('closeSettings')}
+            />
 
             <!-- How to use section (after examples) - horizontal scrollable example instructions -->
             {#if howToUseExamples.length > 0}
@@ -556,7 +566,7 @@
                                 <div class="provider-item" data-testid="skill-provider-item" data-provider-name={providerName}>
                                     <div class="provider-icon">
                                         <img
-                                            src="/icons/server.svg"
+                                            src={getProviderIconUrl('icons/server.svg')}
                                             alt={providerName}
                                             class="provider-logo provider-logo--server"
                                             data-testid="settings-provider-logo"

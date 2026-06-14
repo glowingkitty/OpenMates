@@ -1,7 +1,7 @@
 /**
  * Server Status Store
  * 
- * Stores server configuration status (self-hosted, payment enabled, etc.)
+ * Stores server configuration status (self-hosted, AI model readiness, etc.)
  * that is fetched once at app initialization and shared across all components.
  * 
  * This prevents multiple API calls to /v1/settings/server-status and avoids
@@ -16,12 +16,19 @@ import { getApiEndpoint } from '../config/api';
 interface ServerStatus {
     /** Whether this is a self-hosted instance (localhost or custom domain) */
     is_self_hosted: boolean;
-    /** Whether payment features are enabled */
-    payment_enabled: boolean;
+    /** Cloud-only payment status. Self-hosted responses omit this field. */
+    payment_enabled?: boolean;
     /** Server edition: "production" | "development" | "self_hosted" */
     server_edition: string | null;
     /** The domain of the server */
     domain: string | null;
+    /** Whether at least one server-side AI model provider key is configured */
+    ai_models_configured: boolean;
+    /** Safe public metadata for signup Free testing credits promotion */
+    free_testing_credits?: {
+        active: boolean;
+        grant_credits: number;
+    } | null;
 }
 
 interface ServerStatusState {
@@ -44,9 +51,40 @@ const initialState: ServerStatusState = {
     error: null
 };
 
+export const FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY = 'openmates_free_testing_credits_granted';
+export const PENDING_GIFT_CARD_CODE_STORAGE_KEY = 'pending_gift_card_code';
+
+function readFreeTestingCreditsDeviceGrantFlag(): boolean {
+    if (typeof localStorage === 'undefined') {
+        return false;
+    }
+
+    try {
+        return localStorage.getItem(FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY) === 'true';
+    } catch (error) {
+        console.warn('[ServerStatusStore] Failed to read Free testing credits device flag:', error);
+        return false;
+    }
+}
+
+function readPendingGiftCardCode(): string | null {
+    if (typeof sessionStorage === 'undefined') {
+        return null;
+    }
+
+    try {
+        return sessionStorage.getItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY);
+    } catch (error) {
+        console.warn('[ServerStatusStore] Failed to read pending gift card code:', error);
+        return null;
+    }
+}
+
 // --- Store ---
 
 const serverStatusStore = writable<ServerStatusState>(initialState);
+export const freeTestingCreditsDeviceGrantReceived = writable<boolean>(readFreeTestingCreditsDeviceGrantFlag());
+export const pendingGiftCardRedemption = writable<boolean>(!!readPendingGiftCardCode());
 
 // --- Derived Values ---
 
@@ -64,16 +102,6 @@ export const isSelfHosted = derived(
 );
 
 /**
- * Whether payment features are enabled.
- * Returns true until status is fetched (safe default - assumes payment enabled).
- * After fetch, returns the actual payment enabled status.
- */
-const isPaymentEnabled = derived(
-    serverStatusStore,
-    ($state) => $state.status?.payment_enabled ?? true
-);
-
-/**
  * Server edition: "production" | "development" | "self_hosted" | null
  */
 export const serverEdition = derived(
@@ -81,14 +109,75 @@ export const serverEdition = derived(
     ($state) => $state.status?.server_edition ?? null
 );
 
-/**
- * Whether the server status has been initialized (fetched at least once).
- * Components can use this to conditionally render content that depends on server status.
- */
-const isServerStatusInitialized = derived(
+export const freeTestingCreditsPromotion = derived(
     serverStatusStore,
-    ($state) => $state.initialized
+    ($state) => $state.status?.free_testing_credits ?? null
 );
+
+export const signupFreeTestingCreditsPromotion = derived(
+    [freeTestingCreditsPromotion, freeTestingCreditsDeviceGrantReceived, pendingGiftCardRedemption],
+    ([$promotion, $deviceGrantReceived, $pendingGiftCardRedemption]) => {
+        if (!$promotion?.active || $deviceGrantReceived || $pendingGiftCardRedemption) {
+            return null;
+        }
+        return $promotion;
+    }
+);
+
+export function getPendingGiftCardRedemptionCode(): string | null {
+    return readPendingGiftCardCode();
+}
+
+export function refreshPendingGiftCardRedemptionFromStorage(): void {
+    pendingGiftCardRedemption.set(!!readPendingGiftCardCode());
+}
+
+export function markPendingGiftCardRedemption(code: string): void {
+    if (typeof sessionStorage !== 'undefined') {
+        try {
+            sessionStorage.setItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY, code);
+        } catch (error) {
+            console.warn('[ServerStatusStore] Failed to persist pending gift card code:', error);
+        }
+    }
+    pendingGiftCardRedemption.set(true);
+}
+
+export function clearPendingGiftCardRedemption(): void {
+    if (typeof sessionStorage !== 'undefined') {
+        try {
+            sessionStorage.removeItem(PENDING_GIFT_CARD_CODE_STORAGE_KEY);
+        } catch (error) {
+            console.warn('[ServerStatusStore] Failed to clear pending gift card code:', error);
+        }
+    }
+    pendingGiftCardRedemption.set(false);
+}
+
+export function hasDeviceReceivedFreeTestingCredits(): boolean {
+    return get(freeTestingCreditsDeviceGrantReceived);
+}
+
+export function refreshFreeTestingCreditsDeviceGrantFromStorage(): void {
+    freeTestingCreditsDeviceGrantReceived.set(readFreeTestingCreditsDeviceGrantFlag());
+}
+
+export function markDeviceReceivedFreeTestingCredits(): void {
+    if (typeof localStorage !== 'undefined') {
+        try {
+            localStorage.setItem(FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY, 'true');
+        } catch (error) {
+            console.warn('[ServerStatusStore] Failed to persist Free testing credits device flag:', error);
+        }
+    }
+    freeTestingCreditsDeviceGrantReceived.set(true);
+}
+
+export function markDeviceReceivedFreeTestingCreditsFromNotification(messageKey?: string): void {
+    if (messageKey === 'signup.free_testing_credits_received') {
+        markDeviceReceivedFreeTestingCredits();
+    }
+}
 
 // --- Actions ---
 
@@ -135,9 +224,11 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
         
         const status: ServerStatus = {
             is_self_hosted: data.is_self_hosted ?? false,
-            payment_enabled: data.payment_enabled ?? true,
+            payment_enabled: data.is_self_hosted ? false : data.payment_enabled ?? true,
             server_edition: data.server_edition ?? null,
-            domain: data.domain ?? null
+            domain: data.domain ?? null,
+            ai_models_configured: data.ai_models_configured ?? true,
+            free_testing_credits: data.free_testing_credits ?? null
         };
         
         console.debug('[ServerStatusStore] Server status fetched:', status);
@@ -167,14 +258,5 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
     }
 }
 
-/**
- * Resets the server status store to initial state.
- * Useful for testing or when the user logs out.
- */
-function resetServerStatus(): void {
-    serverStatusStore.set(initialState);
-}
-
 // Export the store for direct access if needed
 export { serverStatusStore };
-

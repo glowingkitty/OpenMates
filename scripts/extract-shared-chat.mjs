@@ -150,6 +150,144 @@ async function unwrapEmbedKey(wrappedKeyBase64, chatKeyBytes) {
   return new Uint8Array(decrypted);
 }
 
+async function fetchSharedPayload(apiBase, targetChatId) {
+  const res = await fetch(`${apiBase}/v1/share/chat/${targetChatId}`);
+  if (!res.ok) {
+    throw new Error(`API error for ${targetChatId}: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+async function decryptMessages(rawMessages, chatKeyBytes) {
+  const messages = [];
+  for (const msg of rawMessages) {
+    const content = await decryptContent(msg.encrypted_content, chatKeyBytes);
+    const senderName = await decryptContent(msg.encrypted_sender_name, chatKeyBytes);
+    const msgCategory = await decryptContent(msg.encrypted_category, chatKeyBytes);
+    const modelName = await decryptContent(msg.encrypted_model_name, chatKeyBytes);
+
+    messages.push({
+      message_id: msg.client_message_id || msg.message_id || msg.id,
+      role: msg.role,
+      content,
+      sender_name: senderName,
+      category: msgCategory,
+      model_name: modelName,
+      created_at: msg.created_at,
+      user_message_id: msg.user_message_id,
+    });
+  }
+  return messages;
+}
+
+async function decryptEmbeds(rawEmbeds, rawEmbedKeys, chatKeyBytes) {
+  // embed_keys use hashed_embed_id — build a hash→key map, then resolve to embed_id
+  const { createHash } = await import('crypto');
+  function sha256(input) {
+    return createHash('sha256').update(input).digest('hex');
+  }
+
+  const hashedKeyMap = {};
+  for (const ek of rawEmbedKeys) {
+    if (ek.hashed_embed_id && ek.encrypted_embed_key) {
+      try {
+        const embedKey = await unwrapEmbedKey(ek.encrypted_embed_key, chatKeyBytes);
+        hashedKeyMap[ek.hashed_embed_id] = embedKey;
+      } catch (e) {
+        console.error(`   Failed to unwrap key for hashed embed ${ek.hashed_embed_id.slice(0,8)}...: ${e.message}`);
+      }
+    }
+  }
+
+  const embedKeyMap = {};
+  for (const embed of rawEmbeds) {
+    const hashed = sha256(embed.embed_id);
+    if (hashedKeyMap[hashed]) {
+      embedKeyMap[embed.embed_id] = hashedKeyMap[hashed];
+    }
+  }
+  console.log(`   Resolved ${Object.keys(embedKeyMap).length} direct embed keys out of ${rawEmbeds.length} embeds`);
+
+  // Child embeds use the same key as their parent — propagate parent keys to children
+  const parentChildMap = new Map();
+  for (const embed of rawEmbeds) {
+    if (embed.parent_embed_id) {
+      parentChildMap.set(embed.embed_id, embed.parent_embed_id);
+    }
+    if (Array.isArray(embed.embed_ids)) {
+      for (const childId of embed.embed_ids) {
+        parentChildMap.set(childId, embed.embed_id);
+      }
+    }
+  }
+  for (const [childId, parentId] of parentChildMap) {
+    if (!embedKeyMap[childId] && embedKeyMap[parentId]) {
+      embedKeyMap[childId] = embedKeyMap[parentId];
+    }
+  }
+  console.log(`   After parent propagation: ${Object.keys(embedKeyMap).length} embed keys`);
+
+  const embeds = [];
+  for (const embed of rawEmbeds) {
+    const embedKey = embedKeyMap[embed.embed_id];
+    let content = null;
+    let type = null;
+
+    if (embedKey) {
+      content = await decryptContent(embed.encrypted_content, embedKey);
+      type = embed.encrypted_type
+        ? await decryptContent(embed.encrypted_type, embedKey)
+        : embed.embed_type;
+    } else {
+      console.error(`   No key for embed ${embed.embed_id} (parent: ${embed.parent_embed_id || 'none'})`);
+    }
+
+    embeds.push({
+      embed_id: embed.embed_id,
+      type,
+      content,
+      status: embed.status,
+      parent_embed_id: embed.parent_embed_id,
+      embed_ids: embed.embed_ids,
+    });
+  }
+  return embeds;
+}
+
+async function decryptSharedChatPayload(targetChatId, data, chatKeyBytes, options = {}) {
+  const title = await decryptContent(data.encrypted_title, chatKeyBytes);
+  const summary = await decryptContent(data.encrypted_chat_summary, chatKeyBytes);
+  const icon = await decryptContent(data.encrypted_icon, chatKeyBytes);
+  const category = await decryptContent(data.encrypted_category, chatKeyBytes);
+  const followUps = await decryptContent(data.encrypted_follow_up_request_suggestions, chatKeyBytes);
+
+  const rawMessages = (data.messages || []).map(m =>
+    typeof m === 'string' ? JSON.parse(m) : m
+  );
+  console.log(`\n${options.label || 'Chat'}: decrypting ${rawMessages.length} messages for ${targetChatId}...`);
+  const messages = await decryptMessages(rawMessages, chatKeyBytes);
+
+  const rawEmbeds = (data.embeds || []).map(e =>
+    typeof e === 'string' ? JSON.parse(e) : e
+  );
+  const rawEmbedKeys = (data.embed_keys || []).map(ek =>
+    typeof ek === 'string' ? JSON.parse(ek) : ek
+  );
+  console.log(`${options.label || 'Chat'}: decrypting ${rawEmbeds.length} embeds for ${targetChatId}...`);
+  const embeds = await decryptEmbeds(rawEmbeds, rawEmbedKeys, chatKeyBytes);
+
+  return {
+    chat_id: targetChatId,
+    title,
+    summary,
+    icon,
+    category,
+    follow_up_suggestions: followUps ? JSON.parse(followUps) : null,
+    messages,
+    embeds,
+  };
+}
+
 // --- Main flow ---
 
 async function main() {
@@ -182,150 +320,37 @@ async function main() {
   const chatKeyBytes = base64Decode(chatKeyBase64);
   console.log(`   Chat key: ${chatKeyBytes.length} bytes`);
 
-  // Step 3: Fetch encrypted data from API
+  // Step 3: Fetch and decrypt root chat data
   console.log('\n3. Fetching encrypted chat data...');
-  const res = await fetch(`${API_BASE}/v1/share/chat/${chatId}`);
-  if (!res.ok) {
-    console.error(`API error: ${res.status} ${res.statusText}`);
-    process.exit(1);
-  }
-  const data = await res.json();
+  const data = await fetchSharedPayload(API_BASE, chatId);
+  const output = await decryptSharedChatPayload(chatId, data, chatKeyBytes, { label: 'Root chat' });
 
-  // Step 4: Decrypt chat metadata
-  console.log('\n4. Decrypting chat metadata...');
-  const title = await decryptContent(data.encrypted_title, chatKeyBytes);
-  const summary = await decryptContent(data.encrypted_chat_summary, chatKeyBytes);
-  const icon = await decryptContent(data.encrypted_icon, chatKeyBytes);
-  const category = await decryptContent(data.encrypted_category, chatKeyBytes);
-  const followUps = await decryptContent(data.encrypted_follow_up_request_suggestions, chatKeyBytes);
+  console.log(`   Title: ${output.title}`);
+  console.log(`   Summary: ${output.summary}`);
+  console.log(`   Icon: ${output.icon}`);
+  console.log(`   Category: ${output.category}`);
 
-  console.log(`   Title: ${title}`);
-  console.log(`   Summary: ${summary}`);
-  console.log(`   Icon: ${icon}`);
-  console.log(`   Category: ${category}`);
-
-  // Step 5: Decrypt messages
-  // Messages may be returned as JSON strings (not objects) from the API
-  const rawMessages = (data.messages || []).map(m =>
-    typeof m === 'string' ? JSON.parse(m) : m
-  );
-  console.log(`\n5. Decrypting ${rawMessages.length} messages...`);
-  const messages = [];
-  for (const msg of rawMessages) {
-    const content = await decryptContent(msg.encrypted_content, chatKeyBytes);
-    const senderName = await decryptContent(msg.encrypted_sender_name, chatKeyBytes);
-    const msgCategory = await decryptContent(msg.encrypted_category, chatKeyBytes);
-    const modelName = await decryptContent(msg.encrypted_model_name, chatKeyBytes);
-
-    messages.push({
-      message_id: msg.client_message_id || msg.message_id || msg.id,
-      role: msg.role,
-      content,
-      sender_name: senderName,
-      category: msgCategory,
-      model_name: modelName,
-      created_at: msg.created_at,
-      user_message_id: msg.user_message_id,
-    });
-  }
-
-  // Step 6: Decrypt embeds
-  // Parse embeds (may be JSON strings)
-  const rawEmbeds = (data.embeds || []).map(e =>
-    typeof e === 'string' ? JSON.parse(e) : e
-  );
-  console.log(`\n6. Decrypting ${rawEmbeds.length} embeds...`);
-
-  // Build embed key map from embed_keys (may be JSON strings)
-  const rawEmbedKeys = (data.embed_keys || []).map(ek =>
-    typeof ek === 'string' ? JSON.parse(ek) : ek
-  );
-  // embed_keys use hashed_embed_id — build a hash→key map, then resolve to embed_id
-  const { createHash } = await import('crypto');
-  function sha256(input) {
-    return createHash('sha256').update(input).digest('hex');
-  }
-
-  const hashedKeyMap = {};
-  for (const ek of rawEmbedKeys) {
-    if (ek.hashed_embed_id && ek.encrypted_embed_key) {
-      try {
-        const embedKey = await unwrapEmbedKey(ek.encrypted_embed_key, chatKeyBytes);
-        hashedKeyMap[ek.hashed_embed_id] = embedKey;
-      } catch (e) {
-        console.error(`   Failed to unwrap key for hashed embed ${ek.hashed_embed_id.slice(0,8)}...: ${e.message}`);
-      }
+  // Step 4: Fetch and decrypt child sub-chats. Sub-chats use the parent chat key.
+  const rawSubChats = Array.isArray(data.sub_chats) ? data.sub_chats : [];
+  console.log(`\n4. Fetching ${rawSubChats.length} sub-chat(s)...`);
+  output.sub_chats = [];
+  for (const subChat of rawSubChats) {
+    const subChatId = subChat.id || subChat.chat_id;
+    if (!subChatId) continue;
+    try {
+      const subChatPayload = await fetchSharedPayload(API_BASE, subChatId);
+      const decryptedSubChat = await decryptSharedChatPayload(subChatId, subChatPayload, chatKeyBytes, {
+        label: 'Sub-chat',
+      });
+      decryptedSubChat.parent_id = chatId;
+      decryptedSubChat.is_sub_chat = true;
+      decryptedSubChat.budget_limit = subChat.budget_limit ?? null;
+      decryptedSubChat.budget_spent = subChat.budget_spent ?? 0;
+      output.sub_chats.push(decryptedSubChat);
+    } catch (error) {
+      console.error(`   Failed to fetch/decrypt sub-chat ${subChatId}: ${error.message}`);
     }
   }
-
-  // Map embed_id → key by hashing each embed's ID
-  const embedKeyMap = {};
-  for (const embed of rawEmbeds) {
-    const hashed = sha256(embed.embed_id);
-    if (hashedKeyMap[hashed]) {
-      embedKeyMap[embed.embed_id] = hashedKeyMap[hashed];
-    }
-  }
-  console.log(`   Resolved ${Object.keys(embedKeyMap).length} direct embed keys out of ${rawEmbeds.length} embeds`);
-
-  // Child embeds use the same key as their parent — propagate parent keys to children
-  const parentChildMap = new Map();
-  for (const embed of rawEmbeds) {
-    if (embed.parent_embed_id) {
-      parentChildMap.set(embed.embed_id, embed.parent_embed_id);
-    }
-    // Also derive from parent's embed_ids list
-    if (Array.isArray(embed.embed_ids)) {
-      for (const childId of embed.embed_ids) {
-        parentChildMap.set(childId, embed.embed_id);
-      }
-    }
-  }
-
-  // Propagate parent keys to children
-  for (const [childId, parentId] of parentChildMap) {
-    if (!embedKeyMap[childId] && embedKeyMap[parentId]) {
-      embedKeyMap[childId] = embedKeyMap[parentId];
-    }
-  }
-  console.log(`   After parent propagation: ${Object.keys(embedKeyMap).length} embed keys`);
-
-  const embeds = [];
-  for (const embed of rawEmbeds) {
-    const embedKey = embedKeyMap[embed.embed_id];
-    let content = null;
-    let type = null;
-
-    if (embedKey) {
-      content = await decryptContent(embed.encrypted_content, embedKey);
-      type = embed.encrypted_type
-        ? await decryptContent(embed.encrypted_type, embedKey)
-        : embed.embed_type;
-    } else {
-      console.error(`   No key for embed ${embed.embed_id} (parent: ${embed.parent_embed_id || 'none'})`);
-    }
-
-    embeds.push({
-      embed_id: embed.embed_id,
-      type,
-      content,
-      status: embed.status,
-      parent_embed_id: embed.parent_embed_id,
-      embed_ids: embed.embed_ids,
-    });
-  }
-
-  // Output complete chat data
-  const output = {
-    chat_id: chatId,
-    title,
-    summary,
-    icon,
-    category,
-    follow_up_suggestions: followUps ? JSON.parse(followUps) : null,
-    messages,
-    embeds,
-  };
 
   console.log('\n' + '='.repeat(80));
   console.log('DECRYPTED CHAT DATA');

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -27,10 +26,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -111,8 +108,10 @@ test('opens search bar and finds a chat by title, then navigates to it', async (
 	const titleWords = (chatTitleText || '')
 		.trim()
 		.split(/\s+/)
-		.filter((w: string) => w.length >= 4);
-	const searchKeyword = titleWords[0] || 'what';
+		.map((w: string) => w.replace(/[^\p{L}\p{N}_-]/gu, ''))
+		.filter((w: string) => w.length >= 4)
+		.sort((a: string, b: string) => b.length - a.length);
+	const searchKeyword = titleWords[0] || (chatTitleText || '').trim();
 	log(`Using search keyword: "${searchKeyword}"`);
 
 	// Open search bar by clicking the search icon in the sidebar header

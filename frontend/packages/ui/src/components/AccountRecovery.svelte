@@ -40,31 +40,6 @@
     import { generateDeviceName } from '../utils/deviceName';
     import { tfaApps, tfaAppIcons } from '../config/tfa';
     
-    // ========================================================================
-    // WebAuthn PRF Extension Types
-    // ========================================================================
-    // TypeScript's DOM types don't include PRF extension, so we define custom types.
-    // PRF (Pseudorandom Function) extension is critical for zero-knowledge encryption
-    // - it allows deriving a stable key from passkey authentication.
-    // 
-    // Note: We use 'unknown' and type assertions to avoid ESLint 'no-undef' errors
-    // for DOM types like PublicKeyCredentialRpEntity that aren't available at lint time.
-    
-    /** PRF extension output from credential operation */
-    interface PRFExtensionOutputs {
-        enabled?: boolean;
-        results?: {
-            first: ArrayBuffer;
-            second?: ArrayBuffer;
-        };
-    }
-    
-    /** Client extension results with PRF support */
-    interface WebAuthnResultsWithPRF {
-        prf?: PRFExtensionOutputs;
-        [key: string]: unknown;
-    }
-    
     const dispatch = createEventDispatcher();
     
     // Props - email is passed from the login form
@@ -82,7 +57,12 @@
     let currentStep = $state<RecoveryStep>('code');
     
     // Form data
-    let email = $state(initialEmail);
+    let email = $state('');
+    $effect(() => {
+        if (!email && initialEmail) {
+            email = initialEmail;
+        }
+    });
     let verificationCode = $state('');
     let acknowledgeDataLoss = $state(false);
     let verificationToken = $state(''); // Token from verify-code endpoint
@@ -610,7 +590,6 @@
                         }
                     }
                 }
-            // eslint-disable-next-line no-undef -- DOM type available at runtime
             } as unknown as PublicKeyCredentialCreationOptions;
             
             // Step 3: Create passkey using WebAuthn API
@@ -662,15 +641,19 @@
             
             const response = credential.response as AuthenticatorAttestationResponse;
             
-            // Step 4: Check PRF extension support (CRITICAL for zero-knowledge encryption)
-            const clientExtensionResults = credential.getClientExtensionResults() as WebAuthnResultsWithPRF;
-            console.log('[AccountRecovery] Client extension results:', clientExtensionResults);
-            const prfResults = clientExtensionResults?.prf;
-            console.log('[AccountRecovery] PRF results:', prfResults);
-            
-            // Validate PRF results
-            if (!prfResults) {
-                console.error('[AccountRecovery] PRF extension not found in client extension results');
+            // Step 4: Get PRF output (CRITICAL for zero-knowledge encryption).
+            let prfSignature: Uint8Array;
+            try {
+                prfSignature = await cryptoService.getPRFSignatureForPasskeyRegistration({
+                    credential,
+                    challenge,
+                    rpId: initiateData.rp.id,
+                    timeout: initiateData.timeout,
+                    userVerification: publicKeyCredentialCreationOptions.authenticatorSelection?.userVerification as UserVerificationRequirement | undefined,
+                    prfEvalFirst: base64UrlToArrayBuffer(initiateData.extensions?.prf?.eval?.first || initiateData.challenge)
+                }, 'AccountRecovery');
+            } catch (error) {
+                console.error('[AccountRecovery] Failed to obtain PRF signature:', error);
                 passkeyError = $text('signup.passkey_prf_not_supported') || 
                     'Your device does not support the required passkey security features. Please use password instead.';
                 notificationStore.error(passkeyError, 10000);
@@ -678,49 +661,6 @@
                 isRegisteringPasskey = false;
                 return;
             }
-            
-            if (prfResults.enabled === false) {
-                console.error('[AccountRecovery] PRF extension explicitly disabled');
-                passkeyError = $text('signup.passkey_prf_not_supported') || 
-                    'Your device does not support the required passkey security features. Please use password instead.';
-                notificationStore.error(passkeyError, 10000);
-                currentStep = 'setup';
-                isRegisteringPasskey = false;
-                return;
-            }
-            
-            // Extract PRF signature - this is the key material for encryption
-            const prfSignatureRaw = prfResults.results?.first;
-            if (!prfSignatureRaw) {
-                console.error('[AccountRecovery] PRF signature not found in results');
-                passkeyError = $text('signup.passkey_prf_not_supported') || 
-                    'Your device does not support the required passkey security features. Please use password instead.';
-                notificationStore.error(passkeyError, 10000);
-                currentStep = 'setup';
-                isRegisteringPasskey = false;
-                return;
-            }
-            
-            // Convert PRF signature to Uint8Array
-            // PRF result is always an ArrayBuffer per WebAuthn spec
-            console.log('[AccountRecovery] Converting PRF signature to Uint8Array');
-            const prfSignature = new Uint8Array(prfSignatureRaw);
-            
-            // Validate PRF signature length
-            if (prfSignature.length < 16 || prfSignature.length > 64) {
-                console.error('[AccountRecovery] PRF signature has invalid length:', prfSignature.length);
-                passkeyError = 'Unexpected error during passkey creation. Please try again.';
-                notificationStore.error(passkeyError, 8000);
-                currentStep = 'setup';
-                isRegisteringPasskey = false;
-                return;
-            }
-            
-            console.log('[AccountRecovery] PRF signature validated successfully', {
-                length: prfSignature.length,
-                enabled: prfResults.enabled,
-                firstBytes: Array.from(prfSignature.slice(0, 4))
-            });
             
             // Step 5: Generate master key and email salt
             const masterKey = await cryptoService.generateExtractableMasterKey();

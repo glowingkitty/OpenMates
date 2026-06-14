@@ -149,7 +149,15 @@ interface WebSocketMessage {
   payload: unknown;
 }
 
-type MessageHandler = (payload: unknown) => void;
+type MessageHandler = (payload: unknown) => void | Promise<void>;
+
+const SERIALIZED_PHASED_SYNC_MESSAGE_TYPES = new Set<string>([
+  "phase_1_last_chat_ready",
+  "phase_1b_chat_content_ready",
+  "phase_2_last_20_chats_ready",
+  "phase_3_last_100_chats_ready",
+  "phased_sync_complete",
+]);
 
 type NetworkInformationLike = {
   addEventListener?: (type: "change", listener: () => void) => void;
@@ -173,6 +181,7 @@ class WebSocketService extends EventTarget {
   private periodicRetryIntervalId: ReturnType<typeof setInterval> | null = null;
   private readonly PERIODIC_RETRY_INTERVAL = 30000; // 30 seconds between periodic retries after max attempts exhausted
   private messageHandlers: Map<string, MessageHandler[]> = new Map();
+  private phasedSyncHandlerQueue: Promise<void> = Promise.resolve();
   private connectionPromise: Promise<void> | null = null;
   private resolveConnectionPromise: (() => void) | null = null;
   private rejectConnectionPromise: ((reason?: unknown) => void) | null = null;
@@ -727,34 +736,52 @@ class WebSocketService extends EventTarget {
                   );
                 }
 
-                handlers.forEach((handler, index) => {
-                  try {
-                    if (messageType !== "ping" && messageType !== "pong") {
-                      console.debug(
-                        `[WebSocketService] Executing handler #${index + 1} for type "${messageType}"`,
+                const executeHandlers = async () => {
+                  for (let index = 0; index < handlers.length; index++) {
+                    const handler = handlers[index];
+                    try {
+                      if (messageType !== "ping" && messageType !== "pong") {
+                        console.debug(
+                          `[WebSocketService] Executing handler #${index + 1} for type "${messageType}"`,
+                        );
+                      }
+
+                      // 🔍 STREAMING DEBUG: Log individual handler call for ai_message_update
+                      if (messageType === "ai_message_update") {
+                        const payloadRecord = isRecord(messagePayload) ? messagePayload : null;
+                        const seq = payloadRecord?.sequence || "unknown";
+                        console.log(
+                          `[WebSocketService] 🟠 CALLING HANDLER | ` +
+                            `handler_index: ${index + 1} | ` +
+                            `type: ${messageType} | ` +
+                            `seq: ${seq}`,
+                        );
+                      }
+
+                      await handler(messagePayload); // Pass the correctly determined payload
+                    } catch (handlerError) {
+                      console.error(
+                        `[WebSocketService] Error in message handler #${index + 1} for type "${messageType}":`,
+                        handlerError,
                       );
                     }
+                  }
+                };
 
-                    // 🔍 STREAMING DEBUG: Log individual handler call for ai_message_update
-                    if (messageType === "ai_message_update") {
-                      const payloadRecord = isRecord(messagePayload) ? messagePayload : null;
-                      const seq = payloadRecord?.sequence || "unknown";
-                      console.log(
-                        `[WebSocketService] 🟠 CALLING HANDLER | ` +
-                          `handler_index: ${index + 1} | ` +
-                          `type: ${messageType} | ` +
-                          `seq: ${seq}`,
-                      );
-                    }
-
-                    handler(messagePayload); // Pass the correctly determined payload
-                  } catch (handlerError) {
+                if (SERIALIZED_PHASED_SYNC_MESSAGE_TYPES.has(messageType)) {
+                  this.phasedSyncHandlerQueue = this.phasedSyncHandlerQueue.then(
+                    executeHandlers,
+                    executeHandlers,
+                  );
+                  void this.phasedSyncHandlerQueue.catch((handlerError) => {
                     console.error(
-                      `[WebSocketService] Error in message handler #${index + 1} for type "${messageType}":`,
+                      `[WebSocketService] Error in serialized phased sync handlers for type "${messageType}":`,
                       handlerError,
                     );
-                  }
-                });
+                  });
+                } else {
+                  void executeHandlers();
+                }
               } else if (!this.allowedNoHandlerTypes.has(messageType)) {
                 if (messageType !== "ping" && messageType !== "pong") {
                   console.warn(
@@ -1299,7 +1326,7 @@ class WebSocketService extends EventTarget {
   }
 
   // Register handlers for specific message types
-  public on<T = unknown>(messageType: string, handler: (payload: T) => void): void {
+  public on<T = unknown>(messageType: string, handler: (payload: T) => void | Promise<void>): void {
     if (!this.messageHandlers.has(messageType)) {
       this.messageHandlers.set(messageType, []);
     }
@@ -1319,7 +1346,7 @@ class WebSocketService extends EventTarget {
   }
 
   // Unregister handlers
-  public off<T = unknown>(messageType: string, handler: (payload: T) => void): void {
+  public off<T = unknown>(messageType: string, handler: (payload: T) => void | Promise<void>): void {
     const handlers = this.messageHandlers.get(messageType);
     if (handlers) {
       const index = handlers.indexOf(handler as MessageHandler);

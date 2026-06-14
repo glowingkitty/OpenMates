@@ -70,11 +70,17 @@
     /** Events provider (e.g., 'Meetup') — legacy single-provider field */
     provider: string;
     /** List of provider slugs that contributed results (e.g. ['meetup', 'luma']) */
-    providers?: string[];
+    providers?: string[] | string;
     /** Processing status - must match SkillExecutionStatus */
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Event results (for finished state) */
     results?: EventResult[];
+    /** Parent-embed result count used without hydrating child embeds */
+    result_count?: number;
+    /** Searched start date/time, echoed from the skill request */
+    start_date?: string;
+    /** Searched end date/time, echoed from the skill request */
+    end_date?: string;
     /** Task ID for cancellation of entire AI response */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill (allows AI to continue) */
@@ -101,6 +107,20 @@
     }
   }
 
+  function normalizeProviderSlug(slug: string): string {
+    return slug.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+
+  function parseProviders(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return value.filter((provider): provider is string => typeof provider === 'string' && provider.trim().length > 0);
+    }
+    if (typeof value === 'string') {
+      return value.split('|').map((provider) => provider.trim()).filter((provider) => provider.length > 0);
+    }
+    return [];
+  }
+
   let {
     id,
     query: queryProp,
@@ -108,6 +128,9 @@
     providers: providersProp,
     status: statusProp,
     results: resultsProp = [],
+    result_count: resultCountProp = 0,
+    start_date: startDateProp,
+    end_date: endDateProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     isMobile = false,
@@ -121,18 +144,23 @@
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<EventResult[]>([]);
+  let localResultCount = $state(0);
+  let localStartDate = $state<string>('');
+  let localEndDate = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  let isLoadingChildren = $state(false);
 
   // Initialize local state from props
   $effect(() => {
     if (!storeResolved) {
       localQuery = queryProp || '';
       localProvider = providerProp || '';
-      localProviders = providersProp || [];
+      localProviders = parseProviders(providersProp);
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
+      localResultCount = resultCountProp || resultsProp?.length || 0;
+      localStartDate = startDateProp || '';
+      localEndDate = endDateProp || '';
       localTaskId = taskIdProp;
       localSkillTaskId = skillTaskIdProp;
     }
@@ -144,6 +172,8 @@
   let providers = $derived(localProviders);
   let status = $derived(localStatus);
   let results = $derived(localResults);
+  let startDate = $derived(localStartDate);
+  let endDate = $derived(localEndDate);
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
 
@@ -151,9 +181,8 @@
    * Handle embed data updates from UnifiedEmbedPreview.
    * Called when the parent component receives and decodes updated embed data.
    *
-   * Events results are stored as child embeds (like news/web search). When status becomes
-   * "finished" and embed_ids are present but no inline results, we load child embeds
-   * asynchronously to get the total event count for the preview card.
+   * Preview cards must remain metadata-only. Full child event rows are loaded by
+   * fullscreen views on explicit user action, not by the chat transcript preview.
    */
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[EventsSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
@@ -171,52 +200,27 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
-      if (Array.isArray(content.providers)) localProviders = content.providers as string[];
+      if (typeof content.start_date === 'string') localStartDate = content.start_date;
+      if (typeof content.end_date === 'string') localEndDate = content.end_date;
+      const decodedProviders = parseProviders(content.providers);
+      if (decodedProviders.length > 0) localProviders = decodedProviders;
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results as EventResult[];
+        localResultCount = localResults.length;
         console.debug(`[EventsSearchEmbedPreview] Updated results (inline):`, localResults.length);
+      }
+      if (typeof content.result_count === 'number') {
+        localResultCount = content.result_count;
+      } else if (data.status === 'finished' && localResultCount === 0) {
+        const embedIds = content.embed_ids;
+        const childEmbedIds: string[] = typeof embedIds === 'string'
+          ? embedIds.split('|').filter((eid: string) => eid.length > 0)
+          : Array.isArray(embedIds) ? (embedIds as string[]) : [];
+        localResultCount = childEmbedIds.length;
       }
       if (typeof content.skill_task_id === 'string') {
         localSkillTaskId = content.skill_task_id;
       }
-
-      // When finished and embed_ids are present but no inline results, load child embeds
-      // to get the count for display. Events don't have favicons so we just need the count.
-      if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || (content.results as unknown[]).length === 0)) {
-        const embedIds = content.embed_ids;
-        if (embedIds) {
-          const childEmbedIds: string[] = typeof embedIds === 'string'
-            ? (embedIds as string).split('|').filter((eid: string) => eid.length > 0)
-            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
-          if (childEmbedIds.length > 0 && !isLoadingChildren) {
-            console.debug(`[EventsSearchEmbedPreview] Loading child embeds for count (${childEmbedIds.length} embed_ids)`);
-            isLoadingChildren = true;
-            loadChildEmbedCount(childEmbedIds);
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Load child embeds to get total event count for preview display.
-   * We only need the count — no content decoding required.
-   * Uses retry logic because child embeds might not be persisted yet.
-   */
-  async function loadChildEmbedCount(childEmbedIds: string[]) {
-    try {
-      const { loadEmbedsWithRetry } = await import('../../../services/embedResolver');
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
-      if (childEmbeds.length > 0) {
-        // Create minimal placeholder results (just need the count — no content needed)
-        localResults = childEmbeds.map(() => ({} as EventResult));
-        console.debug(`[EventsSearchEmbedPreview] Loaded ${childEmbeds.length} child embeds for count display`);
-      }
-    } catch (error) {
-      console.warn('[EventsSearchEmbedPreview] Error loading child embeds for count:', error);
-      // Continue without results — preview will just show query/provider without count
-    } finally {
-      isLoadingChildren = false;
     }
   }
 
@@ -227,26 +231,48 @@
   // The app-level icon is "event" (calendar), but the search *skill* uses "search".
   const skillIconName = 'search';
 
-  // "via {provider}" subtitle — use providers list when available for multi-source display
-  let viaProvider = $derived.by(() => {
-    const via = $text('embeds.via');
-    // Prefer the providers list (actual contributing providers) over the single provider field
-    if (providers.length > 0) {
-      const labels = providers.map(getProviderLabel);
-      if (labels.length <= 2) {
-        return `${via} ${labels.join(', ')}`;
-      }
-      return `${via} ${labels[0]}, ${labels[1]} +${labels.length - 2}`;
-    }
-    // Fallback to legacy single provider (backwards compatibility with existing embeds)
-    if (provider && provider !== 'auto' && provider !== 'none') {
-      return `${via} ${getProviderLabel(provider)}`;
-    }
+  let viaProvider = $derived($text('embeds.via'));
+
+  function formatSearchDate(value: string): string {
+    const dateParts = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const date = dateParts
+      ? new Date(Date.UTC(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3])))
+      : new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(date);
+  }
+
+  let searchRange = $derived.by(() => {
+    if (startDate && endDate) return `${formatSearchDate(startDate)} - ${formatSearchDate(endDate)}`;
+    if (startDate) return formatSearchDate(startDate);
+    if (endDate) return formatSearchDate(endDate);
     return '';
   });
 
   // Event count for finished state: the total number of results
-  let eventCount = $derived(results?.length || 0);
+  let eventCount = $derived(localResultCount || results?.length || 0);
+
+  let providerBadges = $derived.by(() => {
+    const providerSources = providers.length > 0 ? providers : [provider];
+    const seen = new Set<string>();
+    return providerSources
+      .map((providerSlug) => ({
+        slug: normalizeProviderSlug(providerSlug),
+        label: getProviderLabel(providerSlug)
+      }))
+      .filter((provider) => {
+        if (!provider.slug || provider.slug === 'none' || provider.slug === 'auto' || seen.has(provider.slug)) {
+          return false;
+        }
+        seen.add(provider.slug);
+        return provider.label.length > 0;
+      });
+  });
 
   /**
    * Handle stop button — cancels this specific skill or the entire AI task as fallback.
@@ -293,8 +319,23 @@
       <!-- Query text -->
       <div class="ds-search-query">{query}</div>
 
-      <!-- Provider subtitle -->
-      <div class="ds-search-provider">{viaProvider}</div>
+      {#if searchRange}
+        <div class="events-search-range" data-testid="events-search-range">{searchRange}</div>
+      {/if}
+
+      <!-- Provider attribution: text "via" plus icon chips, matching web search previews. -->
+      <div class="provider-attribution" aria-label={providerBadges.map((provider) => provider.label).join(', ')}>
+        <span class="ds-search-provider">{viaProvider}</span>
+        {#if providerBadges.length > 0}
+          <span class="provider-badges">
+          {#each providerBadges as provider}
+            <span class={`provider-badge provider-badge-${provider.slug}`} title={provider.label}>
+              <span class="provider-badge-icon" aria-hidden="true"></span>
+            </span>
+          {/each}
+          </span>
+        {/if}
+      </div>
 
       <!-- Finished state: show event count or loading -->
       {#if status === 'finished'}
@@ -303,8 +344,6 @@
             <span class="event-count">
               {$text('embeds.more_results').replace('{count}', String(eventCount))}
             </span>
-          {:else if isLoadingChildren}
-            <span class="ds-loading-text">{$text('common.loading')}</span>
           {/if}
         </div>
       {/if}
@@ -346,6 +385,76 @@
 
   .events-search-details.mobile .ds-search-provider {
     font-size: var(--font-size-xxs);
+  }
+
+  .provider-attribution {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    min-width: 0;
+  }
+
+  .events-search-range {
+    color: var(--color-grey-70);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .events-search-details.mobile .events-search-range {
+    font-size: var(--font-size-xxs);
+  }
+
+  .provider-badges {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .provider-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 19px;
+    height: 19px;
+    margin-left: -6px;
+    border: 1px solid var(--color-grey-0);
+    border-radius: 50%;
+    background: var(--color-grey-0);
+    color: var(--color-grey-70);
+    box-sizing: border-box;
+  }
+
+  .provider-badge:first-child {
+    margin-left: 0;
+  }
+
+  .provider-badge-icon {
+    width: 13px;
+    height: 13px;
+    flex: 0 0 auto;
+    background-color: currentColor;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  .provider-badge-meetup .provider-badge-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/meetup.svg');
+    mask-image: url('@openmates/ui/static/icons/meetup.svg');
+  }
+
+  .provider-badge-luma .provider-badge-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/luma.svg');
+    mask-image: url('@openmates/ui/static/icons/luma.svg');
+  }
+
+  .provider-badge-resident_advisor .provider-badge-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/resident_advisor.svg');
+    mask-image: url('@openmates/ui/static/icons/resident_advisor.svg');
   }
 
   .events-search-details.mobile .ds-search-results-info {

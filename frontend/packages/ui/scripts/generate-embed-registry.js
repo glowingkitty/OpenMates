@@ -306,6 +306,70 @@ function buildEmbedMetadataMap(allEmbedTypes) {
   return metadataMap;
 }
 
+function getRegistryKey(def) {
+  if (def.category === "app-skill-use" && def.app_id && def.skill_id) {
+    return `app:${def.app_id}:${def.skill_id}`;
+  }
+  if (def.category === "direct" && def.frontend_type) {
+    return def.frontend_type;
+  }
+  return null;
+}
+
+/**
+ * Build app-store Content catalog entries from explicit embed metadata.
+ * This intentionally stays opt-in so internal skill containers and transient
+ * indicators never appear as browsable content types by accident.
+ *
+ * @param {Array<Object>} allEmbedTypes - All embed type definitions
+ * @returns {Array<Object>} Ordered content catalog entries
+ */
+function buildContentEmbedCatalog(allEmbedTypes) {
+  const catalog = [];
+
+  for (const def of allEmbedTypes) {
+    const contentCatalog = def.content_catalog;
+    if (!contentCatalog?.enabled || !def.app_id) continue;
+
+    const source = contentCatalog.source ?? "self";
+    const registryKey = source === "child" ? def.child_frontend_type : getRegistryKey(def);
+    const frontendType = source === "child" ? def.child_frontend_type : def.frontend_type;
+    const backendType = source === "child" ? def.child_type : def.backend_type;
+
+    if (!registryKey || !frontendType) {
+      console.warn(
+        `[generate-embed-registry] Skipping content catalog entry '${def.id}' because it has no frontend registry key`,
+      );
+      continue;
+    }
+
+    const contentTypeId = contentCatalog.content_type_id ?? def.id;
+    catalog.push({
+      id: `${def.app_id}.${contentTypeId}`,
+      appId: def.app_id,
+      contentTypeId,
+      registryKey,
+      frontendType,
+      ...(backendType ? { backendType } : {}),
+      ...(def.skill_id ? { skillId: def.skill_id } : {}),
+      name: contentCatalog.name ?? contentTypeId,
+      description: contentCatalog.description ?? "",
+      icon: contentCatalog.icon ?? def.icon,
+      gradientVar: def.gradient_var,
+      i18nNamespace: def.i18n_namespace,
+      exampleKey: contentCatalog.example_key ?? `${def.app_id}.${contentTypeId}`,
+      order: Number.isFinite(contentCatalog.order) ? contentCatalog.order : 100,
+      source,
+    });
+  }
+
+  return catalog.sort((a, b) => {
+    if (a.appId !== b.appId) return a.appId.localeCompare(b.appId);
+    if (a.order !== b.order) return a.order - b.order;
+    return a.contentTypeId.localeCompare(b.contentTypeId);
+  });
+}
+
 /**
  * Build the groupable types set for the TipTap editor.
  *
@@ -467,6 +531,7 @@ function generateTypeScript(maps) {
     rendererMap,
     embedMetadataMap,
     groupableTypes,
+    contentEmbedCatalog,
     contentTypeInterfaces,
     totalCount,
   } = maps;
@@ -593,6 +658,34 @@ function generateTypeScript(maps) {
   );
   lines.push(``);
 
+  // App-store Content catalog
+  lines.push(`/**`);
+  lines.push(` * Browsable durable content types shown in app-store app detail pages.`);
+  lines.push(` * Entries are opt-in via embed type content_catalog metadata.`);
+  lines.push(` */`);
+  lines.push(`export interface ContentEmbedCatalogItem {`);
+  lines.push(`  id: string;`);
+  lines.push(`  appId: string;`);
+  lines.push(`  contentTypeId: string;`);
+  lines.push(`  registryKey: string;`);
+  lines.push(`  frontendType: string;`);
+  lines.push(`  backendType?: string;`);
+  lines.push(`  skillId?: string;`);
+  lines.push(`  name: string;`);
+  lines.push(`  description: string;`);
+  lines.push(`  icon?: string;`);
+  lines.push(`  gradientVar?: string;`);
+  lines.push(`  i18nNamespace?: string;`);
+  lines.push(`  exampleKey: string;`);
+  lines.push(`  order: number;`);
+  lines.push(`  source: string;`);
+  lines.push(`}`);
+  lines.push(``);
+  lines.push(
+    `export const CONTENT_EMBED_CATALOG: ContentEmbedCatalogItem[] = ${JSON.stringify(contentEmbedCatalog, null, 2)};`,
+  );
+  lines.push(``);
+
   // Groupable types
   lines.push(`/**`);
   lines.push(
@@ -706,6 +799,7 @@ function main() {
   const rendererMap = buildRendererMap(allEmbedTypes);
   const embedMetadataMap = buildEmbedMetadataMap(allEmbedTypes);
   const groupableTypes = buildGroupableTypes(allEmbedTypes);
+  const contentEmbedCatalog = buildContentEmbedCatalog(allEmbedTypes);
   const contentTypeInterfaces = buildContentTypeInterfaces(allEmbedTypes);
 
   if (contentTypeInterfaces.interfaceCount > 0) {
@@ -722,6 +816,7 @@ function main() {
     rendererMap,
     embedMetadataMap,
     groupableTypes,
+    contentEmbedCatalog,
     contentTypeInterfaces,
     totalCount: allEmbedTypes.length,
   });
@@ -849,8 +944,9 @@ function main() {
   );
 
   // -------------------------------------------------------------------------
-  // Validate AppSkillUseRenderer routing — fail if an app-skill-use embed
-  // type has no routing block in AppSkillUseRenderer.ts.
+  // Validate AppSkillUseRenderer routing. Skills without specialized branches
+  // intentionally use renderGenericSkill(); registry + text-renderer checks below
+  // ensure those are known, exportable skills rather than unknown placeholders.
   // -------------------------------------------------------------------------
   const appSkillRendererPath = resolve(
     __dirname,
@@ -858,29 +954,23 @@ function main() {
   );
   const appSkillRendererSource = readFileSync(appSkillRendererPath, "utf-8");
 
-  // Extract routing blocks. Two patterns:
-  // 1. appId === "x" && skillId === "y"
-  // 2. appId === "x" && (skillId === "y" || skillId === "z")
-  const registeredRoutes = new Set();
-
-  // Pattern 1: direct appId && skillId
-  const routingPattern1 = /appId\s*===\s*"([^"]+)"\s*&&\s*skillId\s*===\s*"([^"]+)"/g;
-  let routeMatch;
-  while ((routeMatch = routingPattern1.exec(appSkillRendererSource)) !== null) {
-    registeredRoutes.add(`${routeMatch[1]}:${routeMatch[2]}`);
-  }
-
-  // Pattern 2: appId === "x" && (skillId === "y" || skillId === "z")
-  // Also catches: appId === "x" && \n (...skillId === "y" || skillId === "z")
-  const routingPattern2 =
-    /appId\s*===\s*"([^"]+)"\s*&&\s*\n?\s*\(?(?:skillId\s*===\s*"([^"]+)"(?:\s*\|\|\s*skillId\s*===\s*"([^"]+)")*)/g;
-  while ((routeMatch = routingPattern2.exec(appSkillRendererSource)) !== null) {
-    const appId = routeMatch[1];
-    // Capture all skillId alternatives from the match
-    for (let i = 2; i < routeMatch.length; i++) {
-      if (routeMatch[i]) registeredRoutes.add(`${appId}:${routeMatch[i]}`);
+  const extractAppSkillRoutes = (source) => {
+    const routes = new Set();
+    const conditionPattern = /appId\s*===\s*"([^"]+)"\s*&&\s*([\s\S]*?)\)\s*\{/g;
+    let routeMatch;
+    while ((routeMatch = conditionPattern.exec(source)) !== null) {
+      const appId = routeMatch[1];
+      const condition = routeMatch[2];
+      const skillPattern = /skillId\s*===\s*"([^"]+)"/g;
+      let skillMatch;
+      while ((skillMatch = skillPattern.exec(condition)) !== null) {
+        routes.add(`${appId}:${skillMatch[1]}`);
+      }
     }
-  }
+    return routes;
+  };
+
+  const registeredRoutes = extractAppSkillRoutes(appSkillRendererSource);
 
   // Also extract CHILD_TYPE_OVERRIDES from AppSkillUseRenderer — skills routed
   // via child type override (e.g. travel:get_flight → flight) don't need a
@@ -914,22 +1004,45 @@ function main() {
     return true;
   });
   if (missingRoutes.length > 0) {
-    // Warn instead of failing — some types use the generic fallback renderer
-    // and don't need explicit routing. Failing here would block builds for
-    // pre-existing gaps that work fine via the fallback.
-    console.warn(
-      `\n[generate-embed-registry] WARNING: AppSkillUseRenderer has no explicit routing for ${missingRoutes.length} type(s) (using generic fallback):`,
+    console.log(
+      `[generate-embed-registry] ✓ ${missingRoutes.length} app-skill-use type(s) use registered generic rendering`,
     );
-    for (const r of missingRoutes) {
-      console.warn(
-        `  - "${r}" (consider adding routing in AppSkillUseRenderer.ts)`,
-      );
-    }
   } else {
     console.log(
       `[generate-embed-registry] ✓ All ${expectedRoutes.length} app-skill-use types have AppSkillUseRenderer routing`,
     );
   }
+
+  // -------------------------------------------------------------------------
+  // Validate app-skill-use group routing. Any skill that has a specialized
+  // single-embed AppSkillUseRenderer route must have an equivalent specialized
+  // GroupRenderer route. Otherwise grouped results silently fall back to the
+  // legacy text card even though standalone embeds render correctly.
+  // -------------------------------------------------------------------------
+  const groupRegisteredRoutes = extractAppSkillRoutes(groupRendererSource);
+  const specializedExpectedRoutes = expectedRoutes.filter((r) =>
+    registeredRoutes.has(r),
+  );
+  const missingGroupRoutes = specializedExpectedRoutes.filter(
+    (r) => !groupRegisteredRoutes.has(r),
+  );
+  if (missingGroupRoutes.length > 0) {
+    console.error(
+      `\n[generate-embed-registry] ERROR: GroupRenderer app-skill-use routing is missing ${missingGroupRoutes.length} specialized route(s):`,
+    );
+    for (const route of missingGroupRoutes) {
+      console.error(
+        `  - "${route}" (add matching mountAppSkillUsePreview routing in GroupRenderer.ts)`,
+      );
+    }
+    console.error(
+      `\nStandalone app-skill embeds with specialized previews must render the same preview inside app-skill-use groups.\n`,
+    );
+    process.exit(1);
+  }
+  console.log(
+    `[generate-embed-registry] ✓ All ${specializedExpectedRoutes.length} specialized app-skill-use routes have GroupRenderer routing`,
+  );
 
   // -------------------------------------------------------------------------
   // Validate text renderers — fail if an embed type has no text renderer

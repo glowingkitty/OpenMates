@@ -1,0 +1,247 @@
+title:
+  context: "Title of example chat: Cancel a Scheduled Reminder"
+  en: "Cancel a Scheduled Reminder"
+  de: "Cancel a Scheduled Reminder"
+  zh: "Cancel a Scheduled Reminder"
+  es: "Cancel a Scheduled Reminder"
+  fr: "Cancel a Scheduled Reminder"
+  pt: "Cancel a Scheduled Reminder"
+  ru: "Cancel a Scheduled Reminder"
+  ja: "Cancel a Scheduled Reminder"
+  ko: "Cancel a Scheduled Reminder"
+  it: "Cancel a Scheduled Reminder"
+  tr: "Cancel a Scheduled Reminder"
+  vi: "Cancel a Scheduled Reminder"
+  id: "Cancel a Scheduled Reminder"
+  pl: "Cancel a Scheduled Reminder"
+  nl: "Cancel a Scheduled Reminder"
+  ar: "Cancel a Scheduled Reminder"
+  hi: "Cancel a Scheduled Reminder"
+  th: "Cancel a Scheduled Reminder"
+  cs: "Cancel a Scheduled Reminder"
+  sv: "Cancel a Scheduled Reminder"
+  he: "Cancel a Scheduled Reminder"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Cancel a Scheduled Reminder"
+  en: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  de: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  zh: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  es: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  fr: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  pt: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  ru: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  ja: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  ko: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  it: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  tr: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  vi: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  id: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  pl: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  nl: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  ar: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  hi: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  th: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  cs: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  sv: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  he: "A reminder management example that cancels a scheduled reminder by ID and confirms it will not fire."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Cancel a Scheduled Reminder. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  de: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  zh: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  es: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  fr: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  pt: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  ru: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  ja: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  ko: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  it: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  tr: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  vi: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  id: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  pl: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  nl: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  ar: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  hi: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  th: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  cs: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  sv: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  he: "@skill:reminder:cancel-reminder Cancel reminder 6bfe1188-e21c-49f4-97b4-6f8b41f851c9 and confirm that it will no longer fire."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Cancel a Scheduled Reminder. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "2654ed6e-e439-4c21-98c7-95269083da71", "app_id": "reminder", "skill_id": "cancel-reminder"}
+    ```
+    
+    OK. I've cancelled the reminder with ID `6bfe1188-e21c-49f4-97b4-6f8b41f851c9`. It will no longer fire.
+    
+    Would you like me to [set a new reminder](/#settings/apps/reminder) for something else, or should I [check your remaining active reminders](/#settings/apps/reminder)?
+  verified_by_human: []
+

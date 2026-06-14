@@ -12,6 +12,8 @@
     import { loginInterfaceOpen, introBannerVisible } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
     import { demoMode } from '../stores/demoModeStore';
+    import { signupFreeTestingCreditsPromotion } from '../stores/serverStatusStore';
+    import { getLastAuthMethod, type LastAuthMethod } from '../utils/lastAuthMethod';
 
     // Props using Svelte 5 runes
     let { 
@@ -199,8 +201,11 @@
 
     // Add mobile breakpoint check
     let isMobile = $state(false);
+    let lastAuthMethod = $state<LastAuthMethod | null>(null);
 
     onMount(() => {
+        lastAuthMethod = getLastAuthMethod();
+
         const checkMobile = () => {
             isMobile = window.innerWidth < 730;
         };
@@ -230,8 +235,26 @@
         };
     });
 
+    $effect(() => {
+        if (!$authStore.isAuthenticated && !$loginInterfaceOpen) {
+            lastAuthMethod = getLastAuthMethod();
+        }
+    });
+
     // Derive button text based on viewport size
-    let loginButtonText = $derived(isMobile ? $text('signup.sign_up') : `${$text('login.login')} / ${$text('signup.sign_up')}`);
+    let ctaOpensLogin = $derived(!!lastAuthMethod);
+
+    let loginButtonText = $derived.by(() => {
+        if (ctaOpensLogin) {
+            return $text('login.login');
+        }
+
+        if ($signupFreeTestingCreditsPromotion?.active) {
+            return $text('signup.test_for_free');
+        }
+
+        return isMobile ? $text('signup.sign_up') : $text('header.login_signup');
+    });
 
     // Update menu toggle logic to consider the logging out state as well
     const _toggleMenu = () => {
@@ -449,8 +472,7 @@
                             data-testid="header-login-signup-btn"
                             onclick={(e) => {
                                 e.preventDefault();
-                                // Dispatch event to open signup interface (shows signup tab by default)
-                                window.dispatchEvent(new CustomEvent('openSignupInterface'));
+                                window.dispatchEvent(new CustomEvent(ctaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
                             }}
                             aria-label={loginButtonText}
                         >
@@ -562,14 +584,15 @@
         position: absolute;
         left: 0;
         font-size: 0.75rem;
-        color: var(--color-grey-60);
+        color: var(--color-grey-100);
+        background: var(--color-grey-0);
         font-weight: 400;
         text-align: left;
         line-height: 1.2;
         cursor: pointer;
         white-space: nowrap;
         /* Add padding to make clickable area larger */
-        padding: 0.125rem 0;
+        padding: 0.125rem 0.125rem;
         left: 4px;
         top: 24px;
     }
@@ -842,11 +865,12 @@
     }
 
     .login-signup-button {
-        all: unset;
+        border: none;
+        margin: 0;
         padding: var(--spacing-4) var(--spacing-6);
         border-radius: var(--radius-3);
-        background-color: var(--color-button-primary);
-        color: white;
+        background: var(--color-button-primary);
+        color: var(--color-font-button, white);
         cursor: pointer;
         transition: all var(--duration-normal) var(--easing-default);
         white-space: nowrap;

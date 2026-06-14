@@ -2,12 +2,48 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/apps/ai/app.yml
+- backend/apps/ai/utils/model_selector.py
+- backend/apps/ai/processing/preprocessor.py
+- backend/apps/ai/processing/main_processor.py
+- backend/providers/*.yml
+- backend/apps/ai/base_instructions.yml
+claims:
+- id: arch-ai-ai-model-selection-behavior
+  type: unit
+  claim: AI Model Selection is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/ai/app.yml
   - backend/apps/ai/utils/model_selector.py
   - backend/apps/ai/processing/preprocessor.py
   - backend/apps/ai/processing/main_processor.py
   - backend/providers/*.yml
-  - backend/apps/ai/base_instructions.yml
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-ai-ai-model-selection-behavior
+  verified: '2026-06-11'
+- id: arch-ai-ai-model-selection-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-ai-model-selection-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/app.yml
+- id: arch-ai-ai-model-selection-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-ai-model-selection-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/base_instructions.yml
+- id: arch-ai-ai-model-selection-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-ai-model-selection-source-3
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/main_processor.py
 ---
 
 # AI Model Selection

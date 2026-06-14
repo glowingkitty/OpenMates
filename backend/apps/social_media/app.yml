@@ -368,7 +368,6 @@ focuses:
     name_translation_key: social_media.content_calendar_strategist
     description_translation_key: social_media.content_calendar_strategist.description
     stage: planning
-    systemprompt_translation_key: social_media.content_calendar_strategist.systemprompt
 
 marketing_discovery:
   skills:

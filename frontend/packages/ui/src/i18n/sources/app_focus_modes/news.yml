@@ -1,0 +1,50 @@
+understand_the_news:
+  context: Focus mode name for understand_the_news
+  en: Understand The News
+  de: Nachrichten verstehen
+  zh: 理解新闻
+  es: Entender las noticias
+  fr: Comprendre les actualités
+  pt: Entender as notícias
+  ru: Понять новости
+  ja: ニュースを理解する
+  ko: 뉴스 이해하기
+  it: Capire le notizie
+  tr: Haberleri anla
+  vi: Hiểu tin tức
+  id: Memahami berita
+  pl: Rozumiej wiadomości
+  nl: Nieuws begrijpen
+  ar: فهم الأخبار
+  hi: समाचार समझें
+  th: ทำความเข้าใจข่าว
+  cs: Porozumět zprávám
+  sv: Förstå nyheterna
+  he: להבין את החדשות
+  verified_by_human:
+    - en
+understand_the_news.description:
+  context: Description for understand_the_news focus mode
+  en: Focus mode for Understand The News
+  de: Fokusmodus für Nachrichten verstehen
+  zh: 理解新闻的专注模式
+  es: Modo de enfoque para entender las noticias
+  fr: Mode de concentration pour comprendre les actualités
+  pt: Modo de foco para entender as notícias
+  ru: Режим фокуса для понимания новостей
+  ja: ニュースを理解するためのフォーカスモード
+  ko: 뉴스 이해하기 집중 모드
+  it: Modalità focus per capire le notizie
+  tr: Haberleri anlamak için odak modu
+  vi: Chế độ tập trung để hiểu tin tức
+  id: Mode fokus untuk memahami berita
+  pl: Tryb skupienia dla rozumienia wiadomości
+  nl: Focusmodus voor nieuws begrijpen
+  ar: وضع التركيز لفهم الأخبار
+  hi: समाचार समझने का फ़ोकस मोड
+  th: โหมดโฟกัสสำหรับทำความเข้าใจข่าว
+  cs: Fókusový režim pro porozumění zprávám
+  sv: Fokusläge för att förstå nyheterna
+  he: מצב מיקוד להבנת החדשות
+  verified_by_human:
+    - en

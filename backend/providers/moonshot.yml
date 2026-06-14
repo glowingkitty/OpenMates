@@ -5,57 +5,10 @@
 provider_id: "moonshot"
 name: "Moonshot AI"
 description: "Moonshot AI - Kimi multimodal thinking and agent models"
-logo_svg: "logos/moonshotai.svg"
+logo_svg: "logos/moonshot.svg"
 privacy_policy: "https://platform.kimi.ai/docs/agreement/userprivacy"
 
 models:
-  - id: "kimi-k2.5"
-    name: "Kimi K2.5"
-    description: "Kimi K2.5 is Moonshot AI's native multimodal thinking agent with vision and Agent Swarm capabilities. Features 1T total parameters (32B activated), native INT4 quantization for 2x inference speed, and 256K context window. Excels in visual coding, agentic tool-calling, and multi-step reasoning. Primary: Together AI; Fallback: OpenRouter."
-    country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
-    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
-    release_date: "2026-01-27" # Model release date (Kimi K2.5 released January 27, 2026)
-    allow_auto_select: true
-    reasoning: true
-    external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      lmarena: "kimi-k2.5"
-      openrouter: "moonshotai/kimi-k2.5"
-    input_types:
-      - text
-      - image
-    output_types:
-      - text
-    default_server: "together" # Default to Together AI for serverless inference
-    servers:
-      - id: "together"
-        name: "Together AI"
-        model_id: "moonshotai/Kimi-K2.5" # Together AI model identifier (primary)
-        region: "US" # Server region for UI display
-      - id: "openrouter"
-        name: "OpenRouter"
-        model_id: "moonshotai/kimi-k2.5" # OpenRouter's model identifier (fallback)
-        region: "US" # Server region for UI display
-    pricing:
-      tokens:
-        input:
-          per_credit_unit: 650 # Based on $0.50/M input (Together AI): 333.33 / 0.50 = 666, rounded to 650
-        output:
-          per_credit_unit: 120 # Based on $2.80/M output (Together AI): 333.33 / 2.80 = 119, rounded to 120
-    costs:
-      input_per_million_token:
-        price: 0.50
-        currency: USD
-        max_context: 262144
-      output_per_million_token:
-        price: 2.80
-        currency: USD
-        max_context: 262144
-    features:
-      knowledge_cutoff: "2025-10"
-      max_output_tokens: 65536
-      tool_use: true
-      streaming: true
-
   - id: "kimi-k2.6"
     name: "Kimi K2.6"
     description: "Kimi K2.6 is Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration. Features improved reasoning, 262K context window, and enhanced tool-calling capabilities over K2.5. Primary: Together AI; Fallback: OpenRouter."
@@ -103,6 +56,47 @@ models:
       tool_use: true
       streaming: true
 
+  - id: "kimi-k2.7-code"
+    name: "Kimi K2.7 Code"
+    description: "Kimi K2.7 Code is Moonshot AI's coding-focused agent model for long-horizon software engineering tasks. Features a 1T-parameter MoE architecture with 32B activated parameters, 256K context window, tool use, and improved token efficiency over K2.6. Served through OpenRouter."
+    country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
+    for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
+    release_date: "2026-06-12" # Model release date from OpenRouter/Hugging Face listing
+    allow_auto_select: true
+    reasoning: true
+    external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      openrouter: "moonshotai/kimi-k2.7-code"
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "openrouter" # Use OpenRouter; no direct Novita provider is configured in OpenMates
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter"
+        model_id: "moonshotai/kimi-k2.7-code"
+        region: "US" # Server region for UI display
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 350 # Based on $0.95/M input (OpenRouter): 333.33 / 0.95 = 350.9
+        output:
+          per_credit_unit: 80 # Based on $4.00/M output (OpenRouter): 333.33 / 4.00 = 83.3, rounded down
+    costs:
+      input_per_million_token:
+        price: 0.95
+        currency: USD
+        max_context: 262144
+      output_per_million_token:
+        price: 4.00
+        currency: USD
+        max_context: 262144
+    features:
+      knowledge_cutoff: "2026-06"
+      max_output_tokens: 262144
+      tool_use: true
+      streaming: true
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
@@ -113,6 +107,6 @@ models:
 #
 # Simplified: tokens_per_credit = 333.33 / your_cost_per_million
 #
-# Examples for Kimi K2.5 (Together AI pricing):
-# - Input ($0.50/M): 333.33 / 0.50 = 666 tokens/credit -> round to 650
-# - Output ($2.80/M): 333.33 / 2.80 = 119 tokens/credit -> round to 120
+# Examples for Kimi K2.7 Code (OpenRouter pricing):
+# - Input ($0.95/M): 333.33 / 0.95 = 350.9 tokens/credit -> round to 350
+# - Output ($4.00/M): 333.33 / 4.00 = 83.3 tokens/credit -> round to 80

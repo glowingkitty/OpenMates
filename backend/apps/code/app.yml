@@ -282,6 +282,60 @@ embed_types:
       - name: result_count
         type: number
         required: true
+  - id: run
+    category: app-skill-use
+    skill_id: run
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: coding
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.run
+  - id: clean_repo
+    category: app-skill-use
+    skill_id: clean_repo
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: delete
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.clean_repo
+  - id: get_issues
+    category: app-skill-use
+    skill_id: get_issues
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: task
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.get_issues
+  - id: add_issue
+    category: app-skill-use
+    skill_id: add_issue
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: add
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.add_issue
+  - id: remove_secrets
+    category: app-skill-use
+    skill_id: remove_secrets
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: security
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.remove_secrets
+  - id: get_project_overview
+    category: app-skill-use
+    skill_id: get_project_overview
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: project
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.get_project_overview
   # Code block — direct-type, auto-detected from ``` code blocks by stream_consumer.py
   - id: code
     category: direct
@@ -294,6 +348,14 @@ embed_types:
     icon: coding
     gradient_var: "--color-app-code"
     i18n_namespace: embeds.code.code
+    content_catalog:
+      enabled: true
+      content_type_id: code
+      name: Code block
+      description: Standalone code snippets and files created or edited directly in chat.
+      icon: coding
+      example_key: code.code
+      order: 20
     content_fields:
       - name: language
         type: string
@@ -306,6 +368,46 @@ embed_types:
       - name: line_count
         type: number
         required: true
+  # Generated application project — parent embed that references child code-code files.
+  - id: application
+    category: direct
+    frontend_type: code-application
+    backend_type: application
+    has_children: true
+    child_type: code
+    child_frontend_type: code-code
+    groupable: false
+    preview_component: code/ApplicationEmbedPreview.svelte
+    fullscreen_component: code/ApplicationEmbedFullscreen.svelte
+    icon: coding
+    gradient_var: "--color-app-code"
+    i18n_namespace: embeds.code.application
+    content_catalog:
+      enabled: true
+      content_type_id: application
+      name: Application
+      description: Generated runnable applications with source files, entrypoints, and preview metadata.
+      icon: coding
+      example_key: code.application
+      order: 10
+    content_fields:
+      - name: name
+        type: string
+        required: true
+      - name: framework
+        type: string
+      - name: runtime
+        type: string
+      - name: file_refs
+        type: array
+        required: true
+      - name: asset_refs
+        type: array
+      - name: entrypoints
+        type: array
+        required: true
+      - name: latest_screenshot_ref
+        type: string
 skills:
   - id: search_repos
     name_translation_key: code.search_repos
@@ -464,7 +566,14 @@ focuses:
   - id: check_security
     name_translation_key: code.check_security
     description_translation_key: code.check_security.description
+    process_translation_key: focus_modes.code_check_security.process
+    systemprompt_translation_key: focus_modes.code_check_security.systemprompt
     stage: development
+    preprocessor_hint: >
+      Select when the user asks to audit server, proxy, deployment, Docker,
+      or infrastructure configuration for security issues, public exposure,
+      missing hardening, or credential leaks. Do not select for general code
+      review unless configuration security is the main request.
 
 marketing_discovery:
   skills:

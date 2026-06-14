@@ -1,0 +1,22 @@
+ARG OPENMATES_IMAGE_TAG=dev
+FROM ghcr.io/glowingkitty/openmates-api:${OPENMATES_IMAGE_TAG}
+
+USER root
+
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "Acquire::Check-Valid-Until false;" > /etc/apt/apt.conf.d/99no-check-valid && \
+    echo 'Acquire::CompressionTypes::Order:: "gz";' > /etc/apt/apt.conf.d/99use-gzip-compression && \
+    for i in $(seq 1 3); do \
+        apt-get update -o Acquire::CompressionTypes::Order::="gz" && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            libreoffice-writer \
+            fonts-dejavu \
+            && break || \
+        sleep 5; \
+    done && \
+    rm -rf /var/lib/apt/lists/*
+
+USER celeryuser
+
+CMD ["python", "-m", "celery", "-A", "backend.core.api.app.tasks.celery_config", "worker", "--loglevel=info"]

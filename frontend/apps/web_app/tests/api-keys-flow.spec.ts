@@ -14,9 +14,7 @@ export {};
  * Console monitoring: shared console-monitor.ts (Rule 10).
  *
  * REQUIRED ENV VARS:
- * - OPENMATES_TEST_ACCOUNT_EMAIL
- * - OPENMATES_TEST_ACCOUNT_PASSWORD
- * - OPENMATES_TEST_ACCOUNT_OTP_KEY
+ * - Isolated slot 20 credentials, routed by scripts/run_tests.py.
  */
 
 const {
@@ -30,7 +28,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -39,7 +37,12 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
+	'api-keys-flow.spec.ts'
+);
+const E2E_KEY_NAME_PATTERN = /^(E2E-Test-Key|E2E-RestAPI|E2E-Limit-Key)/i;
+
+test.describe.configure({ mode: 'serial' });
 
 // ─── Shared login helper ─────────────────────────────────────────────────────
 
@@ -109,6 +112,51 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 	logCheckpoint('API Keys page loaded.');
 }
 
+async function deleteFirstE2EOwnedApiKey(page: any, log: (msg: string) => void): Promise<boolean> {
+	const e2eKey = page
+		.getByTestId('api-key-item')
+		.filter({ has: page.getByTestId('api-key-name').filter({ hasText: E2E_KEY_NAME_PATTERN }) })
+		.first();
+
+	if (!(await e2eKey.isVisible({ timeout: 2000 }).catch(() => false))) {
+		return false;
+	}
+
+	const keyName = await e2eKey.getByTestId('api-key-name').textContent().catch(() => 'E2E-owned key');
+	const deleteBtn = e2eKey.getByTestId('api-key-delete-button');
+	await expect(deleteBtn).toBeVisible({ timeout: 3000 });
+	page.once('dialog', (dialog: any) => dialog.accept());
+	await deleteBtn.click();
+	await page.waitForTimeout(1500);
+	log(`Deleted E2E-owned API key: ${keyName?.trim() || 'unknown'}`);
+	return true;
+}
+
+async function freeApiKeySlotIfLimitReached(page: any, log: (msg: string) => void): Promise<void> {
+	const limitWarning = page.getByTestId('api-key-limit-warning');
+	const isAtLimit = await limitWarning.isVisible({ timeout: 2000 }).catch(() => false);
+	if (!isAtLimit) {
+		return;
+	}
+
+	log('At 5-key limit — deleting E2E-owned keys only to free a slot...');
+	for (let i = 0; i < 5; i++) {
+		if (!(await deleteFirstE2EOwnedApiKey(page, log))) {
+			break;
+		}
+
+		const stillAtLimit = await limitWarning.isVisible({ timeout: 2000 }).catch(() => false);
+		if (!stillAtLimit) {
+			return;
+		}
+	}
+
+	throw new Error(
+		'API key test account is at the 5-key limit and has no E2E-owned key safe to delete. ' +
+			'Clean the isolated account manually.'
+	);
+}
+
 // ---------------------------------------------------------------------------
 // Test 1: Create → verify format → copy → done → verify in list → delete
 // ---------------------------------------------------------------------------
@@ -131,18 +179,7 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	await navigateToApiKeys(page, log);
 	await screenshot(page, 'api-keys-page');
 
-	// Check if we're already at the 5-key limit — delete one first if so
-	const limitWarning = page.getByTestId('api-key-limit-warning');
-	const isAtLimit = await limitWarning.isVisible({ timeout: 2000 }).catch(() => false);
-	if (isAtLimit) {
-		log('Already at 5-key limit. Attempting to delete one first...');
-		const firstDeleteBtn = page.getByTestId('api-key-delete-button').first();
-		if (await firstDeleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-			page.once('dialog', (dialog: any) => dialog.accept());
-			await firstDeleteBtn.click();
-			await page.waitForTimeout(2000);
-		}
-	}
+	await freeApiKeySlotIfLimitReached(page, log);
 
 	// Click "Create New API Key" button
 	const createButton = page.getByTestId('api-key-create-button');
@@ -210,10 +247,9 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	const createdKeyRow = page
 		.getByTestId('api-key-item')
 		.filter({ has: page.getByTestId('api-key-name').filter({ hasText: keyName }) });
-	const rowFound = await createdKeyRow.isVisible({ timeout: 3000 }).catch(() => false);
-	const targetRow = rowFound ? createdKeyRow : keyItems.last();
+	await expect(createdKeyRow, `Expected created API key row ${keyName} to exist before deletion.`).toBeVisible({ timeout: 5000 });
 
-	const deleteButton = targetRow.getByTestId('api-key-delete-button');
+	const deleteButton = createdKeyRow.getByTestId('api-key-delete-button');
 	await expect(deleteButton).toBeVisible({ timeout: 5000 });
 
 	log('Setting up dialog handler and clicking Delete...');
@@ -253,36 +289,7 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 
 	await navigateToApiKeys(page, log);
 
-	// If at limit, delete E2E-prefixed keys to free up a slot
-	const isAtLimit = await page
-		.getByTestId('api-key-limit-warning')
-		.isVisible({ timeout: 3000 })
-		.catch(() => false);
-	if (isAtLimit) {
-		log('At key limit — deleting E2E test keys to free a slot...');
-		for (let i = 0; i < 3; i++) {
-			const e2eKey = page
-				.getByTestId('api-key-item')
-				.filter({ has: page.getByTestId('api-key-name').filter({ hasText: /E2E/i }) })
-				.first();
-			if (await e2eKey.isVisible({ timeout: 2000 }).catch(() => false)) {
-				const deleteBtn = e2eKey.getByTestId('api-key-delete-button');
-				page.once('dialog', (dialog: any) => dialog.accept());
-				await deleteBtn.click();
-				await page.waitForTimeout(1000);
-			} else {
-				break;
-			}
-		}
-		const stillAtLimit = await page
-			.getByTestId('api-key-limit-warning')
-			.isVisible({ timeout: 3000 })
-			.catch(() => false);
-		if (stillAtLimit) {
-			log('Still at limit after cleanup — skipping test.');
-			return;
-		}
-	}
+	await freeApiKeySlotIfLimitReached(page, log);
 
 	// Open the create modal
 	const createButton = page.getByTestId('api-key-create-button');
@@ -390,18 +397,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 		}
 	}
 
-	// If already at the 5-key limit, delete one to make room
-	const limitWarning = page.getByTestId('api-key-limit-warning');
-	const isAtLimit = await limitWarning.isVisible({ timeout: 2000 }).catch(() => false);
-	if (isAtLimit) {
-		log('At 5-key limit — deleting first key to make room...');
-		const firstDeleteBtn = page.getByTestId('api-key-delete-button').first();
-		if (await firstDeleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-			page.once('dialog', (dialog: any) => dialog.accept());
-			await firstDeleteBtn.click();
-			await page.waitForTimeout(2000);
-		}
-	}
+	await freeApiKeySlotIfLimitReached(page, log);
 
 	// Create a new API key
 	const createButton = page.getByTestId('api-key-create-button');

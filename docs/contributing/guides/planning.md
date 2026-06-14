@@ -18,6 +18,20 @@ Before writing any code for a non-trivial task, you MUST create a structured imp
 
 ## Planning Steps
 
+### 0a. Decide Spec Size
+
+Before planning non-trivial work, classify whether it needs no spec, an inline
+spec, or a full spec. Use
+`docs/contributing/guides/spec-driven-development.md` as the source of truth.
+
+Full specs are required for complex or risky work such as auth, encryption,
+billing, privacy, teams, sharing, permissions, sync, AI pipeline changes,
+provider integrations, migrations, new API routes, app skills, embed types,
+background jobs, cron jobs, and Directus schema changes.
+
+If the change is trivial or mechanical, state why a spec would be overkill and
+continue with normal planning.
+
 ### 0. State Your Understanding (ALWAYS FIRST)
 
 **Before any planning or coding, write out your understanding of the task in plain language and wait for the user to confirm it.**
@@ -145,18 +159,24 @@ Format each criterion as a checkbox:
 
 - Write criteria from the user's perspective, not the implementation's ("user sees X" not "function returns X")
 - Each criterion must be falsifiable — you must be able to say with certainty whether it passes or fails
-- For **reproducible bugs**: include a Firecrawl verification step as the final criterion (see below)
+- For **reproducible bugs**: include an automated test or approved manual verification step as the final criterion
 - For **features**: cover the happy path, at least one error state, and any critical edge case
 
-**Firecrawl verification (required for reproducible bugs):**
+**Verification for reproducible bugs:**
 
-If the bug can be reproduced in a browser, the final acceptance criterion must be:
+If the bug can be reproduced in a browser, prefer a Playwright spec dispatched
+through `python3 scripts/run_tests.py --spec <name>.spec.ts`. If automation is
+not practical, document the manual verification path and why it cannot be
+automated yet.
+
+The final acceptance criterion should be:
 
 ```
-- [ ] Verified fixed via Firecrawl: open app.dev.openmates.org, reproduce the original steps, confirm the broken behavior no longer occurs
+- [ ] Verified fixed via `<test command or documented manual verification>`: reproduce the original steps and confirm the broken behavior no longer occurs
 ```
 
-This ensures the fix is confirmed in an actual browser environment, not just by reading code.
+This ensures the fix is confirmed by repeatable behavior, not just by reading
+code. Firecrawl is a debugging fallback, not the default acceptance proof.
 
 **Example (bug fix — embed not resolving):**
 
@@ -165,7 +185,7 @@ Acceptance Criteria:
 - [ ] Sending a message with an embedded location causes the AI to respond using the location data (not a generic answer)
 - [ ] No "embed_id" strings appear raw in the AI request payload (verified via debug.py requests)
 - [ ] If the embed key is expired, the user sees a clear error rather than a silent fallback
-- [ ] Verified fixed via Firecrawl: open app.dev.openmates.org, insert a location embed, send a message, confirm AI uses the location
+- [ ] Verified fixed via `python3 scripts/run_tests.py --spec embeds-location.spec.ts`: insert a location embed, send a message, confirm AI uses the location
 ```
 
 **Example (feature — copy message link):**
@@ -257,7 +277,7 @@ Is this correct?
 **Acceptance Criteria:**
 - [ ] <observable outcome — user perspective>
 - [ ] <error/edge case behavior>
-- [ ] Verified fixed via Firecrawl: <steps> *(bug fixes only)*
+- [ ] Verified fixed via `<test command or documented manual verification>` *(bug fixes only)*
 
 **Suggested E2E Tests:**
 - `should <test description 1>`
@@ -277,7 +297,7 @@ Is this correct?
 - **Jumping straight to code** — Always plan first for non-trivial work
 - **Vague scope** — "Improve the chat" is not a plan. Be specific about what changes
 - **Vague acceptance criteria** — "It works" is not a criterion. Write checkboxes the user can evaluate
-- **Missing Firecrawl verification** — For reproducible bugs, always include a browser verification step in AC
+- **Missing verification** — For reproducible bugs, always include an automated test or documented manual verification step in AC
 - **Missing the processing example** — This is the most important part of the plan. Do not skip it
 - **Assuming you know the codebase** — Verify by reading actual files, not from memory
 - **Ignoring concurrent work** — Other assistants may be changing the same files. Check git status
@@ -291,11 +311,12 @@ Complements the planning template above with the end-to-end lifecycle.
 
 1. **Understand** — State your interpretation and wait for confirmation (Step 0 above)
 2. **Clarify** — Resolve ambiguities, search codebase for similar implementations (DRY), check `docs/architecture/`
-3. **Plan** — Follow the template above. Check `sessions.py status` for file conflicts.
-4. **Test strategy** — Decide before implementation: TDD when behavior is clearly defined, test-after when API is still being designed.
-5. **Implement** — Backend first, then frontend, then integration. Track every file. Lint incrementally.
-6. **Verify** — Work through Acceptance Criteria checklist. All tests pass, `pnpm build` succeeds (frontend).
-7. **Deploy** — `deploy-docs` → `prepare-deploy` → `deploy`. Rebuild Docker if backend changed.
-8. **Confirm** — Task Summary to user → wait for confirmation → delete issue if any → `end` session.
+3. **Specify** — For full-spec work, run `specify` and review `docs/specs/<slug>/spec.yml` before implementation.
+4. **Plan** — Follow the template above or run `plan-from-spec`. Check `sessions.py status` for file conflicts.
+5. **Test strategy** — Decide before implementation: TDD when behavior is clearly defined, test-after when API is still being designed.
+6. **Implement** — Backend first, then frontend, then integration. Track every file. Lint incrementally.
+7. **Verify** — Work through Acceptance Criteria checklist. Run `verify-spec` for full-spec work.
+8. **Deploy** — `deploy-docs` → `prepare-deploy` → `deploy`. Rebuild Docker if backend changed.
+9. **Confirm** — Task Summary to user → wait for confirmation → delete issue if any → `end` session.
 
 If a test fails and you're stuck after 2 attempts: STOP and report.

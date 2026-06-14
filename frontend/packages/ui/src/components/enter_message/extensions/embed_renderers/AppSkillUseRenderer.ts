@@ -42,6 +42,7 @@ import TravelStaysEmbedPreview from "../../../embeds/travel/TravelStaysEmbedPrev
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
 import VideoGenerateEmbedPreview from "../../../embeds/videos/VideoGenerateEmbedPreview.svelte";
+import VideoCreateEmbedPreview from "../../../embeds/videos/VideoCreateEmbedPreview.svelte";
 import ImageViewEmbedPreview from "../../../embeds/images/ImageViewEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
@@ -645,7 +646,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // Check both 'set_reminder' and 'set-reminder' (hyphen variant)
       if (
         appId === "reminder" &&
-        (skillId === "set_reminder" || skillId === "set-reminder")
+        (skillId === "set_reminder" ||
+          skillId === "set-reminder" ||
+          skillId === "list-reminders" ||
+          skillId === "cancel-reminder")
       ) {
         console.debug(
           "[AppSkillUseRenderer] Rendering reminder set_reminder for",
@@ -701,6 +705,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status,
         });
         return this.renderVideoGenerateComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "videos" && skillId === "create") {
+        console.debug("[AppSkillUseRenderer] Rendering video create for", {
+          appId,
+          skillId,
+          decodedContent,
+          status,
+        });
+        return this.renderVideoCreateComponent(
           attrs,
           embedData,
           decodedContent,
@@ -907,6 +926,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Create placeholder results with favicon URLs from the results data
     // These will be populated from the decoded content if available
     const results = decodedContent?.results || [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -941,6 +963,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error" | "cancelled",
           results,
+          resultCount,
+          childEmbedIds,
           taskId,
           skillTaskId, // For individual skill cancellation
           isMobile: false, // Default to desktop in message view
@@ -1702,6 +1726,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
     const provider = decodedContent?.provider || embedData?.provider || (attrs as any).provider || "";
+    const startDate = decodedContent?.start_date || embedData?.start_date || (attrs as any).start_date || "";
+    const endDate = decodedContent?.end_date || embedData?.end_date || (attrs as any).end_date || "";
     const providers: string[] = Array.isArray(decodedContent?.providers)
       ? decodedContent.providers
       : Array.isArray(embedData?.providers)
@@ -1717,6 +1743,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         ? decodedContent.status
         : null;
     const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids;
+    const embedIdCount = Array.isArray(rawEmbedIds)
+      ? rawEmbedIds.length
+      : typeof rawEmbedIds === "string"
+        ? rawEmbedIds.split("|").filter((id: string) => id.length > 0).length
+        : 0;
     const hasEmbedIds = Array.isArray(rawEmbedIds)
       ? rawEmbedIds.length > 0
       : typeof rawEmbedIds === "string" && rawEmbedIds.length > 0;
@@ -1734,6 +1765,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
     const results = decodedContent?.results || [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || embedIdCount;
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -1763,8 +1797,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           query,
           provider,
           providers,
+          start_date: startDate,
+          end_date: endDate,
           status: status as "processing" | "finished" | "error" | "cancelled",
           results,
+          result_count: resultCount,
           taskId,
           skillTaskId,
           isMobile: false,
@@ -1880,7 +1917,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    const results = decodedContent?.results || [];
+    const results =
+      decodedContent?.results ||
+      decodedContent?.preview_results ||
+      decodedContent?.preview_thumbnails ||
+      [];
+    const previewResultsJson = decodedContent?.preview_results_json || "";
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds = typeof rawEmbedIds === "string"
+      ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds)
+        ? rawEmbedIds
+        : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
 
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -1908,6 +1959,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error",
           results,
+          previewResultsJson,
+          resultCount,
+          childEmbedIds,
           taskId,
           skillTaskId,
           isMobile: false,
@@ -2719,6 +2773,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
+    const previewImageUrl = decodedContent?.previewImageUrl || decodedContent?.preview_image_url || "";
     const error = decodedContent?.error || "";
     const inputEmbedIds: string[] = Array.isArray(
       decodedContent?.input_embed_ids,
@@ -2765,6 +2820,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           files,
           aesKey,
           aesNonce,
+          previewImageUrl,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
@@ -2819,6 +2875,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
+    const previewAudioUrl = decodedContent?.previewAudioUrl || decodedContent?.preview_audio_url || "";
     const error = decodedContent?.error || "";
 
     const existingComponent = mountedComponents.get(content);
@@ -2853,6 +2910,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           files,
           aesKey,
           aesNonce,
+          previewAudioUrl,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
@@ -2904,6 +2962,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const files = decodedContent?.files || undefined;
     const aesKey = decodedContent?.aes_key || "";
     const aesNonce = decodedContent?.aes_nonce || "";
+    const previewVideoUrl = decodedContent?.previewVideoUrl || decodedContent?.preview_video_url || "";
     const error = decodedContent?.error || "";
 
     const existingComponent = mountedComponents.get(content);
@@ -2938,6 +2997,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           files,
           aesKey,
           aesNonce,
+          previewVideoUrl,
           status: status as "processing" | "finished" | "error",
           error,
           taskId,
@@ -2952,6 +3012,46 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         "[AppSkillUseRenderer] Error mounting VideoGenerateEmbedPreview component:",
         mountError,
       );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private renderVideoCreateComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status = decodedContent?.status || embedData?.status || attrs.status || "processing";
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try { unmount(existingComponent); } catch (e) { console.warn("[AppSkillUseRenderer] Error unmounting existing component:", e); }
+    }
+    content.innerHTML = "";
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(VideoCreateEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          remotionSource: decodedContent?.remotion_source || "",
+          filename: decodedContent?.filename || "Composition.tsx",
+          s3BaseUrl: decodedContent?.s3_base_url || "",
+          files: decodedContent?.files || undefined,
+          aesKey: decodedContent?.aes_key || "",
+          aesNonce: decodedContent?.aes_nonce || "",
+          videoUrl: decodedContent?.video_url || decodedContent?.public_video_url || "",
+          thumbnailUrl: decodedContent?.thumbnail_url || decodedContent?.public_thumbnail_url || "",
+          status: status as "processing" | "rendering" | "finished" | "error" | "cancelled" | "needs_rerender",
+          errorMessage: decodedContent?.error || decodedContent?.render_metadata?.safe_error || "",
+          taskId: decodedContent?.task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (mountError) {
+      console.error("[AppSkillUseRenderer] Error mounting VideoCreateEmbedPreview component:", mountError);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }
@@ -3855,7 +3955,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content: HTMLElement,
   ): void {
     const query = decodedContent?.query || (attrs as any).query || "";
-    const provider = decodedContent?.provider || "REWE";
+    const provider = decodedContent?.provider || "Edamam";
     const status =
       decodedContent?.status ||
       embedData?.status ||
@@ -4137,6 +4237,13 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       decodedContent,
     });
 
+    const previewLines = this.buildGenericPreviewLines(decodedContent);
+    const previewHtml = previewLines.length > 0
+      ? previewLines
+          .map((line) => `<div class="skill-result-preview-line">${this.escapeHtml(line)}</div>`)
+          .join("")
+      : `<div class="skill-result-preview-line">${this.escapeHtml(status === "finished" ? "Finished" : status)}</div>`;
+
     // Render generic skill preview - no need for embed-unified-container wrapper
     // The container is already provided by Embed.ts, just create the content directly
     const html = `
@@ -4150,7 +4257,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         </div>
         <div class="embed-extended-preview">
           <div class="app-skill-preview-content">
-            <div class="skill-result-preview">Skill result preview</div>
+            <div class="skill-result-preview">${previewHtml}</div>
           </div>
         </div>
       </div>
@@ -4165,6 +4272,62 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         this.openFullscreen(attrs, embedData, decodedContent);
       });
     }
+  }
+
+  private buildGenericPreviewLines(decodedContent: Record<string, unknown> | null): string[] {
+    if (!decodedContent || typeof decodedContent !== "object") return [];
+
+    const skipKeys = new Set([
+      "app_id",
+      "skill_id",
+      "embed_id",
+      "embed_ids",
+      "embed_ref",
+      "status",
+      "aes_key",
+      "aes_nonce",
+      "iv",
+      "s3_key",
+      "s3_base_url",
+    ]);
+    const preferredKeys = [
+      "query",
+      "prompt",
+      "title",
+      "summary",
+      "result_count",
+      "error",
+      "provider",
+    ];
+    const lines: string[] = [];
+
+    for (const key of preferredKeys) {
+      const value = decodedContent[key];
+      const line = this.formatGenericPreviewValue(key, value);
+      if (line) lines.push(line);
+    }
+
+    for (const [key, value] of Object.entries(decodedContent)) {
+      if (skipKeys.has(key) || preferredKeys.includes(key)) continue;
+      const line = this.formatGenericPreviewValue(key, value);
+      if (line) lines.push(line);
+      if (lines.length >= 6) break;
+    }
+
+    return lines.slice(0, 6);
+  }
+
+  private formatGenericPreviewValue(key: string, value: unknown): string | null {
+    if (typeof value === "string" && value.trim()) {
+      return `${key}: ${value.trim()}`;
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      return `${key}: ${value}`;
+    }
+    if (Array.isArray(value)) {
+      return `${key}: ${value.length} item${value.length === 1 ? "" : "s"}`;
+    }
+    return null;
   }
 
   /**

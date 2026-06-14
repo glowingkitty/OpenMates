@@ -289,8 +289,6 @@ skills:
                   Known values: Piano, Chamber Music, Jazz, Organ, Modern,
                   Lunch Concerts, Singers, Children and Family, World.
                   Ignored by all other providers.
-            required:
-              - query
       required:
         - requests
 

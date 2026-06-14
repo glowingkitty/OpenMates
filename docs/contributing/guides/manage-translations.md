@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-10
 ---
 
 # Translation Management — Reference
@@ -36,13 +36,13 @@ Load this document when working on translations, finding missing keys, or using 
 
 ## Overview
 
-`scripts/manage_translations.py` is the primary tool for managing i18n translations. It operates directly on the 186 YAML source files in `frontend/packages/ui/src/i18n/sources/` and reads the language list from `languages.json`.
+`scripts/manage_translations.py` is the primary tool for managing i18n translations. It operates directly on the YAML source files in `frontend/packages/ui/src/i18n/sources/` and reads the language list from `languages.json`.
 
 **Current state (as of last audit — run `overview` for live numbers):**
 
-- ~3,200 total translation keys across 186 YAML files
-- 20 supported languages
-- `en` and `de` are most complete; `sv` has the most missing
+- 5,010 total translation keys across 255 YAML files
+- 21 supported languages
+- All supported languages are currently complete according to `overview`
 
 ---
 
@@ -222,8 +222,10 @@ The script will:
 
 1. Find all missing keys for the given scope
 2. Batch and send them to the Gemini API
-3. Write the translated values directly into the YAML source files
+3. Replace empty language placeholders such as `de: ""` or insert missing language fields
 4. Run `validate` and show any issues
+
+`auto_translate.py` also handles scalar English source values, such as numbers or booleans, and falls back to parsing Gemini plain-text or JSON-object responses when the API does not return the expected function call.
 
 **Step 3 — Review the diff**
 
@@ -247,7 +249,7 @@ cd frontend/packages/ui && npm run build:translations
 
 **Why scoped runs and not all at once?**
 
-- Early validation: catching a structural error after one file is far cheaper than after all 186
+- Early validation: catching a structural error after one file is far cheaper than after all source files
 - Progress visibility: the user can verify each batch before continuing
 - API reliability: very large batches risk timeout or truncated responses from Gemini
 

@@ -2,13 +2,49 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+- frontend/packages/ui/src/stores/piiVisibilityStore.ts
+- frontend/packages/ui/src/stores/embedPIIStore.ts
+- frontend/packages/ui/src/stores/personalDataStore.ts
+- frontend/packages/secret-scanner/src/scanner.ts
+- backend/apps/ai/processing/content_sanitization.py
+- backend/apps/ai/processing/external_result_sanitizer.py
+claims:
+- id: arch-privacy-sensitive-data-redaction-behavior
+  type: unit
+  claim: Sensitive Data Redaction is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
   - frontend/packages/ui/src/stores/piiVisibilityStore.ts
   - frontend/packages/ui/src/stores/embedPIIStore.ts
   - frontend/packages/ui/src/stores/personalDataStore.ts
   - frontend/packages/secret-scanner/src/scanner.ts
-  - backend/apps/ai/processing/content_sanitization.py
-  - backend/apps/ai/processing/external_result_sanitizer.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-privacy-sensitive-data-redaction-behavior
+  verified: '2026-06-11'
+- id: arch-privacy-sensitive-data-redaction-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-sensitive-data-redaction-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/content_sanitization.py
+- id: arch-privacy-sensitive-data-redaction-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-sensitive-data-redaction-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/external_result_sanitizer.py
+- id: arch-privacy-sensitive-data-redaction-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-sensitive-data-redaction-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/secret-scanner/src/scanner.ts
 ---
 
 # Sensitive Data Redaction
@@ -90,6 +126,5 @@ Real-time regex detection in [piiDetectionService.ts](../../frontend/packages/ui
 ## Related Docs
 
 - [PII Protection](./pii-protection.md) — architecture overview of client-side PII system
-- [PII Detection Phase 2](./pii-detection-phase2.md) — planned server-side document PII detection
 - [Prompt Injection](./prompt-injection.md) — defense-in-depth for external content
 - [Security](../core/security.md) — encryption tiers (client-managed vs vault)

@@ -1183,5 +1183,6 @@ skill_id: search`,
   metadata: {
     featured: true,
     order: 1,
+    app_skill_examples: ["images.search"],
   },
 };

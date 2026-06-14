@@ -3,8 +3,7 @@
  * Accessibility page scan tests — WCAG 2.1 AA compliance via axe-core.
  *
  * Scans major pages for automated accessibility violations. Known issues
- * (e.g. color-contrast for secondary text) are tracked in KNOWN_VIOLATIONS
- * and excluded from failure assertions.
+ * are tracked in KNOWN_VIOLATIONS and excluded from failure assertions.
  *
  * Architecture context: docs/architecture/accessibility.md
  * Test reference: run via scripts/run-tests.sh --suite playwright

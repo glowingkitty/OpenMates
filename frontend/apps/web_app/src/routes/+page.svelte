@@ -60,7 +60,9 @@
 		notFoundPathStore,
 		decryptWithChatKey,
 		getPublicChatById,
-		translateDemoChat
+		translateDemoChat,
+		getPendingGiftCardRedemptionCode,
+		markPendingGiftCardRedemption
 	} from '@repo/ui';
 	import {
 		checkAndClearMasterKeyOnLoad,
@@ -102,6 +104,7 @@
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
 	const DEFAULT_GUEST_INTRO_CHAT_ID = 'demo-for-everyone';
 	const STAY_LOGGED_IN_FLAG = 'openmates_was_stay_logged_in';
+	const AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS = 12_000;
 
 	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
 
@@ -365,7 +368,7 @@
 			return;
 		}
 
-		const pendingGiftCardCode = sessionStorage.getItem('pending_gift_card_code');
+		const pendingGiftCardCode = getPendingGiftCardRedemptionCode();
 		if (!pendingGiftCardCode) {
 			return;
 		}
@@ -506,7 +509,15 @@
 
 		// CRITICAL: During initial hash load, always process (store might be initialized from hash but chat not loaded)
 		// After initial load, skip if chat is already active in store (prevents unnecessary processing)
-		if (!isProcessingInitialHash && $activeChatStore === chatId && lastLoadedChatId === chatId) {
+		if (
+			!isProcessingInitialHash &&
+			$activeChatStore === chatId &&
+			lastLoadedChatId === chatId &&
+			!messageId &&
+			!scrollToLatestResponse &&
+			!embedId &&
+			!autoplayVideo
+		) {
 			console.debug(
 				`[+page.svelte] Chat ${chatId} is already active (not initial load), skipping deep link processing`
 			);
@@ -522,7 +533,7 @@
 			const exampleChatObj = getExampleChat(chatId);
 			if (exampleChatObj && activeChat) {
 				// Example chats are static — load directly (embed refs already registered on page load)
-				activeChat.loadChat(exampleChatObj, { scrollToLatestResponse, autoplayVideo });
+				activeChat.loadChat(exampleChatObj, { scrollToLatestResponse, autoplayVideo, messageId });
 				lastLoadedChatId = exampleChatObj.chat_id;
 
 				const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -569,7 +580,7 @@
 					const translatedChat = translateDemoChat(publicChat);
 					const chat = convertDemoChatToChat(translatedChat);
 
-					activeChat.loadChat(chat, { scrollToLatestResponse, autoplayVideo });
+					activeChat.loadChat(chat, { scrollToLatestResponse, autoplayVideo, messageId });
 					lastLoadedChatId = chat.chat_id;
 
 					// Dispatch globalChatSelected event so Chats.svelte highlights the chat
@@ -640,7 +651,7 @@
 
 				const loadSessionStorageChat = async (retries = 20): Promise<void> => {
 					if (activeChat) {
-						activeChat.loadChat(virtualChat, { scrollToLatestResponse });
+						activeChat.loadChat(virtualChat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = virtualChat.chat_id;
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
@@ -690,7 +701,7 @@
 
 					// Load the chat if activeChat component is ready
 					if (activeChat) {
-						activeChat.loadChat(chat, { scrollToLatestResponse });
+						activeChat.loadChat(chat, { scrollToLatestResponse, messageId });
 						lastLoadedChatId = chat.chat_id;
 
 						// Dispatch globalChatSelected event so Chats.svelte highlights the chat
@@ -788,7 +799,17 @@
 				await loadChatFromIndexedDB();
 			} else {
 				// Sync not yet complete — register event listener and wait
-				// CRITICAL: No setTimeout fallback — a premature load causes missing chat header
+				// Prefer the sync-complete event. If backend cache rewarming stays unprimed,
+				// a bounded fallback can safely load chats that already exist locally once
+				// cryptoReady has loaded IndexedDB keys.
+				let authDeepLinkFallbackTimeout: number | null = null;
+				const clearDeepLinkWaiters = () => {
+					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+					if (authDeepLinkFallbackTimeout !== null) {
+						window.clearTimeout(authDeepLinkFallbackTimeout);
+						authDeepLinkFallbackTimeout = null;
+					}
+				};
 				const handlePhasedSyncComplete = async () => {
 					// Guard: if the user switched to a different chat while waiting for sync,
 					// don't force them back to the deep-linked chat. This prevents the bug where
@@ -798,14 +819,48 @@
 						console.debug(
 							`[+page.svelte] Phased sync complete, but user made explicit choice — skipping deep link load for: ${chatId}`
 						);
-						chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+						clearDeepLinkWaiters();
 						return;
 					}
 					console.debug(`[+page.svelte] Phased sync complete, loading deep-linked chat: ${chatId}`);
 					await loadChatFromIndexedDB();
-					chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+					clearDeepLinkWaiters();
 				};
 				chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+
+				authDeepLinkFallbackTimeout = window.setTimeout(() => {
+					void (async () => {
+						try {
+							await cryptoReady;
+							if (window.location.hash !== `#chat-id=${chatId}`) {
+								console.debug(
+									`[+page.svelte] Auth deep-link fallback skipped because hash changed for: ${chatId}`
+								);
+								clearDeepLinkWaiters();
+								return;
+							}
+
+							await chatDB.init();
+							const localChat = await chatDB.getChat(chatId);
+							if (!localChat) {
+								console.debug(
+									`[+page.svelte] Auth deep-link fallback found no local chat for: ${chatId}`
+								);
+								clearDeepLinkWaiters();
+								return;
+							}
+
+							console.debug(
+								`[+page.svelte] Auth deep-link fallback loading local chat after sync wait: ${chatId}`
+							);
+							await loadChatFromIndexedDB();
+						} catch (error) {
+							console.warn(`[+page.svelte] Auth deep-link fallback failed for ${chatId}:`, error);
+						} finally {
+							clearDeepLinkWaiters();
+						}
+					})();
+				}, AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS);
 			}
 		}
 	}
@@ -817,12 +872,25 @@
 	async function handleEmbedDeepLink(embedId: string, hasChatContext = false) {
 		console.debug(`[+page.svelte] Handling embed deep link for: ${embedId}`);
 
+		let targetEmbedId = embedId;
+		let focusChildEmbedId: string | undefined;
+		try {
+			const { resolveExampleFullscreenTarget } = await import('@repo/ui');
+			const exampleTarget = resolveExampleFullscreenTarget(embedId);
+			if (exampleTarget) {
+				targetEmbedId = exampleTarget.targetEmbedId;
+				focusChildEmbedId = exampleTarget.focusChildEmbedId;
+			}
+		} catch (error) {
+			console.debug('[+page.svelte] Example fullscreen target resolution skipped:', error);
+		}
+
 		// Mark that a deep link was processed
 		deepLinkProcessed = true;
 
 		// Update the activeEmbedStore so the URL hash is set
 		// NOTE: This is a programmatic change; hashchange handler must ignore embed hash updates.
-		activeEmbedStore.setActiveEmbed(embedId);
+		activeEmbedStore.setActiveEmbed(targetEmbedId, hasChatContext ? $activeChatStore : null);
 
 		// Wait a bit for ActiveChat component to be ready and register event listeners
 		// This ensures the embedfullscreen event listener is registered
@@ -854,8 +922,9 @@
 		// This reuses the same system that opens embeds when clicking on embed previews
 		const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
 			detail: {
-				embedId: embedId,
+				embedId: targetEmbedId,
 				hasChatContext,
+				focusChildEmbedId,
 				// Let handleEmbedFullscreen load and decode the embed content
 				embedData: null,
 				decodedContent: null,
@@ -868,7 +937,7 @@
 
 		console.debug(
 			'[+page.svelte] Dispatching embedfullscreen event for deep-linked embed:',
-			embedId
+			targetEmbedId
 		);
 		document.dispatchEvent(embedFullscreenEvent);
 	}
@@ -1348,6 +1417,52 @@
 				const { clientLogForwarder } = await import('@repo/ui/services/clientLogForwarder');
 				clientLogForwarder.startE2E(e2eRunId, e2eToken);
 				console.debug(`[+page.svelte] E2E debug log forwarding started, run_id=${e2eRunId}`);
+			}
+		}
+
+		// --- Gift-card deep link: /#gift-card=CODE ---
+		// Process this before generic deep-link handling so unknown-hash cleanup cannot
+		// erase the pending gift card before signup promotion gating reads it.
+		const GIFT_CARD_HASH_PREFIX = '#gift-card=';
+		const GIFT_CARD_CODE_REGEX = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/i;
+		let hasGiftCardHash = false;
+
+		if (browser && window.location.hash.startsWith(GIFT_CARD_HASH_PREFIX)) {
+			const rawCode = decodeURIComponent(
+				window.location.hash.substring(GIFT_CARD_HASH_PREFIX.length).split('&')[0]
+			).toUpperCase();
+
+			if (GIFT_CARD_CODE_REGEX.test(rawCode)) {
+				hasGiftCardHash = true;
+				// Store code so GiftCardRedeem and signup promotion gating can pick it up.
+				markPendingGiftCardRedemption(rawCode);
+				console.debug(`[+page.svelte] Gift-card deep link detected, code stored in sessionStorage`);
+
+				// Clean the hash from the URL immediately (code is safely in sessionStorage).
+				history.replaceState(null, '', window.location.pathname + window.location.search);
+
+				// Branch based on auth state (isAuth is not yet set here — check optimistic local data).
+				const hasLocalAuth =
+					!!localStorage.getItem('stayLoggedIn') || !!sessionStorage.getItem('sessionToken');
+
+				if (hasLocalAuth) {
+					// Authenticated user: open the gift-card redeem settings page.
+					// Settings panel opens after initialize() completes; set the deep link store now.
+					openGiftCardRedeemSettings();
+				} else {
+					// Unauthenticated user: keep code in sessionStorage and prompt for signup/login.
+					notificationStore.addNotificationWithOptions('info', {
+						message: $text('signup.gift_card_waiting_notification').replace('{credits}', 'x'),
+						actionLabel: $text('signup.gift_card_waiting_action'),
+						onAction: () => {
+							window.dispatchEvent(new CustomEvent('openSignupInterface'));
+						},
+						duration: 10000,
+						dismissible: true
+					});
+				}
+			} else {
+				console.warn(`[+page.svelte] Invalid gift-card code in hash: ${rawCode}`);
 			}
 		}
 
@@ -1838,53 +1953,6 @@
 		console.debug(
 			'[+page.svelte] Shared chat cleanup skipped - shared chats persist until explicitly deleted'
 		);
-
-		// --- Gift-card deep link: /#gift-card=CODE ---
-		// The code lives entirely in the hash so the server never sees it.
-		// For authenticated users:  open Settings > Gift Cards > Redeem with the code pre-filled
-		// For unauthenticated users: store the code and show signup/login CTA notification.
-		const GIFT_CARD_HASH_PREFIX = '#gift-card=';
-		const GIFT_CARD_CODE_REGEX = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/i;
-		let hasGiftCardHash = false;
-
-		if (window.location.hash.startsWith(GIFT_CARD_HASH_PREFIX)) {
-			const rawCode = decodeURIComponent(
-				window.location.hash.substring(GIFT_CARD_HASH_PREFIX.length)
-			).toUpperCase();
-
-			if (GIFT_CARD_CODE_REGEX.test(rawCode)) {
-				hasGiftCardHash = true;
-				// Store code in sessionStorage so GiftCardRedeem / CreditsTopContent can pick it up
-				sessionStorage.setItem('pending_gift_card_code', rawCode);
-				console.debug(`[+page.svelte] Gift-card deep link detected, code stored in sessionStorage`);
-
-				// Clean the hash from the URL immediately (code is safely in sessionStorage)
-				history.replaceState(null, '', window.location.pathname + window.location.search);
-
-				// Branch based on auth state (isAuth is not yet set here — check optimistic local data)
-				const hasLocalAuth =
-					!!localStorage.getItem('stayLoggedIn') || !!sessionStorage.getItem('sessionToken');
-
-				if (hasLocalAuth) {
-					// Authenticated user: open the gift-card redeem settings page
-					// (settings panel opens after initialize() completes; set the deep link store now)
-					openGiftCardRedeemSettings();
-				} else {
-					// Unauthenticated user: keep code in sessionStorage and prompt for signup/login.
-					notificationStore.addNotificationWithOptions('info', {
-						message: $text('signup.gift_card_waiting_notification').replace('{credits}', 'x'),
-						actionLabel: $text('signup.gift_card_waiting_action'),
-						onAction: () => {
-							window.dispatchEvent(new CustomEvent('openSignupInterface'));
-						},
-						duration: 10000,
-						dismissible: true
-					});
-				}
-			} else {
-				console.warn(`[+page.svelte] Invalid gift-card code in hash: ${rawCode}`);
-			}
-		}
 
 		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
 		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash

@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - end-users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-apps-app-store-source
+    type: unit
+    claim: The app store guide is grounded in the app store card/detail source files.
+    file: scripts/tests/test_user_guide_app_docs_claims.py
+    assertion: user-guide-apps-app-store-source
 ---
 
 # Apps

@@ -25,9 +25,11 @@ from backend.core.api.app.routes.code_execution import (
     CodeRunClientFile,
     RUN_CREDITS_PER_MINUTE as ROUTE_RUN_CREDITS_PER_MINUTE,
     _collect_code_files,
+    _dependency_installs_from_imports,
     _dependency_installs_from_install_snippets,
     _execution_key,
     _infer_import_packages,
+    _looks_like_secret,
     _merge_dependency_installs,
     _safe_filename,
     _validate_dependency_manifest,
@@ -340,6 +342,24 @@ async def test_collect_code_files_accepts_validated_client_fallback() -> None:
 
 
 @pytest.mark.anyio
+async def test_collect_code_files_accepts_target_client_file_when_metadata_is_not_indexed_yet() -> None:
+    files, target_path = await _collect_code_files(
+        CHAT_ID,
+        TARGET_EMBED_ID,
+        [CodeRunClientFile(embed_id=TARGET_EMBED_ID, code="print('client')", language="python", filename="client.py", is_target=True)],
+        [],
+        None,
+        _user(),
+        FakeCache([], {}),
+        FakeDirectus({}),
+        FakeEncryption(),
+    )
+
+    assert target_path == "client.py"
+    assert files == [{"path": "client.py", "content": "print('client')", "language": "python", "is_target": True}]
+
+
+@pytest.mark.anyio
 async def test_collect_code_files_accepts_compiled_language_client_fallback() -> None:
     files, target_path = await _collect_code_files(
         CHAT_ID,
@@ -482,6 +502,26 @@ def test_dependency_manifests_accept_plain_registry_packages() -> None:
     _validate_dependency_manifest("package.json", json.dumps({"dependencies": {"@sveltejs/kit": "^2.0.0", "vite": "latest"}}))
 
 
+def test_code_run_secret_detection_allows_environment_variable_placeholders() -> None:
+    code = """
+import os
+import requests
+
+api_key = os.getenv("OPENWEATHER_API_KEY")
+params = {"q": "Berlin", "appid": api_key, "units": "metric"}
+response = requests.get("https://api.openweathermap.org/data/2.5/weather", params=params)
+print(response.status_code)
+"""
+
+    assert not _looks_like_secret(code)
+
+
+def test_code_run_secret_detection_blocks_high_confidence_tokens() -> None:
+    assert _looks_like_secret("OPENAI_API_KEY='sk-abcdefghijklmnopqrstuvwxyz123456'")
+    assert _looks_like_secret("GITHUB_TOKEN='ghp_abcdefghijklmnopqrstuvwxyz123456'")
+    assert _looks_like_secret("AWS_ACCESS_KEY_ID='AKIAABCDEFGHIJKLMNOP'")
+
+
 def test_dependency_installs_from_selected_install_snippets() -> None:
     installs = _dependency_installs_from_install_snippets([
         {"path": "install.sh", "language": "bash", "content": "# deps\npip install requests pandas==2.2.3\n"},
@@ -515,6 +555,37 @@ def test_infer_import_packages_maps_python_imports_and_ignores_stdlib() -> None:
         ("python", "sklearn", "scikit-learn", "main.py"),
         ("python", "PIL", "Pillow", "main.py"),
     ]
+
+
+def test_dependency_installs_from_imports_adds_python_packages_without_manifest() -> None:
+    installs = _dependency_installs_from_imports([
+        {
+            "path": "main.py",
+            "language": "python",
+            "content": "import os\nimport requests\n",
+        }
+    ])
+
+    assert [install.model_dump() for install in installs] == [
+        {"ecosystem": "python", "packages": ["requests"]}
+    ]
+
+
+def test_dependency_installs_from_imports_skips_when_manifest_exists() -> None:
+    installs = _dependency_installs_from_imports([
+        {
+            "path": "main.py",
+            "language": "python",
+            "content": "import requests\n",
+        },
+        {
+            "path": "requirements.txt",
+            "language": "",
+            "content": "requests==2.32.5\n",
+        },
+    ])
+
+    assert installs == []
 
 
 def test_infer_import_packages_normalizes_javascript_packages() -> None:

@@ -565,9 +565,21 @@ def build_unsubscribe_url(token: Optional[str], base_url: str) -> Optional[str]:
     return f"{base_url}/#settings/newsletter/unsubscribe/{token}"
 
 
-def prompt_confirmation(eligible_count: int, manifest: Dict[str, Any], simulate: bool = False) -> bool:
+def prompt_confirmation(
+    eligible_count: int,
+    manifest: Dict[str, Any],
+    simulate: bool = False,
+    non_interactive_approved: bool = False,
+) -> bool:
     if simulate:
         print(f"\n[SIMULATE] Auto-confirming broadcast to {eligible_count} subscribers.")
+        return True
+    if non_interactive_approved:
+        logger.warning(
+            "Newsletter broadcast auto-confirmed by approved admin campaign workflow: slug=%s eligible=%s",
+            manifest.get("slug"),
+            eligible_count,
+        )
         return True
     if not sys.stdin.isatty():
         logger.error(
@@ -881,7 +893,8 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 2
 
-    if not args.simulate and not sys.stdin.isatty():
+    non_interactive_approved = bool(getattr(args, "non_interactive_approved", False))
+    if not args.simulate and not non_interactive_approved and not sys.stdin.isatty():
         logger.error(
             "Refusing to broadcast: stdin is not a TTY. "
             "Use `docker exec -it api python ...` so the prompt is interactive."
@@ -988,7 +1001,12 @@ async def run(args: argparse.Namespace) -> int:
         print(f"\n{sim_label}", end="")
     print()
 
-    if not prompt_confirmation(len(eligible) - already_sent_count, manifest, simulate=args.simulate):
+    if not prompt_confirmation(
+        len(eligible) - already_sent_count,
+        manifest,
+        simulate=args.simulate,
+        non_interactive_approved=non_interactive_approved,
+    ):
         logger.info("Broadcast cancelled by user.")
         return 0
 

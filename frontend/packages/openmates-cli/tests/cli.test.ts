@@ -9,8 +9,14 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { promisify } from "node:util";
+import { WebSocketServer } from "ws";
 
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
@@ -19,15 +25,352 @@ import {
   parseNewChatSuggestionText,
   serializeToYaml,
   getExtForLang,
+  defaultCloneBranchForVersion,
 } from "../dist/index.js";
 
-function runCli(args: string[]): string {
+const execFileAsync = promisify(execFile);
+const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
+
+function runCli(args: string[], env: Record<string, string> = {}): string {
   return execFileSync("node", ["dist/cli.js", ...args], {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    cwd: PACKAGE_ROOT,
     encoding: "utf-8",
-    env: { ...process.env, TERM: "dumb" },
+    env: { ...process.env, TERM: "dumb", ...env },
+    timeout: 15_000,
   });
 }
+
+function runCliWithoutSession(args: string[]): string {
+  const tempHome = join(tmpdir(), `openmates-cli-no-session-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  mkdirSync(tempHome, { recursive: true });
+  try {
+    return runCli(args, { HOME: tempHome, USERPROFILE: tempHome });
+  } finally {
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+function readRepoText(path: string): string {
+  return readFileSync(join(REPO_ROOT, path), "utf-8");
+}
+
+function docAssert(claimId: string, assertion: () => void): void {
+  try {
+    assertion();
+  } catch (error) {
+    if (error instanceof Error) {
+      error.message = `[doc-assert:${claimId}] ${error.message}`;
+    }
+    throw error;
+  }
+}
+
+async function runCliAsync(args: string[], env: Record<string, string> = {}): Promise<string> {
+  const { stdout } = await execFileAsync("node", ["dist/cli.js", ...args], {
+    cwd: PACKAGE_ROOT,
+    encoding: "utf-8",
+    env: { ...process.env, TERM: "dumb", ...env },
+    timeout: 15_000,
+  });
+  return stdout;
+}
+
+async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) chunks.push(Buffer.from(chunk));
+  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+}
+
+function writeJson(response: ServerResponse, value: unknown): void {
+  response.writeHead(200, { "Content-Type": "application/json" });
+  response.end(JSON.stringify(value));
+}
+
+async function withCodeRunMockApi<T>(
+  run: (params: { apiUrl: string; requests: Record<string, unknown>[]; getHeaders: () => Record<string, string | string[] | undefined> }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Record<string, unknown>[] = [];
+  let lastHeaders: Record<string, string | string[] | undefined> = {};
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "GET" && request.url === "/raw/main.py") {
+        response.writeHead(200, { "Content-Type": "text/plain" });
+        response.end("print('url')\n");
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/code/skills/run") {
+        lastHeaders = request.headers;
+        const body = await readJsonBody(request);
+        requests.push(body);
+        const firstRequest = (body.requests as Array<{ files?: Array<{ path?: string }> }>)[0];
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              execution_id: "exec-1",
+              status: "queued",
+              target_filename: "main.py",
+              files: (firstRequest.files ?? []).map((file) => file.path),
+              status_path: "/v1/code/run/exec-1",
+              stream_path: "/v1/code/run/exec-1/stream",
+              credits_per_minute: 5,
+            }],
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/code/run/exec-1") {
+        lastHeaders = request.headers;
+        writeJson(response, { status: "finished", exit_code: 0, output: "ok\n" });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests, getHeaders: () => lastHeaders });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+async function withCodeRunStreamingMockApi<T>(
+  run: (params: { apiUrl: string; tempHome: string; getStats: () => { rejected: number; accepted: number } }) => T | Promise<T>,
+): Promise<T> {
+  const tempHome = join(tmpdir(), `openmates-cli-stream-${Date.now()}`);
+  const stateDir = join(tempHome, ".openmates");
+  const refreshToken = "raw-refresh-token";
+  const stats = { rejected: 0, accepted: 0 };
+  mkdirSync(stateDir, { recursive: true });
+  const writeSession = (apiUrl: string) => writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "old-ws-token",
+    cookies: { auth_refresh_token: refreshToken },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  const wss = new WebSocketServer({ noServer: true });
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        writeJson(response, { success: true, ws_token: "bad-ws-token" });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/code/skills/run") {
+        await readJsonBody(request);
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              execution_id: "exec-stream",
+              status: "queued",
+              target_filename: "hello.py",
+              files: ["hello.py"],
+              status_path: "/v1/code/run/exec-stream",
+              stream_path: "/v1/code/run/exec-stream/stream",
+              credits_per_minute: 5,
+            }],
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/code/run/exec-stream") {
+        writeJson(response, { status: "finished", exit_code: 0 });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  server.on("upgrade", (request, socket, head) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const token = url.searchParams.get("token");
+    if (token !== refreshToken) {
+      stats.rejected += 1;
+      socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    stats.accepted += 1;
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      setImmediate(() => {
+        ws.send(JSON.stringify({ type: "code_run_event", payload: { kind: "stdout", text: "STREAM_FALLBACK_OK\n" } }));
+        ws.send(JSON.stringify({ type: "code_run_update", payload: { status: "finished", exit_code: 0 } }));
+        setTimeout(() => ws.close(), 10);
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeSession(apiUrl);
+  try {
+    return await run({ apiUrl, tempHome, getStats: () => stats });
+  } finally {
+    wss.close();
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withSkillFormattingMockApi<T>(
+  run: (params: { apiUrl: string }) => T | Promise<T>,
+): Promise<T> {
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "POST" && request.url === "/v1/apps/events/skills/search") {
+        const body = await readJsonBody(request);
+        const firstRequest = (body.requests as Array<{ query?: string }> | undefined)?.[0];
+        if (firstRequest?.query === "no-match") {
+          writeJson(response, {
+            success: true,
+            data: {
+              results: [{
+                id: 1,
+                results: [],
+                no_result_reason: "filtered_out",
+                suggestions: ["Relax the date window", "Try a nearby city"],
+              }],
+              provider: "auto",
+              error: null,
+            },
+            credits_charged: 0,
+          });
+          return;
+        }
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              id: 1,
+              results: [{
+                type: "event_result",
+                title: "Accessible Tech Meetup",
+                description: "A very long event description that should not dominate default CLI output.",
+                provider: "meetup",
+                date_start: "2026-06-13T14:00:00+02:00",
+                date_end: "2026-06-13T16:00:00+02:00",
+                venue: { name: "Community Hall", city: "Berlin" },
+                fee: { amount: "0.00", currency: "EUR" },
+                constraint_matches: { accessibility: "unknown" },
+                hash: "event-hash",
+                image_url: "https://example.test/image.jpg",
+                url: "https://example.test/event",
+              }],
+            }],
+            provider: "auto",
+          },
+          credits_charged: 30,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/travel/skills/search_connections") {
+        await readJsonBody(request);
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              id: 1,
+              results: [{
+                type: "connection",
+                origin: "Berlin (BER)",
+                destination: "Barcelona (BCN)",
+                departure: "2026-07-10 13:50",
+                arrival: "2026-07-10 16:35",
+                duration: "2h 45m",
+                stops: 0,
+                total_price: "192",
+                currency: "EUR",
+                carriers: ["Vueling"],
+                hash: "flight-hash",
+                booking_token: "secret-booking-token",
+                booking_context: { deep: "provider-context" },
+                legs: [{ segments: [{ departure_latitude: 52.36, arrival_latitude: 41.29 }] }],
+              }],
+            }],
+            provider: "Google Flights",
+          },
+          credits_charged: 25,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/travel/skills/search_stays") {
+        await readJsonBody(request);
+        writeJson(response, {
+          success: true,
+          data: {
+            results: [{
+              id: 1,
+              results: [{
+                type: "stay",
+                name: "Budget Pool Hotel",
+                overall_rating: 4.4,
+                reviews: 1200,
+                rate_per_night: "€172",
+                amenities: ["Pool", "Free Wi-Fi"],
+                property_token: "secret-property-token",
+                images: [{ thumbnail: "https://example.test/thumb.jpg" }],
+                nearby_places: [{ name: "Beach" }],
+                hash: "stay-hash",
+                link: "https://example.test/hotel",
+              }],
+            }],
+            provider: "Google",
+          },
+          credits_charged: 25,
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}` });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+describe("SDK entrypoint", () => {
+  it("does not run CLI help when imported", () => {
+    const output = execFileSync("node", ["--input-type=module", "-e", "import './dist/index.js';"], {
+      cwd: PACKAGE_ROOT,
+      encoding: "utf-8",
+      env: { ...process.env, TERM: "dumb" },
+      timeout: 15_000,
+    });
+
+    assert.equal(output, "");
+  });
+});
 
 // ---------------------------------------------------------------------------
 // deriveAppUrl
@@ -67,11 +410,19 @@ describe("deriveAppUrl", () => {
     );
   });
 
-  it("falls back to production for unknown API URLs", () => {
+  it("maps self-hosted api subdomains to matching app subdomains", () => {
     reset();
     assert.strictEqual(
       deriveAppUrl("https://api.custom-instance.example.com"),
-      "https://openmates.org",
+      "https://app.custom-instance.example.com",
+    );
+  });
+
+  it("uses the same origin for self-hosted API URLs without an api subdomain", () => {
+    reset();
+    assert.strictEqual(
+      deriveAppUrl("https://openmates.example.com/api"),
+      "https://openmates.example.com",
     );
   });
 
@@ -100,6 +451,221 @@ describe("deriveAppUrl", () => {
   });
 });
 
+describe("defaultCloneBranchForVersion", () => {
+  it("uses dev for prerelease CLI versions", () => {
+    assert.strictEqual(defaultCloneBranchForVersion("0.12.0-alpha.12"), "dev");
+    assert.strictEqual(defaultCloneBranchForVersion("0.12.0-beta.1"), "dev");
+    assert.strictEqual(defaultCloneBranchForVersion("1.0.0-rc.1"), "dev");
+  });
+
+  it("uses the repository default branch for stable CLI versions", () => {
+    assert.strictEqual(defaultCloneBranchForVersion("0.11.1"), null);
+    assert.strictEqual(defaultCloneBranchForVersion("1.0.0"), null);
+  });
+});
+
+describe("apps code run command variants", () => {
+  it("runs inline code through the canonical app-skill endpoint", async () => {
+    await withCodeRunMockApi(async ({ apiUrl, requests, getHeaders }) => {
+      const output = await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--api-key", "test-key",
+        "--json",
+        "--language", "python",
+        "--filename", "hello.py",
+        "--code", "print('hello')\n",
+        "--no-internet",
+      ]);
+      const result = JSON.parse(output) as { execution_id: string; final: { status: string } };
+      docAssert("cli-apps-code-run-uses-app-skill-endpoint", () => {
+        assert.equal(result.execution_id, "exec-1");
+        assert.equal(result.final.status, "finished");
+        assert.equal(getHeaders().authorization, "Bearer test-key");
+      });
+      const body = requests[0] as { requests: Array<{ entry_path: string; enable_internet: boolean; files: Array<{ path: string; language: string; is_target: boolean }> }> };
+      assert.equal(body.requests[0].entry_path, "hello.py");
+      assert.equal(body.requests[0].enable_internet, false);
+      assert.deepEqual(body.requests[0].files.map((file) => [file.path, file.language, file.is_target]), [["hello.py", "python", true]]);
+    });
+  });
+
+  it("runs repeated --file inputs with an explicit entry", async () => {
+    const dir = join(tmpdir(), `openmates-cli-file-${Date.now()}`);
+    mkdirSync(dir, { recursive: true });
+    try {
+      const appFile = join(dir, "app.py");
+      const requirementsFile = join(dir, "requirements.txt");
+      writeFileSync(appFile, "print('file')\n");
+      writeFileSync(requirementsFile, "requests==2.32.3\n");
+      await withCodeRunMockApi(async ({ apiUrl, requests }) => {
+        await runCliAsync([
+          "apps", "code", "run",
+          "--api-url", apiUrl,
+          "--api-key", "test-key",
+          "--json",
+          "--entry", "app.py",
+          "--file", appFile,
+          "--file", requirementsFile,
+        ]);
+        const body = requests[0] as { requests: Array<{ entry_path: string; files: Array<{ path: string; is_target: boolean }> }> };
+        assert.equal(body.requests[0].entry_path, "app.py");
+        assert.deepEqual(body.requests[0].files.map((file) => file.path).sort(), ["app.py", "requirements.txt"]);
+        assert.equal(body.requests[0].files.find((file) => file.path === "app.py")?.is_target, true);
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("runs --dir inputs with excludes", async () => {
+    const dir = join(tmpdir(), `openmates-cli-dir-${Date.now()}`);
+    mkdirSync(join(dir, "src"), { recursive: true });
+    try {
+      writeFileSync(join(dir, "main.py"), "print('dir')\n");
+      writeFileSync(join(dir, "src", "helper.py"), "VALUE = 1\n");
+      writeFileSync(join(dir, "debug.log"), "ignored\n");
+      await withCodeRunMockApi(async ({ apiUrl, requests }) => {
+        await runCliAsync([
+          "apps", "code", "run",
+          "--api-url", apiUrl,
+          "--api-key", "test-key",
+          "--json",
+          "--entry", "main.py",
+          "--dir", dir,
+          "--exclude", "*.log",
+        ]);
+        const body = requests[0] as { requests: Array<{ files: Array<{ path: string }> }> };
+        assert.deepEqual(body.requests[0].files.map((file) => file.path).sort(), ["main.py", "src/helper.py"]);
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("runs raw --url inputs after client-side download", async () => {
+    await withCodeRunMockApi(async ({ apiUrl, requests }) => {
+      await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--api-key", "test-key",
+        "--json",
+        "--entry", "main.py",
+        "--url", `${apiUrl}/raw/main.py`,
+      ]);
+      const body = requests[0] as { requests: Array<{ files: Array<{ path: string; content_base64: string }> }> };
+      assert.equal(body.requests[0].files[0].path, "main.py");
+      assert.equal(Buffer.from(body.requests[0].files[0].content_base64, "base64").toString("utf8"), "print('url')\n");
+    });
+  });
+
+  it("runs chat-bound mode without uploading direct files", async () => {
+    await withCodeRunMockApi(async ({ apiUrl, requests }) => {
+      await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--api-key", "test-key",
+        "--json",
+        "--chat", "chat-1",
+        "--target-embed", "embed-1",
+      ]);
+      const body = requests[0] as { requests: Array<{ mode: string; chat_id: string; target_embed_id: string; files: unknown[] }> };
+      assert.equal(body.requests[0].mode, "chat_bound");
+      assert.equal(body.requests[0].chat_id, "chat-1");
+      assert.equal(body.requests[0].target_embed_id, "embed-1");
+      assert.deepEqual(body.requests[0].files, []);
+    });
+  });
+
+  it("retries Code Run streaming with the refresh token when ws_token auth is rejected", async () => {
+    await withCodeRunStreamingMockApi(async ({ apiUrl, tempHome, getStats }) => {
+      await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--language", "python",
+        "--filename", "hello.py",
+        "--code", "print('hello')\n",
+      ], { HOME: tempHome });
+      assert.deepEqual(getStats(), { rejected: 1, accepted: 1 });
+    });
+  });
+});
+
+describe("apps skill formatted output", () => {
+  it("prints concise event cards without raw provider noise by default", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "events", "search",
+        "--input", JSON.stringify({ requests: [{ query: "tech", location: "Berlin" }] }),
+      ]);
+
+      assert.match(output, /Accessible Tech Meetup/);
+      assert.match(output, /2026-06-13T14:00:00\+02:00/);
+      assert.match(output, /Community Hall/);
+      assert.match(output, /accessibility/);
+      assert.match(output, /unknown/);
+      assert.doesNotMatch(output, /event-hash/);
+      assert.doesNotMatch(output, /image_url/);
+      assert.doesNotMatch(output, /very long event description/);
+    });
+  });
+
+  it("prints concise connection cards without booking internals by default", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "travel", "search_connections",
+        "--input", JSON.stringify({ requests: [{ legs: [{ origin: "Berlin", destination: "Barcelona", date: "2026-07-10" }] }] }),
+      ]);
+
+      assert.match(output, /Berlin \(BER\) → Barcelona \(BCN\)/);
+      assert.match(output, /192 EUR · direct · Vueling/);
+      assert.match(output, /Get booking URL/);
+      assert.doesNotMatch(output, /secret-booking-token/);
+      assert.doesNotMatch(output, /booking_context/);
+      assert.doesNotMatch(output, /departure_latitude/);
+      assert.doesNotMatch(output, /flight-hash/);
+    });
+  });
+
+  it("prints concise stay cards without property internals by default", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "travel", "search_stays",
+        "--input", JSON.stringify({ requests: [{ query: "Hotels in Barcelona", check_in_date: "2026-07-10", check_out_date: "2026-07-13" }] }),
+      ]);
+
+      assert.match(output, /Budget Pool Hotel/);
+      assert.match(output, /★ 4.4/);
+      assert.match(output, /€172/);
+      assert.match(output, /Pool/);
+      assert.doesNotMatch(output, /secret-property-token/);
+      assert.doesNotMatch(output, /property_token/);
+      assert.doesNotMatch(output, /images/);
+      assert.doesNotMatch(output, /nearby_places/);
+      assert.doesNotMatch(output, /stay-hash/);
+    });
+  });
+
+  it("prints clear no-result reasons and suggestions", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "events", "search",
+        "--input", JSON.stringify({ requests: [{ query: "no-match", location: "Berlin" }] }),
+      ]);
+
+      assert.match(output, /No results found/i);
+      assert.match(output, /filtered_out/);
+      assert.match(output, /Relax the date window/);
+      assert.match(output, /Try a nearby city/);
+      assert.doesNotMatch(output, /\{\s*"results"/);
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // MEMORY_TYPE_REGISTRY
 // ---------------------------------------------------------------------------
@@ -107,7 +673,9 @@ describe("deriveAppUrl", () => {
 describe("MEMORY_TYPE_REGISTRY", () => {
   it("contains at least 10 memory types", () => {
     const keys = Object.keys(MEMORY_TYPE_REGISTRY);
-    assert.ok(keys.length >= 10, `expected >=10 types, got ${keys.length}`);
+    docAssert("cli-apps-memory-type-registry-is-available", () => {
+      assert.ok(keys.length >= 10, `expected >=10 types, got ${keys.length}`);
+    });
   });
 
   it("every type has appId, itemType, required, and properties", () => {
@@ -767,39 +1335,48 @@ describe("getExtForLang", () => {
 describe("settings command surface", () => {
   it("lists predefined settings commands instead of raw passthrough", () => {
     const output = runCli(["settings", "--help"]);
-    assert.ok(output.includes("Predefined commands only"));
-    assert.ok(output.includes("openmates settings account timezone set"));
-    assert.ok(output.includes("openmates settings billing gift-card redeem"));
-    assert.ok(!output.includes("settings get <path>"));
-    assert.ok(!output.includes("settings post <path>"));
+    docAssert("cli-settings-lists-predefined-commands", () => {
+      assert.ok(output.includes("Predefined commands only"));
+      assert.ok(output.includes("openmates settings account timezone set"));
+      assert.ok(output.includes("openmates settings billing gift-card redeem"));
+      assert.ok(!output.includes("settings get <path>"));
+      assert.ok(!output.includes("settings post <path>"));
+    });
   });
 
   it("shows nested help examples for settings groups", () => {
     const output = runCli(["settings", "billing", "--help"]);
     assert.ok(output.includes("openmates settings billing overview"));
     assert.ok(output.includes("e.g. openmates settings billing usage"));
+    assert.ok(output.includes("buy-credits bank-transfer"));
     assert.ok(output.includes("gift-card redeem"));
+    assert.ok(output.includes("gift-card buy bank-transfer"));
     assert.ok(output.includes("invoices download"));
   });
 
   it("shows executable help for profile, notifications, mates, and newsletter", () => {
     assert.ok(runCli(["settings", "account", "profile-picture", "--help"]).includes("profile-picture set"));
     assert.ok(runCli(["settings", "notifications", "--help"]).includes("notifications email set"));
+    assert.ok(runCli(["settings", "--help"]).includes("notifications list"));
+    assert.ok(runCli(["settings", "--help"]).includes("notifications stream"));
     assert.ok(runCli(["settings", "mates", "--help"]).includes("mates list"));
     assert.ok(runCli(["settings", "newsletter", "--help"]).includes("newsletter subscribe"));
   });
 
   it("rejects raw settings passthrough before auth or network", () => {
-    assert.throws(
-      () => runCli(["settings", "get", "billing"]),
-      /Raw settings passthrough is no longer supported/,
-    );
+    docAssert("cli-settings-rejects-raw-passthrough", () => {
+      assert.throws(
+        () => runCli(["settings", "get", "billing"]),
+        /Raw settings passthrough is no longer supported/,
+      );
+    });
   });
 
-  it("prints web-only help for account deletion", () => {
-    const output = runCli(["settings", "account", "delete"]);
-    assert.ok(output.includes("Account deletion is web-only"));
-    assert.ok(output.includes("#settings/account/delete"));
+  it("rejects account deletion verification codes passed as flags", () => {
+    assert.throws(
+      () => runCli(["settings", "account", "delete", "--email-code", "123456"]),
+      /verification codes must be entered through interactive prompts/,
+    );
   });
 
   it("prints web-only help for security sessions", () => {
@@ -827,5 +1404,174 @@ describe("incognito command surface", () => {
     const parsed = JSON.parse(output);
     assert.deepEqual(parsed.history, []);
     assert.strictEqual(parsed.stored, false);
+  });
+});
+
+describe("unauthenticated example chats", () => {
+  it("lists public example chats without a session", () => {
+    const output = runCliWithoutSession(["chats", "list", "--json"]);
+    const parsed = JSON.parse(output) as { chats: Array<{ source?: string; title?: string; id?: string }> };
+    assert.ok(parsed.chats.length > 0);
+    assert.ok(parsed.chats.every((chat) => chat.source === "example"));
+    assert.ok(parsed.chats.some((chat) => chat.id === "example-gigantic-airplanes"));
+  });
+
+  it("labels example chats in human list output", () => {
+    const output = runCliWithoutSession(["chats", "list", "--limit", "1"]);
+    assert.ok(output.includes("Example chats"));
+    assert.ok(output.includes("EXAMPLE CHAT"));
+  });
+
+  it("shows an example chat with an explicit example banner", () => {
+    const output = runCliWithoutSession(["chats", "show", "example-gigantic-airplanes"]);
+    assert.ok(output.includes("EXAMPLE CHAT"));
+    assert.ok(output.includes("Gigantic airplanes for transporting rocket and airplane parts"));
+    assert.ok(output.includes("This is a public example chat"));
+  });
+});
+
+describe("documented CLI command reference", () => {
+  it("top-level help lists the user guide command categories", () => {
+    const output = runCli(["--help"]);
+    const doc = readRepoText("docs/user-guide/cli/README.md");
+    docAssert("cli-readme-lists-command-categories", () => {
+      for (const command of [
+        "login",
+        "signup",
+        "logout",
+        "whoami",
+        "chats",
+        "apps",
+        "settings",
+        "embeds",
+        "mentions",
+        "inspirations",
+        "newchatsuggestions",
+        "server",
+        "docs",
+      ]) {
+        assert.ok(output.includes(command), `expected top-level help to mention ${command}`);
+        assert.ok(doc.includes(command), `expected user guide overview to mention ${command}`);
+      }
+      assert.ok(!doc.includes("e2e provision-auth-accounts"));
+    });
+    docAssert("cli-authentication-uses-pair-login-command", () => {
+      assert.ok(output.includes("login"));
+      assert.ok(!output.includes("password"));
+    });
+  });
+
+  it("npm README onboarding matches the current command surface", () => {
+    const readme = readRepoText("frontend/packages/openmates-cli/README.md");
+    const help = runCli(["--help"]);
+    docAssert("cli-npm-readme-onboarding-matches-command-surface", () => {
+      for (const command of ["login", "signup", "chats", "apps", "settings", "server", "docs"]) {
+        assert.ok(help.includes(command), `expected help to mention ${command}`);
+        assert.ok(readme.includes(`openmates ${command}`), `expected README to include openmates ${command}`);
+      }
+      assert.ok(readme.includes("openmates apps code run"));
+      assert.ok(readme.includes("openmates settings account export data --json"));
+      assert.ok(readme.includes("Predefined settings commands"));
+      assert.ok(!readme.includes("settings get /v1/settings"));
+      assert.ok(!readme.includes("BLOCKED_SETTINGS_POST_PATHS"));
+      assert.ok(readme.includes("BLOCKED_SETTINGS_MUTATE_PATHS"));
+    });
+  });
+
+  it("authentication docs cover both pair login and terminal signup", () => {
+    const doc = readRepoText("docs/user-guide/cli/authentication.md");
+    const signupHelp = runCli(["signup", "--help"]);
+    docAssert("cli-authentication-docs-cover-login-and-signup", () => {
+      assert.ok(doc.includes("openmates login"));
+      assert.ok(doc.includes("openmates signup"));
+      assert.ok(doc.includes("hidden prompts"));
+      assert.ok(signupHelp.includes("--backup-codes-output"));
+      assert.ok(!doc.includes("pair-auth only"));
+    });
+  });
+
+  it("settings docs cover executable notification commands", () => {
+    const doc = readRepoText("docs/user-guide/cli/settings.md");
+    const help = runCli(["settings", "notifications", "--help"]);
+    docAssert("cli-settings-docs-cover-notification-commands", () => {
+      for (const command of [
+        "notifications status",
+        "notifications list",
+        "notifications stream",
+        "notifications email set",
+        "notifications backup set",
+      ]) {
+        assert.ok(help.includes(command), `expected settings help to mention ${command}`);
+        assert.ok(doc.includes(`openmates settings ${command}`), `expected settings docs to mention ${command}`);
+      }
+    });
+  });
+
+  it("apps docs cover code run commands exposed by help", () => {
+    const doc = readRepoText("docs/user-guide/cli/apps-and-skills.md");
+    const help = runCli(["apps", "--help"]);
+    docAssert("cli-apps-docs-cover-code-run-commands", () => {
+      for (const fragment of [
+        "apps code run --language",
+        "apps code run --entry main.py --file",
+        "apps code run --entry main.py --dir",
+      ]) {
+        assert.ok(help.includes(fragment), `expected app help to mention ${fragment}`);
+        assert.ok(doc.includes(`openmates ${fragment}`), `expected apps docs to mention openmates ${fragment}`);
+      }
+    });
+  });
+
+  it("docs command reference matches docs help", () => {
+    const doc = readRepoText("docs/user-guide/cli/docs.md");
+    const help = runCli(["docs", "--help"]);
+    docAssert("cli-docs-command-reference-matches-help", () => {
+      for (const command of ["docs list", "docs search", "docs show", "docs download"]) {
+        assert.ok(help.includes(command), `expected docs help to mention ${command}`);
+        assert.ok(doc.includes(`openmates ${command}`), `expected docs reference to mention ${command}`);
+      }
+      assert.ok(doc.includes("docs download --all"));
+      assert.ok(!doc.includes("docs get"));
+    });
+  });
+
+  it("chat help lists documented chat operations", () => {
+    const output = runCli(["chats", "--help"]);
+    docAssert("cli-chats-help-lists-chat-operations", () => {
+      for (const operation of ["list", "search", "show", "send", "share", "download", "delete", "incognito"]) {
+        assert.ok(output.includes(operation), `expected chat help to mention ${operation}`);
+      }
+    });
+  });
+
+  it("chat docs cover logged-out example chat behavior", () => {
+    const doc = readRepoText("docs/user-guide/cli/chats.md");
+    const output = runCliWithoutSession(["chats", "list", "--limit", "1"]);
+    docAssert("cli-unauthenticated-example-chats", () => {
+      assert.ok(output.includes("EXAMPLE CHAT"));
+      assert.ok(doc.includes("public example chats"));
+      assert.ok(doc.includes("EXAMPLE CHAT"));
+      assert.ok(doc.includes("openmates chats show example-gigantic-airplanes"));
+    });
+  });
+
+  it("embeds and mentions help list sharing and mention operations", () => {
+    const embeds = runCli(["embeds", "--help"]);
+    const mentions = runCli(["mentions", "--help"]);
+    docAssert("cli-embeds-sharing-help-lists-commands", () => {
+      assert.ok(embeds.includes("share"));
+      assert.ok(mentions.includes("search"));
+    });
+  });
+
+  it("embeds docs cover Remotion video create terminal rendering", () => {
+    const doc = readRepoText("docs/user-guide/cli/embeds-and-sharing.md");
+    const renderer = readRepoText("frontend/packages/openmates-cli/src/embedRenderers.ts");
+    docAssert("cli-embeds-docs-cover-remotion-video-create", () => {
+      assert.ok(renderer.includes('case "videos/create"'));
+      assert.ok(renderer.includes("Run again after rendering finishes"));
+      assert.ok(doc.includes("videos/create"));
+      assert.ok(doc.includes("Run the command again after rendering finishes"));
+    });
   });
 });

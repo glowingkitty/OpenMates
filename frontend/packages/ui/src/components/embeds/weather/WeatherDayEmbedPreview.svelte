@@ -68,7 +68,7 @@
 
   function getConditionIcon(): string {
     if (icon) return icon;
-    const normalized = condition.toLowerCase();
+    const normalized = (condition || '').toLowerCase();
     if (normalized.includes('rain')) return '☔';
     if (normalized.includes('cloud')) return '☁';
     if (normalized.includes('snow')) return '❄';
@@ -76,48 +76,38 @@
     return '☀';
   }
 
-  function handleClickCapture(event: MouseEvent): void {
-    if (event.button !== 0 || status !== 'finished') return;
-    onFullscreen();
-  }
 </script>
 
-<div class="weather-day-preview-wrapper" role="presentation" onclickcapture={handleClickCapture}>
-  <UnifiedEmbedPreview
-    {id}
-    appId="weather"
-    skillId="weather_day"
-    skillIconName="weather"
-    {status}
-    skillName={dayTitle}
-    {taskId}
-    {isMobile}
-    {onFullscreen}
-    showSkillIcon={false}
-    customStatusText={statusText || undefined}
-  >
-    {#snippet details({ isMobile: isMobileLayout })}
-      <div class="weather-day-details" class:mobile={isMobileLayout} data-testid="weather-day-preview">
-        <div class="day-title" data-testid="weather-day-date">{dayTitle}</div>
-        <div class="day-weather-icon" data-testid="weather-day-icon" aria-hidden="true">{getConditionIcon()}</div>
-        <div class="day-temp" data-testid="weather-day-temperature">{formatTemp(temperatureMinC, temperatureMaxC)}</div>
-        <div class="day-condition" data-testid="weather-day-condition">{condition || '—'}</div>
-        <div class="day-metrics" data-testid="weather-day-metrics">
-          <span>{precipitationTotalMm ?? 0} mm</span>
-          <span>{precipitationProbabilityMaxPct ?? 0}%</span>
-          <span>{rainHours ?? 0}h rain</span>
-        </div>
+<UnifiedEmbedPreview
+  {id}
+  appId="weather"
+  skillId="weather_day"
+  skillIconName="weather"
+  {status}
+  skillName={dayTitle}
+  {taskId}
+  {isMobile}
+  {onFullscreen}
+  showStatus={false}
+  showSkillIcon={false}
+  customStatusText={statusText || undefined}
+>
+  {#snippet details({ isMobile: isMobileLayout })}
+    <div class="weather-day-details" class:mobile={isMobileLayout} data-testid="weather-day-preview">
+      <div class="day-title" data-testid="weather-day-date">{dayTitle}</div>
+      <div class="day-weather-icon" data-testid="weather-day-icon" aria-hidden="true">{getConditionIcon()}</div>
+      <div class="day-temp" data-testid="weather-day-temperature">{formatTemp(temperatureMinC, temperatureMaxC)}</div>
+      <div class="day-condition" data-testid="weather-day-condition">{condition || '—'}</div>
+      <div class="day-metrics" data-testid="weather-day-metrics">
+        <span>{precipitationTotalMm ?? 0} mm</span>
+        <span>{precipitationProbabilityMaxPct ?? 0}%</span>
+        <span>{rainHours ?? 0}h rain</span>
       </div>
-    {/snippet}
-  </UnifiedEmbedPreview>
-</div>
+    </div>
+  {/snippet}
+</UnifiedEmbedPreview>
 
 <style>
-  .weather-day-preview-wrapper {
-    display: block;
-    width: 100%;
-  }
-
   .weather-day-details {
     display: flex;
     flex-direction: column;

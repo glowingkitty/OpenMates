@@ -154,7 +154,7 @@ The message processing system uses a multi-phase approach...
 
 ## Message Processing
 
-For details, see [Message Processing Architecture](../architecture/message-processing.md)
+For details, see [Message Processing Architecture](../../architecture/messaging/message-processing.md)
 ```
 
 ### Navigation

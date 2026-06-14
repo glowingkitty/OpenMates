@@ -857,6 +857,15 @@
         }
     }
 
+    function handleBankTransferPaymentStateChange(event: CustomEvent<{ state: 'success' | string, provider?: string, payment_intent_id?: string }>) {
+        if (event.detail?.state === 'success') {
+            paymentState = 'success';
+            paymentIntentId = event.detail.payment_intent_id || null;
+            lastOrderId = event.detail.payment_intent_id || lastOrderId;
+        }
+        dispatch('paymentStateChange', event.detail);
+    }
+
     // Handle gift card created notification from server
     // This is called when the webhook creates a gift card after payment
     function handleGiftCardCreated(payload: { order_id: string, gift_card_code: string, credits_value: number }) {
@@ -897,10 +906,10 @@
                     gift_card_code: payload.gift_card_code,
                     credits_value: payload.credits_value
                 });
-            } else if (paymentState === 'success') {
+            } else if (paymentState === 'success' || isGiftCard) {
                 // Already in success state, but dispatch again with gift card info
                 // Use stored payment_intent_id if available, otherwise fall back to lastOrderId
-                const intentId = paymentIntentId || lastOrderId;
+                const intentId = paymentIntentId || lastOrderId || payload.order_id;
                 dispatch('paymentStateChange', { 
                     state: paymentState,
                     payment_intent_id: intentId,
@@ -1033,7 +1042,8 @@
                 emailEncryptionKey={cryptoService.getEmailEncryptionKeyForApi() || ''}
                 isSignup={isSignupFlow}
                 allowContinueWithoutPayment={isSignupFlow}
-                on:paymentStateChange={(e) => dispatch('paymentStateChange', e.detail)}
+                isGiftCard={isGiftCard}
+                on:paymentStateChange={handleBankTransferPaymentStateChange}
             />
         </div>
     {:else if useManagedPayments && !supportContribution}
@@ -1081,6 +1091,7 @@
                     <div class="provider-switch-container">
                         <button
                             class="provider-switch-btn"
+                            data-testid="switch-to-non-eu"
                             onclick={() => switchPaymentMode('managed')}
                             disabled={isLoading}
                         >
@@ -1137,6 +1148,7 @@
                 <div class="provider-switch-container">
                     <button
                         class="provider-switch-btn"
+                        data-testid="switch-to-non-eu"
                         onclick={() => switchPaymentMode('managed')}
                         disabled={isLoading}
                     >

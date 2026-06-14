@@ -2,7 +2,7 @@ import { expect, test } from './helpers/cookie-audit';
 /**
  * Embed App Showcase Tests
  *
- * Tests the /dev/preview/embeds/<app> pages for all 17 registered apps.
+ * Tests the /dev/preview/embeds/<app> pages for all registered apps.
  * These pages render every embed display type (Inline Link, Quote Block,
  * Group — Small, Group — Large, Fullscreen) using static mock data from
  * .preview.ts files — no login or AI calls required.
@@ -35,6 +35,7 @@ const ALL_APPS = [
 	'travel',
 	'maps',
 	'math',
+	'music',
 	'events',
 	'reminder',
 	'sheets',
@@ -42,7 +43,12 @@ const ALL_APPS = [
 	'health',
 	'mail',
 	'pdf',
-	'shopping'
+	'shopping',
+	'electronics',
+	'home',
+	'nutrition',
+	'social_media',
+	'weather'
 ] as const;
 
 /**
@@ -62,7 +68,12 @@ const SEARCH_SKILLS: Record<string, string[]> = {
 	travel: ['Search', 'Stays Search'],
 	events: ['Search'],
 	health: ['Search'],
-	shopping: ['Search']
+	shopping: ['Search'],
+	electronics: ['Search Components'],
+	home: ['Search'],
+	nutrition: ['Search'],
+	social_media: ['Get Posts', 'Search'],
+	weather: ['Forecast']
 };
 
 const PREVIEW_AUTH_NOISE_APPS = new Set(['videos', 'images', 'audio', 'pdf']);

@@ -15,6 +15,9 @@
  * - PDFs (.pdf):
  *   Uploaded to S3 → PDF embed created → background OCR triggered
  *
+ * - Audio (.mp3, .wav, .webm, etc.):
+ *   Uploaded to S3 → audio-recording embed created for audio.transcribe
+ *
  * - Sensitive files (.env, .pem, .key, SSH keys):
  *   .env: zero-knowledge processing (only names + last 3 chars shown)
  *   .pem/.key/SSH: blocked by default
@@ -31,6 +34,7 @@ import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import type { OutputRedactor } from "./outputRedactor.js";
 import {
+  createEmbedRef,
   generateEmbedId,
   toonEncodeContent,
   createEmbedReferenceBlock,
@@ -76,6 +80,11 @@ const IMAGE_EXTENSIONS = new Set([
   "jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "bmp", "tiff", "tif", "svg",
 ]);
 
+/** Audio file extensions supported by the upload service and audio.transcribe skill. */
+const AUDIO_EXTENSIONS = new Set([
+  "mp3", "m4a", "mp4", "wav", "webm", "ogg", "oga", "aac",
+]);
+
 /** Check if a filename matches .env or .env.* pattern */
 function isEnvFile(filename: string): boolean {
   const lower = filename.toLowerCase();
@@ -105,6 +114,11 @@ function isImageFile(filename: string): boolean {
 /** Check if filename is a PDF */
 function isPDFFile(filename: string): boolean {
   return getExt(filename) === "pdf";
+}
+
+/** Check if filename is an audio file. */
+function isAudioFile(filename: string): boolean {
+  return AUDIO_EXTENSIONS.has(getExt(filename));
 }
 
 // ── Language detection ─────────────────────────────────────────────────
@@ -142,7 +156,7 @@ export interface ProcessedFileEmbed {
   secretsRedacted: boolean;
   /** Whether this was zero-knowledge .env processing */
   zeroKnowledge: boolean;
-  /** Whether this requires S3 upload (images, PDFs) */
+  /** Whether this requires S3 upload (images, PDFs, audio) */
   requiresUpload: boolean;
   /** For upload files: the local file path for upload */
   localPath?: string;
@@ -300,10 +314,14 @@ export function processFiles(
       const result = processPDFFile(resolvedPath, filename);
       if (result) embeds.push(result);
       else errors.push({ path: rawPath, error: "Failed to process PDF" });
+    } else if (isAudioFile(filename)) {
+      const result = processAudioFile(resolvedPath, filename);
+      if (result) embeds.push(result);
+      else errors.push({ path: rawPath, error: "Failed to process audio" });
     } else {
       errors.push({
         path: rawPath,
-        error: `Unsupported file type: .${ext}. Supported: code/text, images, PDFs.`,
+        error: `Unsupported file type: .${ext}. Supported: code/text, images, PDFs, audio.`,
       });
     }
   }
@@ -347,22 +365,26 @@ function processCodeFile(
     const language = detectLanguage(filename);
     const lineCount = content.split("\n").length;
 
+    const embedId = generateEmbedId();
+    const embedRef = createEmbedRef("code", `${filename}:${embedId}`);
+
     // Build TOON content (mirrors codeEmbedService.ts)
     const embedContent = toonEncodeContent({
       type: "code",
       language,
       code: content,
       filename,
+      embed_ref: embedRef,
       status: "finished",
       line_count: lineCount,
     });
 
-    const embedId = generateEmbedId();
     const textPreview = `${filename} (${language}, ${lineCount} lines)`;
     const contentHash = createHash("sha256").update(content).digest("hex");
 
     const embed: PreparedEmbed = {
       embedId,
+      embedRef,
       type: "code-code",
       content: embedContent,
       textPreview,
@@ -374,7 +396,7 @@ function processCodeFile(
 
     return {
       embed,
-      referenceBlock: createEmbedReferenceBlock("code", embedId),
+      referenceBlock: createEmbedReferenceBlock(embedRef),
       displayName: filename,
       secretsRedacted,
       zeroKnowledge,
@@ -400,6 +422,7 @@ function processImageFile(
 ): ProcessedFileEmbed | null {
   try {
     const embedId = generateEmbedId();
+    const embedRef = createEmbedRef("image", `${filename}:${embedId}`);
 
     // Create a placeholder embed — real content comes from upload response
     const embedContent = toonEncodeContent({
@@ -408,10 +431,12 @@ function processImageFile(
       skill_id: "upload",
       status: "uploading",
       filename,
+      embed_ref: embedRef,
     });
 
     const embed: PreparedEmbed = {
       embedId,
+      embedRef,
       type: "image",
       content: embedContent,
       textPreview: filename,
@@ -420,7 +445,7 @@ function processImageFile(
 
     return {
       embed,
-      referenceBlock: createEmbedReferenceBlock("image", embedId),
+      referenceBlock: createEmbedReferenceBlock(embedRef),
       displayName: filename,
       secretsRedacted: false,
       zeroKnowledge: false,
@@ -446,15 +471,18 @@ function processPDFFile(
 ): ProcessedFileEmbed | null {
   try {
     const embedId = generateEmbedId();
+    const embedRef = createEmbedRef("pdf", `${filename}:${embedId}`);
 
     const embedContent = toonEncodeContent({
       type: "pdf",
       status: "uploading",
       filename,
+      embed_ref: embedRef,
     });
 
     const embed: PreparedEmbed = {
       embedId,
+      embedRef,
       type: "pdf",
       content: embedContent,
       textPreview: filename,
@@ -463,7 +491,54 @@ function processPDFFile(
 
     return {
       embed,
-      referenceBlock: createEmbedReferenceBlock("pdf", embedId),
+      referenceBlock: createEmbedReferenceBlock(embedRef),
+      displayName: filename,
+      secretsRedacted: false,
+      zeroKnowledge: false,
+      requiresUpload: true,
+      localPath: filePath,
+    };
+  } catch (e) {
+    process.stderr.write(
+      `\x1b[31mError:\x1b[0m Failed to process ${filename}: ${e instanceof Error ? e.message : String(e)}\n`,
+    );
+    return null;
+  }
+}
+
+/**
+ * Process an audio file for S3 upload.
+ * The uploaded file becomes an audio-recording embed that audio.transcribe can consume.
+ */
+function processAudioFile(
+  filePath: string,
+  filename: string,
+): ProcessedFileEmbed | null {
+  try {
+    const embedId = generateEmbedId();
+    const embedRef = createEmbedRef("audio-recording", `${filename}:${embedId}`);
+
+    const embedContent = toonEncodeContent({
+      app_id: "audio",
+      skill_id: "transcribe",
+      type: "audio-recording",
+      status: "uploading",
+      filename,
+      embed_ref: embedRef,
+    });
+
+    const embed: PreparedEmbed = {
+      embedId,
+      embedRef,
+      type: "audio-recording",
+      content: embedContent,
+      textPreview: filename,
+      status: "processing",
+    };
+
+    return {
+      embed,
+      referenceBlock: createEmbedReferenceBlock(embedRef),
       displayName: filename,
       secretsRedacted: false,
       zeroKnowledge: false,
@@ -480,7 +555,7 @@ function processPDFFile(
 
 /**
  * Format embed reference blocks for message content.
- * Returns text to append to the message (embed JSON references).
+ * Returns text to append to the message (markdown embed references).
  */
 export function formatEmbedsForMessage(embeds: ProcessedFileEmbed[]): string {
   if (embeds.length === 0) return "";

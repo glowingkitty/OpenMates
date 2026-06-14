@@ -333,10 +333,12 @@ async def _build_chat_details_from_cache(
         "encrypted_icon": cached_list_item.encrypted_icon,
         "encrypted_category": cached_list_item.encrypted_category,
         "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+        "encrypted_share_cta_text": cached_list_item.encrypted_share_cta_text,
         "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
         "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
         "encrypted_top_recommended_apps_for_chat": cached_list_item.encrypted_top_recommended_apps_for_chat,
         "encrypted_quick_tip_slugs": cached_list_item.encrypted_quick_tip_slugs,
+        "encrypted_shared_short_url": cached_list_item.encrypted_shared_short_url,
         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
         "last_message_timestamp": cached_list_item.last_message_timestamp,
         "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
@@ -368,10 +370,12 @@ def _build_chat_details_from_directus_metadata(
         "encrypted_icon": chat_metadata.get("encrypted_icon"),
         "encrypted_category": chat_metadata.get("encrypted_category"),
         "encrypted_chat_summary": chat_metadata.get("encrypted_chat_summary"),
+        "encrypted_share_cta_text": chat_metadata.get("encrypted_share_cta_text"),
         "encrypted_chat_tags": chat_metadata.get("encrypted_chat_tags"),
         "encrypted_follow_up_request_suggestions": chat_metadata.get("encrypted_follow_up_request_suggestions"),
         "encrypted_top_recommended_apps_for_chat": chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
         "encrypted_quick_tip_slugs": chat_metadata.get("encrypted_quick_tip_slugs"),
+        "encrypted_shared_short_url": chat_metadata.get("encrypted_shared_short_url"),
         "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
         "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
         "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
@@ -973,6 +977,14 @@ async def _handle_phase2_sync(
                             all_recent_chats.append(chat_wrapper)
                 except Exception as e:
                     logger.error(f"Phase 2: Failed to fetch chats from Directus: {e}", exc_info=True)
+
+            if not all_recent_chats and total_chat_count > 0:
+                logger.warning(
+                    "Phase 2: Cached chat IDs produced no metadata despite nonzero total; falling back to user chat list"
+                )
+                all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
+                    user_id, limit=100
+                )
 
         if not all_recent_chats:
             logger.info(f"Phase 2: No chats found for user {user_id}")

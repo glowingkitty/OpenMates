@@ -115,6 +115,7 @@ export async function handleInitialSyncResponseImpl(
           encrypted_chat_key: serverChat.encrypted_chat_key, // Add encrypted chat key for decryption
           encrypted_icon: serverChat.encrypted_icon, // Add encrypted icon for decryption
           encrypted_category: serverChat.encrypted_category, // Add encrypted category for decryption
+          encrypted_shared_short_url: serverChat.encrypted_shared_short_url,
           last_edited_overall_timestamp:
             serverChat.last_edited_overall_timestamp,
           unread_count: serverChat.unread_count,

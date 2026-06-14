@@ -5,5 +5,6 @@
 # workers without importing skill modules from unrelated apps.
 
 from backend.apps.code.tasks.run_code_task import run_code_execution_task
+from backend.apps.code.tasks.run_application_preview_task import run_application_preview_task
 
-__all__ = ["run_code_execution_task"]
+__all__ = ["run_code_execution_task", "run_application_preview_task"]

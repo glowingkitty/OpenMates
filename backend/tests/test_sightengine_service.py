@@ -31,6 +31,7 @@ import importlib.util
 import io
 import json
 import sys
+from types import SimpleNamespace
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -67,6 +68,11 @@ except Exception as _e:
     _hct_load_error = str(_e)
     _HEALTH_CHECK_TASKS_AVAILABLE = False
     _hct = None
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
 
 # ---------------------------------------------------------------------------
 # Helpers — build realistic fake Sightengine JSON responses
@@ -427,6 +433,32 @@ class TestHealthCheckProbe:
         # If base64.b64decode raised at module load, _HEALTH_CHECK_TASKS_AVAILABLE
         # would be False and this class would be skipped. This test documents intent.
         assert isinstance(_hct.SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES, bytes)
+
+    def test_cerebras_health_check_uses_production_model(self, monkeypatch):
+        """Cerebras health checks should not probe preview app models by default."""
+        monkeypatch.delenv("CEREBRAS_HEALTH_CHECK_MODEL_ID", raising=False)
+
+        assert _hct._get_cheapest_model_for_server("cerebras") == "cerebras/gpt-oss-120b"
+
+    @pytest.mark.anyio
+    async def test_cerebras_health_check_calls_client_directly(self):
+        calls = []
+
+        async def fake_cerebras_client(**kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(success=True)
+
+        with patch.object(_hct, "_get_provider_client", return_value=fake_cerebras_client):
+            success, error, response_time_ms = await _hct._check_provider_via_test_request(
+                "cerebras",
+                "cerebras/gpt-oss-120b",
+                AsyncMock(),
+            )
+
+        assert success is True
+        assert error is None
+        assert response_time_ms is not None
+        assert calls[0]["model_id"] == "gpt-oss-120b"
 
     @pytest.mark.asyncio
     async def test_health_check_uses_post_with_files_not_get_with_url(self):

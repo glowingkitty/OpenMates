@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-getting-started-source
+    type: unit
+    claim: Getting started guidance is grounded in chat, apps, billing, onboarding, and privacy architecture sources.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-getting-started-source
 ---
 
 # Getting Started
@@ -11,7 +20,7 @@ last_verified: 2026-03-24
 
 - **Privacy by design** -- Your messages are encrypted in your browser before being sent to our servers. Everything on disk, in caches, and in backups is ciphertext. The server decrypts content only transiently in memory when you actively need an AI response.
 - **Open source** -- The entire codebase is publicly available and transparent.
-- **Pay only for what you use** -- No subscriptions. You buy credits and spend them as you go.
+- **Credit-based usage** -- You buy credits and spend them as you use paid requests and app skills.
 - **Smart model selection** -- OpenMates automatically picks the best digital team mate for each request.
 - **Built-in apps** -- Web search, code assistance, documents, videos, music, and more are included.
 
@@ -36,7 +45,7 @@ last_verified: 2026-03-24
 - [Apps](apps/README.md) -- Explore built-in apps and skills
 - [Chats](chats.md) -- Managing your conversations
 - [Keyboard Shortcuts](keyboard-shortcuts.md) -- Speed up your workflow
-- [Pricing](pricing.md) -- How credits work
+- [Pricing](billing/pricing.md) -- How credits work
 - [Memories](apps/settings-and-memories.md) -- Personalise your experience
 
 ## Community

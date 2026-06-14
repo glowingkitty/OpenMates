@@ -1,0 +1,369 @@
+id: passkey-linux-compatibility
+title: Linux-Compatible Passkey Registration
+status: approved
+
+goal: >
+  Improve passkey support for Linux users without weakening OpenMates'
+  zero-knowledge encryption model. Passkeys must still require WebAuthn PRF,
+  discoverable credentials, and user verification before any master key is
+  wrapped or unwrapped.
+
+scope:
+  in:
+    - Align WebAuthn registration and authentication options with backend user-verification enforcement.
+    - Permit PRF-capable roaming authenticators such as USB security keys during passkey registration.
+    - Add a registration fallback that derives the PRF output through an immediate WebAuthn assertion when creation does not return PRF results.
+    - Keep password signup and existing login/recovery flows working.
+  out:
+    - Supporting non-PRF passkeys.
+    - Supporting non-discoverable credentials for passwordless login.
+    - Native Linux OS passkey provider work outside the browser.
+    - Relaxing zero-knowledge master-key wrapping requirements.
+
+context_discovery:
+  github_issues:
+    - "#55: implement passkeys with client-side encrypted chats, app settings, and memories"
+    - "GitHub MCP issue search unavailable: 401 Bad credentials; gh CLI fallback used."
+  docs:
+    - docs/architecture/core/passkeys.md
+    - docs/architecture/core/signup-and-auth.md
+    - docs/architecture/core/master-key-lifecycle.md
+    - docs/contributing/guides/spec-driven-development.md
+  external_references:
+    - "MDN WebAuthn extensions: PRF is available in create() and get(), but creation can report PRF enabled without returning evaluation results."
+    - "Yubico PRF guide: robust registration enables PRF at creation, then derives the secret through authentication when needed."
+    - "Google passkey support docs: Chrome on Linux supports passkeys via Google Password Manager."
+    - "Mozilla WebAuthn discussion: Linux lacks a native platform passkey provider in Firefox context; USB security keys are a main Linux path."
+  code_patterns:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+    - frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte
+    - frontend/packages/ui/src/components/settings/SettingsPasskeys.svelte
+    - frontend/packages/ui/src/components/Login.svelte
+  tests:
+    - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    - frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    - frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    - frontend/apps/web_app/tests/location-security-flow.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - No Apple app UI or native passkey implementation is changed by this web WebAuthn compatibility slice.
+  verification:
+    - Apple not affected; browser WebAuthn code only.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: For the first implementation slice, should all three safe changes be included now, or only the lower-risk backend option changes first?
+      answer: All three now.
+  vision_summary: >
+    Keep passkeys secure and PRF-only, but stop unnecessarily excluding Linux-compatible security-key flows. Align requested WebAuthn options with backend enforcement and add a fallback for authenticators that support PRF but do not return PRF evaluation output during credential creation.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Linux user registers with a PRF-capable roaming authenticator
+    given:
+      - A user signs up in a browser with a discoverable, user-verifying, PRF-capable roaming authenticator.
+    when:
+      - The user selects passkey signup.
+    then:
+      - The browser is not restricted to platform authenticators only.
+      - The passkey is created and the master key is wrapped using PRF-derived key material.
+      - The user lands in chat after signup.
+
+  - id: S-2
+    title: Browser prompts for user verification consistently
+    given:
+      - A user registers or authenticates with passkey.
+    when:
+      - OpenMates sends WebAuthn options to the browser.
+    then:
+      - The options require user verification.
+      - Backend verification no longer contradicts browser options by requiring verification after only preferring it.
+
+  - id: S-3
+    title: PRF is derived after creation when creation omits PRF output
+    given:
+      - "A browser or authenticator enables PRF during credential creation but does not return `prf.results.first` from `create()`."
+    when:
+      - The passkey registration flow continues.
+    then:
+      - "The client immediately performs a scoped `navigator.credentials.get()` for the newly-created credential."
+      - "The client uses `get()` PRF output to wrap the master key."
+      - Registration is blocked if PRF output is still missing.
+
+  - id: S-4
+    title: Existing auth flows keep working
+    given:
+      - Existing password, recovery-key, backup-code, and location re-auth flows are available.
+    when:
+      - The passkey compatibility changes are deployed.
+    then:
+      - Signup and login-related Playwright specs continue to pass against app.dev.openmates.org.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: "Passkey registration options no longer force `authenticatorAttachment: platform`, while still requiring resident/discoverable credentials and PRF validation."
+  - id: AC-2
+    scenario: S-2
+    text: "Registration and authentication options request `userVerification: required` wherever backend verification requires user verification."
+  - id: AC-3
+    scenario: S-3
+    text: "Registration uses PRF output from `create()` when available and falls back to immediate `get()` for the new credential when needed."
+  - id: AC-4
+    scenario: S-4
+    text: Passkey, signup, and login-related E2E specs pass after deployment to Vercel dev.
+
+contracts:
+  api:
+    - route: POST /v1/auth/passkey/registration/initiate
+      response: "PublicKeyCredentialCreationOptions"
+      changes:
+        - "`authenticatorSelection.residentKey` remains `required`."
+        - "`authenticatorSelection.userVerification` becomes `required`."
+        - "`authenticatorSelection.authenticatorAttachment` is omitted to allow platform and cross-platform authenticators."
+    - route: POST /v1/auth/passkey/assertion/initiate
+      response: "PublicKeyCredentialRequestOptions"
+      changes:
+        - "`userVerification` becomes `required`."
+  data:
+    - No schema changes.
+    - Stored passkey rows and encrypted master-key blobs keep the same format.
+  ui_states:
+    - Passkey signup success.
+    - PRF unsupported error with password fallback.
+    - Passkey cancellation leaves the user on the secure-account choice.
+  privacy_security:
+    - PRF remains mandatory.
+    - Master key is never sent to the server in plaintext.
+    - Non-user-verified assertions remain rejected.
+    - Non-discoverable credentials remain unsupported for passwordless login.
+
+tests:
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    command: python3 scripts/run_tests.py --spec signup-flow-passkey.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+    assertions:
+      - passkey signup completes with a PRF-capable virtual authenticator
+      - account deletion can be confirmed by passkey authentication
+      - no missing translations after signup
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: direct-api-contract-2026-06-09T19:38Z
+        timestamp: "2026-06-09T19:38:00Z"
+        notes: "Live dev API returned authenticatorAttachment=platform and userVerification=preferred before implementation. Dirty spec changes could not be dispatched by run_tests.py because the remote runner uses committed test code."
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: "github-actions-27232775475"
+        timestamp: "2026-06-09T20:12:03Z"
+        notes: "Passed against app.dev.openmates.org after Vercel deployed the current dev commit and the api service was rebuilt with commit a9be1ed. Earlier run github-actions-27232386092 failed because the backend container still served stale options with authenticatorAttachment=platform."
+
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec signup-skip-2fa-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+    assertions:
+      - password signup completes
+      - password login still works
+      - delete-account email OTP path still works for password-only users
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: "not_required_existing_flow"
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: "github-actions-27233115881"
+        timestamp: "2026-06-09T20:19:07Z"
+        notes: "Passed against app.dev.openmates.org after Vercel deployment dpl_3sXy7PQdruFPpMWDAeU5eLzNbbRS was Ready."
+
+  - id: T-E2E-003
+    type: playwright
+    file: frontend/apps/web_app/tests/recovery-key-login-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec recovery-key-login-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+    assertions:
+      - recovery-key login still works
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: "not_required_existing_flow"
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: blocked
+        run_id: "github-actions-27233330601"
+        timestamp: "2026-06-09T20:21:42Z"
+        notes: "Spec did not execute product flow: recovery-key-login-flow.spec.ts is missing isolated credentials for source slot 17 (credential slot 1). Base OPENMATES_TEST_ACCOUNT_* fallback is disabled for this spec."
+
+  - id: T-E2E-004
+    type: playwright
+    file: frontend/apps/web_app/tests/backup-code-login-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec backup-code-login-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+    assertions:
+      - backup-code login still works
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: "not_required_existing_flow"
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: blocked
+        run_id: "github-actions-27233419627"
+        timestamp: "2026-06-09T20:23:19Z"
+        notes: "Spec did not execute product flow: backup-code-login-flow.spec.ts is missing isolated credentials for source slot 15 (credential slot 1). Base OPENMATES_TEST_ACCOUNT_* fallback is disabled for this spec."
+
+implementation_plan:
+  existing_patterns:
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py manually adds PRF extension to py_webauthn options.
+    - SecureAccountTopContent.svelte and SettingsPasskeys.svelte both extract PRF output before wrapping the master key.
+    - "signup-flow-passkey.spec.ts uses Chrome DevTools virtual authenticators with `hasPrf: true`."
+  architecture: >
+    Keep the server-side WebAuthn and storage contract unchanged. Relax only the authenticator attachment selector, tighten user-verification options to match backend requirements, and add a client-side helper that can derive PRF through an immediate assertion for a newly-created credential when creation output is incomplete.
+  data_flow:
+    - Client asks server for registration options.
+    - Browser creates a discoverable PRF-capable credential with required user verification.
+    - Client reads PRF output from create() or falls back to get() scoped to the new credential.
+    - Client derives the wrapping key and uploads the same encrypted passkey registration payload as before.
+  affected_files:
+    - path: backend/core/api/app/routes/auth_routes/auth_passkey.py
+      reason: WebAuthn registration/authentication option safety and Linux security-key compatibility.
+    - path: frontend/packages/ui/src/services/cryptoService.ts
+      reason: Shared PRF result extraction/fallback helper.
+    - path: frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+      reason: Passkey signup PRF fallback.
+    - path: frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte
+      reason: Legacy passkey registration component PRF fallback.
+    - path: frontend/packages/ui/src/components/settings/SettingsPasskeys.svelte
+      reason: Adding passkeys after signup must use the same PRF fallback.
+    - path: frontend/packages/ui/src/components/AccountRecovery.svelte
+      reason: Account recovery passkey setup must use the same PRF fallback.
+    - path: frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+      reason: E2E coverage for roaming-compatible passkey registration.
+    - path: frontend/packages/ui/src/i18n/sources/signup/main.yml
+      reason: PRF unsupported copy should mention browser, device, and password-manager support.
+    - path: docs/architecture/core/passkeys.md
+      reason: Update support and registration flow documentation.
+    - path: docs/architecture/core/signup-and-auth.md
+      reason: Update signup passkey registration flow documentation.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/passkey-linux-compatibility/spec.yml
+    - python3 scripts/run_tests.py --spec signup-flow-passkey.spec.ts
+    - Deploy to dev via sessions.py deploy.
+    - Wait for Vercel Ready.
+    - python3 scripts/run_tests.py --spec signup-flow-passkey.spec.ts
+    - python3 scripts/run_tests.py --spec signup-skip-2fa-flow.spec.ts
+    - python3 scripts/run_tests.py --spec recovery-key-login-flow.spec.ts
+    - python3 scripts/run_tests.py --spec backup-code-login-flow.spec.ts
+    - python3 scripts/spec_verify.py docs/specs/passkey-linux-compatibility/spec.yml
+
+tasks:
+  - id: TASK-1
+    title: Add passkey compatibility regression coverage
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Align backend WebAuthn options with security requirements
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add frontend PRF post-create fallback
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - frontend/packages/ui/src/services/cryptoService.ts
+      - frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte
+      - frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte
+      - frontend/packages/ui/src/components/settings/SettingsPasskeys.svelte
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Deploy and verify passkey/signup/login specs
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-4
+    expected_files:
+      - docs/specs/passkey-linux-compatibility/spec.yml
+    verification:
+      - T-E2E-001
+      - T-E2E-002
+      - T-E2E-003
+      - T-E2E-004
+    independently_deployable: true
+
+risks:
+  - Some authenticators may prompt twice only when PRF output is missing from creation; this is preferable to rejecting compatible PRF authenticators.
+  - Allowing cross-platform authenticators broadens supported hardware but keeps PRF, discoverable credential, and user verification constraints.
+  - Playwright virtual authenticator behavior may differ from physical Linux security keys; production user reports remain important.
+
+open_questions:
+  - none

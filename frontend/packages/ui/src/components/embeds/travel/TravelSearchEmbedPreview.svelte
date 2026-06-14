@@ -121,7 +121,6 @@
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  let isLoadingChildren = $state(false);
 
   // Initialize local state from props
   $effect(() => {
@@ -173,68 +172,9 @@
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
 
-      // Load child embeds if parent has embed_ids but no results
-      if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || content.results.length === 0)) {
-        const embedIds = content.embed_ids;
-        if (embedIds) {
-          const childEmbedIds: string[] = typeof embedIds === 'string'
-            ? (embedIds as string).split('|').filter((cid: string) => cid.length > 0)
-            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
-          
-          if (childEmbedIds.length > 0 && !isLoadingChildren) {
-            console.debug(`[TravelSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
-            isLoadingChildren = true;
-            loadChildEmbedsForPreview(childEmbedIds);
-          }
-        }
-      }
-      
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results as Array<ConnectionResult | SearchResultGroup>;
       }
-    }
-  }
-  
-  /**
-   * Load child embeds to extract connection data for preview display
-   * Uses retry logic because child embeds might not be persisted yet
-   */
-  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
-    try {
-      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
-      
-      if (childEmbeds.length > 0) {
-        const connectionResults = await Promise.all(childEmbeds.map(async (embed) => {
-          const content = embed.content ? await decodeToonContent(embed.content) : null;
-          if (!content) return null;
-          
-          return {
-            type: content.type as string || 'connection',
-            transport_method: content.transport_method as string || 'airplane',
-            trip_type: content.trip_type as string || 'one_way',
-            total_price: content.total_price as string || undefined,
-            currency: content.currency as string || undefined,
-            origin: content.origin as string || undefined,
-            destination: content.destination as string || undefined,
-            departure: content.departure as string || undefined,
-            arrival: content.arrival as string || undefined,
-            duration: content.duration as string || undefined,
-            stops: content.stops as number || 0,
-            carriers: content.carriers as string[] || [],
-          } as ConnectionResult;
-        }));
-        
-        const valid = connectionResults.filter(r => r !== null) as ConnectionResult[];
-        if (valid.length > 0) {
-          localResults = valid;
-          console.debug(`[TravelSearchEmbedPreview] Loaded ${valid.length} connection results from child embeds`);
-        }
-      }
-    } catch (error) {
-      console.warn('[TravelSearchEmbedPreview] Error loading child embeds for preview:', error);
-    } finally {
-      isLoadingChildren = false;
     }
   }
   
@@ -434,13 +374,9 @@
       {:else if status === 'finished'}
         <!-- Finished state: show connection count and price -->
         <div class="ds-search-results-info">
-          {#if isLoadingChildren}
-            <span class="ds-loading-text">{$text('common.loading')}</span>
-          {:else}
-            <span class="connection-count">
-              {connectionCount} {connectionCount === 1 ? $text('embeds.connection') : $text('embeds.connections')}
-            </span>
-          {/if}
+          <span class="connection-count">
+            {connectionCount} {connectionCount === 1 ? $text('embeds.connection') : $text('embeds.connections')}
+          </span>
 
           {#if priceInfo}
             <span class="price-info">{priceInfo}</span>

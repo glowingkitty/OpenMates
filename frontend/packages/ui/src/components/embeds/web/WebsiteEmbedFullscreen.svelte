@@ -28,6 +28,7 @@
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyFavicon, proxyImage, MAX_WIDTH_HEADER_IMAGE, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
+  import { searchTextHighlightStore } from '../../../stores/messageHighlightStore';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
 
   /**
@@ -83,6 +84,8 @@
   let image = $derived(typeof dc.image === 'string' ? dc.image : (typeof attrs.image === 'string' ? attrs.image : undefined));
   let extra_snippets = $derived(dc.extra_snippets as string | string[] | undefined);
   let dataDate = $derived(typeof dc.page_age === 'string' ? dc.page_age : undefined);
+  let highlightQuoteText = $derived(data.highlightQuoteText ?? $searchTextHighlightStore ?? null);
+  let contentEl: HTMLDivElement | undefined = $state(undefined);
   
   // ===========================================
   // HTML Tag Stripping (Client-side fallback)
@@ -225,6 +228,22 @@
   
   // Strip HTML tags from each snippet as fallback
   let cleanedSnippets = $derived(snippets.map(snippet => stripHtmlTags(snippet)));
+
+  type HighlightPart = { text: string; highlighted: boolean };
+
+  function getSourceQuoteParts(text: string): HighlightPart[] {
+    const quote = highlightQuoteText?.trim();
+    if (!quote) return [{ text, highlighted: false }];
+
+    const match = findSourceQuoteMatch(text, quote);
+    if (!match) return [{ text, highlighted: false }];
+
+    return [
+      { text: text.slice(0, match.start), highlighted: false },
+      { text: text.slice(match.start, match.end), highlighted: true },
+      { text: text.slice(match.end), highlighted: false },
+    ].filter((part) => part.text.length > 0);
+  }
   
   // Favicon URL with fallback chain
   // SECURITY: All favicon sources must be proxied to prevent user IP leaks.
@@ -371,6 +390,135 @@
   
   // Track image loading error to hide broken images
   let imageError = $state(false);
+
+  $effect(() => {
+    void cleanedDescription;
+    void cleanedSnippets;
+    const quote = highlightQuoteText?.trim();
+    if (!contentEl) return;
+    if (!quote) {
+      clearSourceQuoteHighlights();
+      return;
+    }
+    const raf = requestAnimationFrame(() => {
+      const declarativeHighlight = contentEl?.querySelector('mark.embed-source-text-highlight');
+      if (declarativeHighlight) {
+        declarativeHighlight.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        return;
+      }
+      highlightSourceQuoteText(quote);
+    });
+    return () => cancelAnimationFrame(raf);
+  });
+
+  function clearSourceQuoteHighlights() {
+    if (!contentEl) return;
+    contentEl.querySelectorAll('mark.embed-source-text-highlight').forEach((el) => {
+      const parent = el.parentNode;
+      if (!parent) return;
+      parent.replaceChild(document.createTextNode(el.textContent || ''), el);
+      parent.normalize();
+    });
+  }
+
+  function highlightSourceQuoteText(quote: string) {
+    if (!contentEl) return;
+    clearSourceQuoteHighlights();
+
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode() as Text | null;
+    while (node) {
+      textNodes.push(node);
+      node = walker.nextNode() as Text | null;
+    }
+
+    const fullText = textNodes.map((textNode) => textNode.nodeValue || '').join('');
+    const match = findSourceQuoteMatch(fullText, quote);
+    if (!match) return;
+
+    const start = locateTextPosition(textNodes, match.start);
+    const end = locateTextPosition(textNodes, match.end);
+    if (!start || !end) return;
+
+    const range = document.createRange();
+    range.setStart(start.node, start.offset);
+    range.setEnd(end.node, end.offset);
+    const marker = document.createElement('mark');
+    marker.className = 'embed-source-text-highlight';
+    marker.dataset.testid = 'embed-source-text-highlight';
+    range.surroundContents(marker);
+    marker.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  }
+
+  function findSourceQuoteMatch(fullText: string, quote: string): { start: number; end: number } | null {
+    const exactIndex = fullText.toLowerCase().indexOf(quote.toLowerCase());
+    if (exactIndex !== -1) return { start: exactIndex, end: exactIndex + quote.length };
+
+    const normalizedFull = normalizeForQuoteMatch(fullText);
+    const normalizedQuote = normalizeForQuoteMatch(quote);
+    const fullQuoteMatch = resolveNormalizedQuoteMatch(normalizedFull, normalizedQuote.text);
+    if (fullQuoteMatch) return fullQuoteMatch;
+
+    const quoteWords = normalizedQuote.text.split(' ').filter(Boolean);
+    for (let wordCount = quoteWords.length - 1; wordCount >= 6; wordCount -= 1) {
+      const prefixMatch = resolveNormalizedQuoteMatch(normalizedFull, quoteWords.slice(0, wordCount).join(' '));
+      if (prefixMatch) return prefixMatch;
+
+      const suffixMatch = resolveNormalizedQuoteMatch(normalizedFull, quoteWords.slice(-wordCount).join(' '));
+      if (suffixMatch) return suffixMatch;
+    }
+
+    return null;
+  }
+
+  function resolveNormalizedQuoteMatch(
+    normalizedFull: { text: string; indexMap: number[] },
+    normalizedQuoteText: string,
+  ): { start: number; end: number } | null {
+    if (!normalizedQuoteText) return null;
+    const normalizedIndex = normalizedFull.text.indexOf(normalizedQuoteText);
+    if (normalizedIndex === -1) return null;
+
+    const start = normalizedFull.indexMap[normalizedIndex];
+    const endMapIndex = normalizedIndex + normalizedQuoteText.length - 1;
+    const end = (normalizedFull.indexMap[endMapIndex] ?? start) + 1;
+    return { start, end };
+  }
+
+  function normalizeForQuoteMatch(value: string): { text: string; indexMap: number[] } {
+    let text = '';
+    const indexMap: number[] = [];
+    let previousWasSpace = false;
+    for (let i = 0; i < value.length; i += 1) {
+      const char = value[i];
+      if (/\s/.test(char)) {
+        if (!previousWasSpace) {
+          text += ' ';
+          indexMap.push(i);
+          previousWasSpace = true;
+        }
+      } else {
+        text += char.toLowerCase();
+        indexMap.push(i);
+        previousWasSpace = false;
+      }
+    }
+    return { text: text.trim(), indexMap };
+  }
+
+  function locateTextPosition(textNodes: Text[], targetOffset: number): { node: Text; offset: number } | null {
+    let cursor = 0;
+    for (const textNode of textNodes) {
+      const length = textNode.nodeValue?.length || 0;
+      if (targetOffset <= cursor + length) {
+        return { node: textNode, offset: Math.max(0, targetOffset - cursor) };
+      }
+      cursor += length;
+    }
+    const lastNode = textNodes[textNodes.length - 1];
+    return lastNode ? { node: lastNode, offset: lastNode.nodeValue?.length || 0 } : null;
+  }
 </script>
 
 <!-- 
@@ -400,6 +548,7 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  skipInitialScrollReset={!!highlightQuoteText}
 >
   {#snippet embedHeaderCta()}
     <EmbedHeaderCtaButton label="Open on {hostname()}" onclick={handleOpenInNewTab} />
@@ -407,7 +556,7 @@
 
   <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
   {#snippet content(_)}
-    <div class="website-fullscreen-content">
+    <div class="website-fullscreen-content" bind:this={contentEl}>
       <!-- Header Image - large rounded preview at top -->
       {#if imageUrl && !imageError}
         <div class="header-image-container">
@@ -424,7 +573,15 @@
       
       <!-- Description - rendered as plain text (HTML tags stripped server-side, client fallback) -->
       {#if cleanedDescription}
-        <p class="description">{cleanedDescription}</p>
+        <p class="description">
+          {#each getSourceQuoteParts(cleanedDescription) as part}
+            {#if part.highlighted}
+              <mark class="embed-source-text-highlight" data-testid="embed-source-text-highlight">{part.text}</mark>
+            {:else}
+              {part.text}
+            {/if}
+          {/each}
+        </p>
       {/if}
       
       <!-- Snippets Section -->
@@ -442,7 +599,15 @@
                 <!-- Closing quote icon (top-right) - rotated 180deg -->
                 <div class="quote-icon quote-close clickable-icon icon_quote"></div>
                 
-                <p class="snippet-text">{snippet}</p>
+                <p class="snippet-text">
+                  {#each getSourceQuoteParts(snippet) as part}
+                    {#if part.highlighted}
+                      <mark class="embed-source-text-highlight" data-testid="embed-source-text-highlight">{part.text}</mark>
+                    {:else}
+                      {part.text}
+                    {/if}
+                  {/each}
+                </p>
               </div>
             {/each}
           </div>
@@ -574,6 +739,19 @@
     line-height: 1.5;
     margin: 0;
     word-break: break-word;
+  }
+
+  .website-fullscreen-content :global(.embed-source-text-highlight) {
+    background: none;
+    background-color: rgba(255, 213, 0, 0.4);
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
+    box-shadow: 0 0 0 2px rgba(255, 213, 0, 0.18);
   }
   
   /* ===========================================

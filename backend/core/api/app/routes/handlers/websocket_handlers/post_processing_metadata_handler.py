@@ -35,6 +35,7 @@ async def handle_post_processing_metadata(
         "encrypted_follow_up_suggestions": "...",  // Encrypted array (max 18)
         "encrypted_new_chat_suggestions": ["...", "..."],  // Array of encrypted strings (max 6)
         "encrypted_chat_summary": "...",  // Encrypted summary
+        "encrypted_share_cta_text": "...",  // Optional: Encrypted short shared-preview CTA
         "encrypted_chat_tags": "...",  // Encrypted array of tags (max 10)
         "encrypted_top_recommended_apps_for_chat": "...",  // Optional: Encrypted array of up to 5 app IDs
         "encrypted_quick_tip_slugs": "...",  // Optional: Encrypted array of selected quick tip slugs
@@ -56,6 +57,7 @@ async def handle_post_processing_metadata(
             encrypted_follow_up_suggestions = payload.get("encrypted_follow_up_suggestions")
             encrypted_new_chat_suggestions = payload.get("encrypted_new_chat_suggestions", [])
             encrypted_chat_summary = payload.get("encrypted_chat_summary")
+            encrypted_share_cta_text = payload.get("encrypted_share_cta_text")
             encrypted_chat_tags = payload.get("encrypted_chat_tags")
             encrypted_top_recommended_apps_for_chat = payload.get("encrypted_top_recommended_apps_for_chat")
             encrypted_quick_tip_slugs = payload.get("encrypted_quick_tip_slugs")
@@ -121,6 +123,9 @@ async def handle_post_processing_metadata(
 
             if encrypted_chat_summary:
                 chat_update_fields["encrypted_chat_summary"] = encrypted_chat_summary
+
+            if encrypted_share_cta_text:
+                chat_update_fields["encrypted_share_cta_text"] = encrypted_share_cta_text
 
             if encrypted_chat_tags:
                 chat_update_fields["encrypted_chat_tags"] = encrypted_chat_tags

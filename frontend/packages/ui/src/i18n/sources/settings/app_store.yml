@@ -574,8 +574,8 @@ skills.examples:
   he: דוגמאות
   verified_by_human: [en]
 skills.examples_prefix:
-  context: Intro text shown above the row of real embed example cards on a skill detail page, explaining that the cards are curated outputs from real runs of the skill.
-  en: "Real examples — tap a card to explore:"
+  context: Intro text shown above the row of real example chat cards on app-store detail pages, explaining that the cards open public example chats.
+  en: "Explore how it’s used in real chats by clicking on the example chats:"
   de: "Echte Beispiele — tippe eine Karte an, um sie zu erkunden:"
   zh: "真实示例 — 点击卡片以查看详细内容："
   es: "Ejemplos reales: toca una tarjeta para explorarla:"
@@ -596,6 +596,26 @@ skills.examples_prefix:
   cs: "Skutečné příklady — klepnutím na kartu ji prozkoumáte:"
   sv: "Verkliga exempel — tryck på ett kort för att utforska:"
   he: "דוגמאות אמיתיות — הקש על כרטיס כדי לחקור:"
+  verified_by_human: [en]
+content.title:
+  context: Section title above durable content type cards in an app details page.
+  en: Content
+  verified_by_human: [en]
+content.section_description:
+  context: Description text under the Content section heading in app details, explaining that these cards are durable content artifacts.
+  en: "Content this app can create, attach, or show as reusable chat artifacts:"
+  verified_by_human: [en]
+content.examples:
+  context: Section title above real example chats on a content type detail page.
+  en: Examples
+  verified_by_human: [en]
+content.examples_prefix:
+  context: Intro text above public example chats for a durable content type.
+  en: "Explore how it’s used in real chats by clicking on the example chats:"
+  verified_by_human: [en]
+content.not_found:
+  context: Error shown when a content type route does not match the generated app-store content catalog.
+  en: Content type not found.
   verified_by_human: [en]
 skills.open_example:
   context: Accessibility label announced when focusing an example card in the skill detail page, so screen readers explain the card is clickable.
@@ -2676,28 +2696,28 @@ ai.skill.ask.model.mistral_small_latest:
   verified_by_human: []
 
 ai.skill.ask.model.mistral_medium_latest:
-  context: Display name for the Mistral Medium AI model, shown as the settings page title when navigating directly to this model
-  en: Mistral Medium
-  de: Mistral Medium
-  zh: Mistral Medium
-  es: Mistral Medium
-  fr: Mistral Medium
-  pt: Mistral Medium
-  ru: Mistral Medium
-  ja: Mistral Medium
-  ko: Mistral Medium
-  it: Mistral Medium
-  tr: Mistral Medium
-  vi: Mistral Medium
-  id: Mistral Medium
-  pl: Mistral Medium
-  nl: Mistral Medium
-  ar: Mistral Medium
-  hi: Mistral Medium
-  th: Mistral Medium
-  cs: Mistral Medium
-  sv: Mistral Medium
-  he: Mistral Medium
+  context: Display name for the Mistral Medium 3.5 AI model, shown as the settings page title when navigating directly to this model
+  en: Mistral Medium 3.5
+  de: Mistral Medium 3.5
+  zh: Mistral Medium 3.5
+  es: Mistral Medium 3.5
+  fr: Mistral Medium 3.5
+  pt: Mistral Medium 3.5
+  ru: Mistral Medium 3.5
+  ja: Mistral Medium 3.5
+  ko: Mistral Medium 3.5
+  it: Mistral Medium 3.5
+  tr: Mistral Medium 3.5
+  vi: Mistral Medium 3.5
+  id: Mistral Medium 3.5
+  pl: Mistral Medium 3.5
+  nl: Mistral Medium 3.5
+  ar: Mistral Medium 3.5
+  hi: Mistral Medium 3.5
+  th: Mistral Medium 3.5
+  cs: Mistral Medium 3.5
+  sv: Mistral Medium 3.5
+  he: Mistral Medium 3.5
   verified_by_human: []
 
 ai.skill.ask.model.ministral_8b_2512:
@@ -2750,29 +2770,29 @@ ai.skill.ask.model.devstral_2512:
   he: Devstral 2
   verified_by_human: []
 
-ai.skill.ask.model.kimi_k2.5:
-  context: Display name for the Kimi K2.5 AI model, shown as the settings page title when navigating directly to this model
-  en: Kimi K2.5
-  de: Kimi K2.5
-  zh: Kimi K2.5
-  es: Kimi K2.5
-  fr: Kimi K2.5
-  pt: Kimi K2.5
-  ru: Kimi K2.5
-  ja: Kimi K2.5
-  ko: Kimi K2.5
-  it: Kimi K2.5
-  tr: Kimi K2.5
-  vi: Kimi K2.5
-  id: Kimi K2.5
-  pl: Kimi K2.5
-  nl: Kimi K2.5
-  ar: Kimi K2.5
-  hi: Kimi K2.5
-  th: Kimi K2.5
-  cs: Kimi K2.5
-  sv: Kimi K2.5
-  he: Kimi K2.5
+ai.skill.ask.model.kimi_k2.7_code:
+  context: Display name for the Kimi K2.7 Code AI model, shown as the settings page title when navigating directly to this model
+  en: Kimi K2.7 Code
+  de: Kimi K2.7 Code
+  zh: Kimi K2.7 Code
+  es: Kimi K2.7 Code
+  fr: Kimi K2.7 Code
+  pt: Kimi K2.7 Code
+  ru: Kimi K2.7 Code
+  ja: Kimi K2.7 Code
+  ko: Kimi K2.7 Code
+  it: Kimi K2.7 Code
+  tr: Kimi K2.7 Code
+  vi: Kimi K2.7 Code
+  id: Kimi K2.7 Code
+  pl: Kimi K2.7 Code
+  nl: Kimi K2.7 Code
+  ar: Kimi K2.7 Code
+  hi: Kimi K2.7 Code
+  th: Kimi K2.7 Code
+  cs: Kimi K2.7 Code
+  sv: Kimi K2.7 Code
+  he: Kimi K2.7 Code
   verified_by_human: []
 
 ai.skill.ask.model.gpt_5.4:

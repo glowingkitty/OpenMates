@@ -21,6 +21,10 @@ from pathlib import Path
 EXPECTED_PORTS = {
     8000: "api (FastAPI gateway)",
 }
+USER_CONTENT_DOMAINS = {
+    "dev": "*.dev.openmatesusercontent.org",
+    "prod": "*.openmatesusercontent.org",
+}
 
 # FastAPI router prefixes registered in backend/core/api/main.py.
 # Each entry: (prefix, description, internal_only)
@@ -103,6 +107,25 @@ def extract_api_block(content: str) -> str:
     return content[start:]  # Fallback: rest of file
 
 
+def extract_named_block(content: str, block_name: str) -> str | None:
+    """Extract a top-level Caddy site block by exact site label."""
+    match = re.search(rf'^{re.escape(block_name)}\s*\{{', content, re.MULTILINE)
+    if not match:
+        return None
+
+    start = match.start()
+    depth = 0
+    pos = content.index('{', start)
+    for i in range(pos, len(content)):
+        if content[i] == '{':
+            depth += 1
+        elif content[i] == '}':
+            depth -= 1
+            if depth == 0:
+                return content[start:i + 1]
+    return content[start:]
+
+
 def parse_caddyfile_paths(content: str) -> set[str]:
     """Extract all path patterns from matchers and path directives."""
     api_block = extract_api_block(content)
@@ -125,6 +148,30 @@ def parse_caddyfile_ports(content: str) -> set[int]:
     for match in re.finditer(r'reverse_proxy\s+localhost:(\d+)', api_block):
         ports.add(int(match.group(1)))
     return ports
+
+
+def validate_user_content_gateway(content: str, *, server_type: str) -> list[str]:
+    """Verify generated app previews have a dedicated user-content gateway."""
+    issues = []
+    expected_domain = USER_CONTENT_DOMAINS[server_type]
+    block = extract_named_block(content, expected_domain)
+    if not block:
+        return [f"Missing {expected_domain} site block for application preview gateway"]
+
+    paths = parse_caddyfile_paths(block)
+    if "/t/*" not in paths:
+        issues.append(f"{expected_domain} must expose the signed /t/* preview gateway")
+    if "/p/*" in paths:
+        issues.append(f"{expected_domain} must not expose legacy shared-origin /p/* preview paths")
+    if "reverse_proxy localhost:8000" not in block:
+        issues.append(f"{expected_domain} /t/* must reverse_proxy to localhost:8000")
+    if "dns gandi {env.GANDI_BEARER_TOKEN}" not in block:
+        issues.append(f"{expected_domain} must use Gandi DNS-01 TLS for wildcard certificates")
+    if re.search(r'\bpath\s+[^\n]*?/v1(?:/|\*|\s|$)', block):
+        issues.append(f"{expected_domain} must not expose /v1/* API routes")
+    if "X-Frame-Options" in block:
+        issues.append(f"{expected_domain} must not set X-Frame-Options because previews are iframed")
+    return issues
 
 
 def detect_server_type(caddyfile_path: str) -> str:
@@ -284,6 +331,19 @@ def main():
 
     if orphan_count == 0:
         print(f"  {GREEN}OK{RESET}  All Caddy paths map to known FastAPI routes")
+
+    print()
+
+    # --- Check 4: User-content preview gateway ---
+    print(f"{BOLD}[4] User-content preview gateway{RESET}")
+    expected_user_content_domain = USER_CONTENT_DOMAINS[server_type]
+    user_content_issues = validate_user_content_gateway(content, server_type=server_type)
+    if user_content_issues:
+        for issue in user_content_issues:
+            print(f"  {RED}!!{RESET}  {issue}")
+            issues.append(issue)
+    else:
+        print(f"  {GREEN}OK{RESET}  {expected_user_content_domain} exposes signed /t/* wildcard gateway only")
 
     print()
 

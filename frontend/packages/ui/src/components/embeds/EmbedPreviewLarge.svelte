@@ -53,6 +53,7 @@
     embedStore,
     embedRefIndexVersion,
   } from '../../services/embedStore';
+  import { shouldHydrateCarouselSlide } from './embedPreviewHydration';
 
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
@@ -115,6 +116,9 @@
   let isVisible = $derived(currentIndex === carouselIndex);
   let isFirstCard = $derived(carouselIndex === 0);
   let hasMultiple = $derived(carouselTotal > 1);
+  let shouldHydrateSlide = $derived.by(() => {
+    return shouldHydrateCarouselSlide(currentIndex, carouselIndex, carouselTotal);
+  });
 
   function handlePrevious(e: MouseEvent) {
     e.preventDefault();
@@ -208,10 +212,12 @@
 
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
+    if (!shouldHydrateSlide) return null;
     return embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null;
   });
 
   $effect(() => {
+    if (!shouldHydrateSlide) return;
     void $embedRefIndexVersion;
     const syncResolved = embedId || embedStore.resolveByRef(embedRef);
     if (syncResolved) {
@@ -286,7 +292,11 @@
         class="embed-preview-large-content"
         class:embed-preview-large-content--hidden={!isVisible}
       >
-        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="large" />
+        {#if shouldHydrateSlide}
+          <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="large" />
+        {:else}
+          <div class="embed-preview-large-placeholder" aria-hidden="true"></div>
+        {/if}
       </div>
     </div>
 
@@ -336,7 +346,11 @@
       style="transform: translateY(-{sharedShellHeight}px);"
     >
       <div class="embed-preview-large-container">
-        <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="large" />
+        {#if shouldHydrateSlide}
+          <EmbedReferencePreview {embedRef} embedId={resolvedEmbedId} {receiver} {subject} {content} {footer} variant="large" />
+        {:else}
+          <div class="embed-preview-large-placeholder" aria-hidden="true"></div>
+        {/if}
       </div>
     </div>
   </div>
@@ -379,6 +393,12 @@
   .embed-preview-large-content--hidden {
     opacity: 0;
     pointer-events: none;
+  }
+
+  .embed-preview-large-placeholder {
+    min-height: 215px;
+    border-radius: var(--radius-8);
+    background: var(--color-grey-10, rgba(255,255,255,0.04));
   }
 
   /* ── Non-first cards: out-of-flow overlay ─────────────────────────────────

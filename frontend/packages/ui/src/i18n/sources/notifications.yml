@@ -502,6 +502,29 @@ chat_message.new_ai_response:
   cs: Nová odpověď AI připravena
   sv: Nytt AI-svar redo
   he: תגובת AI חדשה מוכנה
+chat_message.new_message_received:
+  context: Privacy-preserving notification body for new assistant messages; never include message content in native push alerts
+  en: New message received
+  de: Neue Nachricht erhalten
+  zh: 收到新消息
+  es: Nuevo mensaje recibido
+  fr: Nouveau message reçu
+  pt: Nova mensagem recebida
+  ru: Получено новое сообщение
+  ja: 新しいメッセージを受信しました
+  ko: 새 메시지를 받았습니다
+  it: Nuovo messaggio ricevuto
+  tr: Yeni mesaj alındı
+  vi: Đã nhận tin nhắn mới
+  id: Pesan baru diterima
+  pl: Otrzymano nową wiadomość
+  nl: Nieuw bericht ontvangen
+  ar: تم استلام رسالة جديدة
+  hi: नया संदेश प्राप्त हुआ
+  th: ได้รับข้อความใหม่
+  cs: Přijata nová zpráva
+  sv: Nytt meddelande mottaget
+  he: התקבלה הודעה חדשה
 click_to_respond:
   context: Button text for reply action in chat notification
   en: Click here to respond

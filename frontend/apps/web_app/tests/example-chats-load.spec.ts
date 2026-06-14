@@ -17,7 +17,30 @@
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
+
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+
+const PUBLIC_EXAMPLE_BROKEN_MARKERS = [
+	'Presigned URL request failed',
+	'Network error fetching S3',
+	'Transcript not available',
+	'[Interactive Question - Invalid JSON]',
+	'vault_wrapped_aes_key',
+	'vault:v1:',
+	'dev-openmates-chatfiles',
+	'chatfiles/',
+	's3_key:',
+	'docx_s3_key:',
+	'screenshot_s3_keys:',
+	'app_settings_memories_request',
+	'app_settings_memories_response',
+	'git checkout -- .',
+	'"type":"focus_mode_activation"',
+	'"type": "focus_mode_activation"'
+];
 
 function countMatches(text: string, pattern: RegExp): number {
 	return [...text.matchAll(pattern)].length;
@@ -35,6 +58,32 @@ function extractJsonLd(html: string): Record<string, any> {
 }
 
 test.describe('Example chats loading for new users', () => {
+	async function ensureSidebarVisible(page: any): Promise<void> {
+		const history = page.getByTestId('activity-history-wrapper');
+		if (await history.isVisible().catch(() => false)) {
+			return;
+		}
+
+		const toggle = page.getByTestId('sidebar-toggle');
+		await expect(toggle).toBeVisible({ timeout: 10000 });
+		await toggle.click();
+		await expect(history).toBeVisible({ timeout: 10000 });
+	}
+
+	function examplesSidebarGroup(page: any): any {
+		return page.locator('[data-testid="chat-group"][data-group-key="examples"]').first();
+	}
+
+	async function sidebarExampleIds(page: any): Promise<string[]> {
+		const group = examplesSidebarGroup(page);
+		await expect(group).toBeVisible({ timeout: 15000 });
+		return group.getByTestId('chat-item-wrapper').evaluateAll((nodes: Element[]) =>
+			nodes
+				.map((node) => node.getAttribute('data-chat-id') || '')
+				.filter(Boolean)
+		);
+	}
+
 	test('example chats appear in for-everyone intro chat', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 
@@ -95,6 +144,181 @@ test.describe('Example chats loading for new users', () => {
 		}
 	});
 
+	test('deep research example renders static sub-chat cards without a forced focus mention', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-us-egg-prices-deep'), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		const userMessage = page.getByTestId('user-message-content').filter({
+			hasText: 'Why did US egg prices stay high after avian flu eased?'
+		});
+		await expect(userMessage).toBeVisible({ timeout: 15000 });
+		await expect(
+			userMessage,
+			'Deep research example should demonstrate auto-selection, not @focus forcing.'
+		).not.toContainText('@focus:');
+
+		const carousel = page.getByTestId('sub-chats-carousel');
+		await expect(carousel).toBeVisible({ timeout: 15000 });
+		await expect(carousel.getByTestId('sub-chat-card')).toHaveCount(3);
+
+		const focusBar = page.getByTestId('focus-mode-bar');
+		await expect(focusBar).toBeVisible({ timeout: 15000 });
+		await expect(focusBar.getByTestId('focus-status-label')).toContainText('Deep research');
+		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
+	});
+
+	test('memory example cards update the reloadable chat hash on wide viewports', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+		await page.setViewportSize({ width: 1600, height: 900 });
+
+		await page.goto(getE2EDebugUrl('/#settings/app_store/books/settings_memories/currently_reading'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await page.waitForLoadState('networkidle');
+
+		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
+		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+		const exampleCard = settingsMenu
+			.locator('[data-testid="app-store-example-chat-card"][data-chat-id="example-memory-books-currently-reading"]')
+			.first();
+		await expect(exampleCard).toBeVisible({ timeout: 15000 });
+
+		await exampleCard.click();
+		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
+		await expect(page.getByTestId('chat-history-container')).toBeVisible({ timeout: 15000 });
+
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page).toHaveURL(/#chat-id=example-memory-books-currently-reading/, { timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
+	});
+
+	test('reported memory examples render current text content without interactive-question errors', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-books-currently-reading'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'spoiler-free one-week reading plan' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('app-settings-memories-summary')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('app-settings-memory-category-badge')).toBeVisible({ timeout: 15000 });
+		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
+		await expect(page.locator('body')).not.toContainText('app_settings_memories_request');
+		await expect(page.locator('body')).not.toContainText('app_settings_memories_response');
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Project Hail Mary' })).toBeVisible({ timeout: 15000 });
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-memory-mail-writing-styles'), {
+			waitUntil: 'domcontentloaded'
+		});
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Friday Update - [Project Name]' })).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('app-settings-memories-summary')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('app-settings-memory-category-badge')).toBeVisible({ timeout: 15000 });
+		await expect(page.locator('body')).not.toContainText('[Interactive Question - Invalid JSON]');
+		await expect(page.locator('body')).not.toContainText('app_settings_memories_request');
+		await expect(page.locator('body')).not.toContainText('app_settings_memories_response');
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Best, Alex' })).toBeVisible({ timeout: 15000 });
+	});
+
+	test('nutrition example renders Edamam recipe search embed card', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-chickpea-spinach-protein-dinners'), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		await expect(page.getByTestId('user-message-content').filter({
+			hasText: 'Find 3 vegetarian chickpea and spinach dinner recipes'
+		})).toBeVisible({ timeout: 15000 });
+
+		const nutritionSearchCardSelector = '[data-testid="embed-preview"][data-app-id="nutrition"][data-skill-id="search_recipes"][data-status="finished"]';
+		const assistantMessageWithNutritionCard = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: 'Here are three delicious' })
+			.filter({ has: page.locator(nutritionSearchCardSelector) })
+			.first();
+		await expect(assistantMessageWithNutritionCard).toBeVisible({ timeout: 15000 });
+
+		const nutritionSearchCard = assistantMessageWithNutritionCard.locator(nutritionSearchCardSelector);
+		await expect(nutritionSearchCard).toBeVisible({ timeout: 15000 });
+		await expect(nutritionSearchCard).toContainText('chickpea and spinach dinner');
+		await expect(nutritionSearchCard).toContainText('Edamam');
+		await expect(assistantMessageWithNutritionCard).not.toContainText('"type":"app_skill_use"');
+		expect(
+			await assistantMessageWithNutritionCard.evaluate((message, selector) => {
+				const card = message.querySelector(selector);
+				const walker = document.createTreeWalker(message, NodeFilter.SHOW_TEXT);
+				let answerTextNode: Node | null = null;
+				while (walker.nextNode()) {
+					if (walker.currentNode.textContent?.includes('Here are three delicious')) {
+						answerTextNode = walker.currentNode;
+						break;
+					}
+				}
+				return !!(
+					card &&
+					answerTextNode &&
+					(card.compareDocumentPosition(answerTextNode) & Node.DOCUMENT_POSITION_FOLLOWING)
+				);
+			}, nutritionSearchCardSelector)
+		).toBe(true);
+	});
+
+	test('sidebar example chats show newest first and append older results after show more', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(180000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+		await loginToTestAccount(page);
+		await ensureSidebarVisible(page);
+
+		const initialIds = await sidebarExampleIds(page);
+		expect(initialIds.length, 'Examples group should show the initial example batch').toBeGreaterThan(0);
+		expect(
+			initialIds,
+			'Habit Garden should be in the initial newest-first example batch'
+		).toContain('example-habit-garden-vite-app');
+
+		const showMoreExamples = page.getByTestId('show-more-example-chats');
+		await expect(showMoreExamples).toBeVisible({ timeout: 10000 });
+		await showMoreExamples.click();
+
+		await expect.poll(async () => (await sidebarExampleIds(page)).length, {
+			message: 'Show more should reveal more example chats after the initial batch',
+			timeout: 10000
+		}).toBeGreaterThan(initialIds.length);
+
+		const expandedIds = await sidebarExampleIds(page);
+		for (const id of initialIds) {
+			expect(expandedIds, `Show more should keep already-visible example ${id}`).toContain(id);
+		}
+		expect(
+			new Set(expandedIds).size,
+			'Show more should not duplicate example chat rows'
+		).toBe(expandedIds.length);
+	});
+
 	test('example chat SSR pages are accessible', async ({ request }: { request: any }) => {
 		test.setTimeout(30000);
 
@@ -135,6 +359,11 @@ test.describe('Example chats loading for new users', () => {
 			expect(html, `/example/${slug} should not leak unresolved i18n keys`).not.toContain(
 				'example_chats.'
 			);
+			for (const marker of PUBLIC_EXAMPLE_BROKEN_MARKERS) {
+				expect(html, `/example/${slug} should not contain broken public marker ${marker}`).not.toContain(
+					marker
+				);
+			}
 
 			expect(countMatches(html, /<title[\s>]/gi), `/example/${slug} title count`).toBe(1);
 			expect(
@@ -190,6 +419,10 @@ test.describe('Example chats loading for new users', () => {
 			expect(qaPage.url, `/example/${slug} JSON-LD canonical`).toContain(
 				`/example/${slug}`
 			);
+			expect(
+				qaPage.mainEntity?.length,
+				`/example/${slug} JSON-LD QAPage should include question/answer entries`
+			).toBeGreaterThan(0);
 		}
 	});
 

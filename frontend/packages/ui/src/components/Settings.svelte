@@ -74,6 +74,7 @@ changes to the documentation (to keep the documentation up to date).
     import { modelsMetadata } from '../data/modelsMetadata';
     import { providersMetadata, findProviderByName } from '../data/providersMetadata';
     import { getProviderIconUrl } from '../data/providerIcons';
+    import { CONTENT_EMBED_CATALOG } from '../data/embedRegistry.generated';
     import { chatListCache } from '../services/chatListCache';
     import { chatMetadataCache } from '../services/chatMetadataCache';
     import { chatDB } from '../services/db';
@@ -205,7 +206,13 @@ changes to the documentation (to keep the documentation up to date).
                     }
                 }
             }
-            
+
+            // Add durable content detail routes generated from embed metadata.
+            for (const content of CONTENT_EMBED_CATALOG.filter((item) => item.appId === appId)) {
+                const contentRoute = `app_store/${appId}/content/${content.contentTypeId}`;
+                views[contentRoute] = AppDetailsWrapper;
+            }
+
             // Add focus mode detail routes
             if (app.focus_modes && app.focus_modes.length > 0) {
                 for (const focusMode of app.focus_modes) {
@@ -275,7 +282,7 @@ changes to the documentation (to keep the documentation up to date).
         return views;
     });
 
-    // Payment status - check if payment is enabled (self-hosted mode detection)
+    // Cloud payment status. Self-hosted mode hides billing based on is_self_hosted.
     let paymentEnabled = $state(true); // Default to true, will be updated on mount
     let _serverEdition = $state<string | null>(null); // Server edition for display (currently unused but kept for future use)
     let isSelfHosted = $state(false); // Self-hosted status from request-based validation
@@ -303,7 +310,9 @@ changes to the documentation (to keep the documentation up to date).
             if (isSelfHosted && !demoModeOn) {
                 // Remove billing and gift card routes
                 if (key === 'billing' || key.startsWith('billing/') || 
-                    key === 'shared/tip') { // Tips also require payment
+                    key === 'shared/tip' || // Tips also require payment
+                    key === 'server/gift-cards' ||
+                    key === 'server/free-testing-credits') {
                     return filtered; // Skip this route
                 }
             }
@@ -585,6 +594,18 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Function to update breadcrumb label based on navigation path
+    function getGiftCardTitleKeyForPath(settingsPath: string): string | undefined {
+        const giftCardTitleKeys: Record<string, string> = {
+            'billing/gift-cards': 'settings.gift_cards',
+            'billing/gift-cards/redeem': 'settings.gift_cards.redeem',
+            'billing/gift-cards/redeemed': 'settings.gift_cards.redeemed',
+            'billing/gift-cards/buy': 'settings.gift_cards.buy',
+            'billing/gift-cards/buy/payment': 'settings.gift_cards.buy.payment',
+            'billing/gift-cards/buy/confirmation': 'settings.gift_cards.buy.confirmation'
+        };
+        return giftCardTitleKeys[settingsPath];
+    }
+
     function updateBreadcrumbLabel() {
         if (navigationPath.length <= 0) {
             breadcrumbLabel = $text('common.settings');
@@ -706,8 +727,8 @@ changes to the documentation (to keep the documentation up to date).
                 }
             } else {
                 // For other routes, use translation keys
-                const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
-                const translationKey = `settings.${translationKeyParts.join('.')}`;
+                const translationKey = getGiftCardTitleKeyForPath(pathString) ??
+                    `settings.${pathUpToSegment.map(segment => segment.replace(/-/g, '_')).join('.')}`;
                 pathLabels.push($text(translationKey));
             }
         }
@@ -1470,7 +1491,10 @@ changes to the documentation (to keep the documentation up to date).
             activeSubMenuIcon = icon || '';
             // Store the translation key instead of the translated text
             // Special handling for security sub-routes - skip "security" segment in translation key
-            if (settingsPath === 'account/security/passkeys') {
+            const giftCardTitleKey = getGiftCardTitleKeyForPath(settingsPath);
+            if (giftCardTitleKey) {
+                activeSubMenuTitleKey = giftCardTitleKey;
+            } else if (settingsPath === 'account/security/passkeys') {
                 activeSubMenuTitleKey = 'settings.account.passkeys';
             } else if (settingsPath === 'account/security/2fa') {
                 // Use security.yml translations for 2FA
@@ -1750,9 +1774,7 @@ changes to the documentation (to keep the documentation up to date).
                     icon = 'reload';
                 } else if (previousPath === 'billing/auto-topup/monthly') {
                     icon = 'calendar';
-                } else if (previousPath === 'billing/gift-cards') {
-                    icon = 'icon_gift';
-                } else if (previousPath === 'billing/gift-cards/buy') {
+                } else if (previousPath.startsWith('billing/gift-cards')) {
                     icon = 'icon_gift';
                 } else if (previousPath === 'app_store') {
                     icon = 'app_store';
@@ -1765,8 +1787,8 @@ changes to the documentation (to keep the documentation up to date).
                 
                 if (!title) {
                     // Build the translation key for the previous view's title
-                    const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
-                    const titleKey = `settings.${translationKeyParts.join('.')}`;
+                    const titleKey = getGiftCardTitleKeyForPath(previousPath) ??
+                        `settings.${previousPathSegments.map(segment => segment.replace(/-/g, '_')).join('.')}`;
                     const translatedTitle = $text(titleKey);
                     title = translatedTitle;
                 }
@@ -1960,8 +1982,7 @@ changes to the documentation (to keep the documentation up to date).
                     // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
                     // This correctly identifies localhost and other self-hosted instances
                     isSelfHosted = status.is_self_hosted || false;
-                    // CRITICAL: If self-hosted, payment is ALWAYS disabled
-                    // This overrides any environment-based logic that might enable payment for localhost in dev mode
+                    // Self-hosted responses omit payment_enabled; hide billing from is_self_hosted.
                     if (isSelfHosted) {
                         paymentEnabled = false;
                     } else {
@@ -2846,6 +2867,7 @@ changes to the documentation (to keep the documentation up to date).
             {settingsViews}
             {isMenuVisible}
             paymentEnabled={$demoMode || paymentEnabled}
+            {isSelfHosted}
             showProfileHeader={false}
             resolvedProfileImageUrl={resolvedProfileImageBlobUrl}
             bind:isIncognitoEnabled

@@ -6,49 +6,49 @@ title:
   context: 'Newsletter announcements/openmates-meetup-may-19 — title'
   en: 'Join the OpenMates Meetup on May 19 in Berlin'
   de: 'Komm zum OpenMates Meetup am 19. Mai in Berlin'
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: 参加 5 月 19 日在柏林举行的 OpenMates 见面会
+  es: Únete al Meetup de OpenMates el 19 de mayo en Berlín
+  fr: Rejoins le Meetup OpenMates le 19 mai à Berlin
+  pt: Participe do Meetup OpenMates em 19 de maio em Berlim
+  ru: Присоединяйся к встрече OpenMates 19 мая в Берлине
+  ja: 5月19日にベルリンで開催されるOpenMates Meetupに参加しよう
+  ko: 5월 19일 베를린에서 열리는 OpenMates Meetup에 참여하세요
+  it: Partecipa al Meetup di OpenMates il 19 maggio a Berlino
+  tr: "19 Mayıs'ta Berlin'deki OpenMates Meetup'ına Katıl"
+  vi: Tham gia OpenMates Meetup vào ngày 19 tháng 5 tại Berlin
+  id: Ikuti Meetup OpenMates pada 19 Mei di Berlin
+  pl: Dołącz do OpenMates Meetup 19 maja w Berlinie
+  nl: Kom naar de OpenMates Meetup op 19 mei in Berlijn
+  ar: انضم إلى لقاء OpenMates في 19 مايو في برلين
+  hi: 19 मई को बर्लिन में OpenMates मीटअप में शामिल हों
+  th: เข้าร่วมงาน OpenMates Meetup วันที่ 19 พฤษภาคมนี้ที่เบอร์ลิน
+  cs: Připoj se k OpenMates Meetupu 19. května v Berlíně
+  sv: Delta i OpenMates Meetup den 19 maj i Berlin
+  he: הצטרפו למפגש OpenMates ב-19 במאי בברלין
   verified_by_human: []
 description:
   context: 'Newsletter announcements/openmates-meetup-may-19 — description'
   en: 'Tuesday, May 19 at 19:00'
   de: 'Dienstag, 19. Mai um 19:00 Uhr'
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: "5 月 19 日星期二 19:00"
+  es: "Martes, 19 de mayo a las 19:00"
+  fr: Mardi 19 mai à 19h00
+  pt: "Terça-feira, 19 de maio, às 19:00"
+  ru: "Вторник, 19 мая в 19:00"
+  ja: "5月19日（火）19:00"
+  ko: "5월 19일 화요일 19:00"
+  it: "Martedì 19 maggio alle 19:00"
+  tr: "19 Mayıs Salı, 19:00"
+  vi: "Thứ Ba, ngày 19 tháng 5 lúc 19:00"
+  id: "Selasa, 19 Mei pukul 19:00"
+  pl: "Wtorek, 19 maja o 19:00"
+  nl: "Dinsdag 19 mei om 19:00"
+  ar: "الثلاثاء، 19 مايو الساعة 19:00"
+  hi: "मंगलवार, 19 मई को 19:00 बजे"
+  th: "วันอังคารที่ 19 พฤษภาคม เวลา 19:00 น."
+  cs: "Úterý 19. května v 19:00"
+  sv: "Tisdag 19 maj kl. 19:00"
+  he: "יום שלישי, 19 במאי בשעה 19:00"
   verified_by_human: []
 message:
   context: 'Newsletter announcements/openmates-meetup-may-19 — message'
@@ -82,25 +82,359 @@ message:
     
     Marco  
     Creator of OpenMates
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: |
+    你是否已经在使用 OpenMates，并想参加 5 月 19 日星期二 19:00 在柏林举行的 OpenMates 见面会？
+    
+    在过去的 1 年半里，我一直在开发 OpenMates.org：一个比 ChatGPT、Claude、OpenClaw、Manus 等更好的替代方案。它通常能提供更好的回复，拥有更佳的用户体验设计，通过各种功能优先考虑隐私、安全和用户利益，并且不会将你锁定在某个生态系统中，同时仍允许你使用已经熟悉和使用的 AI 模型。它可以利用各种应用技能来查找活动、火车班次、医生预约、公寓等等，并且已经拥有了首批 200 名付费用户（购买一次性使用额度）。
+    
+    话虽如此：我目前还无法以此维持生计（主要仍靠失业金资助），而且最近几周和几个月我工作强度太大，开始感到越来越疲惫。我意识到这是一个巨大的项目，需要一个团队，而不能一直是一个人的项目。因此，我现在正更多地致力于将其转变为一个团队协作项目，让普通人也能享受到 AI 的实用之处，而不是只专注于企业端。并且去打造一个可持续发展的业务和产品，让人们在未来几年依然喜爱使用，而不是成为另一家走上“平台劣化”（enshittification）道路的初创公司。例如，我对“责任制所有权”（steward ownership）等概念更感兴趣，而不是讨论退出策略以及如何卖给科技巨头。
+    
+    既然我主要把自己定位为产品负责人（具有 UX 设计和软件开发背景），我特别希望能结识专注于市场营销/沟通的人才——但也非常欢迎其他资深软件开发者的支持。无论你的背景如何，任何 OpenMates 使用者的反馈对我们来说都弥足珍贵，非常欢迎。
+    
+    如果你对此感兴趣，并希望提供反馈、结识他人，甚至进行更长期的合作——请参加 OpenMates 见面会或[给我发消息](mailto:marco@openmates.org)！:)
+    
+    祝好，
+    
+    Marco  
+    OpenMates 创始人
+  es: |
+    Hola,
+    Aquí Marco (también conocido como [glowingkitty](https://github.com/glowingkitty)), el creador de OpenMates.
+    No me he olvidado de OpenMates; todo lo contrario. 
+    
+    # 🙏 Unas palabras de agradecimiento primero
+    
+    A finales de diciembre, en el marco del Chaos Communication Congress, me pidieron inesperadamente una entrevista para el canal de televisión alemán ZDF [(un reportaje sobre la importancia de las alternativas centradas en la privacidad frente a las grandes empresas tecnológicas de IA)](https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html). Y guau, qué experiencia. A pesar de que OpenMates estaba mucho menos pulido en aquel momento, las primeras personas empezaron a registrarse y a usarlo, y también a encontrar errores y casos límite que yo no había experimentado durante mis pruebas en mis propios dispositivos, y que afortunadamente reportaron. Muchas gracias a todos los que lo hicieron: ¡ayudó muchísimo a que OpenMates fuera más refinado, más estable y más completo! Y, por supuesto, eres más que bienvenido a seguir informando de cualquier problema si notas algo que no funcione bien o esté roto en OpenMates.
+    
+    Aunque este no era el primer software que creaba, era la primera vez que más de un puñado de personas empezaba a usar algo que yo había construido: ¡más de 180 usuarios activos están usando OpenMates hasta ahora! Lo cual ha sido súper emocionante y, admito que al principio, también un poco abrumador.
+    
+    Desde entonces, me he centrado completamente en mejorar y depurar OpenMates, y en conseguir que sea más completo y refinado, realizando un montón de cambios en el código. Correcciones de errores, nuevas funciones, una interfaz de usuario mejorada y muchas más mejoras. 
+    
+    Y hoy, ¡me alegra darte una actualización con los cambios más emocionantes de los últimos meses! Ten en cuenta que hablar de todos los cambios sería demasiado para un solo boletín, así que me centraré en lo más destacado y también publicaré varios vídeos cortos sobre diversas funciones de OpenMates en las próximas semanas en:
+    - [Instagram](https://instagram.com/openmates_official)
+    - [Bluesky](https://bsky.app/profile/openmates.bsky.social)
+    - [Mastodon](https://mastodon.social/@OpenMates)
+    - [YouTube](https://www.youtube.com/@OpenMates).
+    
+    # ✨ Lo más destacado de los últimos meses
+    
+    ## 1. 🧩 Nuevas apps y habilidades
+    
+    Además de las capacidades existentes de búsqueda en la web, lectura y análisis de sitios web, y lectura de transcripciones de vídeos de YouTube para iniciar debates, OpenMates ha incorporado muchas aplicaciones y habilidades nuevas. Aquí tienes algunos puntos destacados:
+    
+    - 🏥 **[Salud](#settings/apps/health/skills/search_appointments):** ¿Buscas citas médicas? La aplicación de Salud ahora puede consultar Doctolib y Jameda para ver los huecos disponibles.
+    - 🏠 **[Hogar](#settings/apps/home/skills/search):** Busca apartamentos en ImmoScout24, WG-Gesucht y Kleinanzeigen, con los detalles clave visibles directamente en OpenMates.
+    - 🎉 **[Eventos](#settings/apps/events/skills/search):** Busca y filtra eventos en Meetup, Luma, Resident Advisor y Google, con detalles como descripciones, imágenes, cuándo y dónde son los eventos, y enlaces directos para confirmar asistencia o unirse.
+    - ✈️ **[Viajes](#settings/apps/travel):** La nueva habilidad "[Buscar conexión](#settings/apps/travel/skills/search_connections)" te permite buscar vuelos a través de Google, en múltiples conexiones en varios días simultáneamente, incluyendo detalles completos del vuelo y enlaces de reserva. El soporte para conexiones de tren llegará pronto. Y la habilidad "[Calendario de precios](#settings/apps/travel/skills/price_calendar)" te muestra una vista rápida de la evolución de los precios a lo largo de un mes.
+    - ⏰ **[Recordatorios](#settings/apps/reminder):** Crea un recordatorio para un chat para volver a él más tarde, o incluso haz que OpenMates busque y resuma las últimas noticias diarias sobre un tema determinado, por ejemplo.
+    - 🖼️ **[Imágenes](#settings/apps/images):** [Busca](#settings/apps/images/skills/search) imágenes en la web, [genera](#settings/apps/images/skills/generate) imágenes y [gráficos vectoriales](#settings/apps/images/skills/vectorize).
+    - 📄 **[PDFs](#settings/apps/pdf):** Sube PDFs y haz preguntas sobre el texto o incluso sobre el diseño visual. ¡OpenMates puede leer y ver PDFs! 
+    - 💻 **[Código](#settings/apps/code):** OpenMates puede [buscar la documentación más reciente](#settings/apps/code/skills/get_docs) para responder preguntas relacionadas con la programación, luego escribir código e incluso permitirte previsualizar diseños de sitios web y código directamente en el navegador. Y esto es solo el principio de sus capacidades de programación.
+    - 🧮 **[Matemáticas](#settings/apps/math):** Calcula expresiones e incluso visualiza gráficas, todo dentro de OpenMates.
+    - 📝 **[Documentos](#settings/apps/docs):** Pide que se generen documentos de Word y descárgalos como archivos .docx.
+    - 📊 **[Hojas de cálculo](#settings/apps/sheets):** OpenMates también puede crear tablas y permitirte descargarlas como archivos .xlsx. Tanto Documentos como Hojas de cálculo mejorarán y serán aún más potentes en las próximas semanas.
+    - 📧 **[Correo](#settings/apps/mail):** OpenMates puede redactar correos electrónicos por ti, que luego puedes abrir y enviar fácilmente a través de tu programa de correo predeterminado en tu dispositivo.
+    - 🎙️ **[Audio](#settings/apps/audio):** ¿No quieres escribir? Graba y envía un mensaje de voz a OpenMates, directamente desde el campo de mensaje.
+    
+    Y se han añadido aún más habilidades de aplicaciones. Solo tienes que [echar un vistazo y explorar las Apps de OpenMates](#settings/apps).
+    
+    ## 2. 🔒 Marcadores de datos personales
+    
+    A diferencia de los chatbots de IA de las grandes empresas tecnológicas y las startups típicas, OpenMates está diseñado con tu privacidad como prioridad principal. Y ya contaba con varias protecciones de privacidad:
+    - 🔐 todos tus chats se cifran y descifran solo en tu dispositivo
+    - 🖼️ todas las imágenes externas se cargan a través de nuestro servidor OpenMates (para que los sitios web externos no vean tu dirección IP ni la información de tu dispositivo)
+    - 📉 no se utiliza Google Analytics ni ningún otro software de análisis en OpenMates (por eso tampoco ves un banner de cookies en OpenMates)
+    
+    Novedad: los datos sensibles como direcciones de correo electrónico, números de teléfono, claves API y más se detectan automáticamente y se sustituyen por marcadores de posición en tu dispositivo cuando redactas y envías un mensaje a OpenMates. Siempre puedes volver al valor original en la interfaz de usuario, y puedes hacer clic en los datos detectados para evitar la sustitución. Pero, por defecto, esta función garantiza que ni OpenMates ni los proveedores de IA que procesan tus mensajes vean nunca los datos sensibles en primer lugar.
+    
+    [Pruébalo tú mismo](#message=Draft%20an%20email%20from%20marco.rossi%40gmail.com%20to%20hausverwaltung%40immobilien-weber.de%20asking%20about%20the%20status%20of%20the%20broken%20heater%20in%20my%20apartment.%20The%20repair%20was%20reported%20on%20March%2028th%20and%20my%20phone%20number%20is%20%2B49%20170%209876543.%20Please%20be%20polite%20but%20firm%20%E2%80%94%20it%E2%80%99s%20been%20almost%203%20weeks.): haz clic en este enlace para ver los Marcadores de datos personales en acción: tu correo electrónico y tu número de teléfono se detectarán automáticamente y se sustituirán antes de enviarse a la IA.
+    
+    ## 3. 🧠 Recuerdos
+    
+    OpenMates ahora puede recordar datos específicos de las aplicaciones, como tus próximos viajes o detalles de proyectos. PERO: todos los recuerdos se cifran y descifran solo en tu dispositivo, y solo se comparten temporalmente con el servidor de OpenMates y el proveedor de IA si lo confirmas explícitamente para el chat en cuestión. Esto te permite aprovechar al máximo las respuestas personalizadas sin tener que repetir constantemente los detalles de tu proyecto, manteniendo el control total sobre qué datos compartes, cuándo y con qué proveedor de IA. Consulta los [Recuerdos en las Apps de OpenMates](#settings/apps/all/memories).
+    
+    ## 4. 🎯 Modos de enfoque
+    
+    Saber dar las instrucciones adecuadas a un chatbot de IA marca una gran diferencia en cuanto a lo útil que será el chatbot y la calidad de las respuestas. Con los Modos de enfoque, no necesitas ser un experto en ingeniería de prompts para aprovechar al máximo unas instrucciones excelentes y específicas. Solo tienes que pedirle a OpenMates información sobre tu carrera, por ejemplo, y el modo de enfoque "Perspectivas profesionales" debería activarse automáticamente para guiarte en el proceso. Y, por supuesto: esto es solo el principio. Se añadirán muchos más Modos de enfoque y la calidad de los existentes seguirá mejorando en las próximas semanas. No dudes en consultar los [Modos de enfoque en las Apps de OpenMates](#settings/apps/all/focus-modes).
+    
+    ## 5. 🤖 Nuevos modelos
+    
+    OpenMates tiene una amplia selección de los modelos de IA más eficientes y con mejor rendimiento que existen. Por defecto, selecciona automáticamente el adecuado en función de la tarea. Pero siempre puedes anular este comportamiento [en los ajustes de IA](#settings/ai) de forma permanente, o bajo demanda mencionando un modelo específico en el campo de mensaje mediante `@{nombre_del_modelo}`. Ahora puedes seleccionar entre una amplia gama de modelos de IA, por ejemplo:
+    
+    - [Claude Opus 4.7](#settings/ai/model/claude-opus-4-7) y [Claude Sonnet 4.6](#settings/ai/model/claude-sonnet-4-6)
+    - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) y [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
+    - [GPT-5.4](#settings/ai/model/gpt-5.4)
+    - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
+    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Alias de modelos `@best` y `@fast`: escribe `@best` para dirigirte automáticamente al modelo más potente, o `@fast` para usar el modelo más rápido disponible en OpenMates.
+    
+    ## 6. 💡 Inspiraciones diarias y enlaces a Wikipedia
+    
+    La IA, si se usa correctamente, puede ser una herramienta increíble para el aprendizaje. Y OpenMates está optimizado para animar a la gente a aprender, a explorar, a inspirarse. Para eso sirven las Inspiraciones diarias, que verás en la parte superior de la interfaz tras iniciar sesión. Muestran nuevos vídeos interesantes y, pronto, también otros contenidos como artículos de Wikipedia, nuevas funciones de OpenMates, fotos y detalles de obras de arte, eventos históricos importantes y más. Las Inspiraciones diarias se adaptan a tus chats y luego se bloquean en tu dispositivo con una clave que solo tú tienes, por lo que siguen siendo privadas para ti.
+    Además, OpenMates también resalta automáticamente los artículos de Wikipedia en las respuestas de los mensajes del asistente. Esto hace que sea súper fácil aprender más sobre un tema con solo hacer clic en la palabra resaltada en naranja con el icono de estudio al lado.
+    
+    # 🚀 Qué viene ahora
+    
+    En las próximas semanas publicaré varios clips cortos mostrando las numerosas funciones de OpenMates y las cosas útiles que se pueden hacer con él, además de seguir mejorando el software y añadiendo más aplicaciones, proveedores y funciones.
+    
+    A partir de ahora, mi plan es enviar correos electrónicos del boletín para anuncios y actualizaciones cada pocas semanas y, por separado, también consejos y trucos sobre cómo usar OpenMates. No dudes en [consultar los ajustes de tu boletín en cualquier momento](#settings/newsletter), si quieres recibir más o menos correos electrónicos.
+    
+    ¡Diviértete usando OpenMates y permanece atento a más actualizaciones!
+  fr: |
+    Tu utilises déjà OpenMates et tu veux participer au Meetup OpenMates le mardi 19 mai à 19h00 à Berlin ?
+    
+    Depuis un an et demi, je construis OpenMates.org : une meilleure alternative à ChatGPT, Claude, OpenClaw, Manus et consorts. Il donne généralement de meilleures réponses, possède un meilleur design d'expérience utilisateur, donne la priorité à la vie privée, à la sécurité et aux intérêts des utilisateurs avec diverses fonctionnalités, et ne t'enferme pas dans un écosystème, tout en te permettant d'utiliser les modèles d'IA que tu connais et utilises déjà. Il peut utiliser diverses compétences d'application pour trouver des événements, des liaisons ferroviaires, des rendez-vous chez le médecin, des appartements et bien plus encore, et compte déjà ses 200 premiers utilisateurs payants (achats de crédits d'utilisation ponctuelle).
+    
+    Cela dit : je n'en suis pas encore au point de pouvoir en vivre (toujours principalement financé par mes allocations chômage) et j'ai tellement travaillé ces dernières semaines et ces derniers mois que j'ai commencé à faire un burn-out. Je suis conscient que c'est un projet énorme qui nécessite une équipe au lieu de rester un projet individuel. Je me concentre donc maintenant davantage sur le fait d'en faire un effort d'équipe, pour rendre les aspects utiles de l'IA accessibles aux gens ordinaires plutôt que de me concentrer sur les entreprises. Et pour construire une entreprise et un produit durables que les gens aiment toujours utiliser dans les années à venir, au lieu de devenir une énième startup sur la voie de l'« enshittification ». Je suis bien plus intéressé par des concepts comme la propriété responsable (steward ownership), par exemple, plutôt que de parler de stratégies de sortie et de la manière de se vendre aux géants de la tech.
+    
+    Comme je me considère avant tout comme le responsable produit (formation en design UX + développement logiciel), je suis particulièrement intéressé par des personnes axées sur le marketing/la communication - mais j'aimerais aussi recevoir le soutien d'autres développeurs logiciels expérimentés. Et les retours de quiconque utilise OpenMates sont sincèrement précieux et les bienvenus, quel que soit ton parcours.
+    
+    Si cela t'intéresse et que tu souhaites contribuer avec tes retours, échanger avec d'autres personnes ou peut-être même collaborer à plus long terme - rejoins le meetup OpenMates ou [envoie-moi un message](mailto:marco@openmates.org) ! :)
+    
+    Salutations,
+    
+    Marco  
+    Créateur d'OpenMates
+  pt: |
+    Já usa o OpenMates e quer participar do OpenMates Meetup na terça-feira, 19 de maio, às 19:00, em Berlim?
+    
+    Há 1 ano e meio, venho construindo o OpenMates.org: uma alternativa melhor ao ChatGPT, Claude, OpenClaw, Manus e outros. Ele geralmente oferece respostas melhores, tem um design de experiência do usuário superior, prioriza a privacidade, a segurança e os interesses do usuário com diversos recursos, e não te prende a um ecossistema, permitindo que você continue usando os modelos de IA que já conhece e utiliza. Ele pode usar várias habilidades de aplicativos para encontrar eventos, conexões de trem, consultas médicas, apartamentos e muito mais, e já conta com os primeiros 200 usuários pagantes (compras de créditos de uso único).
+    
+    Dito isso: ainda não cheguei ao ponto de conseguir viver disso (ainda sou financiado principalmente pelo seguro-desemprego) e trabalhei tanto nas últimas semanas e meses que comecei a me sentir cada vez mais exausto. Tenho consciência de que este é um projeto enorme e exige uma equipe, em vez de continuar sendo um projeto de uma só pessoa. Por isso, agora estou focando mais em tornar isso um esforço de equipe, para tornar os aspectos úteis da IA acessíveis às pessoas comuns, em vez de focar em empresas. E para construir um negócio e um produto sustentáveis que as pessoas continuem amando usar nos próximos anos, em vez de se tornar apenas mais uma startup no caminho da merdificação (enshittification). Estou muito mais interessado em conceitos como steward ownership, por exemplo, em vez de falar sobre estratégias de saída e como se vender para as grandes empresas de tecnologia.
+    
+    Como me vejo principalmente como o "cara do produto" (background em design de UX + desenvolvimento de software), estou especialmente interessado em pessoas com foco em marketing/comunicação — mas também adoraria receber apoio de outros desenvolvedores experientes. E o feedback de qualquer pessoa que use o OpenMates é genuinamente valioso e muito bem-vindo, independentemente da sua formação.
+    
+    Se isso parece interessante para você e você quer contribuir com seu feedback, conectar-se com outras pessoas ou talvez até colaborar a longo prazo — participe do meetup do OpenMates ou [envie-me uma mensagem](mailto:marco@openmates.org)! :)
+    
+    Saudações,
+    
+    Marco  
+    Criador do OpenMates
+  ru: |
+    Уже пользуешься OpenMates и хочешь прийти на встречу OpenMates Meetup во вторник, 19 мая, в 19:00 в Берлине?
+    
+    Последние полтора года я создаю OpenMates.org — лучшую альтернативу ChatGPT, Claude, OpenClaw, Manus и другим. Обычно он дает более качественные ответы, обладает более продуманным дизайном интерфейса, уделяет приоритетное внимание приватности, безопасности и интересам пользователей благодаря различным функциям и не привязывает тебя к одной экосистеме, позволяя при этом использовать уже знакомые ИИ-модели. Он умеет использовать различные навыки приложений для поиска мероприятий, расписания поездов, записи к врачу, поиска квартир и многого другого. У проекта уже есть первые 200 платных пользователей (покупки разовых кредитов).
+    
+    Тем не менее, я пока не могу полностью обеспечивать себя за счет проекта (он все еще финансируется в основном за счет пособия по безработице), и в последние недели и месяцы я работал так много, что начал выгорать. Я понимаю, что это огромный проект, который требует команды, а не усилий одного человека. Поэтому сейчас я сосредоточен на том, чтобы превратить это в командную работу, сделать полезные возможности ИИ доступными для обычных людей, а не только для корпораций. Я хочу построить устойчивый бизнес и продукт, которым люди будут с удовольствием пользоваться долгие годы, а не просто очередной стартап на пути к «эншиттификации». Меня гораздо больше интересуют такие концепции, как ответственное владение (steward ownership), чем разговоры о стратегиях выхода и продаже бигтеху.
+    
+    Поскольку я вижу себя прежде всего как «человека продукта» (с опытом в UX-дизайне и разработке ПО), мне особенно интересны люди с фокусом на маркетинг и коммуникации, но я также буду рад поддержке опытных разработчиков. И отзывы от любого пользователя OpenMates по-настоящему ценны и приветствуются, независимо от твоего опыта.
+    
+    Если это звучит интересно и ты хочешь поделиться отзывом, познакомиться с другими людьми или, возможно, даже сотрудничать в долгосрочной перспективе — приходи на встречу OpenMates или [напиши мне](mailto:marco@openmates.org)! :)
+    
+    Привет,
+    
+    Марко  
+    Создатель OpenMates
+  ja: |
+    すでにOpenMatesを利用していて、5月19日（火）19:00にベルリンで開催されるOpenMates Meetupに参加したいですか？
+    
+    この1年半、私はOpenMates.orgを構築してきました。これはChatGPT、Claude、OpenClaw、Manusなどのより優れた代替手段です。通常、より優れた回答を提供し、UXデザインも優れており、さまざまな機能でプライバシー、安全性、ユーザーの利益を優先しています。また、特定のエコシステムに縛られることなく、すでに使い慣れているAIモデルをそのまま利用できます。イベント検索、電車の乗り換え、病院の予約、アパート探しなど、さまざまなアプリスキルを利用でき、すでに最初の200人の有料ユーザー（単発の利用クレジット購入）がいます。
+    
+    とはいえ、まだこれだけで生計を立てられる段階ではなく（主に失業保険で賄っています）、ここ数週間から数ヶ月間働きすぎて、ますます燃え尽き症候群になりつつあります。これが巨大なプロジェクトであり、個人のプロジェクトのままではなくチームが必要であることは自覚しています。そのため、現在はエンタープライズ（企業向け）に焦点を当てるのではなく、AIの有用な側面を一般の人々が利用できるようにするために、チームでの取り組みに注力しています。そして、単に「質の低下（enshittification）」へと向かうだけのスタートアップになるのではなく、何年も先まで人々に愛され続ける持続可能なビジネスと製品を構築したいと考えています。私は、出口戦略や大手テック企業への売却について話すよりも、例えばスチュワード・オーナーシップのような概念にはるかに興味があります。
+    
+    私は自分自身を主にプロダクト担当（UXデザイン＋ソフトウェア開発のバックグラウンド）と考えているため、特にマーケティングやコミュニケーションに重点を置いている方に興味がありますが、経験豊富な他のソフトウェア開発者からのサポートも大歓迎です。また、OpenMatesを利用している方からのフィードバックは、バックグラウンドに関わらず本当に貴重であり、大歓迎です。
+    
+    もしこれに興味を持ち、フィードバックで貢献したい、他の人々とつながりたい、あるいは長期的に協力したいと思われたなら、ぜひOpenMatesのミートアップに参加するか、[私にメッセージを送ってください](mailto:marco@openmates.org)！ :)
+    
+    よろしくお願いします。
+    
+    Marco  
+    OpenMates クリエイター
+  ko: |
+    이미 OpenMates를 사용 중이며 5월 19일 화요일 19:00에 베를린에서 열리는 OpenMates 밋업에 참여하고 싶으신가요?
+    
+    지난 1년 반 동안 저는 ChatGPT, Claude, OpenClaw, Manus 등의 더 나은 대안인 OpenMates.org를 만들어 왔습니다. 이 서비스는 일반적으로 더 나은 답변을 제공하고, 더 나은 사용자 경험 디자인을 갖추고 있으며, 다양한 기능을 통해 개인정보 보호, 안전 및 사용자 이익을 우선시합니다. 또한 특정 생태계에 종속되지 않으면서도 이미 알고 사용 중인 AI 모델을 그대로 사용할 수 있게 해줍니다. 이벤트 찾기, 기차 연결, 병원 예약, 아파트 찾기 등 다양한 앱 스킬을 사용할 수 있으며, 이미 첫 200명의 유료 사용자(일회성 사용 크레딧 구매)를 확보했습니다.
+    
+    하지만 아직 이 서비스로 생계를 유지할 수 있는 단계는 아니며(여전히 주로 실업 급여로 운영 중입니다), 최근 몇 주와 몇 달 동안 너무 많이 일해서 점점 번아웃이 오기 시작했습니다. 저는 이것이 거대한 프로젝트이며 1인 프로젝트로 남기보다는 팀이 필요하다는 것을 알고 있습니다. 그래서 이제는 기업용 서비스에 집중하기보다 AI의 유용한 측면을 일반 사람들이 쉽게 접할 수 있도록 팀 프로젝트로 만드는 데 더 집중하고 있습니다. 그리고 단순히 '엔시티피케이션(enshittification, 플랫폼의 질적 하락)'의 길을 걷는 또 다른 스타트업이 되는 대신, 사람들이 앞으로도 오랫동안 즐겁게 사용할 수 있는 지속 가능한 비즈니스와 제품을 만들고 싶습니다. 저는 엑시트 전략이나 빅테크에 회사를 매각하는 것보다 스튜어드 소유권(steward ownership) 같은 개념에 훨씬 더 관심이 많습니다.
+    
+    저는 제 자신을 주로 제품 담당자(UX 디자인 + 소프트웨어 개발 배경)로 생각하기 때문에 마케팅/커뮤니케이션에 집중할 수 있는 분들에게 특히 관심이 많습니다. 하지만 숙련된 다른 소프트웨어 개발자분들의 지원도 환영합니다. 그리고 배경에 상관없이 OpenMates를 사용하는 모든 분의 피드백은 정말 소중하며 언제나 환영합니다.
+    
+    이 내용이 흥미롭게 느껴지고 피드백을 통해 기여하고 싶거나, 다른 사람들과 교류하고 싶거나, 장기적으로 협업하고 싶다면 OpenMates 밋업에 참여하거나 [저에게 메시지를 보내주세요](mailto:marco@openmates.org)! :)
+    
+    감사합니다.
+    
+    Marco  
+    OpenMates 제작자
+  it: |
+    Usi già OpenMates e vuoi partecipare all'OpenMates Meetup martedì 19 maggio alle 19:00 a Berlino?
+    
+    Da un anno e mezzo sto sviluppando OpenMates.org: un'alternativa migliore a ChatGPT, Claude, OpenClaw, Manus e altri. Solitamente fornisce risposte migliori, ha un design dell'esperienza utente superiore, dà priorità alla privacy, alla sicurezza e agli interessi degli utenti con varie funzionalità, e non ti vincola a un ecosistema, pur permettendoti di utilizzare i modelli di IA che già conosci e usi. Può utilizzare diverse skill dell'app per trovare eventi, collegamenti ferroviari, appuntamenti medici, appartamenti e molto altro, e ha già i primi 200 utenti paganti (acquisti di crediti di utilizzo una tantum).
+    
+    Detto questo: non sono ancora al punto di poterne vivere (è ancora finanziato principalmente dal sussidio di disoccupazione) e ho lavorato così tanto nelle ultime settimane e mesi che ho iniziato ad andare sempre più in burnout. Sono consapevole che si tratta di un progetto enorme che richiede un team invece di rimanere un progetto individuale. Quindi, ora mi sto concentrando maggiormente sul renderlo un lavoro di squadra, per rendere gli aspetti utili dell'IA accessibili alle persone comuni invece di concentrarmi sulle aziende. E per costruire un'attività e un prodotto sostenibili che le persone amino ancora usare negli anni a venire, invece di diventare l'ennesima startup sulla strada della "merdificazione" (enshittification). Sono molto più interessato a concetti come la proprietà fiduciaria (steward ownership), ad esempio, invece di parlare di strategie di uscita e di come vendersi alle grandi aziende tecnologiche.
+    
+    Dato che mi vedo principalmente come il responsabile del prodotto (background in UX design + sviluppo software), sono particolarmente interessato a persone con un focus su marketing/comunicazione, ma mi piacerebbe anche ricevere supporto da altri sviluppatori software esperti. E il feedback di chiunque utilizzi OpenMates è sinceramente prezioso e molto gradito, a prescindere dal tuo background.
+    
+    Se questo ti sembra interessante e vuoi contribuire con il tuo feedback, connetterti con altre persone o magari collaborare a lungo termine, partecipa al meetup di OpenMates o [inviami un messaggio](mailto:marco@openmates.org)! :)
+    
+    Un saluto,
+    
+    Marco  
+    Creatore di OpenMates
+  tr: |
+    Zaten OpenMates kullanıyor musun ve 19 Mayıs Salı günü saat 19:00'da Berlin'deki OpenMates Meetup'ına katılmak ister misin?
+    
+    Son 1,5 yıldır OpenMates.org'u geliştiriyorum: ChatGPT, Claude, OpenClaw, Manus ve diğerlerine daha iyi bir alternatif. Genellikle daha iyi yanıtlar veriyor, daha iyi bir kullanıcı deneyimi tasarımına sahip, çeşitli özelliklerle gizliliğe, güvenliğe ve kullanıcı çıkarlarına öncelik veriyor ve seni bir ekosisteme hapsetmiyor; üstelik halihazırda bildiğin ve kullandığın yapay zeka modellerini kullanmana da olanak tanıyor. Etkinlik bulma, tren bağlantıları, doktor randevuları, daireler ve çok daha fazlası için çeşitli uygulama becerilerini kullanabiliyor ve şimdiden ilk 200 ödeme yapan kullanıcıya (tek seferlik kullanım kredisi alımları) ulaştı.
+    
+    Bununla birlikte: Henüz hayatımı bundan kazanabileceğim bir noktada değilim (hâlâ temel olarak işsizlik maaşıyla finanse ediliyor) ve son haftalarda ve aylarda o kadar çok çalıştım ki giderek daha fazla tükenmeye başladım. Bunun devasa bir proje olduğunun ve tek kişilik bir proje olarak kalmak yerine bir ekip gerektirdiğinin farkındayım. Bu yüzden, kurumsal odaklı olmak yerine yapay zekanın faydalı yönlerini sıradan insanlar için erişilebilir kılmak adına bunu bir ekip çalışması projesine dönüştürmeye odaklanıyorum. Ve enshittification (hizmet kalitesinin düşmesi) yolundaki sıradan bir girişim olmak yerine, insanların gelecek yıllarda da severek kullanacağı sürdürülebilir bir iş ve ürün inşa etmek istiyorum. Çıkış stratejileri ve büyük teknoloji şirketlerine nasıl satılacağı hakkında konuşmak yerine, örneğin emanetçi sahiplik (steward ownership) gibi kavramlarla çok daha fazla ilgileniyorum.
+    
+    Kendimi öncelikle ürün odaklı biri (UX tasarımı + yazılım geliştirme geçmişi) olarak gördüğüm için, özellikle pazarlama/iletişim odaklı kişilerle ilgileniyorum - ancak diğer deneyimli yazılım geliştiricilerden de destek almayı çok isterim. Ve geçmişin ne olursa olsun, OpenMates kullanan herkesten gelecek geri bildirimler gerçekten değerli ve memnuniyetle karşılanır.
+    
+    Eğer bu kulağına ilginç geliyorsa ve geri bildirimlerinle katkıda bulunmak, diğer insanlarla bağlantı kurmak veya belki de uzun vadeli iş birliği yapmak istersen - OpenMates meetup'ına katıl veya [bana bir mesaj gönder](mailto:marco@openmates.org)! :)
+    
+    Selamlar,
+    
+    Marco  
+    OpenMates'in Yaratıcısı
+  vi: |
+    Bạn đã đang dùng OpenMates và muốn tham gia Buổi gặp mặt OpenMates vào Thứ Ba, ngày 19 tháng 5 lúc 19:00 tại Berlin?
+    
+    Trong 1 năm rưỡi qua, mình đã và đang xây dựng OpenMates.org: Một giải pháp thay thế tốt hơn cho ChatGPT, Claude, OpenClaw, Manus và những công cụ khác. Nó thường đưa ra các câu trả lời tốt hơn, có thiết kế trải nghiệm người dùng tốt hơn, ưu tiên quyền riêng tư, an toàn và lợi ích của người dùng với nhiều tính năng khác nhau, và không khóa bạn vào một hệ sinh thái cụ thể, trong khi vẫn cho phép bạn sử dụng các mô hình AI mà bạn đã biết và đang dùng. Nó có thể sử dụng nhiều kỹ năng ứng dụng khác nhau để tìm kiếm sự kiện, kết nối tàu hỏa, hẹn bác sĩ, tìm căn hộ và nhiều thứ khác, đồng thời cũng đã có 200 người dùng trả phí đầu tiên (mua gói tín dụng sử dụng một lần).
+    
+    Tuy nhiên: Mình vẫn chưa đến mức có thể sống dựa vào nó (vẫn chủ yếu được tài trợ bởi tiền trợ cấp thất nghiệp) và mình đã làm việc quá nhiều trong những tuần và tháng gần đây đến mức bắt đầu kiệt sức dần. Mình nhận thức được rằng đây là một dự án khổng lồ và cần một đội ngũ thay vì duy trì là dự án của một cá nhân. Vì vậy, hiện tại mình đang tập trung nhiều hơn vào việc biến đây thành một dự án nỗ lực của tập thể, để đưa những khía cạnh hữu ích của AI đến với mọi người thay vì chỉ tập trung vào doanh nghiệp. Và để xây dựng một doanh nghiệp và sản phẩm bền vững mà mọi người vẫn yêu thích sử dụng trong những năm tới, thay vì chỉ trở thành một startup khác trên con đường thoái hóa dịch vụ (enshittification). Mình quan tâm nhiều hơn đến các khái niệm như sở hữu ủy thác (steward ownership), chẳng hạn, thay vì nói về các chiến lược thoái vốn và cách bán mình cho các tập đoàn công nghệ lớn.
+    
+    Vì mình tự thấy bản thân chủ yếu là một người làm sản phẩm (nền tảng thiết kế UX + phát triển phần mềm), mình đặc biệt quan tâm đến những người có chuyên môn về marketing/truyền thông - nhưng cũng rất mong nhận được sự hỗ trợ từ các nhà phát triển phần mềm giàu kinh nghiệm khác. Và phản hồi từ bất kỳ ai đang sử dụng OpenMates đều thực sự quý giá và luôn được chào đón, bất kể nền tảng của bạn là gì.
+    
+    Nếu điều này nghe có vẻ thú vị với bạn và bạn muốn đóng góp ý kiến, kết nối với những người khác hoặc thậm chí có thể hợp tác lâu dài hơn - hãy tham gia buổi gặp mặt OpenMates hoặc [gửi tin nhắn cho mình](mailto:marco@openmates.org)! :)
+    
+    Thân ái,
+    
+    Marco  
+    Người sáng tạo OpenMates
+  id: |
+    Sudah menggunakan OpenMates dan ingin bergabung dalam OpenMates Meetup pada hari Selasa, 19 Mei pukul 19:00 di Berlin?
+    
+    Selama 1 1/2 tahun terakhir, saya telah membangun OpenMates.org: Alternatif yang lebih baik untuk ChatGPT, Claude, OpenClaw, Manus, dan lainnya. Biasanya memberikan respons yang lebih baik, memiliki desain pengalaman pengguna yang lebih baik, memprioritaskan privasi, keamanan, dan kepentingan pengguna dengan berbagai fitur, serta tidak mengunci kamu ke dalam satu ekosistem, sambil tetap memungkinkan kamu menggunakan model AI yang sudah kamu kenal dan gunakan. Ia dapat menggunakan berbagai keahlian aplikasi untuk mencari acara, koneksi kereta api, janji temu dokter, apartemen, dan banyak lagi, serta telah memiliki 200 pengguna berbayar pertama (pembelian kredit penggunaan satu kali).
+    
+    Meski begitu: Saya belum berada di titik di mana saya bisa hidup darinya (masih didanai terutama oleh tunjangan pengangguran) dan saya bekerja sangat keras dalam beberapa minggu dan bulan terakhir hingga saya mulai merasa semakin lelah (burn out). Saya sadar bahwa ini adalah proyek besar dan membutuhkan tim alih-alih tetap menjadi proyek satu orang. Jadi, sekarang saya lebih fokus untuk menjadikan ini proyek upaya tim, untuk membuat aspek-aspek AI yang berguna dapat diakses oleh orang awam alih-alih berfokus pada perusahaan. Dan untuk membangun bisnis serta produk berkelanjutan yang tetap dicintai orang untuk digunakan di tahun-tahun mendatang, alih-alih menjadi sekadar startup lain dalam perjalanannya menuju "enshittification". Saya jauh lebih tertarik pada konsep-konsep seperti steward ownership, misalnya, alih-alih membicarakan strategi keluar dan bagaimana menjual diri ke perusahaan teknologi besar.
+    
+    Karena saya melihat diri saya terutama sebagai orang produk (latar belakang desain UX + pengembangan perangkat lunak), saya sangat tertarik pada orang-orang dengan fokus pemasaran/komunikasi - tetapi juga ingin mendapatkan dukungan dari pengembang perangkat lunak berpengalaman lainnya. Dan umpan balik dari siapa pun yang menggunakan OpenMates sangatlah berharga dan sangat disambut baik, apa pun latar belakangmu.
+    
+    Jika ini terdengar menarik bagimu dan kamu ingin berkontribusi dengan umpan balikmu, terhubung dengan orang lain, atau bahkan mungkin berkolaborasi dalam jangka panjang - bergabunglah dalam meetup OpenMates atau [kirimi saya pesan](mailto:marco@openmates.org)! :)
+    
+    Salam,
+    
+    Marco  
+    Pencipta OpenMates
+  pl: |
+    Korzystasz już z OpenMates i chcesz dołączyć do OpenMates Meetup we wtorek, 19 maja o 19:00 w Berlinie?
+    
+    Przez ostatnie 1,5 roku budowałem OpenMates.org: lepszą alternatywę dla ChatGPT, Claude, OpenClaw, Manus i innych. Zazwyczaj daje lepsze odpowiedzi, ma lepszy design (UX), stawia na prywatność, bezpieczeństwo i interesy użytkownika dzięki różnym funkcjom i nie zamyka Cię w jednym ekosystemie, pozwalając jednocześnie na korzystanie z modeli AI, które już znasz i których używasz. Potrafi korzystać z różnych umiejętności aplikacji do znajdowania wydarzeń, połączeń kolejowych, wizyt u lekarza, mieszkań i wielu innych rzeczy, a także ma już pierwszych 200 płacących użytkowników (zakupy jednorazowych kredytów).
+    
+    To powiedziawszy: nie jestem jeszcze w punkcie, w którym mógłbym się z tego utrzymać (wciąż finansuję to głównie z zasiłku dla bezrobotnych) i w ostatnich tygodniach oraz miesiącach pracowałem tak dużo, że zacząłem się coraz bardziej wypalać. Mam świadomość, że to ogromny projekt i wymaga zespołu, zamiast pozostawać przedsięwzięciem jednoosobowym. Dlatego teraz skupiam się bardziej na uczynieniu z tego wysiłku zespołowego, aby udostępnić przydatne aspekty AI zwykłym ludziom, zamiast koncentrować się na sektorze korporacyjnym. I aby zbudować zrównoważony biznes i produkt, z którego ludzie będą chętnie korzystać przez lata, zamiast stać się kolejnym startupem na drodze do „enshittification”. O wiele bardziej interesują mnie koncepcje takie jak steward ownership (własność powiernicza), zamiast rozmawiania o strategiach wyjścia i o tym, jak sprzedać się gigantom technologicznym.
+    
+    Ponieważ postrzegam siebie przede wszystkim jako osobę od produktu (doświadczenie w projektowaniu UX i programowaniu), szczególnie interesują mnie osoby skupione na marketingu i komunikacji – ale z chęcią przyjmę też wsparcie od innych doświadczonych programistów. A opinie od każdego, kto korzysta z OpenMates, są naprawdę cenne i mile widziane, niezależnie od Twojego doświadczenia.
+    
+    Jeśli brzmi to dla Ciebie interesująco i chcesz podzielić się swoją opinią, nawiązać kontakt z innymi ludźmi lub może nawet nawiązać dłuższą współpracę – dołącz do meetup OpenMates lub [wyślij mi wiadomość](mailto:marco@openmates.org)! :)
+    
+    Pozdrawiam,
+    
+    Marco  
+    Twórca OpenMates
+  nl: |
+    Gebruik je OpenMates al en wil je naar de OpenMates Meetup komen op dinsdag 19 mei om 19:00 in Berlijn?
+    
+    De afgelopen anderhalf jaar heb ik gebouwd aan OpenMates.org: een beter alternatief voor ChatGPT, Claude, OpenClaw, Manus en anderen. Het geeft doorgaans betere antwoorden, heeft een beter UX-ontwerp, geeft prioriteit aan privacy, veiligheid en gebruikersbelangen met diverse functies, en sluit je niet op in een ecosysteem, terwijl je nog steeds de AI-modellen kunt gebruiken die je al kent en gebruikt. Het kan verschillende app-skills gebruiken voor het vinden van evenementen, treinverbindingen, doktersafspraken, appartementen en nog veel meer, en heeft inmiddels de eerste 200 betalende gebruikers (eenmalige aankopen van gebruikstegoed).
+    
+    Dat gezegd hebbende: ik ben nog niet op een punt waar ik ervan kan rondkomen (nog steeds voornamelijk gefinancierd door een werkloosheidsuitkering) en ik heb de afgelopen weken en maanden zo hard gewerkt dat ik steeds meer opgebrand raakte. Ik ben me ervan bewust dat dit een enorm project is dat een team vereist in plaats van een eenmansproject te blijven. Daarom richt ik me nu meer op het maken van een teamproject, om de nuttige aspecten van AI toegankelijk te maken voor gewone mensen in plaats van me te richten op de zakelijke markt. En om een duurzaam bedrijf en product te bouwen dat mensen over een paar jaar nog steeds graag gebruiken, in plaats van de zoveelste startup te worden op weg naar 'enshittification'. Ik ben veel meer geïnteresseerd in concepten als steward-ownership, bijvoorbeeld, in plaats van te praten over exit-strategieën en hoe ik de boel kan verkopen aan Big Tech.
+    
+    Omdat ik mezelf primair zie als de 'product guy' (achtergrond in UX-design + softwareontwikkeling), ben ik vooral geïnteresseerd in mensen met een focus op marketing/communicatie – maar ik zou ook graag ondersteuning krijgen van andere ervaren softwareontwikkelaars. En feedback van iedereen die OpenMates gebruikt is oprecht waardevol en zeer welkom, ongeacht je achtergrond.
+    
+    Als dit je interessant in de oren klinkt en je wilt bijdragen met je feedback, in contact wilt komen met anderen of misschien zelfs op de langere termijn wilt samenwerken – kom dan naar de OpenMates meetup of [stuur me een bericht](mailto:marco@openmates.org)! :)
+    
+    Groeten,
+    
+    Marco  
+    Maker van OpenMates
+  ar: |
+    هل تستخدم OpenMates بالفعل وترغب في الانضمام إلى لقاء OpenMates يوم الثلاثاء، 19 مايو الساعة 19:00 في برلين؟
+    
+    على مدار العام ونصف الماضي، كنت أعمل على بناء OpenMates.org: بديل أفضل لـ ChatGPT وClaude وOpenClaw وManus وغيرها. عادةً ما يقدم استجابات أفضل، ويتمتع بتصميم أفضل لتجربة المستخدم، ويمنح الأولوية للخصوصية والأمان ومصالح المستخدم من خلال ميزات متنوعة، ولا يحصرك في نظام بيئي معين، بينما لا يزال يسمح لك باستخدام نماذج الذكاء الاصطناعي التي تعرفها وتستخدمها بالفعل. يمكنه استخدام مهارات تطبيقات مختلفة للعثور على الفعاليات، ومواعيد القطارات، ومواعيد الأطباء، والشقق وغير ذلك الكثير، كما يضم أول 200 مستخدم مدفوع (عمليات شراء رصيد استخدام لمرة واحدة).
+    
+    ومع ذلك: لم أصل بعد إلى نقطة تمكنني من كسب لقمة العيش منه (لا يزال ممولاً بشكل أساسي من إعانات البطالة) وقد عملت كثيراً في الأسابيع والأشهر الأخيرة لدرجة أنني بدأت أشعر بالاحتراق النفسي أكثر فأكثر. أدرك أن هذا مشروع ضخم ويتطلب فريقاً بدلاً من البقاء كمشروع فردي. لذا، أركز الآن بشكل أكبر على جعل هذا المشروع جهداً جماعياً، لجعل الجوانب المفيدة للذكاء الاصطناعي في متناول الناس العاديين بدلاً من التركيز على الشركات. وبناء عمل تجاري ومنتج مستدام يستمر الناس في حبه واستخدامه في السنوات القادمة، بدلاً من أن يصبح مجرد شركة ناشئة أخرى في طريقها إلى التدهور (enshittification). أنا مهتم أكثر بمفاهيم مثل "ملكية الوصاية" (steward ownership)، على سبيل المثال، بدلاً من الحديث عن استراتيجيات الخروج وكيفية البيع لشركات التكنولوجيا الكبرى.
+    
+    بما أنني أرى نفسي في المقام الأول كمسؤول عن المنتج (خلفية في تصميم تجربة المستخدم وتطوير البرمجيات)، فأنا مهتم بشكل خاص بالأشخاص ذوي التركيز على التسويق/التواصل - ولكنني أود أيضاً الحصول على دعم من مطوري برمجيات ذوي خبرة. كما أن الملاحظات من أي شخص يستخدم OpenMates قيمة حقاً ومرحب بها للغاية، بغض النظر عن خلفيتك.
+    
+    إذا كان هذا يبدو مثيراً للاهتمام بالنسبة لك وترغب في المساهمة بملاحظاتك، أو التواصل مع أشخاص آخرين أو ربما التعاون على المدى الطويل - انضم إلى لقاء OpenMates أو [أرسل لي رسالة](mailto:marco@openmates.org)! :)
+    
+    تحياتي،
+    
+    ماركو  
+    مؤسس OpenMates
+  hi: |
+    क्या तुम पहले से ही OpenMates का उपयोग कर रहे हो और मंगलवार, 19 मई को 19:00 बजे बर्लिन में होने वाले OpenMates Meetup में शामिल होना चाहते हो?
+    
+    पिछले 1 1/2 वर्षों से, मैं OpenMates.org बना रहा हूँ: ChatGPT, Claude, OpenClaw, Manus और अन्य का एक बेहतर विकल्प। यह आमतौर पर बेहतर प्रतिक्रियाएं देता है, इसका यूजर एक्सपीरियंस डिज़ाइन बेहतर है, यह विभिन्न फीचर्स के साथ प्राइवेसी, सुरक्षा और यूजर के हितों को प्राथमिकता देता है, और तुम्हें किसी एक इकोसिस्टम में बांधता नहीं है, जबकि तुम्हें उन AI मॉडल्स का उपयोग करने की अनुमति देता है जिन्हें तुम पहले से जानते हो और उपयोग करते हो। यह इवेंट्स, ट्रेन कनेक्शन, डॉक्टर अपॉइंटमेंट, अपार्टमेंट और बहुत कुछ खोजने के लिए विभिन्न ऐप स्किल्स का उपयोग कर सकता है और इसके पहले 200 भुगतान करने वाले यूजर्स (वन-टाइम यूसेज क्रेडिट खरीदारी) भी हैं।
+    
+    इसके बावजूद: मैं अभी उस स्थिति में नहीं हूँ जहाँ मैं इससे अपनी आजीविका चला सकूँ (अभी भी मुख्य रूप से बेरोजगारी भत्ते से वित्तपोषित है) और मैंने हाल के हफ्तों और महीनों में इतना काम किया है कि मैं धीरे-धीरे बर्नआउट महसूस करने लगा हूँ। मुझे पता है कि यह एक बहुत बड़ा प्रोजेक्ट है और इसके लिए एक व्यक्ति के प्रोजेक्ट के बजाय एक टीम की आवश्यकता है। इसलिए, अब मैं इसे एक टीम वर्क प्रोजेक्ट बनाने पर अधिक ध्यान केंद्रित कर रहा हूँ, ताकि एंटरप्राइज पर ध्यान केंद्रित करने के बजाय AI के उपयोगी पहलुओं को आम लोगों के लिए सुलभ बनाया जा सके। और एक ऐसा टिकाऊ व्यवसाय और उत्पाद बनाने के लिए जिसे लोग आने वाले वर्षों में भी उपयोग करना पसंद करें, बजाय इसके कि यह 'enshittification' की राह पर चलने वाला एक और स्टार्टअप बन जाए। मैं एग्जिट स्ट्रेटेजी और बड़ी टेक कंपनियों को बिकने के बारे में बात करने के बजाय स्टीवर्ड ओनरशिप (steward ownership) जैसे कॉन्सेप्ट्स में अधिक रुचि रखता हूँ।
+    
+    चूंकि मैं खुद को मुख्य रूप से एक प्रोडक्ट पर्सन (UX डिज़ाइन + सॉफ्टवेयर देव बैकग्राउंड) के रूप में देखता हूँ, इसलिए मेरी विशेष रुचि मार्केटिंग/कम्युनिकेशन पर ध्यान केंद्रित करने वाले लोगों में है - लेकिन मुझे अन्य अनुभवी सॉफ्टवेयर डेवलपर्स से भी सहयोग पाकर खुशी होगी। और OpenMates का उपयोग करने वाले किसी भी व्यक्ति का फीडबैक वास्तव में मूल्यवान है और उसका स्वागत है, चाहे तुम्हारा बैकग्राउंड कुछ भी हो।
+    
+    यदि यह तुम्हें दिलचस्प लगता है और तुम अपने फीडबैक के साथ योगदान देना चाहते हो, अन्य लोगों से जुड़ना चाहते हो या शायद लंबे समय तक सहयोग करना चाहते हो - तो OpenMates मीटअप में शामिल हो या [मुझे एक संदेश भेजें](mailto:marco@openmates.org)! :)
+    
+    नमस्ते,
+    
+    मार्को  
+    OpenMates के निर्माता
+  th: |
+    คุณใช้ OpenMates อยู่แล้วและอยากเข้าร่วม OpenMates Meetup ในวันอังคารที่ 19 พฤษภาคม เวลา 19:00 น. ที่เบอร์ลินไหม?
+    
+    ตลอด 1 ปีครึ่งที่ผ่านมา ผมได้สร้าง OpenMates.org ขึ้นมา ซึ่งเป็นทางเลือกที่ดีกว่า ChatGPT, Claude, OpenClaw, Manus และอื่นๆ โดยปกติแล้วมันจะให้คำตอบที่ดีกว่า มีการออกแบบประสบการณ์ผู้ใช้ (UX) ที่ดีกว่า ให้ความสำคัญกับความเป็นส่วนตัว ความปลอดภัย และผลประโยชน์ของผู้ใช้ด้วยฟีเจอร์ต่างๆ และไม่ผูกมัดคุณไว้กับระบบนิเวศใดระบบนิเวศหนึ่ง ในขณะที่ยังคงให้คุณใช้โมเดล AI ที่คุณรู้จักและใช้งานอยู่แล้วได้ มันสามารถใช้ทักษะของแอปต่างๆ เพื่อค้นหากิจกรรม, การเชื่อมต่อรถไฟ, การนัดหมายแพทย์, อพาร์ตเมนต์ และอื่นๆ อีกมากมาย และตอนนี้มีผู้ใช้ที่ชำระเงิน 200 รายแรกแล้ว (การซื้อเครดิตการใช้งานแบบครั้งเดียว)
+    
+    อย่างไรก็ตาม ผมยังไม่อยู่ในจุดที่สามารถเลี้ยงชีพจากมันได้ (ยังคงได้รับเงินสนับสนุนหลักจากเงินชดเชยการว่างงาน) และผมทำงานหนักมากในช่วงไม่กี่สัปดาห์และไม่กี่เดือนที่ผ่านมาจนเริ่มรู้สึกหมดไฟ (burn out) มากขึ้นเรื่อยๆ ผมตระหนักดีว่านี่เป็นโปรเจกต์ที่ใหญ่มากและต้องการทีมงาน แทนที่จะเป็นโปรเจกต์ที่ทำเพียงคนเดียวต่อไป ดังนั้น ตอนนี้ผมจึงมุ่งเน้นไปที่การทำให้โปรเจกต์นี้เป็นความร่วมมือของทีม เพื่อให้แง่มุมที่เป็นประโยชน์ของ AI เข้าถึงได้สำหรับคนทั่วไป แทนที่จะมุ่งเน้นไปที่ระดับองค์กร และเพื่อสร้างธุรกิจและผลิตภัณฑ์ที่ยั่งยืนซึ่งผู้คนยังคงรักที่จะใช้งานในอีกหลายปีข้างหน้า แทนที่จะกลายเป็นเพียงสตาร์ทอัพอีกรายที่กำลังก้าวไปสู่ความเสื่อมถอย (enshittification) ผมสนใจแนวคิดอย่างเช่น การเป็นเจ้าของแบบดูแลผลประโยชน์ (steward ownership) มากกว่าการพูดถึงกลยุทธ์การถอนตัว (exit strategies) และวิธีขายกิจการให้กับบริษัทเทคโนโลยียักษ์ใหญ่
+    
+    เนื่องจากผมมองว่าตัวเองเป็นคนสายผลิตภัณฑ์เป็นหลัก (พื้นฐานด้านการออกแบบ UX + การพัฒนาซอฟต์แวร์) ผมจึงสนใจเป็นพิเศษในกลุ่มคนที่มีความเชี่ยวชาญด้านการตลาด/การสื่อสาร แต่ก็ยินดีรับการสนับสนุนจากนักพัฒนาซอฟต์แวร์ที่มีประสบการณ์ท่านอื่นๆ ด้วยเช่นกัน และคำติชมจากทุกคนที่ใช้ OpenMates นั้นมีค่าอย่างยิ่งและยินดีรับฟังเสมอ ไม่ว่าคุณจะมีพื้นฐานอย่างไรก็ตาม
+    
+    หากสิ่งนี้ฟังดูน่าสนใจสำหรับคุณ และคุณต้องการร่วมแสดงความคิดเห็น ทำความรู้จักกับคนอื่นๆ หรืออาจจะร่วมงานกันในระยะยาว เข้าร่วม OpenMates meetup หรือ [ส่งข้อความหาผม](mailto:marco@openmates.org) ได้เลย! :)
+    
+    ด้วยความเคารพ
+    
+    มาร์โก  
+    ผู้สร้าง OpenMates
+  cs: |
+    Už používáš OpenMates a chceš se přidat k OpenMates Meetupu v úterý 19. května v 19:00 v Berlíně?
+    
+    Poslední rok a půl stavím OpenMates.org: Lepší alternativu k ChatGPT, Claude, OpenClaw, Manus a dalším. Obvykle dává lepší odpovědi, má lepší design uživatelského prostředí, díky různým funkcím upřednostňuje soukromí, bezpečnost a zájmy uživatelů a neuzamyká tě do jednoho ekosystému, přičemž ti stále umožňuje používat AI modely, které už znáš a používáš. Dokáže využívat různé dovednosti aplikací pro vyhledávání událostí, vlakových spojení, termínů u lékaře, bytů a mnoho dalšího a má už také prvních 200 platících uživatelů (jednorázové nákupy kreditů).
+    
+    Nicméně: Ještě nejsem ve fázi, kdy by mě to uživilo (stále je to financováno hlavně z podpory v nezaměstnanosti) a v posledních týdnech a měsících jsem pracoval tolik, že jsem začal čím dál víc vyhořívat. Jsem si vědom toho, že jde o obrovský projekt, který vyžaduje tým, místo aby zůstal projektem jednoho člověka. Proto se teď více soustředím na to, aby se z toho stalo týmové úsilí a aby užitečné aspekty AI byly dostupné běžným lidem, místo abych se zaměřoval na korporátní sféru. A abych vybudoval udržitelný byznys a produkt, který budou lidé rádi používat i v nadcházejících letech, místo aby se stal jen dalším startupem na cestě k „enshittifikaci“. Mnohem více mě zajímají koncepty jako například steward ownership, místo mluvení o exit strategiích a o tom, jak se prodat velkým technologickým firmám.
+    
+    Protože se vidím především jako produktový člověk (zkušenosti s UX designem a vývojem softwaru), zajímají mě zejména lidé se zaměřením na marketing/komunikaci – ale rád bych získal podporu i od dalších zkušených softwarových vývojářů. A zpětná vazba od kohokoli, kdo OpenMates používá, je skutečně cenná a velmi vítaná, bez ohledu na tvé zázemí.
+    
+    Pokud ti to zní zajímavě a chceš přispět svou zpětnou vazbou, spojit se s ostatními nebo třeba i spolupracovat dlouhodoběji – přidej se k OpenMates meetupu nebo mi [napiš zprávu](mailto:marco@openmates.org)! :)
+    
+    Zdravím,
+    
+    Marco  
+    Tvůrce OpenMates
+  sv: |
+    Använder du redan OpenMates och vill komma på OpenMates Meetup tisdagen den 19 maj kl. 19:00 i Berlin?
+    
+    Under de senaste 1,5 åren har jag byggt OpenMates.org: Ett bättre alternativ till ChatGPT, Claude, OpenClaw, Manus med flera. Det ger vanligtvis bättre svar, har en bättre användarupplevelse, prioriterar integritet, säkerhet och användarnas intressen med olika funktioner, och låser inte in dig i ett ekosystem, samtidigt som du fortfarande kan använda de AI-modeller du redan känner till och använder. Det kan använda olika app-färdigheter för att hitta evenemang, tågförbindelser, läkarbesök, lägenheter och mycket mer, och har även de första 200 betalande användarna (engångsköp av användningskrediter).
+    
+    Med det sagt: Jag är ännu inte vid en punkt där jag kan leva på det (finansieras fortfarande främst av a-kassa) och jag har jobbat så mycket de senaste veckorna och månaderna att jag har börjat bli alltmer utbränd. Jag är medveten om att detta är ett enormt projekt som kräver ett team istället för att förbli ett enmansprojekt. Därför fokuserar jag nu mer på att göra detta till ett lagarbete, för att göra de användbara aspekterna av AI tillgängliga för vanliga människor istället för att fokusera på företag. Och för att bygga en hållbar verksamhet och produkt som folk fortfarande älskar att använda i många år framöver, istället för att bli ännu en startup på väg mot "enshittification". Jag är mycket mer intresserad av koncept som steward ownership, till exempel, istället för att prata om exit-strategier och hur man säljer ut sig till techjättarna.
+    
+    Eftersom jag främst ser mig själv som produktkillen (bakgrund inom UX-design + mjukvaruutveckling), är jag särskilt intresserad av personer med fokus på marknadsföring/kommunikation – men skulle också gärna få stöd från andra erfarna mjukvaruutvecklare. Och feedback från alla som använder OpenMates är genuint värdefull och mycket välkommen, oavsett din bakgrund.
+    
+    Om detta låter intressant för dig och du vill bidra med din feedback, knyta kontakter med andra eller kanske till och med samarbeta mer långsiktigt – kom på OpenMates meetup eller [skicka ett meddelande till mig](mailto:marco@openmates.org)! :)
+    
+    Hälsningar,
+    
+    Marco  
+    Skapare av OpenMates
+  he: |
+    כבר משתמשים ב-OpenMates ורוצים להצטרף למפגש (Meetup) של OpenMates ביום שלישי, ה-19 במאי בשעה 19:00 בברלין?
+    
+    במשך שנה וחצי האחרונות, אני בונה את OpenMates.org: חלופה טובה יותר ל-ChatGPT, Claude, OpenClaw, Manus ואחרים. היא בדרך כלל נותנת תשובות טובות יותר, בעלת עיצוב חוויית משתמש טוב יותר, מתעדפת פרטיות, בטיחות ואינטרסים של המשתמשים עם מגוון פיצ'רים, ולא כובלת אתכם לאקו-סיסטם מסוים, תוך שהיא עדיין מאפשרת לכם להשתמש במודלי ה-AI שאתם כבר מכירים ואוהבים. היא יכולה להשתמש בכישורי אפליקציה (app skills) שונים למציאת אירועים, חיבורי רכבות, תורים לרופאים, דירות ועוד הרבה יותר, ויש לה כבר את 200 המשתמשים המשלמים הראשונים (רכישות חד-פעמיות של קרדיטים לשימוש).
+    
+    עם זאת: אני עדיין לא בנקודה שבה אני יכול להתפרנס מזה (עדיין ממומן בעיקר מדמי אבטלה) ועבדתי כל כך הרבה בשבועות ובחודשים האחרונים שהתחלתי להרגיש שחיקה הולכת וגוברת. אני מודע לכך שזה פרויקט ענק שדורש צוות במקום להישאר פרויקט של אדם אחד. לכן, אני מתמקד עכשיו יותר בהפיכת הפרויקט למאמץ צוותי, כדי להנגיש את ההיבטים השימושיים של AI לאנשים מן השורה במקום להתמקד במגזר העסקי (enterprise). וכדי לבנות עסק ומוצר בר-קיימא שאנשים ימשיכו לאהוב להשתמש בו בשנים הבאות, במקום להפוך לעוד סטארט-אפ בדרך ל-"en-shittification". אני הרבה יותר מתעניין במושגים כמו בעלות נאמנות (steward ownership), למשל, במקום לדבר על אסטרטגיות אקזיט ואיך למכור את העסק לענקיות הטכנולוגיה.
+    
+    מכיוון שאני רואה את עצמי בעיקר כאיש מוצר (רקע בעיצוב UX ופיתוח תוכנה), אני מעוניין במיוחד באנשים עם דגש על שיווק/תקשורת - אבל אשמח מאוד לקבל תמיכה גם ממפתחי תוכנה מנוסים אחרים. ומשוב מכל מי שמשתמש ב-OpenMates הוא בעל ערך אמיתי וברוך הבא, ללא קשר לרקע שלכם.
+    
+    אם זה נשמע לכם מעניין ואתם רוצים לתרום מהמשוב שלכם, ליצור קשר עם אנשים אחרים או אולי אפילו לשתף פעולה לטווח ארוך יותר - הצטרפו למפגש של OpenMates או [שלחו לי הודעה](mailto:marco@openmates.org)! :)
+    
+    בברכה,
+    
+    מרקו  
+    היוצר של OpenMates
   verified_by_human: []
 email_body:
   context: 'Newsletter announcements/openmates-meetup-may-19 — email_body'
@@ -142,23 +476,365 @@ email_body:
     
     Marco  
     Creator of OpenMates
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  he: ''
+  zh: |
+    [image]
+    
+    [cta]
+    
+    如果你已经在使用 OpenMates，并想参加 5 月 19 日星期二 19:00 在柏林举行的 OpenMates 见面会？
+    
+    在过去的一年半里，我一直在开发 OpenMates.org：它是 ChatGPT、Claude、OpenClaw、Manus 等工具的更佳替代方案。它通常能提供更好的回复，拥有更出色的用户体验设计，通过各种功能优先考虑隐私、安全和用户利益，并且不会将你锁定在某个生态系统中，同时仍允许你使用已经熟悉和使用的 AI 模型。它可以使用各种应用技能来查找活动、火车班次、医生预约、公寓等等，并且已经拥有了首批 200 名付费用户（购买一次性使用额度）。
+    
+    话虽如此：我目前还无法以此维持生计（主要仍靠失业救济金维持），而且最近几周和几个月的工作量巨大，让我感到越来越精疲力竭。我意识到这是一个巨大的项目，需要一个团队，而不是仅靠个人维持。因此，我现在正更多地致力于将此转变为一个团队协作项目，让普通人也能接触到 AI 的实用功能，而不是专注于企业市场。我希望建立一个可持续发展的业务和产品，让人们在未来几年仍能喜爱使用，而不是成为另一家走向“平台劣化”（enshittification）的初创公司。我对“责任制所有权”（steward ownership）等概念更感兴趣，而不是讨论退出策略以及如何卖给科技巨头。
+    
+    由于我主要将自己定位为产品人（具有用户体验设计和软件开发背景），我特别希望能结识专注于营销/传播的人才——但也非常欢迎其他资深软件开发者的支持。无论你的背景如何，任何使用 OpenMates 的人的反馈都非常有价值，且备受欢迎。
+    
+    如果你对此感兴趣，并希望提供反馈、结识志同道合的人，甚至进行长期合作——请参加 OpenMates 见面会或[给我发消息](mailto:marco@openmates.org)！:)
+    
+    祝好，
+    
+    Marco  
+    OpenMates 创始人
+  es: |
+    [image]
+    
+    [cta]
+    
+    ¿Ya usas OpenMates y quieres unirte al Meetup de OpenMates el martes 19 de mayo a las 19:00 en Berlín?
+    
+    Durante el último año y medio, he estado construyendo OpenMates.org: una mejor alternativa a ChatGPT, Claude, OpenClaw, Manus y otros. Normalmente ofrece mejores respuestas, tiene un mejor diseño de experiencia de usuario, prioriza la privacidad, la seguridad y los intereses del usuario con diversas funciones, y no te encierra en un ecosistema, permitiéndote seguir usando los modelos de IA que ya conoces y utilizas. Puede usar varias habilidades de aplicaciones para encontrar eventos, conexiones de tren, citas médicas, apartamentos y mucho más, y ya cuenta con los primeros 200 usuarios de pago (compras de créditos de uso único).
+    
+    Dicho esto: aún no estoy en un punto en el que pueda vivir de ello (sigo financiado principalmente por el subsidio de desempleo) y he trabajado tanto en las últimas semanas y meses que he empezado a quemarme cada vez más. Soy consciente de que este es un proyecto enorme y requiere un equipo en lugar de seguir siendo un proyecto unipersonal. Por eso, ahora me estoy centrando más en convertirlo en un esfuerzo de equipo, para que los aspectos útiles de la IA sean accesibles para la gente común en lugar de centrarme en las empresas. Y para construir un negocio y un producto sostenibles que la gente siga amando usar en los próximos años, en lugar de convertirme en otra startup más en su camino hacia la "enshittification". Me interesan mucho más conceptos como la propiedad responsable (steward ownership), por ejemplo, en lugar de hablar de estrategias de salida y de cómo venderse a las grandes tecnológicas.
+    
+    Como me veo principalmente como el responsable de producto (con experiencia en diseño UX y desarrollo de software), me interesan especialmente las personas con un enfoque en marketing/comunicación, pero también me encantaría recibir apoyo de otros desarrolladores de software experimentados. Y el feedback de cualquier persona que use OpenMates es realmente valioso y muy bienvenido, independientemente de tu formación.
+    
+    Si esto te suena interesante y quieres contribuir con tu feedback, conectar con otras personas o tal vez incluso colaborar a más largo plazo, ¡únete al meetup de OpenMates o [envíame un mensaje](mailto:marco@openmates.org)! :)
+    
+    Saludos,
+    
+    Marco  
+    Creador de OpenMates
+  fr: |
+    [image]
+    
+    [cta]
+    
+    Tu utilises déjà OpenMates et tu veux participer au Meetup OpenMates le mardi 19 mai à 19h00 à Berlin ?
+    
+    Depuis un an et demi, je construis OpenMates.org : une meilleure alternative à ChatGPT, Claude, OpenClaw, Manus et consorts. Il donne généralement de meilleures réponses, offre une meilleure expérience utilisateur, donne la priorité à la vie privée, à la sécurité et aux intérêts des utilisateurs grâce à diverses fonctionnalités, et ne t'enferme pas dans un écosystème, tout en te permettant d'utiliser les modèles d'IA que tu connais et utilises déjà. Il peut utiliser diverses compétences d'application pour trouver des événements, des liaisons ferroviaires, des rendez-vous médicaux, des appartements et bien plus encore, et compte déjà ses 200 premiers utilisateurs payants (achats de crédits d'utilisation unique).
+    
+    Ceci dit : je n'en suis pas encore au point de pouvoir en vivre (toujours principalement financé par les allocations chômage) et j'ai tellement travaillé ces dernières semaines et ces derniers mois que j'ai commencé à faire un burn-out de plus en plus marqué. Je suis conscient que c'est un projet énorme qui nécessite une équipe au lieu de rester un projet individuel. C'est pourquoi je me concentre désormais davantage sur le fait d'en faire un projet d'équipe, afin de rendre les aspects utiles de l'IA accessibles aux gens ordinaires plutôt que de me concentrer sur les entreprises. Et pour construire une entreprise et un produit durables que les gens aimeront toujours utiliser dans les années à venir, au lieu de devenir une énième startup sur la voie de l'« enshittification ». Je suis bien plus intéressé par des concepts comme la propriété responsable (steward ownership), par exemple, plutôt que de parler de stratégies de sortie et de la manière de se vendre aux géants de la tech.
+    
+    Comme je me considère avant tout comme un profil produit (parcours design UX + développement logiciel), je suis particulièrement intéressé par des personnes ayant une orientation marketing/communication — mais j'aimerais aussi recevoir le soutien d'autres développeurs logiciels expérimentés. Et les retours de toute personne utilisant OpenMates sont sincèrement précieux et très bienvenus, quel que soit ton parcours.
+    
+    Si cela t'intéresse et que tu souhaites apporter tes commentaires, échanger avec d'autres personnes ou peut-être même collaborer à plus long terme — rejoins le meetup OpenMates ou [envoie-moi un message](mailto:marco@openmates.org) ! :)
+    
+    Salutations,
+    
+    Marco  
+    Créateur d'OpenMates
+  pt: |
+    [image]
+    
+    [cta]
+    
+    Já usas o OpenMates e queres participar no Meetup do OpenMates na terça-feira, 19 de maio, às 19:00 em Berlim?
+    
+    Há um ano e meio que estou a construir o OpenMates.org: uma alternativa melhor ao ChatGPT, Claude, OpenClaw, Manus e outros. Normalmente oferece melhores respostas, tem um melhor design de experiência de utilizador, prioriza a privacidade, a segurança e os interesses do utilizador com várias funcionalidades, e não te prende a um ecossistema, permitindo-te continuar a usar os modelos de IA que já conheces e utilizas. Pode usar várias competências de apps para encontrar eventos, ligações de comboio, consultas médicas, apartamentos e muito mais, e já conta com os primeiros 200 utilizadores pagantes (compras de créditos de utilização única).
+    
+    Dito isto: ainda não estou num ponto em que consiga viver disto (ainda é financiado principalmente pelo subsídio de desemprego) e trabalhei tanto nas últimas semanas e meses que comecei a entrar cada vez mais em burnout. Tenho consciência de que este é um projeto enorme e que requer uma equipa, em vez de continuar a ser um projeto de uma só pessoa. Por isso, estou agora a focar-me mais em tornar isto num esforço de equipa, para tornar os aspetos úteis da IA acessíveis às pessoas comuns, em vez de me focar em empresas. E para construir um negócio e um produto sustentáveis que as pessoas continuem a adorar usar nos próximos anos, em vez de se tornar apenas mais uma startup no caminho da "enshittification". Estou muito mais interessado em conceitos como steward ownership, por exemplo, em vez de falar sobre estratégias de saída e como vender a grandes tecnológicas.
+    
+    Como me vejo principalmente como a pessoa do produto (experiência em design de UX + desenvolvimento de software), estou especialmente interessado em pessoas com foco em marketing/comunicação — mas também adoraria receber apoio de outros programadores experientes. E o feedback de qualquer pessoa que use o OpenMates é genuinamente valioso e muito bem-vindo, independentemente do teu percurso.
+    
+    Se isto te parece interessante e queres contribuir com o teu feedback, conectar-te com outras pessoas ou talvez até colaborar a longo prazo — junta-te ao meetup do OpenMates ou [envia-me uma mensagem](mailto:marco@openmates.org)! :)
+    
+    Saudações,
+    
+    Marco  
+    Criador do OpenMates
+  ru: |
+    [image]
+    
+    [cta]
+    
+    Уже пользуешься OpenMates и хочешь прийти на встречу OpenMates Meetup во вторник, 19 мая, в 19:00 в Берлине?
+    
+    Последние полтора года я создаю OpenMates.org — лучшую альтернативу ChatGPT, Claude, OpenClaw, Manus и другим. Обычно он дает более качественные ответы, обладает лучшим дизайном интерфейса, уделяет приоритетное внимание приватности, безопасности и интересам пользователей благодаря различным функциям и не привязывает тебя к одной экосистеме, позволяя при этом использовать уже знакомые тебе модели ИИ. Он умеет использовать различные навыки приложений для поиска мероприятий, расписания поездов, записи к врачу, поиска квартир и многого другого. У проекта уже есть первые 200 платящих пользователей (разовые покупки кредитов).
+    
+    Тем не менее, я пока не могу обеспечивать себя за счет проекта (он все еще финансируется в основном за счет пособия по безработице), и в последние недели и месяцы я работал так много, что начал все сильнее выгорать. Я понимаю, что это огромный проект, и он требует команды, а не усилий одного человека. Поэтому сейчас я больше сосредоточен на том, чтобы превратить это в командную работу, сделать полезные аспекты ИИ доступными для обычных людей, а не ориентироваться только на корпоративный сектор. И построить устойчивый бизнес и продукт, которым люди будут с удовольствием пользоваться долгие годы, вместо того чтобы стать очередным стартапом на пути к «эншиттификации». Меня гораздо больше интересуют такие концепции, как ответственное владение (steward ownership), а не разговоры о стратегиях выхода и о том, как продаться бигтеху.
+    
+    Поскольку я вижу себя прежде всего как «человека продукта» (с опытом в UX-дизайне и разработке ПО), мне особенно интересны люди с фокусом на маркетинг и коммуникации, но я также буду рад поддержке других опытных разработчиков. И отзывы от любого пользователя OpenMates искренне ценны и приветствуются, независимо от твоего опыта.
+    
+    Если это звучит интересно и ты хочешь поделиться отзывом, познакомиться с другими людьми или, возможно, даже сотрудничать в долгосрочной перспективе — приходи на встречу OpenMates или [напиши мне](mailto:marco@openmates.org)! :)
+    
+    С наилучшими пожеланиями,
+    
+    Марко  
+    Создатель OpenMates
+  ja: |
+    [image]
+    
+    [cta]
+    
+    すでにOpenMatesをご利用中で、5月19日（火）19:00にベルリンで開催されるOpenMates Meetupに参加しませんか？
+    
+    この1年半、私はOpenMates.orgを開発してきました。これはChatGPT、Claude、OpenClaw、Manusなどに代わる、より優れた選択肢です。通常、より優れた回答を提供し、UXデザインも洗練されています。プライバシー、安全性、ユーザーの利益を優先する様々な機能を備え、特定のエコシステムに縛られることなく、すでにお馴染みのAIモデルをそのまま利用できます。イベント検索、電車の乗り換え、病院の予約、アパート探しなど、様々なアプリスキルを利用可能で、すでに最初の200人の有料ユーザー（単発の利用クレジット購入）を獲得しています。
+    
+    とはいえ、まだこれだけで生計を立てられる段階ではなく（現在は主に失業保険で賄っています）、ここ数週間から数ヶ月間働きすぎたため、徐々に燃え尽き症候群（バーンアウト）の兆候が出始めています。これが巨大なプロジェクトであり、個人プロジェクトのままではなくチームが必要であることは自覚しています。そのため、現在はエンタープライズ（企業向け）に注力するのではなく、AIの有用な側面を一般の人々が利用できるようにするため、チーム体制でのプロジェクトへと移行することに力を入れています。そして、単に「質の低下（enshittification）」を辿るだけのスタートアップになるのではなく、何年も先まで愛され続ける持続可能なビジネスとプロダクトを構築したいと考えています。出口戦略（エグジット）や大手テック企業への売却について話すよりも、例えばスチュワード・オーナーシップ（受託者所有）のような概念にずっと興味があります。
+    
+    私は自分自身を主にプロダクト担当（UXデザイン＋ソフトウェア開発のバックグラウンド）と考えているため、特にマーケティングやコミュニケーションに重点を置いている方に興味がありますが、経験豊富な他のソフトウェア開発者からのサポートも大歓迎です。また、バックグラウンドに関わらず、OpenMatesを利用している方からのフィードバックは本当に貴重であり、心から歓迎します。
+    
+    もし興味をお持ちいただけたなら、フィードバックでの貢献、他の方々との交流、あるいは長期的なコラボレーションなど、ぜひOpenMatesのミートアップに参加するか、[私にメッセージを送ってください](mailto:marco@openmates.org)！ :)
+    
+    よろしくお願いします。
+    
+    Marco  
+    OpenMates開発者
+  ko: |
+    [image]
+    
+    [cta]
+    
+    이미 OpenMates를 사용 중이신가요? 5월 19일 화요일 19:00에 베를린에서 열리는 OpenMates 밋업에 참여하고 싶으신가요?
+    
+    지난 1년 반 동안 저는 ChatGPT, Claude, OpenClaw, Manus 등의 더 나은 대안인 OpenMates.org를 만들어 왔습니다. 이 서비스는 일반적으로 더 나은 답변을 제공하고, 더 우수한 사용자 경험 디자인을 갖추고 있으며, 다양한 기능을 통해 개인정보 보호, 안전 및 사용자 이익을 우선시합니다. 또한 특정 생태계에 종속되지 않으면서도 이미 알고 사용 중인 AI 모델을 그대로 사용할 수 있게 해줍니다. 이벤트 찾기, 기차 연결편 확인, 병원 예약, 아파트 매물 찾기 등 다양한 앱 스킬을 사용할 수 있으며, 이미 첫 200명의 유료 사용자(일회성 사용 크레딧 구매)를 확보했습니다.
+    
+    하지만 솔직히 말씀드리면, 아직 이 서비스로 생계를 유지할 수 있는 수준은 아니며(여전히 주로 실업 급여로 운영 중입니다), 최근 몇 주와 몇 달 동안 너무 많이 일한 나머지 점점 번아웃이 오기 시작했습니다. 저는 이것이 거대한 프로젝트이며, 1인 프로젝트로 남기보다는 팀이 필요하다는 점을 잘 알고 있습니다. 그래서 이제는 기업용 솔루션에 집중하기보다 AI의 유용한 측면을 일반인들이 쉽게 접할 수 있도록 팀 프로젝트로 전환하는 데 더 집중하고 있습니다. 또한, 단순히 '망가지는 길(enshittification)'을 걷는 또 하나의 스타트업이 되는 대신, 사람들이 앞으로도 오랫동안 애용할 수 있는 지속 가능한 비즈니스와 제품을 만들고자 합니다. 저는 엑시트 전략이나 거대 기술 기업에 회사를 매각하는 방법보다는, 예를 들어 '책임 소유(steward ownership)'와 같은 개념에 훨씬 더 관심이 많습니다.
+    
+    저는 제 자신을 주로 제품 담당자(UX 디자인 + 소프트웨어 개발 배경)로 생각하기 때문에, 특히 마케팅이나 커뮤니케이션에 집중할 수 있는 분들에게 관심이 많습니다. 하지만 숙련된 다른 소프트웨어 개발자분들의 지원도 언제나 환영합니다. 그리고 배경에 상관없이 OpenMates를 사용하는 모든 분의 피드백은 진심으로 소중하며 언제든 환영합니다.
+    
+    이 내용이 흥미롭게 들리고 피드백을 통해 기여하고 싶거나, 다른 사람들과 교류하고 싶거나, 혹은 장기적으로 협력하고 싶다면 OpenMates 밋업에 참여하거나 [저에게 메시지를 보내주세요](mailto:marco@openmates.org)! :)
+    
+    그럼,
+    
+    마르코  
+    OpenMates 제작자
+  it: |
+    [image]
+    
+    [cta]
+    
+    Usi già OpenMates e vuoi partecipare al Meetup di OpenMates martedì 19 maggio alle 19:00 a Berlino?
+    
+    Da un anno e mezzo sto costruendo OpenMates.org: un'alternativa migliore a ChatGPT, Claude, OpenClaw, Manus e altri. In genere fornisce risposte migliori, ha un design dell'esperienza utente superiore, dà priorità alla privacy, alla sicurezza e agli interessi degli utenti con varie funzionalità, e non ti vincola a un ecosistema, pur permettendoti di utilizzare i modelli di IA che già conosci e usi. Può utilizzare diverse competenze dell'app per trovare eventi, collegamenti ferroviari, appuntamenti medici, appartamenti e molto altro, e ha già i primi 200 utenti paganti (acquisti di crediti di utilizzo una tantum).
+    
+    Detto questo: non sono ancora al punto di poterne vivere (è ancora finanziato principalmente dal sussidio di disoccupazione) e ho lavorato così tanto nelle ultime settimane e mesi che ho iniziato ad andare sempre più in burnout. Sono consapevole che si tratta di un progetto enorme e che richiede un team invece di rimanere un progetto individuale. Quindi, ora mi sto concentrando maggiormente sul rendere questo un progetto di squadra, per rendere gli aspetti utili dell'IA accessibili alle persone comuni invece di concentrarmi sulle aziende. E per costruire un'attività e un prodotto sostenibili che le persone amino ancora usare negli anni a venire, invece di diventare l'ennesima startup sulla strada della "enshittification". Sono molto più interessato a concetti come la steward ownership, ad esempio, invece di parlare di strategie di uscita e di come vendersi alle grandi aziende tecnologiche.
+    
+    Dato che mi considero principalmente un "product guy" (background in UX design + sviluppo software), sono particolarmente interessato a persone con un focus su marketing/comunicazione, ma mi piacerebbe anche ricevere supporto da altri sviluppatori software esperti. E il feedback di chiunque utilizzi OpenMates è davvero prezioso e molto gradito, indipendentemente dal tuo background.
+    
+    Se questo ti sembra interessante e vuoi contribuire con il tuo feedback, connetterti con altre persone o magari collaborare a più lungo termine — partecipa al meetup di OpenMates o [inviami un messaggio](mailto:marco@openmates.org)! :)
+    
+    Saluti,
+    
+    Marco  
+    Creatore di OpenMates
+  tr: |
+    [image]
+    
+    [cta]
+    
+    Zaten OpenMates kullanıyor musun ve 19 Mayıs Salı günü saat 19:00'da Berlin'de gerçekleşecek OpenMates Meetup'ına katılmak mı istiyorsun?
+    
+    Son 1,5 yıldır OpenMates.org'u geliştiriyorum: ChatGPT, Claude, OpenClaw, Manus ve diğerlerine daha iyi bir alternatif. Genellikle daha iyi yanıtlar veriyor, daha iyi bir kullanıcı deneyimi tasarımına sahip, çeşitli özelliklerle gizliliğe, güvenliğe ve kullanıcı çıkarlarına öncelik veriyor ve seni bir ekosisteme hapsetmeden zaten bildiğin ve kullandığın yapay zeka modellerini kullanmana olanak tanıyor. Etkinlik bulma, tren bağlantıları, doktor randevuları, daireler ve çok daha fazlası için çeşitli uygulama becerilerini kullanabiliyor ve şimdiden ilk 200 ödeme yapan kullanıcıya (tek seferlik kullanım kredisi alımları) sahip.
+    
+    Bununla birlikte: Henüz bundan geçimimi sağlayabileceğim bir noktada değilim (hâlâ esas olarak işsizlik maaşıyla finanse ediliyor) ve son haftalarda ve aylarda o kadar çok çalıştım ki giderek daha fazla tükenmeye başladım. Bunun devasa bir proje olduğunun ve tek kişilik bir proje olarak kalmak yerine bir ekip gerektirdiğinin farkındayım. Bu yüzden, kurumsal odaklı olmak yerine yapay zekanın faydalı yönlerini sıradan insanlar için erişilebilir kılmak adına bunu bir ekip çalışması projesine dönüştürmeye odaklanıyorum. Ve "enshittification" (hizmet kalitesinin düşmesi) yolundaki sıradan bir girişim olmak yerine, insanların gelecek yıllarda da severek kullanacağı sürdürülebilir bir iş ve ürün inşa etmek istiyorum. Örneğin, çıkış stratejileri ve büyük teknoloji şirketlerine nasıl satılacağı hakkında konuşmak yerine, "steward ownership" (emanetçi sahiplik) gibi kavramlarla çok daha fazla ilgileniyorum.
+    
+    Kendimi öncelikle ürün odaklı biri olarak gördüğüm için (UX tasarımı + yazılım geliştirme geçmişi), özellikle pazarlama/iletişim odaklı kişilerle ilgileniyorum - ancak diğer deneyimli yazılım geliştiricilerden de destek almayı çok isterim. Ve geçmişin ne olursa olsun, OpenMates kullanan herkesten gelecek geri bildirimler gerçekten değerli ve memnuniyetle karşılanır.
+    
+    Eğer bu sana ilginç geliyorsa ve geri bildirimlerinle katkıda bulunmak, diğer insanlarla bağlantı kurmak veya belki de uzun vadeli iş birliği yapmak istiyorsan - OpenMates meetup'ına katıl veya [bana bir mesaj gönder](mailto:marco@openmates.org)! :)
+    
+    Selamlar,
+    
+    Marco  
+    OpenMates'in Yaratıcısı
+  vi: |
+    [image]
+    
+    [cta]
+    
+    Bạn đang sử dụng OpenMates và muốn tham gia Buổi gặp mặt OpenMates vào Thứ Ba, ngày 19 tháng 5 lúc 19:00 tại Berlin?
+    
+    Trong 1 năm rưỡi qua, mình đã và đang xây dựng OpenMates.org: Một lựa chọn thay thế tốt hơn cho ChatGPT, Claude, OpenClaw, Manus và những công cụ khác. Nó thường đưa ra các câu trả lời tốt hơn, có thiết kế trải nghiệm người dùng tốt hơn, ưu tiên quyền riêng tư, an toàn và lợi ích của người dùng với nhiều tính năng khác nhau, và không khóa bạn vào một hệ sinh thái cố định, trong khi vẫn cho phép bạn sử dụng các mô hình AI mà bạn đã biết và đang dùng. Nó có thể sử dụng nhiều kỹ năng ứng dụng khác nhau để tìm kiếm sự kiện, kết nối chuyến tàu, hẹn lịch bác sĩ, tìm căn hộ và nhiều hơn thế nữa, đồng thời đã có 200 người dùng trả phí đầu tiên (mua gói tín dụng sử dụng một lần).
+    
+    Tuy nhiên: Mình vẫn chưa đến mức có thể sống dựa vào nó (vẫn chủ yếu được tài trợ bởi tiền trợ cấp thất nghiệp) và mình đã làm việc quá nhiều trong những tuần và tháng gần đây đến mức bắt đầu cảm thấy kiệt sức ngày càng nhiều. Mình nhận thức được rằng đây là một dự án khổng lồ và cần một đội ngũ thay vì chỉ là dự án của một cá nhân. Vì vậy, hiện tại mình đang tập trung nhiều hơn vào việc biến đây thành một dự án nỗ lực của tập thể, để đưa những khía cạnh hữu ích của AI đến với mọi người thay vì chỉ tập trung vào doanh nghiệp. Và để xây dựng một doanh nghiệp và sản phẩm bền vững mà mọi người vẫn yêu thích sử dụng trong những năm tới, thay vì chỉ trở thành một startup khác trên con đường "thoái hóa chất lượng" (enshittification). Mình quan tâm nhiều hơn đến các khái niệm như sở hữu ủy thác (steward ownership), chẳng hạn, thay vì nói về các chiến lược thoái vốn và cách bán mình cho các tập đoàn công nghệ lớn.
+    
+    Vì mình tự thấy bản thân chủ yếu là một người làm sản phẩm (nền tảng thiết kế UX + phát triển phần mềm), mình đặc biệt quan tâm đến những người có chuyên môn về marketing/truyền thông - nhưng cũng rất mong nhận được sự hỗ trợ từ các nhà phát triển phần mềm giàu kinh nghiệm khác. Và phản hồi từ bất kỳ ai đang sử dụng OpenMates đều thực sự quý giá và luôn được chào đón, bất kể nền tảng của bạn là gì.
+    
+    Nếu bạn thấy điều này thú vị và muốn đóng góp ý kiến, kết nối với những người khác hoặc thậm chí có thể hợp tác lâu dài hơn - hãy tham gia buổi gặp mặt OpenMates hoặc [gửi tin nhắn cho mình](mailto:marco@openmates.org)! :)
+    
+    Thân ái,
+    
+    Marco  
+    Người sáng lập OpenMates
+  id: |
+    [image]
+    
+    [cta]
+    
+    Sudah menggunakan OpenMates dan ingin bergabung dalam OpenMates Meetup pada hari Selasa, 19 Mei pukul 19:00 di Berlin?
+    
+    Selama 1 1/2 tahun terakhir, saya telah membangun OpenMates.org: Alternatif yang lebih baik untuk ChatGPT, Claude, OpenClaw, Manus, dan lainnya. Biasanya memberikan respons yang lebih baik, memiliki desain pengalaman pengguna yang lebih baik, memprioritaskan privasi, keamanan, dan kepentingan pengguna dengan berbagai fitur, serta tidak mengunci kamu ke dalam satu ekosistem, sambil tetap memungkinkan kamu menggunakan model AI yang sudah kamu kenal dan gunakan. Aplikasi ini dapat menggunakan berbagai keahlian aplikasi untuk mencari acara, koneksi kereta api, janji temu dokter, apartemen, dan banyak lagi, serta sudah memiliki 200 pengguna berbayar pertama (pembelian kredit penggunaan satu kali).
+    
+    Meskipun begitu: Saya belum berada di titik di mana saya bisa hidup dari proyek ini (masih dibiayai terutama oleh tunjangan pengangguran) dan saya bekerja sangat keras dalam beberapa minggu dan bulan terakhir hingga saya mulai merasa semakin burn out. Saya sadar bahwa ini adalah proyek besar dan membutuhkan tim, alih-alih tetap menjadi proyek satu orang. Jadi, sekarang saya lebih fokus untuk menjadikan ini proyek upaya tim, untuk membuat aspek AI yang bermanfaat dapat diakses oleh orang awam, alih-alih berfokus pada perusahaan (enterprise). Dan untuk membangun bisnis serta produk berkelanjutan yang tetap disukai orang di tahun-tahun mendatang, alih-alih menjadi sekadar startup lain dalam perjalanannya menuju enshittification. Saya jauh lebih tertarik pada konsep-konsep seperti steward ownership, misalnya, daripada membicarakan strategi keluar (exit strategy) dan bagaimana menjual diri ke perusahaan teknologi besar.
+    
+    Karena saya melihat diri saya terutama sebagai orang produk (latar belakang desain UX + pengembangan perangkat lunak), saya sangat tertarik pada orang-orang dengan fokus pemasaran/komunikasi - tetapi juga ingin mendapatkan dukungan dari pengembang perangkat lunak berpengalaman lainnya. Dan umpan balik dari siapa pun yang menggunakan OpenMates sangatlah berharga dan sangat disambut baik, apa pun latar belakang kamu.
+    
+    Jika ini terdengar menarik bagi kamu dan kamu ingin berkontribusi dengan umpan balik, terhubung dengan orang lain, atau bahkan mungkin berkolaborasi dalam jangka panjang - bergabunglah dalam meetup OpenMates atau [kirim pesan kepada saya](mailto:marco@openmates.org)! :)
+    
+    Salam,
+    
+    Marco  
+    Pencipta OpenMates
+  pl: |
+    [image]
+    
+    [cta]
+    
+    Korzystasz już z OpenMates i chcesz dołączyć do OpenMates Meetup we wtorek, 19 maja o 19:00 w Berlinie?
+    
+    Przez ostatnie półtora roku budowałem OpenMates.org: lepszą alternatywę dla ChatGPT, Claude, OpenClaw, Manus i innych. Zazwyczaj udziela lepszych odpowiedzi, ma lepiej zaprojektowany interfejs (UX), priorytetyzuje prywatność, bezpieczeństwo i interesy użytkownika dzięki różnym funkcjom oraz nie zamyka Cię w jednym ekosystemie, pozwalając jednocześnie na korzystanie z modeli AI, które już znasz i których używasz. Potrafi korzystać z różnych umiejętności aplikacji do znajdowania wydarzeń, połączeń kolejowych, wizyt u lekarza, mieszkań i wielu innych rzeczy, a także ma już pierwszych 200 płacących użytkowników (zakupy jednorazowych kredytów).
+    
+    To powiedziawszy: nie jestem jeszcze w punkcie, w którym mógłbym się z tego utrzymać (wciąż finansuję się głównie z zasiłku dla bezrobotnych) i w ostatnich tygodniach oraz miesiącach pracowałem tak dużo, że zacząłem się coraz bardziej wypalać. Mam świadomość, że to ogromny projekt i wymaga zespołu, zamiast pozostawać projektem jednoosobowym. Dlatego teraz skupiam się bardziej na uczynieniu z tego projektu zespołowego, aby udostępnić przydatne aspekty AI zwykłym ludziom, zamiast koncentrować się na korporacjach. I aby zbudować zrównoważony biznes i produkt, z którego ludzie nadal będą chętnie korzystać w nadchodzących latach, zamiast stać się kolejnym startupem na drodze do „enshittification”. O wiele bardziej interesują mnie koncepcje takie jak własność powiernicza (steward ownership), zamiast rozmawiania o strategiach wyjścia i o tym, jak sprzedać się wielkim firmom technologicznym.
+    
+    Ponieważ postrzegam siebie przede wszystkim jako osobę od produktu (doświadczenie w projektowaniu UX + tworzeniu oprogramowania), szczególnie interesują mnie osoby skupione na marketingu/komunikacji – ale chętnie przyjmę też wsparcie od innych doświadczonych programistów. A opinie od każdego, kto korzysta z OpenMates, są naprawdę cenne i bardzo mile widziane, bez względu na Twoje doświadczenie.
+    
+    Jeśli brzmi to dla Ciebie interesująco i chcesz podzielić się swoją opinią, nawiązać kontakt z innymi ludźmi lub może nawet współpracować długofalowo – dołącz do meetup-u OpenMates lub [wyślij mi wiadomość](mailto:marco@openmates.org)! :)
+    
+    Pozdrawiam,
+    
+    Marco  
+    Twórca OpenMates
+  nl: |
+    [image]
+    
+    [cta]
+    
+    Gebruik je OpenMates al en wil je naar de OpenMates Meetup komen op dinsdag 19 mei om 19:00 in Berlijn?
+    
+    De afgelopen anderhalf jaar heb ik gebouwd aan OpenMates.org: een beter alternatief voor ChatGPT, Claude, OpenClaw, Manus en anderen. Het geeft doorgaans betere antwoorden, heeft een beter UX-design, geeft prioriteit aan privacy, veiligheid en gebruikersbelangen met verschillende functies, en sluit je niet op in een ecosysteem, terwijl je nog steeds de AI-modellen kunt gebruiken die je al kent en gebruikt. Het kan verschillende app-skills gebruiken voor het vinden van evenementen, treinverbindingen, doktersafspraken, appartementen en nog veel meer, en heeft inmiddels de eerste 200 betalende gebruikers (eenmalige aankopen van gebruikstegoed).
+    
+    Dat gezegd hebbende: ik ben nog niet op een punt dat ik ervan kan rondkomen (nog steeds voornamelijk gefinancierd door een uitkering) en ik heb de afgelopen weken en maanden zo hard gewerkt dat ik steeds meer tegen een burn-out aanliep. Ik ben me ervan bewust dat dit een enorm project is dat een team vereist in plaats van een eenmansproject te blijven. Daarom richt ik me er nu meer op om hier een teaminspanning van te maken, om de nuttige aspecten van AI toegankelijk te maken voor gewone mensen in plaats van me te richten op de zakelijke markt. En om een duurzaam bedrijf en product te bouwen dat mensen over een paar jaar nog steeds graag gebruiken, in plaats van de zoveelste startup te worden op weg naar 'enshittification'. Ik ben veel meer geïnteresseerd in concepten als steward-ownership, bijvoorbeeld, in plaats van te praten over exit-strategieën en hoe het te verkopen aan big tech.
+    
+    Omdat ik mezelf vooral zie als de 'product guy' (achtergrond in UX-design + softwareontwikkeling), ben ik vooral geïnteresseerd in mensen met een focus op marketing/communicatie - maar ik zou ook graag ondersteuning krijgen van andere ervaren softwareontwikkelaars. En feedback van iedereen die OpenMates gebruikt is oprecht waardevol en zeer welkom, ongeacht je achtergrond.
+    
+    Als dit je interessant in de oren klinkt en je wilt bijdragen met je feedback, in contact wilt komen met anderen of misschien zelfs op de langere termijn wilt samenwerken - kom dan naar de OpenMates meetup of [stuur me een bericht](mailto:marco@openmates.org)! :)
+    
+    Groeten,
+    
+    Marco  
+    Maker van OpenMates
+  ar: |
+    [image]
+    
+    [cta]
+    
+    هل تستخدم OpenMates بالفعل وترغب في الانضمام إلى لقاء OpenMates يوم الثلاثاء 19 مايو الساعة 19:00 في برلين؟
+    
+    على مدار العام ونصف الماضيين، كنت أعمل على بناء OpenMates.org: بديل أفضل لـ ChatGPT وClaude وOpenClaw وManus وغيرها. عادةً ما يقدم استجابات أفضل، ويتميز بتصميم تجربة مستخدم أفضل، ويعطي الأولوية للخصوصية والأمان ومصالح المستخدم من خلال ميزات متنوعة، ولا يحصرك في نظام بيئي معين، مع السماح لك باستخدام نماذج الذكاء الاصطناعي التي تعرفها وتستخدمها بالفعل. يمكنه استخدام مهارات تطبيقات متنوعة للعثور على الفعاليات، ومواعيد القطارات، ومواعيد الأطباء، والشقق وغير ذلك الكثير، كما يضم أول 200 مستخدم مدفوع (عمليات شراء رصيد استخدام لمرة واحدة).
+    
+    ومع ذلك: لم أصل بعد إلى نقطة تمكنني من كسب لقمة العيش منه (لا يزال ممولاً بشكل أساسي من إعانات البطالة) وقد عملت كثيراً في الأسابيع والأشهر الأخيرة لدرجة أنني بدأت أشعر بالاحتراق النفسي أكثر فأكثر. أدرك أن هذا مشروع ضخم ويتطلب فريقاً بدلاً من البقاء كمشروع لشخص واحد. لذا، أركز الآن بشكل أكبر على جعل هذا المشروع جهداً جماعياً، لجعل الجوانب المفيدة للذكاء الاصطناعي في متناول الناس العاديين بدلاً من التركيز على الشركات الكبرى. ولبناء عمل تجاري ومنتج مستدام يظل الناس يحبون استخدامه في السنوات القادمة، بدلاً من أن يصبح مجرد شركة ناشئة أخرى في طريقها إلى التدهور. أنا مهتم أكثر بمفاهيم مثل "ملكية الوصاية" (steward ownership)، على سبيل المثال، بدلاً من التحدث عن استراتيجيات الخروج وكيفية البيع لشركات التكنولوجيا الكبرى.
+    
+    بما أنني أرى نفسي في المقام الأول كمسؤول عن المنتج (خلفية في تصميم تجربة المستخدم وتطوير البرمجيات)، فأنا مهتم بشكل خاص بالأشخاص ذوي التركيز على التسويق/التواصل - ولكنني أود أيضاً الحصول على دعم من مطوري برمجيات ذوي خبرة. كما أن الملاحظات من أي شخص يستخدم OpenMates قيمة حقاً ومرحب بها للغاية، بغض النظر عن خلفيتك.
+    
+    إذا كان هذا يبدو مثيراً للاهتمام بالنسبة لك وترغب في المساهمة بملاحظاتك، أو التواصل مع أشخاص آخرين أو حتى التعاون على المدى الطويل - انضم إلى لقاء OpenMates أو [أرسل لي رسالة](mailto:marco@openmates.org)! :)
+    
+    تحياتي،
+    
+    ماركو  
+    مؤسس OpenMates
+  hi: |
+    [image]
+    
+    [cta]
+    
+    क्या तुम पहले से ही OpenMates का उपयोग कर रहे हो और मंगलवार, 19 मई को 19:00 बजे बर्लिन में होने वाले OpenMates Meetup में शामिल होना चाहते हो?
+    
+    पिछले 1 1/2 वर्षों से, मैं OpenMates.org बना रहा हूँ: ChatGPT, Claude, OpenClaw, Manus और अन्य का एक बेहतर विकल्प। यह आमतौर पर बेहतर जवाब देता है, इसका यूजर एक्सपीरियंस डिजाइन बेहतर है, यह विभिन्न फीचर्स के साथ प्राइवेसी, सुरक्षा और यूजर के हितों को प्राथमिकता देता है, और तुम्हें किसी एक इकोसिस्टम में बांधता नहीं है, जबकि तुम्हें उन AI मॉडल्स का उपयोग करने की अनुमति देता है जिन्हें तुम पहले से जानते और उपयोग करते हो। यह इवेंट्स, ट्रेन कनेक्शन, डॉक्टर के अपॉइंटमेंट, अपार्टमेंट और बहुत कुछ खोजने के लिए विभिन्न ऐप स्किल्स का उपयोग कर सकता है और इसके पहले 200 भुगतान करने वाले यूजर्स (वन-टाइम यूसेज क्रेडिट खरीदारी) भी हैं।
+    
+    इसके साथ ही: मैं अभी उस स्थिति में नहीं हूँ जहाँ मैं इससे अपनी आजीविका चला सकूँ (अभी भी मुख्य रूप से बेरोजगारी भत्ते से वित्तपोषित है) और मैंने हाल के हफ्तों और महीनों में इतना काम किया है कि मैं धीरे-धीरे बर्नआउट महसूस करने लगा हूँ। मुझे पता है कि यह एक बड़ा प्रोजेक्ट है और इसके लिए एक व्यक्ति के बजाय एक टीम की आवश्यकता है। इसलिए, अब मैं इसे एक टीम प्रयास बनाने पर अधिक ध्यान केंद्रित कर रहा हूँ, ताकि AI के उपयोगी पहलुओं को एंटरप्राइज के बजाय आम लोगों के लिए सुलभ बनाया जा सके। और एक ऐसा टिकाऊ व्यवसाय और प्रोडक्ट बनाया जा सके जिसे लोग आने वाले वर्षों में भी उपयोग करना पसंद करें, बजाय इसके कि यह 'enshittification' की राह पर चलने वाला एक और स्टार्टअप बन जाए। उदाहरण के लिए, मैं एग्जिट स्ट्रैटेजी और बड़ी टेक कंपनियों को बिकने के बारे में बात करने के बजाय स्टीवर्ड ओनरशिप (steward ownership) जैसे कॉन्सेप्ट्स में अधिक रुचि रखता हूँ।
+    
+    चूंकि मैं खुद को मुख्य रूप से एक प्रोडक्ट पर्सन (UX डिजाइन + सॉफ्टवेयर देव बैकग्राउंड) के रूप में देखता हूँ, इसलिए मेरी विशेष रुचि मार्केटिंग/कम्युनिकेशन पर ध्यान देने वाले लोगों में है - लेकिन मुझे अन्य अनुभवी सॉफ्टवेयर डेवलपर्स से भी सहयोग पाकर खुशी होगी। और OpenMates का उपयोग करने वाले किसी भी व्यक्ति का फीडबैक वास्तव में मूल्यवान है और उसका स्वागत है, चाहे तुम्हारा बैकग्राउंड कुछ भी हो।
+    
+    अगर यह तुम्हें दिलचस्प लगता है और तुम अपने फीडबैक के साथ योगदान देना चाहते हो, अन्य लोगों से जुड़ना चाहते हो या शायद लंबे समय तक सहयोग करना चाहते हो - तो OpenMates मीटअप में शामिल हो या [मुझे एक संदेश भेजें](mailto:marco@openmates.org)! :)
+    
+    शुभकामनाएँ,
+    
+    मार्को  
+    OpenMates के निर्माता
+  th: |
+    [image]
+    
+    [cta]
+    
+    คุณใช้ OpenMates อยู่แล้วและอยากเข้าร่วมงาน OpenMates Meetup ในวันอังคารที่ 19 พฤษภาคม เวลา 19:00 น. ที่เบอร์ลินใช่ไหม?
+    
+    ตลอด 1 ปีครึ่งที่ผ่านมา ผมได้สร้าง OpenMates.org ขึ้นมา ซึ่งเป็นทางเลือกที่ดีกว่า ChatGPT, Claude, OpenClaw, Manus และอื่นๆ โดยปกติแล้วมันจะให้คำตอบที่ดีกว่า มีการออกแบบประสบการณ์ผู้ใช้ (UX) ที่ดีกว่า ให้ความสำคัญกับความเป็นส่วนตัว ความปลอดภัย และผลประโยชน์ของผู้ใช้ด้วยฟีเจอร์ต่างๆ และไม่ผูกมัดคุณไว้กับระบบนิเวศใดระบบหนึ่ง ในขณะที่ยังคงให้คุณใช้โมเดล AI ที่คุณรู้จักและใช้งานอยู่แล้วได้ มันสามารถใช้ทักษะของแอปต่างๆ เพื่อค้นหากิจกรรม, การเชื่อมต่อรถไฟ, การนัดหมายแพทย์, อพาร์ตเมนต์ และอื่นๆ อีกมากมาย และตอนนี้ก็มีผู้ใช้ที่ชำระเงิน 200 รายแรกแล้ว (การซื้อเครดิตการใช้งานแบบครั้งเดียว)
+    
+    อย่างไรก็ตาม ผมยังไม่อยู่ในจุดที่สามารถหาเลี้ยงชีพจากมันได้ (ยังคงได้รับเงินสนับสนุนหลักจากเงินช่วยเหลือผู้ว่างงาน) และผมทำงานหนักมากในช่วงไม่กี่สัปดาห์และไม่กี่เดือนที่ผ่านมาจนเริ่มรู้สึกหมดไฟ (burn out) มากขึ้นเรื่อยๆ ผมตระหนักดีว่านี่เป็นโปรเจกต์ขนาดใหญ่และต้องการทีมงาน แทนที่จะเป็นโปรเจกต์ที่ทำคนเดียวต่อไป ดังนั้น ตอนนี้ผมจึงมุ่งเน้นไปที่การทำให้โปรเจกต์นี้เป็นความร่วมมือของทีม เพื่อให้ผู้คนทั่วไปสามารถเข้าถึงแง่มุมที่เป็นประโยชน์ของ AI ได้ แทนที่จะมุ่งเน้นไปที่ระดับองค์กร และเพื่อสร้างธุรกิจและผลิตภัณฑ์ที่ยั่งยืนซึ่งผู้คนยังคงรักที่จะใช้งานในอีกหลายปีข้างหน้า แทนที่จะเป็นเพียงสตาร์ทอัพอีกรายที่เดินไปตามเส้นทางของความเสื่อมถอย (enshittification) ผมสนใจในแนวคิดอย่างเช่น การเป็นเจ้าของแบบผู้ดูแล (steward ownership) มากกว่าการพูดถึงกลยุทธ์การถอนตัว (exit strategies) และวิธีขายกิจการให้กับบริษัทเทคโนโลยียักษ์ใหญ่
+    
+    เนื่องจากผมมองว่าตัวเองเป็นคนสายผลิตภัณฑ์เป็นหลัก (พื้นฐานด้านการออกแบบ UX + การพัฒนาซอฟต์แวร์) ผมจึงสนใจเป็นพิเศษในกลุ่มคนที่มีความเชี่ยวชาญด้านการตลาด/การสื่อสาร แต่ก็ยินดีอย่างยิ่งที่จะได้รับการสนับสนุนจากนักพัฒนาซอฟต์แวร์ที่มีประสบการณ์คนอื่นๆ ด้วย และความคิดเห็นจากทุกคนที่ใช้ OpenMates นั้นมีค่าอย่างยิ่งและยินดีรับฟังเสมอ ไม่ว่าคุณจะมีพื้นฐานอย่างไรก็ตาม
+    
+    หากสิ่งนี้ฟังดูน่าสนใจสำหรับคุณ และคุณต้องการร่วมแสดงความคิดเห็น เชื่อมต่อกับผู้คนอื่นๆ หรืออาจจะร่วมมือกันในระยะยาว เชิญเข้าร่วมงาน OpenMates meetup หรือ [ส่งข้อความหาผม](mailto:marco@openmates.org) ได้เลย! :)
+    
+    ด้วยความเคารพ,
+    
+    Marco  
+    ผู้สร้าง OpenMates
+  cs: |
+    [image]
+    
+    [cta]
+    
+    Už používáš OpenMates a chceš se přidat k OpenMates Meetupu v úterý 19. května v 19:00 v Berlíně?
+    
+    Poslední rok a půl stavím OpenMates.org: Lepší alternativu k ChatGPT, Claude, OpenClaw, Manus a dalším. Obvykle dává lepší odpovědi, má lepší design uživatelského prostředí, upřednostňuje soukromí, bezpečnost a zájmy uživatelů díky různým funkcím a neuzamyká tě do jednoho ekosystému, zatímco ti stále umožňuje používat AI modely, které už znáš a používáš. Dokáže využívat různé dovednosti aplikací pro hledání událostí, vlakových spojení, termínů u lékaře, bytů a mnoho dalšího, a má také prvních 200 platících uživatelů (nákupy jednorázových kreditů).
+    
+    Nicméně: Ještě nejsem ve fázi, kdy by mě to živilo (stále jsem financován hlavně z podpory v nezaměstnanosti) a v posledních týdnech a měsících jsem pracoval tolik, že jsem začal čím dál víc vyhořívat. Jsem si vědom toho, že je to obrovský projekt a vyžaduje tým, místo aby zůstal projektem jednoho člověka. Proto se teď víc soustředím na to, aby se z toho stal týmový projekt, aby byly užitečné aspekty AI přístupné běžným lidem, místo abych se zaměřoval na enterprise sféru. A abych vybudoval udržitelný byznys a produkt, který budou lidé rádi používat i v nadcházejících letech, místo aby se stal jen dalším startupem na cestě k „enshittifikaci“. Mnohem víc mě zajímají koncepty jako steward ownership, místo mluvení o exit strategiích a o tom, jak se prodat velkým technologickým firmám.
+    
+    Protože se vidím primárně jako produktový člověk (zkušenosti s UX designem a vývojem softwaru), zajímají mě hlavně lidé se zaměřením na marketing/komunikaci – ale také bych rád získal podporu od dalších zkušených softwarových vývojářů. A zpětná vazba od kohokoli, kdo OpenMates používá, je skutečně cenná a velmi vítaná, bez ohledu na tvé zaměření.
+    
+    Pokud ti to zní zajímavě a chceš přispět svou zpětnou vazbou, spojit se s ostatními lidmi nebo třeba i spolupracovat dlouhodoběji – přidej se k OpenMates meetupu nebo mi [napiš zprávu](mailto:marco@openmates.org)! :)
+    
+    Zdravím,
+    
+    Marco  
+    Tvůrce OpenMates
+  sv: |
+    [image]
+    
+    [cta]
+    
+    Använder du redan OpenMates och vill komma på OpenMates Meetup tisdagen den 19 maj kl. 19:00 i Berlin?
+    
+    Under de senaste 1,5 åren har jag byggt OpenMates.org: Ett bättre alternativ till ChatGPT, Claude, OpenClaw, Manus och andra. Det ger vanligtvis bättre svar, har en bättre användarupplevelse, prioriterar integritet, säkerhet och användarnas intressen med olika funktioner, och låser inte in dig i ett ekosystem, samtidigt som du fortfarande kan använda de AI-modeller du redan känner till och använder. Det kan använda olika app-färdigheter för att hitta evenemang, tågförbindelser, läkartider, lägenheter och mycket mer, och har även de första 200 betalande användarna (köp av engångskrediter).
+    
+    Med det sagt: Jag är ännu inte vid en punkt där jag kan försörja mig på det (finansieras fortfarande främst av a-kassa) och jag har arbetat så mycket under de senaste veckorna och månaderna att jag har börjat bli alltmer utbränd. Jag är medveten om att detta är ett enormt projekt som kräver ett team istället för att förbli ett enmansprojekt. Därför fokuserar jag nu mer på att göra detta till ett lagarbete, för att göra de användbara aspekterna av AI tillgängliga för vanliga människor istället för att fokusera på företag. Och för att bygga ett hållbart företag och en produkt som människor fortfarande älskar att använda i många år framöver, istället för att bli ännu ett startup-bolag på väg mot enshittification. Jag är mycket mer intresserad av koncept som steward ownership, till exempel, istället för att prata om exit-strategier och hur man säljer ut till Big Tech.
+    
+    Eftersom jag främst ser mig själv som en produktkille (bakgrund inom UX-design + mjukvaruutveckling), är jag särskilt intresserad av personer med fokus på marknadsföring/kommunikation – men skulle också gärna få stöd från andra erfarna mjukvaruutvecklare. Och feedback från alla som använder OpenMates är genuint värdefull och mycket välkommen, oavsett din bakgrund.
+    
+    Om detta låter intressant för dig och du vill bidra med din feedback, knyta kontakter med andra eller kanske till och med samarbeta mer långsiktigt – kom på OpenMates meetup eller [skicka ett meddelande till mig](mailto:marco@openmates.org)! :)
+    
+    Hälsningar,
+    
+    Marco  
+    Skapare av OpenMates
+  he: |
+    [image]
+    
+    [cta]
+    
+    כבר משתמשים ב-OpenMates ורוצים להצטרף למפגש OpenMates ביום שלישי, ה-19 במאי בשעה 19:00 בברלין?
+    
+    בשנה וחצי האחרונות אני בונה את OpenMates.org: חלופה טובה יותר ל-ChatGPT, Claude, OpenClaw, Manus ואחרים. היא בדרך כלל נותנת תשובות טובות יותר, בעלת עיצוב חוויית משתמש טוב יותר, מתעדפת פרטיות, בטיחות ואינטרסים של המשתמשים עם מגוון פיצ'רים, ולא כובלת אתכם לאקוסיסטם מסוים, תוך שהיא עדיין מאפשרת לכם להשתמש במודלי ה-AI שאתם כבר מכירים ומשתמשים בהם. היא יכולה להשתמש במגוון מיומנויות אפליקציה למציאת אירועים, חיבורי רכבות, תורים לרופאים, דירות ועוד הרבה יותר, ויש לה כבר את 200 המשתמשים המשלמים הראשונים (רכישות חד-פעמיות של קרדיט לשימוש).
+    
+    עם זאת: אני עדיין לא בנקודה שבה אני יכול להתפרנס מזה (עדיין ממומן בעיקר מדמי אבטלה) ועבדתי כל כך הרבה בשבועות ובחודשים האחרונים שהתחלתי להישחק יותר ויותר. אני מודע לכך שמדובר בפרויקט ענק שדורש צוות במקום להישאר פרויקט של אדם אחד. לכן, אני מתמקד עכשיו יותר בהפיכת הפרויקט למאמץ צוותי, כדי להנגיש את ההיבטים השימושיים של AI לאנשים רגילים במקום להתמקד בארגונים. וכדי לבנות עסק ומוצר בני-קיימא שאנשים עדיין יאהבו להשתמש בהם בשנים הבאות, במקום להפוך לעוד סטארט-אפ בדרך ל-enshittification. אני הרבה יותר מתעניין בקונספטים כמו בעלות נאמנות (steward ownership), למשל, במקום לדבר על אסטרטגיות אקזיט ואיך למכור לענקיות הטכנולוגיה.
+    
+    מכיוון שאני רואה את עצמי בעיקר כאיש מוצר (רקע בעיצוב UX + פיתוח תוכנה), אני מעוניין במיוחד באנשים עם דגש על שיווק/תקשורת - אבל אשמח מאוד לקבל תמיכה גם ממפתחי תוכנה מנוסים אחרים. ומשוב מכל מי שמשתמש ב-OpenMates הוא בעל ערך רב באמת וברוך הבא, ללא קשר לרקע שלכם.
+    
+    אם זה נשמע לכם מעניין ואתם רוצים לתרום מהמשוב שלכם, ליצור קשר עם אנשים אחרים או אולי אפילו לשתף פעולה לטווח ארוך יותר - הצטרפו למפגש OpenMates או [שלחו לי הודעה](mailto:marco@openmates.org)! :)
+    
+    בברכה,
+    
+    מרקו  
+    היוצר של OpenMates
   verified_by_human: []

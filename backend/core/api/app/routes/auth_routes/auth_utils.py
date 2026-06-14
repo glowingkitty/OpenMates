@@ -13,10 +13,30 @@ logger = logging.getLogger(__name__)
 ACCOUNT_CONTACT_EMAIL_COLLECTION = "account_contact_emails"
 ACCOUNT_LIFECYCLE_EMAIL_PURPOSE = "account_lifecycle"
 ACCOUNT_CONTACT_EMAIL_UUID_NAMESPACE = uuid.UUID("7f330c19-7aa0-5403-89ca-d97578fb8110")
+GIFT_CARD_CODE_REGEX = regex.compile(
+    r"^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$",
+    regex.IGNORECASE,
+)
 
 
 def _account_contact_email_id(user_id: str) -> str:
     return str(uuid.uuid5(ACCOUNT_CONTACT_EMAIL_UUID_NAMESPACE, user_id))
+
+
+async def has_pending_signup_gift_card(
+    directus_service: Any,
+    pending_gift_card_code: Optional[str],
+) -> bool:
+    """Return true only when signup provided a currently redeemable gift-card code."""
+    code = (pending_gift_card_code or "").strip().upper()
+    if not code or not GIFT_CARD_CODE_REGEX.match(code):
+        return False
+
+    try:
+        return bool(await directus_service.get_gift_card_by_code(code))
+    except Exception as exc:
+        logger.error("Failed to validate pending signup gift card %s: %s", code, exc, exc_info=True)
+        return True
 
 
 async def store_account_lifecycle_contact_email(
@@ -36,21 +56,54 @@ async def store_account_lifecycle_contact_email(
     contact_id = _account_contact_email_id(user_id)
     encrypted_email = await encryption_service.encrypt_account_contact_email(email)
     now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "id": contact_id,
+        "user_id": user_id,
+        "hashed_email": hashed_email,
+        "encrypted_email_address": encrypted_email,
+        "purpose": ACCOUNT_LIFECYCLE_EMAIL_PURPOSE,
+        "source": "signup",
+        "verified_at": verified_at,
+        "metadata": {
+            "signup_version": 1,
+            "stored_at": now,
+        },
+    }
+
+    try:
+        existing_rows = await directus_service.get_items(
+            ACCOUNT_CONTACT_EMAIL_COLLECTION,
+            {
+                "filter": {"id": {"_eq": contact_id}},
+                "fields": "id,user_id",
+                "limit": 1,
+            },
+            admin_required=True,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Could not preflight account lifecycle contact email for user %s: %s",
+            user_id[:8],
+            exc,
+        )
+        existing_rows = []
+
+    if existing_rows:
+        updated = await directus_service.update_item(
+            ACCOUNT_CONTACT_EMAIL_COLLECTION,
+            contact_id,
+            payload,
+            admin_required=True,
+        )
+        if updated:
+            logger.info("Updated account lifecycle contact email for user %s", user_id[:8])
+            return True
+        logger.error("Failed to update account lifecycle contact email for user %s", user_id[:8])
+        return False
+
     success, result = await directus_service.create_item(
         ACCOUNT_CONTACT_EMAIL_COLLECTION,
-        {
-            "id": contact_id,
-            "user_id": user_id,
-            "hashed_email": hashed_email,
-            "encrypted_email_address": encrypted_email,
-            "purpose": ACCOUNT_LIFECYCLE_EMAIL_PURPOSE,
-            "source": "signup",
-            "verified_at": verified_at,
-            "metadata": {
-                "signup_version": 1,
-                "stored_at": now,
-            },
-        },
+        payload,
         admin_required=True,
     )
     if success:
@@ -58,8 +111,15 @@ async def store_account_lifecycle_contact_email(
         return True
 
     if isinstance(result, dict) and result.get("status_code") == 400 and "unique" in result.get("text", "").lower():
-        logger.info("Account lifecycle contact email already exists for user %s", user_id[:8])
-        return True
+        updated = await directus_service.update_item(
+            ACCOUNT_CONTACT_EMAIL_COLLECTION,
+            contact_id,
+            payload,
+            admin_required=True,
+        )
+        if updated:
+            logger.info("Account lifecycle contact email already existed and was updated for user %s", user_id[:8])
+            return True
 
     logger.error("Failed to store account lifecycle contact email for user %s: %s", user_id[:8], result)
     return False

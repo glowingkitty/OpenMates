@@ -1385,6 +1385,23 @@ async def cache_upload_embed(
             logger.warning(f"{log_prefix} Redis client not available — skipping embed cache")
             return {"status": "skipped", "reason": "redis_unavailable"}
 
+        cache_key = f"embed:{payload.embed_id}"
+        existing_embed_json = await client.get(cache_key)
+        if existing_embed_json:
+            try:
+                existing_embed = json_lib.loads(existing_embed_json)
+                if isinstance(existing_embed, dict) and existing_embed.get("encrypted_content"):
+                    logger.info(
+                        f"{log_prefix} Existing vault-encrypted embed cache found at '{cache_key}', "
+                        "leaving it intact"
+                    )
+                    return {"status": "preserved", "embed_id": payload.embed_id}
+            except Exception:
+                logger.warning(
+                    f"{log_prefix} Failed to inspect existing embed cache at '{cache_key}', overwriting",
+                    exc_info=True,
+                )
+
         # Build embed data matching the structure expected by embed_service._lookup_embed_content()
         # and view_skill._lookup_embed_content().  Key fields:
         #   - vault_wrapped_aes_key: needed by the skill to decrypt S3 files
@@ -1408,7 +1425,6 @@ async def cache_upload_embed(
         if payload.content_type == "application/pdf":
             embed_data["type"] = "pdf"
 
-        cache_key = f"embed:{payload.embed_id}"
         await client.set(cache_key, json_lib.dumps(embed_data), ex=259200)  # 72 hours
 
         logger.info(f"{log_prefix} Upload embed cached at key '{cache_key}' (72h TTL)")
@@ -1444,6 +1460,7 @@ class TestRunSummaryEmailPayload(BaseModel):
     all_tests: Optional[List[Dict[str, Any]]] = None  # All tests with name, suite, status, duration
     opencode_chat_url: Optional[str] = None  # Shareable opencode session URL for failure analysis
     subject_override: Optional[str] = None  # Used only for urgent essential-flow failure emails
+    summary_copy: Optional[Dict[str, str]] = None  # Optional labels for non-test summary emails
 
 
 class TestRunOpenObservePayload(BaseModel):
@@ -1507,6 +1524,7 @@ async def dispatch_test_summary_email(
                 "all_tests": payload.all_tests,
                 "opencode_chat_url": payload.opencode_chat_url,
                 "subject_override": payload.subject_override,
+                "summary_copy": payload.summary_copy,
             },
             queue="email",
         )

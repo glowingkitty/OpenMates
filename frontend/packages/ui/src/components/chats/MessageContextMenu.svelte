@@ -15,12 +15,14 @@
         show?: boolean;
         onClose?: () => void;
         onCopy?: () => void;
+        onCopyLink?: () => void;
         onSelect?: () => void;
         onDelete?: () => void;
         onFork?: () => void;        // Callback to open the fork conversation settings panel
         onEdit?: () => void;        // Callback to enter edit mode for a user message
         onHighlight?: () => void;   // Callback to add a yellow highlight to the current selection
         onHighlightAndComment?: () => void; // Highlight AND open the comment popover immediately
+        onExplainInNewChat?: () => void; // Start a background explanation chat from the current selection
         disableDelete?: boolean; // When true, shows delete button greyed out (e.g., first message in chat)
         disableFork?: boolean;   // When true, fork is disabled (e.g., incognito chat)
         /** Hide the Highlight / Highlight & comment items. True when there is no
@@ -38,12 +40,14 @@
         show = false,
         onClose,
         onCopy,
+        onCopyLink,
         onSelect,
         onDelete,
         onFork,
         onEdit,
         onHighlight,
         onHighlightAndComment,
+        onExplainInNewChat,
         disableDelete = false,
         disableFork = false,
         hideHighlight = false,
@@ -195,11 +199,11 @@
     }
 
     // Unified handler for menu actions
-    function handleAction(action: 'copy' | 'select' | 'delete' | 'fork' | 'edit' | 'highlight' | 'highlight_and_comment', event: Event) {
+    function handleAction(action: 'copy' | 'copy_link' | 'select' | 'delete' | 'fork' | 'edit' | 'highlight' | 'highlight_and_comment' | 'explain_in_new_chat', event: Event) {
         event.stopPropagation();
         event.preventDefault();
 
-        if (action === 'highlight' || action === 'highlight_and_comment') {
+        if (action === 'highlight' || action === 'highlight_and_comment' || action === 'explain_in_new_chat') {
             const now = Date.now();
             if (event.type === 'click' && lastLeadingHighlightAction === action && now - lastLeadingHighlightActionAt < 500) {
                 return;
@@ -213,10 +217,12 @@
         console.debug('[MessageContextMenu] Action triggered:', action);
 
         if (action === 'copy') onCopy?.();
+        if (action === 'copy_link') onCopyLink?.();
         if (action === 'select') onSelect?.();
         if (action === 'edit') onEdit?.();
         if (action === 'highlight') onHighlight?.();
         if (action === 'highlight_and_comment') onHighlightAndComment?.();
+        if (action === 'explain_in_new_chat') onExplainInNewChat?.();
         if (action === 'fork') {
             if (!disableFork) onFork?.();
         }
@@ -299,6 +305,17 @@
             {$text('common.copy')}
         </button>
 
+        {#if onCopyLink}
+            <button
+                class="menu-item copy-link"
+                data-testid="chat-context-copy-link"
+                onclick={(event) => handleAction('copy_link', event)}
+            >
+                <div class="clickable-icon icon_link"></div>
+                {$text('enter_message.press_and_hold_menu.copy_link')}
+            </button>
+        {/if}
+
         {#if isTouchDevice}
             <button
                 class="menu-item select"
@@ -345,6 +362,18 @@
             >
                 <div class="clickable-icon icon_quote"></div>
                 {$text('chats.context_menu.highlight_and_comment')}
+            </button>
+        {/if}
+        {#if onExplainInNewChat && !hideHighlight && role === 'assistant' && $authStore.isAuthenticated}
+            <button
+                class="menu-item explain-in-new-chat"
+                data-testid="chat-context-explain-new-chat"
+                onmousedown={(event) => handleAction('explain_in_new_chat', event)}
+                ontouchstart={(event) => handleAction('explain_in_new_chat', event)}
+                onclick={(event) => handleAction('explain_in_new_chat', event)}
+            >
+                <div class="clickable-icon icon_planning"></div>
+                {$text('chats.context_menu.explain_in_new_chat')}
             </button>
         {/if}
 

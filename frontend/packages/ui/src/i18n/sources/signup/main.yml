@@ -22,29 +22,53 @@ sign_up:
   sv: "Registrera dig"
   he: הרשמה
   verified_by_human: []
+test_for_free:
+  context: Header CTA shown while the signup page advertises Free testing credits
+  en: Test for free
+  de: Kostenlos testen
+  zh: 免费测试
+  es: Probar gratis
+  fr: Tester gratuitement
+  pt: Testar gratuitamente
+  ru: Попробовать бесплатно
+  ja: 無料で試す
+  ko: 무료로 테스트
+  it: Prova gratis
+  tr: Ücretsiz dene
+  vi: Dùng thử miễn phí
+  id: Coba gratis
+  pl: Testuj za darmo
+  nl: Gratis testen
+  ar: جرّب مجانًا
+  hi: मुफ्त में आज़माएँ
+  th: ทดลองฟรี
+  cs: Vyzkoušet zdarma
+  sv: Testa gratis
+  he: נסו בחינם
+  verified_by_human: []
 version_title:
   context: Version title on alpha disclaimer page
-  en: v0.11 alpha
-  de: v0.11 alpha
-  zh: v0.11 测试版
-  es: v0.11 alfa
-  fr: v0.11 alpha
-  pt: v0.11 alfa
-  ru: v0.11 альфа
-  ja: v0.11 アルファ
-  ko: v0.11 알파
-  it: v0.11 alpha
-  tr: v0.11 alfa
-  vi: v0.11 alpha
-  id: v0.11 alpha
-  pl: v0.11 alpha
-  nl: v0.11 alpha
-  ar: v0.11 ألفا
-  hi: v0.11 अल्फा
-  th: v0.11 อัลฟา
-  cs: v0.11 alpha
-  sv: "v0.11 alpha"
-  he: v0.11 אלפא
+  en: v0.12 alpha
+  de: v0.12 alpha
+  zh: v0.12 测试版
+  es: v0.12 alfa
+  fr: v0.12 alpha
+  pt: v0.12 alfa
+  ru: v0.12 альфа
+  ja: v0.12 アルファ
+  ko: v0.12 알파
+  it: v0.12 alpha
+  tr: v0.12 alfa
+  vi: v0.12 alpha
+  id: v0.12 alpha
+  pl: v0.12 alpha
+  nl: v0.12 alpha
+  ar: v0.12 ألفا
+  hi: v0.12 अल्फा
+  th: v0.12 อัลฟา
+  cs: v0.12 alpha
+  sv: "v0.12 alpha"
+  he: v0.12 אלפא
   verified_by_human: []
 domain_not_allowed:
   context: Error message shown when the domain is not allowed to sign up
@@ -2001,7 +2025,7 @@ passkey_prf_error_title:
   verified_by_human: []
 passkey_prf_error_message:
   context: PRF error message
-  en: "Your password manager doesn't support the PRF standard. Try another password manager or use password as a signup option instead."
+  en: "Your browser, device, or password manager doesn't support passkey encryption. Try another supported passkey setup or use password as a signup option instead."
   de: "Ihr Passwort-Manager unterstützt den PRF-Standard nicht. Versuchen Sie einen anderen Passwort-Manager oder verwenden Sie stattdessen ein Passwort als Anmeldeoption."
   zh: "您的密码管理器不支持 PRF 标准。请尝试另一个密码管理器，或改用密码作为注册选项。"
   es: "Su administrador de contraseñas no admite el estándar PRF. Pruebe con otro administrador de contraseñas o use una contraseña como opción de registro en su lugar."
@@ -7193,4 +7217,52 @@ advantage_pay_per_use:
   cs: Platba za použití
   sv: Betala per användning
   he: תשלום לפי שימוש
+  verified_by_human: []
+advantage_free_testing_credits:
+  context: Signup page advantage item shown while the Free testing credits budget has enough budget for a full grant
+  en: Free credits for testing
+  de: Kostenlose Credits zum Testen
+  zh: 用于测试的免费积分
+  es: Créditos gratuitos para probar
+  fr: Crédits gratuits pour tester
+  pt: Créditos gratuitos para teste
+  ru: Бесплатные кредиты для тестирования
+  ja: テスト用の無料クレジット
+  ko: 테스트용 무료 크레딧
+  it: Crediti gratuiti per testare
+  tr: Test için ücretsiz krediler
+  vi: Tín dụng miễn phí để thử nghiệm
+  id: Kredit gratis untuk pengujian
+  pl: Darmowe kredyty do testowania
+  nl: Gratis credits om te testen
+  ar: أرصدة مجانية للاختبار
+  hi: परीक्षण के लिए मुफ्त क्रेडिट
+  th: เครดิตฟรีสำหรับการทดสอบ
+  cs: Bezplatné kredity na testování
+  sv: Gratis krediter för testning
+  he: קרדיטים בחינם לבדיקה
+  verified_by_human: []
+free_testing_credits_received:
+  context: In-app notification shown after signup grants promotional Free testing credits. Variable {credits} is the granted credit amount.
+  en: You received {credits} free credits for testing.
+  de: Du hast {credits} kostenlose Credits zum Testen erhalten.
+  zh: 你已收到 {credits} 个用于测试的免费积分。
+  es: Recibiste {credits} créditos gratuitos para probar.
+  fr: Vous avez reçu {credits} crédits gratuits pour tester.
+  pt: Você recebeu {credits} créditos gratuitos para teste.
+  ru: Вы получили {credits} бесплатных кредитов для тестирования.
+  ja: テスト用に {credits} 個の無料クレジットを受け取りました。
+  ko: 테스트용 무료 크레딧 {credits}개를 받았습니다.
+  it: Hai ricevuto {credits} crediti gratuiti per testare.
+  tr: Test için {credits} ücretsiz kredi aldınız.
+  vi: Bạn đã nhận được {credits} tín dụng miễn phí để thử nghiệm.
+  id: Anda menerima {credits} kredit gratis untuk pengujian.
+  pl: Otrzymano {credits} darmowych kredytów do testowania.
+  nl: Je hebt {credits} gratis credits ontvangen om te testen.
+  ar: لقد تلقيت {credits} رصيدًا مجانيًا للاختبار.
+  hi: आपको परीक्षण के लिए {credits} मुफ्त क्रेडिट मिले हैं।
+  th: คุณได้รับเครดิตฟรี {credits} เครดิตสำหรับการทดสอบ
+  cs: Obdrželi jste {credits} bezplatných kreditů na testování.
+  sv: Du fick {credits} gratis krediter för testning.
+  he: קיבלת {credits} קרדיטים בחינם לבדיקה.
   verified_by_human: []

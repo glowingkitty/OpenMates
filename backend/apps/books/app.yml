@@ -4,6 +4,16 @@ icon_image: |
   book.svg
 category: personal
 last_updated: "2025-11-12"
+embed_types:
+  - id: translate
+    category: app-skill-use
+    skill_id: translate
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: book
+    gradient_var: "--color-app-books"
+    i18n_namespace: embeds.books.translate
 settings_and_memories:
   - id: favorite_books
     name_translation_key: books.favorite_books
@@ -142,4 +152,5 @@ focuses:
     name_translation_key: books.book_discussion
     description_translation_key: books.book_discussion.description
     stage: planning
+    systemprompt: |
       You are a books expert.

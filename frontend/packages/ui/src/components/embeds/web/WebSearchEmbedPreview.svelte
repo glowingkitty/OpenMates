@@ -25,6 +25,7 @@
   import { chatSyncService } from '../../../services/chatSyncService';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import type { WebSearchSkillPreviewData } from '../../../types/appSkills';
+  import { getParentPreviewResultState, normalizeEmbedIdList } from '../embedPreviewHydration';
   
   /**
    * Web search result interface for favicon display
@@ -79,6 +80,10 @@
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Search results (for finished state) (direct format) */
     results?: WebSearchResult[];
+    /** Parent-level result_count for metadata-only legacy previews */
+    resultCount?: number;
+    /** Child IDs indicate legacy results exist even when preview metadata is absent */
+    childEmbedIds?: string[] | string;
     /** Task ID for cancellation of entire AI response (direct format) */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill (allows AI to continue) */
@@ -97,6 +102,8 @@
     provider: providerProp,
     status: statusProp,
     results: resultsProp,
+    resultCount: resultCountProp,
+    childEmbedIds: childEmbedIdsProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     previewData,
@@ -116,7 +123,6 @@
   let localErrorMessage = $state<string>('');
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
-  let isLoadingChildren = $state(false);
   let storeResolved = $state(false);
 
   // Initialize local state from props
@@ -150,6 +156,7 @@
   let provider = $derived(localProvider);
   let status = $derived(localStatus);
   let results = $derived(localResults);
+  let childEmbedIds = $derived(normalizeEmbedIdList(childEmbedIdsProp));
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
   let errorMessage = $derived(localErrorMessage || $text('chat.an_error_occured'));
@@ -158,8 +165,8 @@
    * Handle embed data updates from UnifiedEmbedPreview
    * Called when the parent component receives and decodes updated embed data
    * 
-   * NOTE: When parent embed becomes "finished", it may have `embed_ids` but no `results`.
-   * In this case, we need to load child embeds asynchronously to get favicon data.
+    * Parent previews are intentionally self-contained: they may use parent-level
+    * preview_results/preview_favicons, but must not decrypt child embeds.
    */
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[WebSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
@@ -184,8 +191,9 @@
         // Preserve raw error for fullscreen diagnostics
         localErrorMessage = content.error;
       }
-      if (content.results && Array.isArray(content.results)) {
-        localResults = content.results as WebSearchResult[];
+      const previewResults = content.results || content.preview_results || content.preview_favicons;
+      if (previewResults && Array.isArray(previewResults)) {
+        localResults = previewResults as WebSearchResult[];
         console.debug(`[WebSearchEmbedPreview] Updated results from callback:`, localResults.length);
       }
       // Extract skill_task_id for individual skill cancellation
@@ -193,89 +201,6 @@
         localSkillTaskId = content.skill_task_id;
       }
       
-      // CRITICAL FIX: When status is "finished" and we have embed_ids but no results,
-      // load child embeds asynchronously to get favicon data for preview display.
-      // This handles the architecture where parent embed only stores references.
-      if (data.status === 'finished' && (!content.results || !Array.isArray(content.results) || content.results.length === 0)) {
-        const embedIds = content.embed_ids;
-        if (embedIds) {
-          // Parse embed_ids (can be pipe-separated string or array)
-          const childEmbedIds: string[] = typeof embedIds === 'string'
-            ? (embedIds as string).split('|').filter((id: string) => id.length > 0)
-            : Array.isArray(embedIds) ? (embedIds as string[]) : [];
-          
-          if (childEmbedIds.length > 0 && !isLoadingChildren) {
-            console.debug(`[WebSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length} embed_ids)`);
-            isLoadingChildren = true;
-            loadChildEmbedsForPreview(childEmbedIds);
-          }
-        }
-      }
-    }
-  }
-  
-  /**
-   * Load child embeds to extract favicon data for preview display
-   * Uses retry logic because child embeds might not be persisted yet
-   * (they arrive via websocket after the parent embed)
-   */
-  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
-    try {
-      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
-      
-      // Use retry logic with shorter timeout for preview (we just need a few favicons)
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
-      
-      if (childEmbeds.length > 0) {
-        // Transform child embeds to WebSearchResult format (just need basic data for favicons)
-        const results = await Promise.all(childEmbeds.map(async (embed) => {
-          const content = embed.content ? await decodeToonContent(embed.content) : null;
-          if (!content) return null;
-          
-          // Extract favicon URL from multiple possible field formats:
-          // 1. meta_url_favicon: TOON-flattened format (meta_url.favicon becomes meta_url_favicon)
-          // 2. meta_url.favicon: Nested format (raw API or non-TOON encoded)
-          // 3. favicon: Direct field (processed backend format)
-          // 4. favicon_url: Alternative flat format
-          const faviconUrl = 
-            content.meta_url_favicon ||  // TOON flattened format (most common for stored embeds)
-            (content.meta_url as { favicon?: string } | undefined)?.favicon ||  // Nested format
-            content.favicon || 
-            content.favicon_url ||
-            '';
-          
-          // DEBUG: Log what we extracted to help diagnose issues
-          if (childEmbeds.indexOf(embed) < 3) {
-            console.debug(`[WebSearchEmbedPreview] Child embed favicon extraction:`, {
-              embedId: embed.embed_id,
-              title: content.title?.substring(0, 30),
-              meta_url_favicon: content.meta_url_favicon,
-              meta_url: content.meta_url,
-              favicon: content.favicon,
-              favicon_url: content.favicon_url,
-              extracted: faviconUrl
-            });
-          }
-          
-          return {
-            title: content.title || '',
-            url: content.url || '',
-            favicon: faviconUrl,
-            favicon_url: faviconUrl
-          } as WebSearchResult;
-        }));
-        
-        const validResults = results.filter(r => r !== null) as WebSearchResult[];
-        if (validResults.length > 0) {
-          localResults = validResults;
-          console.debug(`[WebSearchEmbedPreview] Loaded ${validResults.length} results from child embeds, favicons found: ${validResults.filter(r => r.favicon).length}`);
-        }
-      }
-    } catch (error) {
-      console.warn('[WebSearchEmbedPreview] Error loading child embeds for preview:', error);
-      // Continue without results - preview will just show query/provider
-    } finally {
-      isLoadingChildren = false;
     }
   }
   
@@ -401,6 +326,13 @@
   let remainingCount = $derived(
     Math.max(0, (flatResults?.length || 0) - faviconResults.length)
   );
+
+  let resultState = $derived(getParentPreviewResultState({
+    status,
+    previewResultCount: flatResults.length,
+    resultCount: resultCountProp,
+    childEmbedIds,
+  }));
   
   // DEBUG: Log results data to understand what we're receiving
   $effect(() => {
@@ -484,16 +416,17 @@
       {:else if status === 'finished'}
         <!-- Finished state: show favicons and remaining count, or "0 results found" -->
         <div class="ds-search-results-info">
-          {#if flatResults.length === 0}
-            {#if isLoadingChildren}
-              <!-- Child embeds are being fetched — show loading instead of confusing "0 results" -->
-              <span class="no-results-text">{$text('common.loading')}</span>
-            {:else}
-              <!-- Search completed but returned zero results — the query is already shown above. -->
-              <span class="no-results-text" data-testid="search-no-results-message">
-                {$text('embeds.search_no_results')}
-              </span>
-            {/if}
+          {#if resultState === 'known_zero_results'}
+            <!-- Search completed and the parent explicitly says there were zero results. -->
+            <span class="no-results-text" data-testid="search-no-results-message">
+              {query
+                ? $text('embeds.search_no_results_for_query').replace('{query}', query)
+                : $text('embeds.search_no_results')}
+            </span>
+          {:else if resultState === 'missing_preview_metadata'}
+            <span class="no-results-text" data-testid="search-preview-metadata-missing-message">
+              {$text('embeds.search_preview_open_to_view_results')}
+            </span>
           {:else}
             <!-- Favicons row -->
             {#if faviconResults.length > 0}

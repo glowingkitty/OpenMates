@@ -372,15 +372,14 @@ test('CLI file upload — text file with secret + image file', async ({ page }: 
 		const userMessages = messages.filter((m: any) => m.role === 'user');
 		expect(userMessages.length).toBeGreaterThan(0);
 
-		// The user message content should contain an embed reference block (```json with embed_id)
+		// The user message content should contain the current markdown embed reference.
 		const lastUserMsg = userMessages[userMessages.length - 1];
 		const userContent: string = lastUserMsg.content ?? '';
-		expect(userContent).toContain('embed_id');
-		expect(userContent).toContain('"type": "code"');
+		expect(userContent).toMatch(/\[!\]\(embed:[^)]+\)/);
 		logCheckpoint('Text file embed reference found in message content');
 
 		// Verify the embed content does NOT contain the raw secret
-		const embedIdMatch = userContent.match(/"embed_id":\s*"([^"]+)"/);
+		const embedIdMatch = userContent.match(/\[!\]\(embed:([^)]+)\)/);
 		if (embedIdMatch) {
 			const embedId = embedIdMatch[1];
 			const embedResult = await runCli(apiUrl, ['embeds', 'show', embedId, '--json'], 20_000);

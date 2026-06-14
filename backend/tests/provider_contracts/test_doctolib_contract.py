@@ -1,7 +1,8 @@
 # backend/tests/provider_contracts/test_doctolib_contract.py
 #
-# Daily contract probe for Doctolib DE — the listing page, the phs_proxy/raw
-# doctor search, and the /search/availabilities.json slot endpoint.
+# Daily contract probe for Doctolib DE — the listing page, the
+# patient-health-search doctor search, and the /search/availabilities.json slot
+# endpoint.
 #
 # What this catches (one concrete historical example per assertion):
 #   * 2026-Q1 'start_date' → 'start_date_time' rename  →  0 slots regression
@@ -79,12 +80,13 @@ async def test_doctolib_listing_has_window_place(
 
 
 @pytest.mark.provider_contract
-async def test_doctolib_phs_proxy_provider_shape(
+async def test_doctolib_provider_search_shape(
     webshare_proxy_url: str, browser_headers: dict[str, str]
 ) -> None:
-    """phs_proxy/raw must return healthcareProviders[] with the exact fields
-    the skill reads: references.practiceId, onlineBooking.agendaIds,
-    matchedVisitMotive.visitMotiveId, and insuranceSector as a dict."""
+    """Doctolib provider search must return healthcareProviders[] with the
+    exact fields the skill reads: references.practiceId,
+    onlineBooking.agendaIds, matchedVisitMotive.visitMotiveId, and
+    insuranceSector as a dict."""
     headers = {
         **browser_headers,
         "Content-Type": "application/json",
@@ -102,7 +104,7 @@ async def test_doctolib_phs_proxy_provider_shape(
         assert match, "listing page has no window.place (see listing test)"
         place = json.loads(match.group(1))
         resp = await client.post(
-            f"{DOCTOLIB_BASE_URL}/phs_proxy/raw?page=0",
+            f"{DOCTOLIB_BASE_URL}/patient-health-search/api/v1/hcp/search?page=0",
             json={
                 "keyword": PROBE_SPECIALITY_SLUG,
                 "location": {"place": place},
@@ -110,10 +112,12 @@ async def test_doctolib_phs_proxy_provider_shape(
             },
             headers=headers,
         )
-        assert resp.status_code == 200, f"phs_proxy HTTP {resp.status_code}"
+        assert resp.status_code in (200, 206), (
+            f"provider search HTTP {resp.status_code}"
+        )
         data = resp.json()
         providers = data.get("healthcareProviders") or []
-        assert providers, "phs_proxy returned zero healthcareProviders"
+        assert providers, "provider search returned zero healthcareProviders"
 
         # Inspect the first few providers for the full field set.
         gps_found = False
@@ -189,7 +193,7 @@ async def test_doctolib_availability_returns_slots(
         assert match, "listing page has no window.place"
         place = json.loads(match.group(1))
         phs = await client.post(
-            f"{DOCTOLIB_BASE_URL}/phs_proxy/raw?page=0",
+            f"{DOCTOLIB_BASE_URL}/patient-health-search/api/v1/hcp/search?page=0",
             json={
                 "keyword": PROBE_SPECIALITY_SLUG,
                 "location": {"place": place},
@@ -197,8 +201,11 @@ async def test_doctolib_availability_returns_slots(
             },
             headers={**headers, "Content-Type": "application/json"},
         )
+        assert phs.status_code in (200, 206), (
+            f"provider search HTTP {phs.status_code}: {phs.text[:200]}"
+        )
         providers = phs.json().get("healthcareProviders") or []
-        assert providers, "phs_proxy returned zero providers"
+        assert providers, "provider search returned zero providers"
 
         start_dt = (
             datetime.now(timezone.utc)

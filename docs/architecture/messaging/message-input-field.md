@@ -2,13 +2,49 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+- frontend/packages/ui/src/components/enter_message/editorConfig.ts
+- frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+- frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+- frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+- frontend/packages/ui/src/message_parsing/parse_message.ts
+- frontend/packages/ui/src/message_parsing/serializers.ts
+claims:
+- id: arch-messaging-message-input-field-behavior
+  type: unit
+  claim: Message Input Field Architecture is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
   - frontend/packages/ui/src/components/enter_message/editorConfig.ts
   - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
   - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
   - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
-  - frontend/packages/ui/src/message_parsing/parse_message.ts
-  - frontend/packages/ui/src/message_parsing/serializers.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-messaging-message-input-field-behavior
+  verified: '2026-06-11'
+- id: arch-messaging-message-input-field-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-input-field-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+- id: arch-messaging-message-input-field-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-input-field-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/enter_message/editorConfig.ts
+- id: arch-messaging-message-input-field-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-input-field-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/enter_message/embedHandlers.ts
 ---
 
 # Message Input Field Architecture

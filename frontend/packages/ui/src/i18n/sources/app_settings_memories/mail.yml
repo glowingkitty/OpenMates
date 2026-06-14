@@ -299,27 +299,26 @@ writing_styles.example_2.when_to_use:
   he: חברים ומשפחה
   verified_by_human: []
 writing_styles.example_2.footer:
-  context: Example value for footer in writing_styles (empty footer)
-  en: ""
-  de: ""
-  zh: ""
-  es: ""
-  fr: ""
-  pt: ""
-  ru: ""
-  ja: ""
-  ko: ""
-  it: ""
-  tr: ""
-  vi: ""
-  id: ""
-  pl: ""
-  nl: ""
-  ar: ""
-  hi: ""
-  th: ""
-  cs: ""
-  sv: ""
-  he: ""
+  context: Example value for footer in writing_styles
+  en: Cheers,
+  de: Viele Grüße,
+  zh: 祝好，
+  es: Un abrazo,
+  fr: À bientôt,
+  pt: Abraços,
+  ru: Удачи,
+  ja: またね、
+  ko: 그럼,
+  it: A presto,
+  tr: Sevgiler,
+  vi: Thân,
+  id: Salam,
+  pl: Pozdrawiam,
+  nl: Groetjes,
+  ar: تحياتي،
+  hi: शुभकामनाएँ,
+  th: ด้วยความปรารถนาดี,
+  cs: Měj se,
+  sv: Ha det bra,
+  he: להתראות,
   verified_by_human: []
-

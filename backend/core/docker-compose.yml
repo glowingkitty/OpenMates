@@ -27,9 +27,11 @@ services:
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       TUNNEL_TRIGGER_SECRET: "${TUNNEL_TRIGGER_SECRET}"
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
+      APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN}"
     command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
     ports:
-      - "8000:8000"
+      # Expose on localhost only — Caddy on this VM proxies to this port.
+      - "127.0.0.1:8000:8000"
     volumes:
       # Changed: Mount the entire host 'backend' directory to '/app/backend' for development
       - ../../backend:/app/backend
@@ -108,7 +110,7 @@ services:
     networks:
       - openmates
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/ping"]
       interval: 10s
       timeout: 5s
       start_period: 30s
@@ -133,7 +135,7 @@ services:
     networks:
       - openmates
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U \"${DATABASE_USERNAME}\" -d \"${DATABASE_NAME}\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -476,6 +478,7 @@ services:
       CELERY_AUTOSCALE_MAX: "${CELERY_VIDEOS_AUTOSCALE_MAX:-2}"
       CELERY_AUTOSCALE_MIN: "${CELERY_VIDEOS_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9110"
+      E2B_REMOTION_TEMPLATE: "${E2B_REMOTION_TEMPLATE:-openmates-remotion-renderer-dev}"
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && \
              mkdir -p /app/logs /app/backend/core/api/logs && \
@@ -1122,22 +1125,29 @@ services:
   #########################################################################
   ##### Frontend Webapp (Static SvelteKit Build)
   #########################################################################
-  # webapp:
-  #   container_name: webapp
-  #   build:
-  #     context: ../../  # Build context is project root
-  #     dockerfile: frontend/apps/web_app/Dockerfile
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5173:5173"
-  #   networks:
-  #     - openmates
-  #   healthcheck:
-  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173/"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 10s
+  webapp:
+    container_name: webapp
+    build:
+      context: ../../  # Build context is project root
+      dockerfile: frontend/apps/web_app/Dockerfile
+      args:
+        VITE_API_URL: "${VITE_API_URL:-http://localhost:8000}"
+        VITE_ENV: "${VITE_ENV:-self_hosted}"
+        VITE_UPLOAD_URL: "${VITE_UPLOAD_URL:-}"
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    networks:
+      - openmates
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   #########################################################################
   ##### Preview Server (Image/Favicon Proxy & URL Metadata)

@@ -83,6 +83,7 @@ async def download_generated_asset(
         params={
             "filter": {"embed_id": {"_eq": asset_id}, "user_id": {"_eq": payload.get("user_id")}},
             "fields": "id,content_type,files_metadata,aes_key,aes_nonce,original_filename",
+            "sort": "-created_at",
             "limit": 1,
         },
         no_cache=True,

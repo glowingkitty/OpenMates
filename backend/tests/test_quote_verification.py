@@ -153,6 +153,21 @@ def _verify(content_dict: dict, quoted_text: str) -> bool:
     ))
 
 
+def _verify_with_cached_toon(cached_toon: str | None, quoted_text: str) -> bool:
+    """Synchronously verify a quote when the cached embed lookup returns a raw value."""
+    svc = EmbedService(
+        cache_service=MagicMock(),
+        directus_service=MagicMock(),
+        encryption_service=MagicMock(),
+    )
+    svc._get_cached_embed_toon = AsyncMock(return_value=cached_toon)
+    return _run(svc.verify_quote_in_embed(
+        embed_id="test-id",
+        quoted_text=quoted_text,
+        user_vault_key_id="key-1",
+    ))
+
+
 class TestVerifyQuoteNormalization:
 
     def test_exact_match(self):
@@ -231,6 +246,13 @@ class TestVerifyQuoteNormalization:
             {"description": '"It\'s clear... the leader\u2014who won\u201420 seats\u2014is confident," he said.'},
             '\u201cIt\u2019s clear\u2026 the leader\u2014who won\u201420 seats\u2014is confident,\u201d he said.',
         ) is True, "Combined typography differences should match"
+
+    def test_missing_embed_cache_is_not_valid_source_quote(self):
+        """Unverifiable source quotes must be filtered instead of trusted."""
+        assert _verify_with_cached_toon(
+            None,
+            "Midi-chlorians are a microscopic life form that resides within all living cells...",
+        ) is False
 
 
 # ---------------------------------------------------------------------------
@@ -343,6 +365,69 @@ def _quote_verification_services() -> tuple[MagicMock, MagicMock, MagicMock]:
 
 
 class TestVerifyAndStripBadQuotes:
+
+    def test_starwars_false_quote_is_removed_from_response(self, monkeypatch):
+        """Regression for a StarWars.com quote that was not present in the cited embed."""
+        from toon_format import encode
+
+        parent_embed_id = "436c5b1f-ff64-4c8c-ac35-908ed989b2ea"
+        child_embed_id = "ef91c6f5-c7ea-481c-9b9b-d05d0152486e"
+        embed_ref = "starwars.com-cLs"
+        false_quote = (
+            "Midi-chlorians are a microscopic life form that resides within all "
+            "living cells... and we are symbionts with them."
+        )
+        starwars_content = {
+            "embed_ref": embed_ref,
+            "title": "So What the Heck Are Midi-Chlorians? | StarWars.com",
+            "url": "https://www.starwars.com/news/so-what-the-heck-are-midi-chlorians",
+            "description": (
+                "So...what are they? Lucas expounded: \"I'm assuming that the "
+                "midi-chlorians are a race that everybody knows about [in the world "
+                "of Star Wars]. The way you interact and interface with this larger "
+                "energy field [the Force] is through the midi-chlorians, which are "
+                "sensitive to the energy."
+            ),
+            "extra_snippets": (
+                "So...what are they? Lucas expounded: \"I'm assuming that the "
+                "midi-chlorians are a race that everybody knows about [in the world "
+                "of Star Wars]. The way you interact and interface with this larger "
+                "energy field [the Force] is through the midi-chlorians, which are "
+                "sensitive to the energy.|So, despite blood-tests that show your "
+                "aptitude, learning the Force is still like Yoga, or boxing."
+            ),
+        }
+        encoded_by_id = {
+            parent_embed_id: encode({"embed_ids": child_embed_id}),
+            child_embed_id: encode(starwars_content),
+        }
+
+        async def fake_get_cached_embed_toon(self, embed_id, user_vault_key_id, log_prefix=""):
+            return encoded_by_id.get(embed_id)
+
+        monkeypatch.setattr(EmbedService, "_get_cached_embed_toon", fake_get_cached_embed_toon)
+
+        cache_service, directus_service, encryption_service = _quote_verification_services()
+        response = (
+            "Midi-chlorians are not the powerhouse of the Force.\n\n"
+            f"> [{false_quote}](embed:{embed_ref})\n\n"
+            "They are described differently in the cited source."
+        )
+
+        stripped = _run(_verify_and_strip_bad_quotes(
+            aggregated_response=response,
+            tool_calls_info=[{"embed_id": parent_embed_id}],
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id="key-1",
+            known_valid_refs=set(),
+        ))
+
+        assert false_quote not in stripped
+        assert f"embed:{embed_ref}" not in stripped
+        assert "Midi-chlorians are not the powerhouse of the Force." in stripped
+        assert "They are described differently in the cited source." in stripped
 
     def test_modified_quote_is_removed_from_response(self, monkeypatch):
         """Regression for issue 8eff9401: shortened/edited Wikipedia quote must disappear."""

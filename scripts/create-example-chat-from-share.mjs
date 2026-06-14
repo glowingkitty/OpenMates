@@ -5,7 +5,7 @@
  *
  * This wraps scripts/extract-shared-chat.mjs, preserves extracted embeds exactly,
  * writes the example chat data file, writes English i18n source entries copied to
- * all supported languages, and registers the chat in exampleChatStore.ts.
+ * all supported languages, and registers the chat in exampleChatData.ts.
  *
  * Usage:
  *   node scripts/create-example-chat-from-share.mjs "https://app.dev.openmates.org/share/chat/...#key=..." \
@@ -33,9 +33,9 @@ const I18N_SOURCE_DIR = path.join(
   REPO_ROOT,
   'frontend/packages/ui/src/i18n/sources/example_chats',
 );
-const STORE_PATH = path.join(
+const DATA_REGISTRY_PATH = path.join(
   REPO_ROOT,
-  'frontend/packages/ui/src/demo_chats/exampleChatStore.ts',
+  'frontend/packages/ui/src/demo_chats/exampleChatData.ts',
 );
 const EXTRACT_SCRIPT = path.join(REPO_ROOT, 'scripts/extract-shared-chat.mjs');
 
@@ -63,6 +63,71 @@ const LANGUAGES = [
   'he',
 ];
 
+const CANONICAL_CATEGORIES = new Set([
+  'software_development',
+  'business_development',
+  'medical_health',
+  'legal_law',
+  'openmates_official',
+  'maker_prototyping',
+  'marketing_sales',
+  'finance',
+  'design',
+  'electrical_engineering',
+  'movies_tv',
+  'history',
+  'science',
+  'life_coach_psychology',
+  'cooking_food',
+  'activism',
+  'general_knowledge',
+  'onboarding_support',
+]);
+
+const CATEGORY_ALIASES = new Map([
+  ['research', 'general_knowledge'],
+  ['development', 'software_development'],
+  ['software development', 'software_development'],
+  ['software_development', 'software_development'],
+  ['business', 'business_development'],
+  ['business development', 'business_development'],
+  ['health', 'medical_health'],
+  ['medical', 'medical_health'],
+  ['medical health', 'medical_health'],
+  ['legal', 'legal_law'],
+  ['law', 'legal_law'],
+  ['maker', 'maker_prototyping'],
+  ['maker prototyping', 'maker_prototyping'],
+  ['marketing', 'marketing_sales'],
+  ['sales', 'marketing_sales'],
+  ['marketing sales', 'marketing_sales'],
+  ['video', 'movies_tv'],
+  ['videos', 'movies_tv'],
+  ['movies', 'movies_tv'],
+  ['movies tv', 'movies_tv'],
+  ['finance', 'finance'],
+  ['design', 'design'],
+  ['electrical', 'electrical_engineering'],
+  ['electrical engineering', 'electrical_engineering'],
+  ['history', 'history'],
+  ['science', 'science'],
+  ['psychology', 'life_coach_psychology'],
+  ['life coach psychology', 'life_coach_psychology'],
+  ['cooking', 'cooking_food'],
+  ['food', 'cooking_food'],
+  ['cooking food', 'cooking_food'],
+  ['activism', 'activism'],
+  ['travel', 'general_knowledge'],
+  ['home', 'general_knowledge'],
+  ['housing', 'general_knowledge'],
+  ['productivity', 'general_knowledge'],
+  ['general', 'general_knowledge'],
+  ['general knowledge', 'general_knowledge'],
+  ['general_knowledge', 'general_knowledge'],
+  ['support', 'onboarding_support'],
+  ['onboarding support', 'onboarding_support'],
+]);
+
 function usage() {
   console.error(`Usage: node scripts/create-example-chat-from-share.mjs <share-url> --slug <slug> [options]
 
@@ -74,6 +139,8 @@ Options:
   --icon <icon>            Override extracted icon
   --category <category>    Override extracted category
   --keywords <csv>         Comma-separated SEO keywords
+  --app-focus-mode-example <app.focus>  App-store focus mode example key; repeat or comma-separate
+  --active-focus-id <id>   Cleartext active focus id for public example chats
   --featured <true|false>  Whether the example is featured (default: true)
   --dry-run                Print planned changes without writing files
   --force                  Overwrite existing generated files
@@ -91,6 +158,8 @@ function parseArgs(argv) {
     icon: null,
     category: null,
     keywords: [],
+    appFocusModeExamples: [],
+    activeFocusId: null,
     featured: true,
     dryRun: false,
     force: false,
@@ -126,6 +195,17 @@ function parseArgs(argv) {
           .split(',')
           .map((value) => value.trim())
           .filter(Boolean);
+        break;
+      case '--app-focus-mode-example':
+        args.appFocusModeExamples.push(
+          ...(argv[++i] || '')
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+        );
+        break;
+      case '--active-focus-id':
+        args.activeFocusId = argv[++i] || null;
         break;
       case '--featured': {
         const value = argv[++i];
@@ -232,10 +312,97 @@ function extractEmbedRefsFromEmbeds(embeds) {
 }
 
 function sanitizeEmbedContent(content) {
-  return String(content || '')
-    .split('\n')
-    .filter((line) => !/^(vault_key_id|user_id):\s*/.test(line))
-    .join('\n');
+  const privateFieldPattern = /^(vault_key_id|user_id|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys):\s*/;
+  const blockFieldPattern = /^(files|screenshots):\s*/;
+  const publicLines = [];
+  let skippingPrivateBlock = false;
+
+  for (const line of String(content || '').split('\n')) {
+    if (privateFieldPattern.test(line)) {
+      skippingPrivateBlock = false;
+      continue;
+    }
+    if (blockFieldPattern.test(line)) {
+      skippingPrivateBlock = true;
+      continue;
+    }
+    if (skippingPrivateBlock) {
+      if (/^\S/.test(line)) {
+        skippingPrivateBlock = false;
+      } else {
+        continue;
+      }
+    }
+    publicLines.push(line);
+  }
+
+  return publicLines.join('\n');
+}
+
+function parseToonScalar(content, key) {
+  const match = String(content || '').match(new RegExp(`^${key}:\\s*(.+?)\\s*$`, 'm'));
+  if (!match) return null;
+  return match[1].replace(/^"|"$/g, '').trim();
+}
+
+function appSkillExampleKey(embed) {
+  if (embed.type !== 'app_skill_use') return null;
+  const appId = parseToonScalar(embed.content, 'app_id');
+  const skillId = parseToonScalar(embed.content, 'skill_id');
+  return appId && skillId ? `${appId}.${skillId}` : null;
+}
+
+function appSkillUseJsonBlock(embed) {
+  const payload = {
+    type: 'app_skill_use',
+    embed_id: embed.embed_id,
+    app_id: parseToonScalar(embed.content, 'app_id'),
+    skill_id: parseToonScalar(embed.content, 'skill_id'),
+    query: parseToonScalar(embed.content, 'query'),
+    provider: parseToonScalar(embed.content, 'provider'),
+    status: parseToonScalar(embed.content, 'status') || embed.status,
+  };
+  const publicPayload = Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== null && value !== undefined && value !== ''),
+  );
+  return `\`\`\`json\n${JSON.stringify(publicPayload)}\n\`\`\``;
+}
+
+function appSkillUsesNeedingMessageRefs(chat) {
+  const messageText = (chat.messages || []).map((message) => String(message.content || '')).join('\n');
+  return (chat.embeds || []).filter(
+    (embed) => embed.type === 'app_skill_use' && !embed.parent_embed_id && !messageText.includes(embed.embed_id),
+  );
+}
+
+function withPromotedAppSkillUseMessages(chat) {
+  const missingAppSkillUses = appSkillUsesNeedingMessageRefs(chat);
+  if (missingAppSkillUses.length === 0) return chat;
+
+  const firstAssistantIndex = chat.messages.findIndex(
+    (message) => message.role === 'assistant' && typeof message.content === 'string',
+  );
+  if (firstAssistantIndex === -1) return chat;
+
+  const messages = chat.messages.map((message, index) => {
+    if (index !== firstAssistantIndex) return message;
+    const appSkillBlocks = missingAppSkillUses.map(appSkillUseJsonBlock).join('\n\n');
+    return {
+      ...message,
+      content: `${appSkillBlocks}\n\n${message.content || ''}`,
+    };
+  });
+  return { ...chat, messages };
+}
+
+function appSkillExamplesFromEmbeds(embeds) {
+  return [
+    ...new Set(
+      (embeds || [])
+        .map(appSkillExampleKey)
+        .filter(Boolean),
+    ),
+  ].sort();
 }
 
 function validateExtractedChat(chat) {
@@ -258,18 +425,55 @@ function validateExtractedChat(chat) {
       `Message content references embed refs not present in extracted embeds: ${missingRefs.join(', ')}`,
     );
   }
+
+  for (const [index, subChat] of (chat.sub_chats || []).entries()) {
+    validateExtractedChat({
+      chat_id: subChat.chat_id || `sub-chat-${index + 1}`,
+      messages: subChat.messages || [],
+      embeds: subChat.embeds || [],
+    });
+  }
 }
 
-function readExistingOrder(slug) {
+function readExistingMetadata(slug) {
   const filePath = path.join(EXAMPLE_DATA_DIR, `${slug}.ts`);
-  if (!existsSync(filePath)) return null;
+  if (!existsSync(filePath)) {
+    return {
+      order: null,
+      appSkillExamples: [],
+      appFocusModeExamples: [],
+      appSettingsMemoryExamples: [],
+      contentEmbedExamples: [],
+      activeFocusId: null,
+    };
+  }
   const source = readFileSync(filePath, 'utf8');
-  const match = source.match(/order:\s*(\d+)/);
-  return match ? Number(match[1]) : null;
+  const orderMatch = source.match(/order:\s*(\d+)/);
+  const appSkillMatch = source.match(/app_skill_examples:\s*(\[[^\]]*\])/);
+  const appFocusMatch = source.match(/app_focus_mode_examples:\s*(\[[^\]]*\])/);
+  const appMemoryMatch = source.match(/app_settings_memory_examples:\s*(\[[^\]]*\])/);
+  const contentEmbedMatch = source.match(/content_embed_examples:\s*(\[[^\]]*\])/);
+  const activeFocusMatch = source.match(/active_focus_id:\s*"((?:\\.|[^"])*)"/);
+  function parseArray(match) {
+    if (!match) return [];
+    try {
+      return JSON.parse(match[1]);
+    } catch {
+      return [];
+    }
+  }
+  return {
+    order: orderMatch ? Number(orderMatch[1]) : null,
+    appSkillExamples: parseArray(appSkillMatch),
+    appFocusModeExamples: parseArray(appFocusMatch),
+    appSettingsMemoryExamples: parseArray(appMemoryMatch),
+    contentEmbedExamples: parseArray(contentEmbedMatch),
+    activeFocusId: activeFocusMatch ? JSON.parse(`"${activeFocusMatch[1]}"`) : null,
+  };
 }
 
 function nextOrder(excludeSlug = null) {
-  const store = readFileSync(STORE_PATH, 'utf8');
+  const store = readFileSync(DATA_REGISTRY_PATH, 'utf8');
   const importMatches = [...store.matchAll(/import \{ (\w+) \} from "\.\/data\/example_chats\/([^";]+)";/g)];
   const orders = [];
   for (const [, , importPath] of importMatches) {
@@ -291,24 +495,92 @@ function tsArray(values) {
   return `[${values.map((value) => tsString(value)).join(', ')}]`;
 }
 
-function formatTs(chat, metadata) {
-  const varName = `${toCamel(metadata.slug)}Chat`;
-  const messages = chat.messages.map((message, index) => ({
-    id: message.message_id || message.id || `${metadata.chatId}-message-${index + 1}`,
-    role: message.role,
-    content: `example_chats.${metadata.snake}.message_${index + 1}`,
-    created_at: normalizeTimestamp(message.created_at),
-    category: message.category || undefined,
-    model_name: message.model_name || undefined,
-    pii_mappings: message.pii_mappings || undefined,
-  }));
-  const embeds = chat.embeds.map((embed) => ({
+function normalizeCategory(value) {
+  if (!value) return 'general_knowledge';
+  const trimmed = String(value).trim();
+  if (CANONICAL_CATEGORIES.has(trimmed)) return trimmed;
+
+  const normalized = trimmed.toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+  const alias = CATEGORY_ALIASES.get(normalized);
+  if (alias) return alias;
+
+  throw new Error(
+    `Invalid category "${value}". Use a canonical category ID: ${[...CANONICAL_CATEGORIES].sort().join(', ')}`,
+  );
+}
+
+function isDirectSystemContent(message) {
+  return message.role === 'system' && typeof message.content === 'string' && message.content.trimStart().startsWith('{');
+}
+
+function formatMessages(messages, metadata, keyPrefix) {
+  let translatedIndex = 0;
+  return messages.map((message, index) => {
+    const directSystemContent = isDirectSystemContent(message);
+    if (!directSystemContent) translatedIndex += 1;
+    return {
+      id: message.message_id || message.id || `${metadata.chatId}-${keyPrefix}-${index + 1}`,
+      role: message.role,
+      content: directSystemContent
+        ? message.content
+        : `example_chats.${metadata.snake}.${keyPrefix === 'message' ? `message_${translatedIndex}` : `${keyPrefix}_message_${translatedIndex}`}`,
+      created_at: normalizeTimestamp(message.created_at),
+      category: message.category || undefined,
+      model_name: message.model_name || undefined,
+      pii_mappings: message.pii_mappings || undefined,
+    };
+  });
+}
+
+function formatEmbeds(embeds) {
+  return embeds.map((embed) => ({
     embed_id: embed.embed_id,
     type: embed.type,
     content: sanitizeEmbedContent(embed.content),
     parent_embed_id: embed.parent_embed_id ?? null,
     embed_ids: embed.embed_ids ?? null,
   }));
+}
+
+function formatTs(chat, metadata) {
+  const varName = `${toCamel(metadata.slug)}Chat`;
+  const messages = formatMessages(chat.messages, metadata, 'message');
+  const embeds = formatEmbeds(chat.embeds);
+  const subChats = (chat.sub_chats || []).map((subChat, index) => {
+    const keyPrefix = `sub_chat_${index + 1}`;
+    return {
+      chat_id: `${metadata.chatId}-${keyPrefix.replace(/_/g, '-')}`,
+      title: `example_chats.${metadata.snake}.${keyPrefix}_title`,
+      summary: `example_chats.${metadata.snake}.${keyPrefix}_summary`,
+      icon: subChat.icon || metadata.icon,
+      category: normalizeCategory(subChat.category || metadata.category),
+      follow_up_suggestions: (Array.isArray(subChat.follow_up_suggestions) ? subChat.follow_up_suggestions : []).map(
+        (_, followUpIndex) => `example_chats.${metadata.snake}.${keyPrefix}_follow_up_${followUpIndex + 1}`,
+      ),
+      messages: formatMessages(subChat.messages || [], metadata, keyPrefix),
+      embeds: formatEmbeds(subChat.embeds || []),
+      parent_id: metadata.chatId,
+      is_sub_chat: true,
+      budget_limit: subChat.budget_limit ?? null,
+      budget_spent: subChat.budget_spent ?? 0,
+    };
+  });
+  const subChatsLine = subChats.length > 0 ? `\n  sub_chats: ${JSON.stringify(subChats, null, 4)},` : '';
+  const appFocusLine = metadata.appFocusModeExamples.length > 0
+    ? `\n    app_focus_mode_examples: ${tsArray(metadata.appFocusModeExamples)},`
+    : '';
+  const appSkillLine = metadata.appSkillExamples.length > 0
+    ? `\n    app_skill_examples: ${tsArray(metadata.appSkillExamples)},`
+    : '';
+  const appMemoryLine = metadata.appSettingsMemoryExamples.length > 0
+    ? `\n    app_settings_memory_examples: ${tsArray(metadata.appSettingsMemoryExamples)},`
+    : '';
+  const contentEmbedLine = metadata.contentEmbedExamples.length > 0
+    ? `\n    content_embed_examples: ${tsArray(metadata.contentEmbedExamples)},`
+    : '';
+  const activeFocusLine = metadata.activeFocusId
+    ? `\n    active_focus_id: ${tsString(metadata.activeFocusId)},`
+    : '';
 
   return `// frontend/packages/ui/src/demo_chats/data/example_chats/${metadata.slug}.ts
 //
@@ -327,11 +599,11 @@ export const ${varName}: ExampleChat = {
   category: ${tsString(metadata.category)},
   keywords: ${tsArray(metadata.keywords)},
   follow_up_suggestions: ${tsArray(metadata.followUps.map((_, i) => `example_chats.${metadata.snake}.follow_up_${i + 1}`))},
-  messages: ${JSON.stringify(messages, null, 4).replace(/"([^"\n]+)":/g, '$1:')},
-  embeds: ${JSON.stringify(embeds, null, 4).replace(/"([^"\n]+)":/g, '$1:')},
+  messages: ${JSON.stringify(messages, null, 4)},
+  embeds: ${JSON.stringify(embeds, null, 4)},${subChatsLine}
   metadata: {
     featured: ${metadata.featured},
-    order: ${metadata.order},
+    order: ${metadata.order},${appSkillLine}${appFocusLine}${appMemoryLine}${contentEmbedLine}${activeFocusLine}
   },
 };
 `;
@@ -363,11 +635,14 @@ function formatYaml(chat, metadata) {
   const entries = [];
   entries.push(yamlEntry('title', `Title of example chat: ${metadata.title}`, metadata.title));
   entries.push(yamlEntry('summary', `Summary of example chat: ${metadata.title}`, metadata.summary));
-  chat.messages.forEach((message, index) => {
+  let rootMessageIndex = 0;
+  chat.messages.forEach((message) => {
+    if (isDirectSystemContent(message)) return;
+    rootMessageIndex += 1;
     entries.push(
       yamlEntry(
-        `message_${index + 1}`,
-        `${message.role} message ${index + 1} in example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
+        `message_${rootMessageIndex}`,
+        `${message.role} message ${rootMessageIndex} in example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
         message.content || '',
       ),
     );
@@ -375,15 +650,33 @@ function formatYaml(chat, metadata) {
   metadata.followUps.forEach((followUp, index) => {
     entries.push(yamlEntry(`follow_up_${index + 1}`, `Follow-up suggestion ${index + 1}`, followUp));
   });
+  (chat.sub_chats || []).forEach((subChat, subChatIndex) => {
+    const keyPrefix = `sub_chat_${subChatIndex + 1}`;
+    const subTitle = subChat.title || `Sub-chat ${subChatIndex + 1}`;
+    entries.push(yamlEntry(`${keyPrefix}_title`, `Title of sub-chat ${subChatIndex + 1} in example chat: ${metadata.title}`, subTitle));
+    entries.push(yamlEntry(`${keyPrefix}_summary`, `Summary of sub-chat ${subChatIndex + 1} in example chat: ${metadata.title}`, subChat.summary || ''));
+    (subChat.messages || []).forEach((message, messageIndex) => {
+      entries.push(
+        yamlEntry(
+          `${keyPrefix}_message_${messageIndex + 1}`,
+          `${message.role} message ${messageIndex + 1} in sub-chat ${subChatIndex + 1} of example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
+          message.content || '',
+        ),
+      );
+    });
+    (Array.isArray(subChat.follow_up_suggestions) ? subChat.follow_up_suggestions : []).forEach((followUp, followUpIndex) => {
+      entries.push(yamlEntry(`${keyPrefix}_follow_up_${followUpIndex + 1}`, `Follow-up suggestion ${followUpIndex + 1} for sub-chat ${subChatIndex + 1}`, followUp));
+    });
+  });
   return `${entries.join('\n')}\n`;
 }
 
-function updateStoreSource(source, slug, varName) {
+function updateDataRegistrySource(source, slug, varName) {
   const importLine = `import { ${varName} } from "./data/example_chats/${slug}";`;
   if (!source.includes(importLine)) {
     const importMatches = [...source.matchAll(/^import \{ \w+ \} from "\.\/data\/example_chats\/[^"]+";$/gm)];
     const lastImport = importMatches[importMatches.length - 1];
-    if (!lastImport) throw new Error('Could not find example chat imports in exampleChatStore.ts.');
+    if (!lastImport) throw new Error('Could not find example chat imports in exampleChatData.ts.');
     source = `${source.slice(0, lastImport.index + lastImport[0].length)}\n${importLine}${source.slice(lastImport.index + lastImport[0].length)}`;
   }
 
@@ -410,21 +703,29 @@ function writeIfChanged(filePath, content, args) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
-  const chat = loadExtractedChat(args);
+  const chat = withPromotedAppSkillUseMessages(loadExtractedChat(args));
   validateExtractedChat(chat);
 
   const slug = args.slug;
+  const existingMetadata = readExistingMetadata(slug);
   const metadata = {
     slug,
     snake: toSnake(slug),
     title: args.title || chat.title || slug,
     summary: args.summary || chat.summary || '',
     icon: args.icon || chat.icon || 'search',
-    category: args.category || chat.category || 'general_knowledge',
+    category: normalizeCategory(args.category || chat.category),
     keywords: args.keywords,
     featured: args.featured,
     followUps: Array.isArray(chat.follow_up_suggestions) ? chat.follow_up_suggestions : [],
-    order: readExistingOrder(slug) ?? nextOrder(slug),
+    appSkillExamples: [...new Set([...existingMetadata.appSkillExamples, ...appSkillExamplesFromEmbeds(chat.embeds)])].sort(),
+    appFocusModeExamples: args.appFocusModeExamples.length > 0
+      ? args.appFocusModeExamples
+      : existingMetadata.appFocusModeExamples,
+    appSettingsMemoryExamples: existingMetadata.appSettingsMemoryExamples,
+    contentEmbedExamples: existingMetadata.contentEmbedExamples,
+    activeFocusId: args.activeFocusId || existingMetadata.activeFocusId,
+    order: existingMetadata.order ?? nextOrder(slug),
     chatId: `example-${shortChatId(slug)}`,
   };
 
@@ -433,17 +734,19 @@ function main() {
   const varName = `${toCamel(slug)}Chat`;
   const tsContent = formatTs(chat, metadata);
   const yamlContent = formatYaml(chat, metadata);
-  const updatedStore = updateStoreSource(readFileSync(STORE_PATH, 'utf8'), slug, varName);
+  const updatedDataRegistry = updateDataRegistrySource(readFileSync(DATA_REGISTRY_PATH, 'utf8'), slug, varName);
 
   console.log(`Example chat scaffold: ${metadata.title}`);
   console.log(`  chat_id: ${metadata.chatId}`);
   console.log(`  slug: ${metadata.slug}`);
+  console.log(`  category: ${metadata.category}`);
   console.log(`  messages: ${chat.messages.length}`);
   console.log(`  embeds: ${chat.embeds.length}`);
+  console.log(`  sub_chats: ${(chat.sub_chats || []).length}`);
   console.log(`  order: ${metadata.order}`);
   console.log(`  data: ${path.relative(REPO_ROOT, dataPath)}`);
   console.log(`  i18n: ${path.relative(REPO_ROOT, yamlPath)}`);
-  console.log(`  store: ${path.relative(REPO_ROOT, STORE_PATH)}`);
+  console.log(`  registry: ${path.relative(REPO_ROOT, DATA_REGISTRY_PATH)}`);
 
   if (args.dryRun) {
     console.log('\nDry run: no files written.');
@@ -452,7 +755,7 @@ function main() {
 
   writeIfChanged(dataPath, tsContent, args);
   writeIfChanged(yamlPath, yamlContent, args);
-  writeIfChanged(STORE_PATH, updatedStore, { ...args, force: true });
+  writeIfChanged(DATA_REGISTRY_PATH, updatedDataRegistry, { ...args, force: true });
 }
 
 main();

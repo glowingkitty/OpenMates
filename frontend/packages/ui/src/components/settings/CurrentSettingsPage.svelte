@@ -25,6 +25,7 @@
         sliderElement = null,
         isMenuVisible = false,
         paymentEnabled = true,
+        isSelfHosted = false,
         // When true (default), renders the docked profile avatar + username + credits inline.
         // Set to false when a SettingsMainHeader gradient banner is rendered above, so the
         // profile section is not duplicated.
@@ -48,6 +49,7 @@
         sliderElement?: HTMLDivElement | null;
         isMenuVisible?: boolean;
         paymentEnabled?: boolean;
+        isSelfHosted?: boolean;
         showProfileHeader?: boolean;
         resolvedProfileImageUrl?: string | null;
     } = $props();
@@ -414,6 +416,7 @@
                 <Component 
                     activeSettingsView={key}
                     accountId={accountId}
+                    {isSelfHosted}
                     on:openSettings={(event: CustomEvent) => dispatch('openSettings', event.detail)}
                     on:navigateBack={() => dispatch('navigateBack')}
                     on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}

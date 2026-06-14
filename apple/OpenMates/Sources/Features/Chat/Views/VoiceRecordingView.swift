@@ -115,6 +115,7 @@ struct ComposerRecordingOverlay: View {
                 .font(.omP.weight(.bold))
                 .foregroundStyle(Color.white)
                 .multilineTextAlignment(.center)
+                .accessibilityIdentifier("release-text")
 
             Spacer()
 
@@ -128,6 +129,7 @@ struct ComposerRecordingOverlay: View {
                     .padding(.vertical, .spacing2)
                     .background(Color.error)
                     .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    .accessibilityIdentifier("timer-pill")
 
                 HStack(spacing: .spacing2) {
                     Text("‹")
@@ -139,6 +141,8 @@ struct ComposerRecordingOverlay: View {
                 }
                 .opacity(max(0.3, 1 + Double(dragOffsetX / 80)))
                 .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("cancel-hint")
 
                 Button {
                     if let url = recorder.stopRecording() {
@@ -155,14 +159,17 @@ struct ComposerRecordingOverlay: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(AppStrings.releaseToFinishRecording)
+                .accessibilityIdentifier("mic-button")
             }
         }
         .padding(.top, .spacing8)
         .padding(.horizontal, .spacing8)
-        .padding(.bottom, .spacing7)
+        .padding(.bottom, .spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(LinearGradient.primary)
         .clipShape(RoundedRectangle(cornerRadius: 24))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("record-overlay")
     }
 
     private func formatDuration(_ seconds: TimeInterval) -> String {

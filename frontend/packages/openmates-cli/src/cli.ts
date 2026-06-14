@@ -14,33 +14,52 @@ import {
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   deriveAppUrl,
-  parseNewChatSuggestionText,
   type ChatListPage,
   type DecryptedMessage,
-  type DecryptedEmbed,
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
   type DocsTree,
-  type DocsFolder,
-  type DocsFile,
-  type DocsSearchResult,
+  type SubChatApprovalRequest,
+  type BankTransferOrderDetails,
+  type BankTransferStatus,
+  type GiftCardBankTransferStatus,
 } from "./client.js";
-import type { StreamEvent } from "./ws.js";
+import type { StreamEvent, SubChatEvent } from "./ws.js";
+import { createInterface } from "node:readline/promises";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { basename, dirname } from "node:path";
+import WebSocket from "ws";
 
 import {
   parseMentions,
   listMentionOptions,
-  type MentionContext,
   type MentionType,
 } from "./mentions.js";
 import { OutputRedactor } from "./outputRedactor.js";
 import { processFiles, formatEmbedsForMessage } from "./fileEmbed.js";
-import { encryptEmbed, type EncryptedEmbed } from "./embedCreator.js";
+import type { PreparedEmbed } from "./embedCreator.js";
 import type { ShareDuration } from "./shareEncryption.js";
-import { uploadFile } from "./uploadService.js";
-import { toonEncodeContent } from "./embedCreator.js";
+import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
+import { createEmbedRef, createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
+import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
 import { handleServer, printServerHelp } from "./server.js";
+import {
+  buildCodeRunRequestsFromFlags,
+  buildCodeRunStreamUrl,
+} from "./codeRunInput.js";
+import {
+  getExampleChatConversation,
+  listExampleChats,
+  searchExampleChats,
+  type ExampleChatConversation,
+} from "./exampleChats.js";
+import {
+  parseInteractiveQuestionBlock,
+  toWaitingForUserResult,
+  type WaitingForUserResult,
+} from "./interactiveQuestions.js";
 
 type CliArgs = {
   positionals: string[];
@@ -87,6 +106,14 @@ async function main(): Promise<void> {
       printSettingsHelp(client);
       return;
     }
+    if (command === "signup") {
+      printSignupHelp();
+      return;
+    }
+    if (command === "e2e") {
+      printE2EHelp();
+      return;
+    }
     if (command === "mentions") {
       printMentionsHelp();
       return;
@@ -129,6 +156,16 @@ async function main(): Promise<void> {
   if (command === "login") {
     await client.loginWithPairAuth();
     console.log("Login successful.");
+    return;
+  }
+
+  if (command === "signup") {
+    await handleSignup(client, parsed.flags);
+    return;
+  }
+
+  if (command === "e2e") {
+    await handleE2E(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -216,7 +253,9 @@ async function handleChats(
     const limit =
       typeof flags.limit === "string" ? parseInt(flags.limit, 10) : 10;
     const page = typeof flags.page === "string" ? parseInt(flags.page, 10) : 1;
-    const result = await client.listChats(limit, page);
+    const result = client.hasSession()
+      ? await client.listChats(limit, page)
+      : listExampleChats(limit, page);
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -231,7 +270,9 @@ async function handleChats(
       throw new Error(
         "Missing search query. Usage: openmates chats search <query>",
       );
-    const result = await client.searchChats(query);
+    const result = client.hasSession()
+      ? await client.searchChats(query)
+      : searchExampleChats(query);
     if (flags.json === true) {
       printJson(result);
     } else {
@@ -259,6 +300,8 @@ async function handleChats(
         chatId: undefined,
         incognito: false,
         json: flags.json === true,
+        autoApproveSubChats: flags["auto-approve"] === true,
+        autoApproveMemories: flags["auto-approve-memories"] === true,
       },
       redactor,
     );
@@ -349,6 +392,8 @@ async function handleChats(
         chatId,
         incognito: flags.incognito === true,
         json: flags.json === true,
+        autoApproveSubChats: flags["auto-approve"] === true,
+        autoApproveMemories: flags["auto-approve-memories"] === true,
       },
       redactor,
     );
@@ -368,6 +413,8 @@ async function handleChats(
         message,
         incognito: true,
         json: flags.json === true,
+        autoApproveSubChats: flags["auto-approve"] === true,
+        autoApproveMemories: flags["auto-approve-memories"] === true,
       },
       redactor,
     );
@@ -394,6 +441,27 @@ async function handleChats(
     }
     // "last" opens the most recently modified chat
     const resolvedId = chatId.toLowerCase() === "last" ? "__last__" : chatId;
+    if (!client.hasSession()) {
+      const example = resolveExampleChatForOpen(resolvedId === "__last__" ? "1" : resolvedId);
+      if (!example) {
+        console.error(
+          `Example chat '${chatId}' not found. Run 'openmates chats list' to see available examples.`,
+        );
+        process.exit(1);
+      }
+      if (flags.json === true) {
+        printJson({
+          chat: example.chat,
+          messages: example.messages,
+          follow_up_suggestions: example.followUpSuggestions,
+        });
+      } else if (flags.raw === true) {
+        await printChatConversationRaw(example.chat, example.messages, { example: true });
+      } else {
+        await printChatConversation(client, example.chat, example.messages, example.followUpSuggestions, { example: true });
+      }
+      return;
+    }
     const { chat, messages } = await client.getChatMessages(resolvedId);
     if (flags.json === true) {
       // Fetch follow-up suggestions for JSON output too
@@ -848,8 +916,36 @@ async function handleChats(
   }
 
   if (subcommand === "open") {
-    const n =
-      rest[0] !== undefined ? parseInt(rest[0], 10) : 1;
+    if (!client.hasSession()) {
+      const target = rest[0] ?? "1";
+      const example = resolveExampleChatForOpen(target);
+      if (!example) {
+        console.error(
+          `Example chat '${target}' not found. Run 'openmates chats list' to see available examples.`,
+        );
+        process.exit(1);
+      }
+      const appUrl = deriveAppUrl(client.apiUrl);
+      const url = `${appUrl}/example/${example.chat.slug}`;
+      if (!flags.json) {
+        process.stderr.write(
+          `\x1b[2mOpening example chat: "${example.chat.title ?? example.chat.slug}"\x1b[0m\n`,
+        );
+      }
+      await openUrl(url);
+      if (flags.json === true) {
+        printJson({
+          url,
+          chat_id: example.chat.id,
+          slug: example.chat.slug,
+          title: example.chat.title,
+          source: "example",
+        });
+      }
+      return;
+    }
+
+    const n = rest[0] !== undefined ? parseInt(rest[0], 10) : 1;
     if (isNaN(n) || n < 1) {
       console.error(
         `Invalid position '${rest[0]}'. Must be a positive integer (1 = most recent, 2 = second most recent, ...).`,
@@ -883,21 +979,7 @@ async function handleChats(
       );
     }
 
-    // Open in default browser using platform-appropriate command
-    const { exec } = await import("node:child_process");
-    const platform = process.platform;
-    const openCmd =
-      platform === "darwin"
-        ? `open "${url}"`
-        : platform === "win32"
-          ? `start "" "${url}"`
-          : `xdg-open "${url}"`;
-    exec(openCmd, (err) => {
-      if (err) {
-        // Fallback: print the URL so the user can open it manually
-        console.log(url);
-      }
-    });
+    await openUrl(url);
 
     if (flags.json === true) {
       printJson({ url, chat_id: chat.id, position: n, title: chat.title });
@@ -908,6 +990,35 @@ async function handleChats(
   console.error(`Unknown chats subcommand '${subcommand}'.\n`);
   printChatsHelp();
   process.exit(1);
+}
+
+function resolveExampleChatForOpen(target: string): ExampleChatConversation | null {
+  const numericTarget = parseInt(target, 10);
+  if (!Number.isNaN(numericTarget) && String(numericTarget) === target.trim()) {
+    if (numericTarget < 1) return null;
+    const page = listExampleChats(numericTarget, 1);
+    const chat = page.chats[numericTarget - 1];
+    return chat ? getExampleChatConversation(chat.id) : null;
+  }
+  return getExampleChatConversation(target);
+}
+
+async function openUrl(url: string): Promise<void> {
+  // Open in default browser using platform-appropriate command.
+  const { exec } = await import("node:child_process");
+  const platform = process.platform;
+  const openCmd =
+    platform === "darwin"
+      ? `open "${url}"`
+      : platform === "win32"
+        ? `start "" "${url}"`
+        : `xdg-open "${url}"`;
+  exec(openCmd, (err) => {
+    if (err) {
+      // Fallback: print the URL so the user can open it manually.
+      console.log(url);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1122,6 +1233,11 @@ async function handleApps(
     return;
   }
 
+  if (subcommand === "code" && rest[0] === "run") {
+    await handleCodeRun(client, flags, apiKey);
+    return;
+  }
+
   // Sugar alias: openmates apps <app> <skill> [inline text]
   const app = subcommand;
   const skill = rest[0];
@@ -1258,6 +1374,140 @@ async function handleApps(
   console.error(`Unknown apps subcommand '${subcommand}'.\n`);
   printAppsHelp();
   process.exit(1);
+}
+
+interface CodeRunSkillResponse {
+  success?: boolean;
+  data?: {
+    results?: Array<{
+      execution_id?: string;
+      status?: string;
+      target_filename?: string;
+      files?: string[];
+      stream_path?: string;
+      status_path?: string;
+      credits_per_minute?: number;
+    }>;
+  };
+}
+
+async function handleCodeRun(
+  client: OpenMatesClient,
+  flags: Record<string, string | boolean>,
+  apiKey?: string,
+): Promise<void> {
+  const requests = await buildCodeRunRequestsFromFlags({
+    code: typeof flags.code === "string" ? flags.code : undefined,
+    language: typeof flags.language === "string" ? flags.language : undefined,
+    filename: typeof flags.filename === "string" ? flags.filename : undefined,
+    entry: typeof flags.entry === "string" ? flags.entry : undefined,
+    file: typeof flags.file === "string" ? flags.file : undefined,
+    dir: typeof flags.dir === "string" ? flags.dir : undefined,
+    url: typeof flags.url === "string" ? flags.url : undefined,
+    repo: typeof flags.repo === "string" ? flags.repo : undefined,
+    include: typeof flags.include === "string" ? flags.include : undefined,
+    exclude: typeof flags.exclude === "string" ? flags.exclude : undefined,
+    noInternet: flags["no-internet"] === true,
+    chat: typeof flags.chat === "string" ? flags.chat : undefined,
+    targetEmbed: typeof flags["target-embed"] === "string" ? flags["target-embed"] : undefined,
+  });
+
+  if (flags.json !== true) {
+    const first = requests[0];
+    if (first.mode === "direct") {
+      process.stderr.write(`Starting Code Run for ${first.entry_path} (${first.files.length} file${first.files.length === 1 ? "" : "s"})...\n`);
+    }
+  }
+
+  const response = await client.runSkill({
+    app: "code",
+    skill: "run",
+    inputData: { requests: requests as unknown as Array<Record<string, unknown>> },
+    apiKey,
+  }) as CodeRunSkillResponse;
+  const result = response.data?.results?.[0];
+  if (!result?.execution_id || !result.status_path) {
+    throw new Error("Code Run did not return an execution id.");
+  }
+
+  const streamAuth = apiKey ? null : await client.getCodeRunStreamAuth();
+  let finalStatus: Record<string, unknown>;
+  if (streamAuth && result.stream_path) {
+    const url = buildCodeRunStreamUrl({
+      apiUrl: client.apiUrl,
+      executionId: result.execution_id,
+      sessionId: streamAuth.sessionId,
+      token: streamAuth.token,
+    });
+    try {
+      finalStatus = await streamCodeRunToTerminal(url, flags.json === true);
+    } catch (err) {
+      if (!streamAuth.fallbackToken || streamAuth.fallbackToken === streamAuth.token) throw err;
+      const fallbackUrl = buildCodeRunStreamUrl({
+        apiUrl: client.apiUrl,
+        executionId: result.execution_id,
+        sessionId: streamAuth.sessionId,
+        token: streamAuth.fallbackToken,
+      });
+      finalStatus = await streamCodeRunToTerminal(fallbackUrl, flags.json === true);
+    }
+  } else {
+    finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
+  }
+
+  if (flags.json === true) {
+    printJson({ ...result, final: finalStatus });
+  }
+}
+
+async function streamCodeRunToTerminal(url: string, jsonMode: boolean): Promise<Record<string, unknown>> {
+  return await new Promise((resolve, reject) => {
+    const ws = new WebSocket(url);
+    let lastStatus: Record<string, unknown> = {};
+    ws.on("message", (data) => {
+      try {
+        const message = JSON.parse(String(data)) as { type?: string; payload?: Record<string, unknown> };
+        const payload = message.payload ?? {};
+        if (message.type === "code_run_event") {
+          const kind = String(payload.kind ?? "status");
+          const text = String(payload.text ?? "");
+          if (!jsonMode) {
+            if (kind === "stdout") process.stdout.write(text);
+            else process.stderr.write(text);
+          }
+        } else if (message.type === "code_run_update") {
+          lastStatus = { ...lastStatus, ...payload };
+          const status = String(payload.status ?? "");
+          if (["finished", "failed", "timeout", "cancelled"].includes(status)) {
+            ws.close();
+            resolve(lastStatus);
+          }
+        }
+      } catch (err) {
+        ws.close();
+        reject(err);
+      }
+    });
+    ws.on("error", () => reject(new Error("Code Run stream failed.")));
+    ws.on("close", () => {
+      if (Object.keys(lastStatus).length > 0) resolve(lastStatus);
+    });
+  });
+}
+
+async function pollCodeRunStatus(
+  client: OpenMatesClient,
+  statusPath: string,
+  apiKey: string | undefined,
+  jsonMode: boolean,
+): Promise<Record<string, unknown>> {
+  for (;;) {
+    const status = await client.getCodeRunStatus(statusPath, apiKey);
+    const value = String(status.status ?? "");
+    if (!jsonMode && value) process.stderr.write(`Code Run status: ${value}\n`);
+    if (["finished", "failed", "timeout", "cancelled"].includes(value)) return status;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 }
 
 /**
@@ -1478,13 +1728,14 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "profile-picture", "set"], description: "Upload a profile picture", examples: ["openmates settings account profile-picture set ./avatar.jpg"] },
   { path: ["account", "chats", "stats"], description: "Show chat statistics", examples: ["openmates settings account chats stats"] },
   { path: ["account", "delete", "preview"], description: "Preview account deletion impact", examples: ["openmates settings account delete preview"] },
+  { path: ["account", "delete"], description: "Delete your account with email code plus 2FA when configured", examples: ["openmates settings account delete --yes"] },
   { path: ["account", "storage", "overview"], description: "Show storage overview", examples: ["openmates settings account storage overview"] },
   { path: ["account", "storage", "files"], description: "List stored files", examples: ["openmates settings account storage files --category images"] },
   { path: ["account", "storage", "delete"], description: "Delete one stored file by file ID", examples: ["openmates settings account storage delete <file-id> --yes"] },
   { path: ["interface", "language", "set"], description: "Set interface language", examples: ["openmates settings interface language set en"] },
   { path: ["interface", "dark-mode", "set"], description: "Set dark mode on or off", examples: ["openmates settings interface dark-mode set on"] },
   { path: ["interface", "font", "set"], description: "Set interface font", examples: ["openmates settings interface font set lexend"] },
-  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple gpt-5.4 --complex claude-opus-4-7"] },
+  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-2506", "openmates settings ai models set-defaults --simple auto"] },
   { path: ["privacy", "auto-delete", "chats", "set"], description: "Set chat auto-deletion period", examples: ["openmates settings privacy auto-delete chats set 90d"] },
   { path: ["privacy", "debug-logs", "share"], description: "Create a debug log sharing session", examples: ["openmates settings privacy debug-logs share --duration 1h --confirm"] },
   { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },
@@ -1492,14 +1743,22 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "usage", "summaries"], description: "Show usage summaries", examples: ["openmates settings billing usage summaries"] },
   { path: ["billing", "usage", "daily"], description: "Show daily usage overview", examples: ["openmates settings billing usage daily"] },
   { path: ["billing", "usage", "export"], description: "Export usage data", examples: ["openmates settings billing usage export --json"] },
+  { path: ["billing", "buy-credits", "bank-transfer"], description: "Buy credits by SEPA bank transfer", examples: ["openmates settings billing buy-credits bank-transfer --credits 110000"] },
+  { path: ["billing", "bank-transfer", "status"], description: "Show bank-transfer order status", examples: ["openmates settings billing bank-transfer status <order-id>"] },
+  { path: ["billing", "bank-transfer", "list"], description: "List pending bank-transfer orders", examples: ["openmates settings billing bank-transfer list"] },
   { path: ["billing", "invoices", "list"], description: "List invoices", examples: ["openmates settings billing invoices list --json"] },
   { path: ["billing", "invoices", "download"], description: "Download an invoice PDF", examples: ["openmates settings billing invoices download <invoice-id> --output ./invoices"] },
   { path: ["billing", "invoices", "credit-note"], description: "Download a credit note PDF", examples: ["openmates settings billing invoices credit-note <invoice-id> --output ./invoices"] },
   { path: ["billing", "invoices", "refund"], description: "Request a refund for an invoice", examples: ["openmates settings billing invoices refund <invoice-id> --yes"] },
   { path: ["billing", "gift-card", "redeem"], description: "Redeem a gift card", examples: ["openmates settings billing gift-card redeem ABCD-1234"] },
   { path: ["billing", "gift-card", "list"], description: "List redeemed gift cards", examples: ["openmates settings billing gift-card list"] },
+  { path: ["billing", "gift-card", "buy", "bank-transfer"], description: "Buy a gift card by SEPA bank transfer", examples: ["openmates settings billing gift-card buy bank-transfer --credits 21000"] },
+  { path: ["billing", "gift-card", "purchase-status"], description: "Show gift-card bank-transfer purchase status", examples: ["openmates settings billing gift-card purchase-status <order-id>"] },
+  { path: ["billing", "gift-card", "purchased"], description: "List purchased unused gift cards", examples: ["openmates settings billing gift-card purchased"] },
   { path: ["billing", "auto-topup", "low-balance", "set"], description: "Configure low-balance auto top-up", examples: ["openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com"] },
   { path: ["notifications", "status"], description: "Show notification settings", examples: ["openmates settings notifications status --json"] },
+  { path: ["notifications", "list"], description: "List recent notification events", examples: ["openmates settings notifications list --limit 20 --json"] },
+  { path: ["notifications", "stream"], description: "Stream notification events with SSE", examples: ["openmates settings notifications stream", "openmates settings notifications stream --count 1 --json"] },
   { path: ["notifications", "email", "set"], description: "Configure email notifications", examples: ["openmates settings notifications email set --enabled true --email you@example.com --ai-responses true --backup-reminder true --webhook-chats true"] },
   { path: ["notifications", "backup", "set"], description: "Configure backup reminder emails", examples: ["openmates settings notifications backup set --enabled true --interval 30 --email you@example.com"] },
   { path: ["reminders", "list"], description: "List active reminders", examples: ["openmates settings reminders list"] },
@@ -1522,7 +1781,6 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
 
 const SETTINGS_INFO_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "email"], description: "Email changes are web-only", webPath: "account/email", reason: "Email changes require a guided identity verification flow.", examples: ["openmates settings account email"] },
-  { path: ["account", "delete"], description: "Account deletion is web-only", webPath: "account/delete", reason: "Account deletion requires browser-based reauthentication and explicit confirmation.", examples: ["openmates settings account delete"] },
   { path: ["security"], description: "Security settings are web-only", webPath: "account/security", reason: "Security settings require browser APIs or high-risk reauthentication.", examples: ["openmates settings security"] },
   { path: ["security", "passkeys"], description: "Passkeys are web-only", webPath: "account/security/passkeys", reason: "Passkeys require WebAuthn browser APIs.", examples: ["openmates settings security passkeys"] },
   { path: ["security", "password"], description: "Password changes are web-only", webPath: "account/security/password", reason: "The CLI never asks for account credentials.", examples: ["openmates settings security password"] },
@@ -1558,7 +1816,11 @@ async function printSettingsResult(
   flags: Record<string, string | boolean>,
 ): Promise<void> {
   const result = await resultPromise;
-  flags.json === true ? printJson(result) : printGenericObject(result);
+  if (flags.json === true) {
+    printJson(result);
+  } else {
+    printGenericObject(result);
+  }
 }
 
 async function printSettingsMutationResult(
@@ -1588,11 +1850,24 @@ function parseOnOff(value: string | undefined, label: string): boolean {
   throw new Error(`Invalid ${label} value '${value ?? ""}'. Use on/off or true/false.`);
 }
 
+function parseModelDefaultFlag(value: string | boolean, flag: string): string | null {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Missing value for ${flag}. Use a provider/model-id or auto.`);
+  }
+  if (value === "auto" || value === "null") return null;
+  return value;
+}
+
 function parseRequiredNumber(value: string | boolean | undefined, flag: string): number {
   if (typeof value !== "string") throw new Error(`Missing ${flag}.`);
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) throw new Error(`Invalid ${flag}: ${value}`);
   return parsed;
+}
+
+function parseOptionalNumber(value: string | boolean | undefined, fallback: number, flag: string): number {
+  if (value === undefined) return fallback;
+  return parseRequiredNumber(value, flag);
 }
 
 function parseOptionalBoolean(
@@ -1787,6 +2062,318 @@ async function confirmOrExit(question: string): Promise<void> {
   }
 }
 
+async function promptLine(question: string): Promise<string> {
+  const rl = await import("node:readline");
+  const iface = rl.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise<string>((resolve) => iface.question(question, resolve));
+  iface.close();
+  return answer.trim();
+}
+
+async function promptSecret(question: string): Promise<string> {
+  if (!process.stdin.isTTY) {
+    return promptLine(question);
+  }
+  return new Promise<string>((resolve) => {
+    const stdin = process.stdin;
+    const wasRaw = stdin.isRaw;
+    let value = "";
+    process.stdout.write(question);
+    stdin.setRawMode(true);
+    stdin.resume();
+    const onData = (chunk: Buffer) => {
+      const char = chunk.toString("utf8");
+      if (char === "\r" || char === "\n") {
+        stdin.off("data", onData);
+        stdin.setRawMode(wasRaw);
+        process.stdout.write("\n");
+        resolve(value);
+        return;
+      }
+      if (char === "\u0003") {
+        stdin.off("data", onData);
+        stdin.setRawMode(wasRaw);
+        process.stdout.write("\n");
+        process.exit(130);
+      }
+      if (char === "\u007f" || char === "\b") {
+        value = value.slice(0, -1);
+        return;
+      }
+      value += char;
+    };
+    stdin.on("data", onData);
+  });
+}
+
+async function writeSecretFile(filePath: string, content: string, force = false): Promise<string> {
+  const { mkdir, writeFile, stat } = await import("node:fs/promises");
+  const { dirname } = await import("node:path");
+  try {
+    await stat(filePath);
+    if (!force) throw new Error(`${filePath} already exists. Use --force to overwrite.`);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+    if (error instanceof Error && !("code" in error)) throw error;
+  }
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, content, { mode: 0o600 });
+  return filePath;
+}
+
+async function generateProvisioningPassword(): Promise<string> {
+  const { randomBytes } = await import("node:crypto");
+  return `OM-${randomBytes(18).toString("base64url")}-aA2#`;
+}
+
+function decodeBase32(input: string): Buffer {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const cleaned = input.toUpperCase().replace(/[^A-Z2-7]/g, "");
+  let bits = "";
+  for (const char of cleaned) {
+    const value = alphabet.indexOf(char);
+    if (value >= 0) bits += value.toString(2).padStart(5, "0");
+  }
+  const bytes: number[] = [];
+  for (let index = 0; index + 8 <= bits.length; index += 8) {
+    bytes.push(Number.parseInt(bits.slice(index, index + 8), 2));
+  }
+  return Buffer.from(bytes);
+}
+
+async function generateTotpCode(secret: string): Promise<string> {
+  const { createHmac } = await import("node:crypto");
+  const counter = Math.floor(Date.now() / 1000 / 30);
+  const counterBuffer = Buffer.alloc(8);
+  counterBuffer.writeBigUInt64BE(BigInt(counter));
+  const hmac = createHmac("sha1", decodeBase32(secret)).update(counterBuffer).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
+  return String(code).padStart(6, "0");
+}
+
+async function runSecuritySetup(client: OpenMatesClient, flags: Record<string, string | boolean>, options: { autoGenerateTotp?: boolean } = {}): Promise<{
+  otpSecret?: string | null;
+  backupCodes?: string[];
+  recoveryKey?: string;
+  backupCodesPath?: string;
+  recoveryKeyPath?: string;
+}> {
+  const result: {
+    otpSecret?: string | null;
+    backupCodes?: string[];
+    recoveryKey?: string;
+    backupCodesPath?: string;
+    recoveryKeyPath?: string;
+  } = {};
+
+  if (flags["skip-2fa"] === true) {
+    if (flags.yes !== true) await confirmOrExit("Skip 2FA setup? This weakens account protection. [y/N] ");
+  } else {
+    const setup = await client.startTotpSetup();
+    result.otpSecret = setup.secret ?? null;
+    if (setup.otpauth_url) client.renderTotpQrCode(setup.otpauth_url);
+    if (setup.secret) console.log(`Manual TOTP secret: ${setup.secret}`);
+    const code = typeof process.env.OPENMATES_CLI_SIGNUP_TOTP_CODE === "string"
+      ? process.env.OPENMATES_CLI_SIGNUP_TOTP_CODE
+      : options.autoGenerateTotp && setup.secret
+        ? await generateTotpCode(setup.secret)
+        : await promptLine("Enter current 2FA code: ");
+    await client.verifyTotpSetup(code);
+    const provider = typeof flags.provider === "string" ? flags.provider : "Authenticator app";
+    await client.setTotpProvider(provider);
+    const backup = await client.requestBackupCodes();
+    result.backupCodes = backup.backup_codes;
+    const backupOutput = typeof flags["backup-codes-output"] === "string" ? flags["backup-codes-output"] : undefined;
+    if (backupOutput) {
+      result.backupCodesPath = await writeSecretFile(backupOutput, `${backup.backup_codes.join("\n")}\n`, flags.force === true);
+      await client.confirmBackupCodesStored();
+    } else if (flags.yes === true) {
+      await client.confirmBackupCodesStored();
+    } else {
+      console.log("Backup codes:");
+      for (const backupCode of backup.backup_codes) console.log(`  ${backupCode}`);
+      await confirmOrExit("I stored these backup codes safely. Continue? [y/N] ");
+      await client.confirmBackupCodesStored();
+    }
+  }
+
+  if (flags["skip-recovery-key"] === true) {
+    if (flags.yes !== true) await confirmOrExit("Skip recovery-key setup? You may lose access to encrypted data. [y/N] ");
+  } else {
+    const recovery = await client.createAndConfirmRecoveryKey();
+    result.recoveryKey = recovery.recoveryKey;
+    const recoveryOutput = typeof flags["recovery-key-output"] === "string" ? flags["recovery-key-output"] : undefined;
+    if (recoveryOutput) {
+      result.recoveryKeyPath = await writeSecretFile(recoveryOutput, `${recovery.recoveryKey}\n`, flags.force === true);
+    } else {
+      console.log(`Recovery key: ${recovery.recoveryKey}`);
+      if (flags.yes !== true) await confirmOrExit("I stored this recovery key safely. Continue? [y/N] ");
+    }
+  }
+
+  return result;
+}
+
+type SignupCommandResult = {
+  user: unknown;
+  backupCodesPath?: string;
+  recoveryKeyPath?: string;
+  security: Awaited<ReturnType<typeof runSecuritySetup>>;
+  giftCard: unknown;
+};
+
+async function handleSignup(client: OpenMatesClient, flags: Record<string, string | boolean>, options: { autoGenerateTotp?: boolean } = {}): Promise<SignupCommandResult> {
+  if (flags.password !== undefined) {
+    throw new Error("Passwords must be entered through hidden prompts, not command-line flags.");
+  }
+  const email = typeof flags.email === "string" ? flags.email : await promptLine("Email: ");
+  const username = typeof flags.username === "string" ? flags.username : await promptLine("Username: ");
+  const inviteCode = typeof flags["invite-code"] === "string" ? flags["invite-code"] : "";
+  const language = typeof flags.language === "string" ? flags.language : "en";
+  const password = process.env.OPENMATES_CLI_SIGNUP_PASSWORD ?? await promptSecret("Password: ");
+  if (!process.env.OPENMATES_CLI_SIGNUP_PASSWORD) {
+    const confirmPassword = await promptSecret("Confirm password: ");
+    if (password !== confirmPassword) throw new Error("Passwords do not match.");
+  }
+
+  await client.requestSignupEmailCode({ email, inviteCode, language });
+  const emailCode = process.env.OPENMATES_CLI_SIGNUP_EMAIL_CODE ?? await promptLine("Email verification code: ");
+  await client.verifySignupEmailCode({ email, username, inviteCode, code: emailCode, language });
+  const signup = await client.setupPasswordAccount({ email, username, password, inviteCode, language });
+  const security = await runSecuritySetup(client, flags, options);
+
+  let giftCardResult: unknown = null;
+  if (typeof flags["gift-card-code"] === "string") {
+    giftCardResult = await client.redeemGiftCard(flags["gift-card-code"]);
+  }
+
+  const response = {
+    success: true,
+    user: signup.user ?? null,
+    backup_codes_path: security.backupCodesPath ?? null,
+    recovery_key_path: security.recoveryKeyPath ?? null,
+    gift_card: giftCardResult,
+  };
+  if (flags.json === true) {
+    printJson(response);
+  } else {
+    console.log("\x1b[32m✓\x1b[0m Account created and CLI session saved.");
+    if (security.backupCodesPath) console.log(`Backup codes saved to ${security.backupCodesPath}`);
+    if (security.recoveryKeyPath) console.log(`Recovery key saved to ${security.recoveryKeyPath}`);
+    console.log("Buy credits or redeem a gift card:");
+    console.log("  openmates settings billing buy-credits bank-transfer --credits 110000");
+    console.log("  openmates settings billing gift-card redeem <CODE>");
+  }
+
+  return {
+    user: signup.user ?? null,
+    backupCodesPath: security.backupCodesPath,
+    recoveryKeyPath: security.recoveryKeyPath,
+    security,
+    giftCard: giftCardResult,
+  };
+}
+
+async function handleE2E(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (subcommand !== "provision-auth-accounts") {
+    printE2EHelp();
+    return;
+  }
+  if (client.apiUrl.includes("api.openmates.org") && !client.apiUrl.includes("api.dev.openmates.org")) {
+    throw new Error("E2E provisioning refuses production API URLs.");
+  }
+  if (flags.password !== undefined) throw new Error("Use generated passwords or OPENMATES_CLI_SIGNUP_PASSWORD, not --password.");
+  const slot = parseRequiredNumber(flags.slot, "--slot");
+  if (![15, 16, 17, 18, 19, 20].includes(slot)) {
+    throw new Error("Only reserved slots 15-20 are supported.");
+  }
+  const artifact = typeof flags.artifact === "string" ? flags.artifact : `test-results/credential-updates/slot-${slot}.env`;
+  const domain = typeof flags.domain === "string" ? flags.domain : process.env.OPENMATES_CLI_E2E_EMAIL_DOMAIN;
+  const email = typeof flags.email === "string"
+    ? flags.email
+    : domain
+      ? `cli-e2e-slot-${slot}-${Date.now()}@${domain}`
+      : await promptLine("E2E account email: ");
+  const username = typeof flags.username === "string" ? flags.username : `cli_e2e_slot_${slot}_${Date.now()}`;
+  const generatedPassword = process.env.OPENMATES_CLI_SIGNUP_PASSWORD ?? await generateProvisioningPassword();
+  const originalSignupPassword = process.env.OPENMATES_CLI_SIGNUP_PASSWORD;
+  process.env.OPENMATES_CLI_SIGNUP_PASSWORD = generatedPassword;
+  let signup: SignupCommandResult | null = null;
+  try {
+    signup = await handleSignup(client, {
+      ...flags,
+      email,
+      username,
+      yes: true,
+      json: false,
+      "backup-codes-output": typeof flags["backup-codes-output"] === "string" ? flags["backup-codes-output"] : `${artifact}.backup-codes`,
+      "recovery-key-output": typeof flags["recovery-key-output"] === "string" ? flags["recovery-key-output"] : `${artifact}.recovery-key`,
+    }, { autoGenerateTotp: true });
+  } finally {
+    if (originalSignupPassword === undefined) delete process.env.OPENMATES_CLI_SIGNUP_PASSWORD;
+    else process.env.OPENMATES_CLI_SIGNUP_PASSWORD = originalSignupPassword;
+  }
+  if (!signup.security.otpSecret) throw new Error("Provisioning did not create a TOTP secret.");
+  const artifactBody = [
+    `OPENMATES_TEST_ACCOUNT_${slot}_EMAIL=${email}`,
+    `OPENMATES_TEST_ACCOUNT_${slot}_PASSWORD=${generatedPassword}`,
+    `OPENMATES_TEST_ACCOUNT_${slot}_OTP_KEY=${signup.security.otpSecret}`,
+    `# Backup codes: ${artifact}.backup-codes`,
+    `# Recovery key: ${artifact}.recovery-key`,
+    "",
+  ].join("\n");
+  const path = await writeSecretFile(artifact, artifactBody, flags.force === true);
+  if (flags.json === true) printJson({ success: true, artifact: path, slot, email });
+  else console.log(`Provisioning artifact written to ${path}. Upload secrets through the trusted manual process.`);
+}
+
+function printBankTransferOrder(order: BankTransferOrderDetails, giftCard: boolean): void {
+  header(giftCard ? "Gift Card Bank Transfer" : "Bank Transfer");
+  console.log(`Order ID: ${order.order_id}`);
+  console.log(`Credits: ${order.credits_amount}`);
+  console.log(`Amount: EUR ${order.amount_eur}`);
+  console.log(`Reference: ${order.reference}`);
+  console.log(`IBAN: ${order.iban}`);
+  console.log(`BIC: ${order.bic}`);
+  console.log(`Bank: ${order.bank_name}`);
+  console.log(`Account holder: ${order.account_holder_name}`);
+  if (order.account_holder_address_line1) console.log(`Address: ${order.account_holder_address_line1}`);
+  if (order.account_holder_address_line2) console.log(`         ${order.account_holder_address_line2}`);
+  if (order.account_holder_postal_code || order.account_holder_city) {
+    console.log(`         ${[order.account_holder_postal_code, order.account_holder_city].filter(Boolean).join(" ")}`);
+  }
+  if (order.account_holder_country) console.log(`         ${order.account_holder_country}`);
+  console.log(`Expires: ${order.expires_at}`);
+  console.log("\nInclude the exact reference in your bank transfer. Missing or changed references require manual review.");
+  if (giftCard) {
+    console.log(`Gift-card code appears after payment is matched: openmates settings billing gift-card purchase-status ${order.order_id}`);
+  } else {
+    console.log(`Check status: openmates settings billing bank-transfer status ${order.order_id}`);
+  }
+}
+
+function printBankTransferStatus(status: BankTransferStatus | GiftCardBankTransferStatus, giftCard: boolean): void {
+  header(giftCard ? "Gift Card Purchase Status" : "Bank Transfer Status");
+  console.log(`Order ID: ${status.order_id}`);
+  console.log(`Status: ${status.status}`);
+  console.log(`Credits: ${status.credits_amount}`);
+  console.log(`Amount: EUR ${status.amount_eur}`);
+  console.log(`Reference: ${status.reference}`);
+  console.log(`Expires: ${status.expires_at}`);
+  if (giftCard) {
+    const code = (status as GiftCardBankTransferStatus).gift_card_code;
+    console.log(`Gift-card code: ${code || "available after payment is matched"}`);
+  }
+}
+
 function printSettingsInfoCommand(
   client: OpenMatesClient,
   command: SettingsInfoCommand,
@@ -1841,7 +2428,11 @@ async function handleSettings(
 
   if (matches(tokens, ["account", "info"])) {
     const user = await client.whoAmI();
-    flags.json === true ? printJson(user) : printWhoAmI(user as Record<string, unknown>);
+    if (flags.json === true) {
+      printJson(user);
+    } else {
+      printWhoAmI(user as Record<string, unknown>);
+    }
     return;
   }
 
@@ -1901,6 +2492,31 @@ async function handleSettings(
     return;
   }
 
+  if (matches(tokens, ["account", "delete"])) {
+    if (flags["email-code"] !== undefined || flags["totp-code"] !== undefined) {
+      throw new Error("Deletion verification codes must be entered through interactive prompts, not command-line flags.");
+    }
+    const preview = await client.settingsGet("delete-account-preview");
+    if (flags.json !== true) {
+      header("Delete Account Preview");
+      printGenericObject(preview);
+    }
+    if (flags.yes !== true) {
+      await confirmOrExit("Delete this account and all associated data? [y/N] ");
+    }
+    await client.requestDeleteAccountEmailCode();
+    const emailCode = await promptLine("Enter email verification code: ");
+    await client.verifyDeleteAccountEmailCode(emailCode);
+    const authMethods = await client.getAuthMethodsStatus();
+    const totpCode = authMethods.has_2fa
+      ? await promptLine("Enter 2FA code: ")
+      : undefined;
+    const result = await client.deleteAccountWithCliVerification(totpCode);
+    if (flags.json === true) printJson(result);
+    else console.log("\x1b[32m✓\x1b[0m Account deletion requested and local CLI session cleared");
+    return;
+  }
+
   if (matches(tokens, ["account", "storage", "overview"])) {
     await printSettingsResult(client.settingsGet("storage"), flags);
     return;
@@ -1948,10 +2564,17 @@ async function handleSettings(
   }
 
   if (matches(tokens, ["ai", "models", "set-defaults"])) {
-    const simple = typeof flags.simple === "string" ? flags.simple : undefined;
-    const complex = typeof flags.complex === "string" ? flags.complex : undefined;
-    if (!simple && !complex) throw new Error("Provide --simple <model-id> and/or --complex <model-id>.");
-    await printSettingsMutationResult(client.settingsPost("ai-model-defaults", { simple, complex }), flags);
+    const body: Record<string, string | null> = {};
+    if (flags.simple !== undefined) {
+      body.default_ai_model_simple = parseModelDefaultFlag(flags.simple, "--simple");
+    }
+    if (flags.complex !== undefined) {
+      body.default_ai_model_complex = parseModelDefaultFlag(flags.complex, "--complex");
+    }
+    if (Object.keys(body).length === 0) {
+      throw new Error("Provide --simple <model-id|auto> and/or --complex <model-id|auto>.");
+    }
+    await printSettingsMutationResult(client.settingsPost("ai-model-defaults", body), flags);
     return;
   }
 
@@ -1993,6 +2616,34 @@ async function handleSettings(
 
   if (matches(tokens, ["billing", "usage"])) {
     await printSettingsResult(client.settingsGet("usage"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["billing", "buy-credits", "bank-transfer"])) {
+    const credits = parseRequiredNumber(flags.credits, "--credits");
+    const order = await client.createBankTransferOrder(credits);
+    if (flags.json === true) {
+      printJson(order);
+    } else {
+      printBankTransferOrder(order, false);
+    }
+    return;
+  }
+
+  if (matches(tokens, ["billing", "bank-transfer", "status"])) {
+    const orderId = rest[2];
+    if (!orderId) throw new Error("Missing order ID.");
+    const status = await client.getBankTransferStatus(orderId);
+    if (flags.json === true) {
+      printJson(status);
+    } else {
+      printBankTransferStatus(status, false);
+    }
+    return;
+  }
+
+  if (matches(tokens, ["billing", "bank-transfer", "list"])) {
+    await printSettingsResult(client.listBankTransferOrders(), flags);
     return;
   }
 
@@ -2049,6 +2700,34 @@ async function handleSettings(
     return;
   }
 
+  if (matches(tokens, ["billing", "gift-card", "buy", "bank-transfer"])) {
+    const credits = parseRequiredNumber(flags.credits, "--credits");
+    const order = await client.createGiftCardBankTransferOrder(credits);
+    if (flags.json === true) {
+      printJson(order);
+    } else {
+      printBankTransferOrder(order, true);
+    }
+    return;
+  }
+
+  if (matches(tokens, ["billing", "gift-card", "purchase-status"])) {
+    const orderId = rest[3];
+    if (!orderId) throw new Error("Missing order ID.");
+    const status = await client.getGiftCardPurchaseStatus(orderId);
+    if (flags.json === true) {
+      printJson(status);
+    } else {
+      printBankTransferStatus(status, true);
+    }
+    return;
+  }
+
+  if (matches(tokens, ["billing", "gift-card", "purchased"])) {
+    await printSettingsResult(client.listPurchasedGiftCards(), flags);
+    return;
+  }
+
   if (matches(tokens, ["billing", "auto-topup", "low-balance", "set"])) {
     const enabled = parseOnOff(String(flags.enabled ?? ""), "low-balance auto top-up");
     const amount = parseRequiredNumber(flags.amount, "--amount");
@@ -2070,7 +2749,32 @@ async function handleSettings(
       backup_reminder_interval_days: user.backup_reminder_interval_days ?? null,
       encrypted_notification_email_configured: Boolean(user.encrypted_notification_email),
     };
-    flags.json === true ? printJson(status) : printGenericObject(status);
+    if (flags.json === true) {
+      printJson(status);
+    } else {
+      printGenericObject(status);
+    }
+    return;
+  }
+
+  if (matches(tokens, ["notifications", "list"])) {
+    const limit = parseOptionalNumber(flags.limit, 50, "--limit");
+    await printSettingsResult(client.listNotifications(limit), flags);
+    return;
+  }
+
+  if (matches(tokens, ["notifications", "stream"])) {
+    const count = flags.count === undefined ? null : parseRequiredNumber(flags.count, "--count");
+    let received = 0;
+    for await (const event of client.streamNotifications()) {
+      if (flags.json === true) {
+        printJson(event);
+      } else {
+        printGenericObject(event);
+      }
+      received += 1;
+      if (count !== null && received >= count) break;
+    }
     return;
   }
 
@@ -2396,13 +3100,13 @@ function parseArgs(argv: string[]): CliArgs {
     const valueFromEquals = keyValue[1];
 
     if (valueFromEquals !== undefined) {
-      flags[key] = valueFromEquals;
+      flags[key] = appendFlagValue(flags[key], valueFromEquals);
       continue;
     }
 
     const next = argv[i + 1];
     if (next && !next.startsWith("--")) {
-      flags[key] = next;
+      flags[key] = appendFlagValue(flags[key], next);
       i += 1;
     } else {
       flags[key] = true;
@@ -2410,6 +3114,11 @@ function parseArgs(argv: string[]): CliArgs {
   }
 
   return { positionals, flags };
+}
+
+function appendFlagValue(existing: string | boolean | undefined, value: string): string {
+  if (typeof existing === "string" && existing.length > 0) return `${existing}\n${value}`;
+  return value;
 }
 
 function resolveApiKey(flags: Record<string, string | boolean>): string | null {
@@ -2427,11 +3136,6 @@ function resolveApiKey(flags: Record<string, string | boolean>): string | null {
 /** Raw JSON output for --json flag */
 function printJson(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));
-}
-
-/** Dim separator line */
-function hr(): void {
-  process.stdout.write("\x1b[2m" + "─".repeat(60) + "\x1b[0m\n");
 }
 
 /** Bold section header */
@@ -2523,11 +3227,6 @@ function ansiMateBlock(
   return `\x1b[48;2;${r};${g};${b}m\x1b[97m ${label} \x1b[0m`;
 }
 
-/** Keep for backwards compat in non-list contexts */
-function ansiCategoryPill(category: string | null): string {
-  return ansiColorBlock(category);
-}
-
 function formatTimestamp(ts: number | null): string {
   if (!ts) return "—";
   const d = new Date(ts * 1000);
@@ -2539,6 +3238,7 @@ function printChatsTable(result: ChatListPage): void {
   const { chats, total, page, limit, hasMore } = result;
   const start = (page - 1) * limit + 1;
   const end = start + chats.length - 1;
+  const exampleOnly = chats.every((chat) => chat.source === "example");
 
   if (chats.length === 0) {
     console.log("No chats found.");
@@ -2547,7 +3247,7 @@ function printChatsTable(result: ChatListPage): void {
 
   const totalPages = Math.ceil(total / limit);
   process.stdout.write(
-    `\x1b[2mChats ${start}–${end} of ${total}  (page ${page}/${totalPages})\x1b[0m\n\n`,
+    `\x1b[2m${exampleOnly ? "Example chats" : "Chats"} ${start}–${end} of ${total}  (page ${page}/${totalPages})\x1b[0m\n\n`,
   );
 
   for (const chat of chats) {
@@ -2555,9 +3255,10 @@ function printChatsTable(result: ChatListPage): void {
     const time = formatTimestamp(chat.updatedAt);
     const title = chat.title ?? "(no title)";
     const idStr = chat.shortId;
+    const sourceLabel = chat.source === "example" ? "  \x1b[33mEXAMPLE CHAT\x1b[0m" : "";
 
     // Line 1: colored block + timestamp
-    process.stdout.write(`${block}  \x1b[2m${time}\x1b[0m\n`);
+    process.stdout.write(`${block}  \x1b[2m${time}\x1b[0m${sourceLabel}\n`);
     // Line 2: bold title as headline
     process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
     // Line 3: full summary (no truncation)
@@ -2590,16 +3291,27 @@ async function sendMessageStreaming(
     chatId?: string;
     incognito?: boolean;
     json?: boolean;
+    autoApproveSubChats?: boolean;
+    autoApproveMemories?: boolean;
   },
   redactor?: OutputRedactor,
 ): Promise<{
+  status: "completed" | "waiting_for_user";
   chatId: string;
+  messageId: string | null;
   assistant: string;
   category: string | null;
   modelName: string | null;
   mateName: string | null;
   followUpSuggestions: string[];
-}> {
+  subChatEvents: SubChatEvent[];
+  appSettingsMemoryRequests: Array<{
+    requestId: string | null;
+    requestedKeys: string[];
+    approvedKeys: string[];
+    entryCount: number;
+  }>;
+} | WaitingForUserResult> {
   let headerPrinted = false;
   let typingShown = false;
   // Track which embed IDs we've already rendered during streaming
@@ -2687,8 +3399,61 @@ async function sendMessageStreaming(
     }
   };
 
-  // ── Encrypted embeds array (populated by file processing below) ────
-  const encryptedEmbeds: EncryptedEmbed[] = [];
+  const onSubChatEvent = (event: SubChatEvent) => {
+    if (params.json) return;
+    clearTyping();
+    const payload = event.payload;
+    if (event.type === "spawn_sub_chats") {
+      const count = Array.isArray(payload.sub_chats) ? payload.sub_chats.length : 0;
+      process.stderr.write(
+        `\x1b[2mStarting ${count} sub-chat${count === 1 ? "" : "s"} for parallel research...\x1b[0m\n`,
+      );
+      return;
+    }
+    if (event.type === "sub_chat_progress") {
+      const completed = typeof payload.completed === "number" ? payload.completed : null;
+      const total = typeof payload.total === "number" ? payload.total : null;
+      const status = typeof payload.status === "string" ? payload.status : "running";
+      const progress = completed !== null && total !== null ? `${completed}/${total}` : status;
+      process.stderr.write(`\x1b[2mSub-chats: ${progress} ${status}\x1b[0m\n`);
+      return;
+    }
+    if (event.type === "sub_chat_confirmation_resolved") {
+      const status = typeof payload.status === "string" ? payload.status : "resolved";
+      process.stderr.write(`\x1b[2mSub-chat approval ${status}.\x1b[0m\n`);
+      return;
+    }
+    if (event.type === "awaiting_user_input") {
+      process.stderr.write(
+        "\x1b[33mA sub-chat needs additional user input. Continue this chat in the web app if the parent cannot finish.\x1b[0m\n",
+      );
+    }
+  };
+
+  const onSubChatApprovalRequest = async (
+    request: SubChatApprovalRequest,
+  ): Promise<boolean> => {
+    if (params.autoApproveSubChats) return true;
+    clearTyping();
+    const count = request.subChats.length;
+    const remaining =
+      request.remainingSubChats === null
+        ? ""
+        : ` (${request.remainingSubChats} remaining for this parent chat)`;
+    process.stderr.write(
+      `\x1b[33mDeep research wants to start ${count} additional sub-chat${count === 1 ? "" : "s"}${remaining}.\x1b[0m\n`,
+    );
+    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    try {
+      const answer = await rl.question("Approve? [y/N] ");
+      return answer.trim().toLowerCase() === "y" || answer.trim().toLowerCase() === "yes";
+    } finally {
+      rl.close();
+    }
+  };
+
+  // ── Prepared embeds array (encrypted after real chat/message IDs exist) ────
+  const preparedEmbeds: PreparedEmbed[] = [];
 
   // ── Mention resolution ─────────────────────────────────────────────
   // Parse @mentions in the message, resolve to backend wire syntax.
@@ -2768,27 +3533,79 @@ async function sendMessageStreaming(
               const session = client.getSession();
               const uploadResult = await uploadFile(fe.localPath, session);
 
-              // Update the embed with upload server response data
-              fe.embed.content = toonEncodeContent({
-                type: fe.embed.type === "pdf" ? "pdf" : "image",
-                app_id: "images",
-                skill_id: "upload",
-                status: "finished",
-                filename: fe.displayName,
-                content_hash: uploadResult.content_hash,
-                s3_base_url: uploadResult.s3_base_url,
-                files: uploadResult.files,
-                aes_key: uploadResult.aes_key,
-                aes_nonce: uploadResult.aes_nonce,
-                vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
-                ai_detection: uploadResult.ai_detection,
-              });
-              fe.embed.status =
-                fe.embed.type === "pdf" ? "processing" : "finished";
+              const embedType = fe.embed.type;
+              const audioTranscription =
+                embedType === "audio-recording"
+                  ? await transcribeUploadedAudio(
+                      uploadResult,
+                      fe.displayName,
+                      session,
+                      { chatId: params.chatId, requestId: uploadResult.embed_id },
+                    )
+                  : null;
+              const embedRef = fe.embed.embedRef ?? createEmbedRef(embedType, uploadResult.embed_id);
+              fe.embed.embedRef = embedRef;
+
+              const uploadedContent =
+                embedType === "audio-recording"
+                  ? {
+                      app_id: "audio",
+                      skill_id: "transcribe",
+                      type: "audio-recording",
+                      status: "finished",
+                      filename: fe.displayName,
+                      embed_ref: embedRef,
+                      mime_type: uploadResult.content_type,
+                      transcript: audioTranscription?.transcript ?? null,
+                      transcript_original: audioTranscription?.transcript_original ?? null,
+                      transcript_corrected: audioTranscription?.transcript_corrected ?? null,
+                      use_corrected: audioTranscription?.use_corrected ?? null,
+                      correction_model: audioTranscription?.correction_model ?? null,
+                      model: audioTranscription?.model ?? null,
+                      s3_base_url: uploadResult.s3_base_url,
+                      files: uploadResult.files,
+                      aes_key: uploadResult.aes_key,
+                      aes_nonce: uploadResult.aes_nonce,
+                      vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+                    }
+                  : embedType === "pdf"
+                    ? {
+                        type: "pdf",
+                        status: "processing",
+                        filename: fe.displayName,
+                        embed_ref: embedRef,
+                        page_count: uploadResult.page_count ?? null,
+                        content_hash: uploadResult.content_hash,
+                        s3_base_url: uploadResult.s3_base_url,
+                        files: uploadResult.files,
+                        aes_key: uploadResult.aes_key,
+                        aes_nonce: uploadResult.aes_nonce,
+                        vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+                      }
+                    : {
+                        type: "image",
+                        app_id: "images",
+                        skill_id: "upload",
+                        status: "finished",
+                        filename: fe.displayName,
+                        embed_ref: embedRef,
+                        content_hash: uploadResult.content_hash,
+                        s3_base_url: uploadResult.s3_base_url,
+                        files: uploadResult.files,
+                        aes_key: uploadResult.aes_key,
+                        aes_nonce: uploadResult.aes_nonce,
+                        vault_wrapped_aes_key: uploadResult.vault_wrapped_aes_key,
+                        ai_detection: uploadResult.ai_detection,
+                      };
+
+              // Update the embed with upload server response data.
+              fe.embed.content = toonEncodeContent(uploadedContent);
+              fe.embed.status = embedType === "pdf" ? "processing" : "finished";
               fe.embed.contentHash = uploadResult.content_hash;
 
               // Use the server-assigned embed_id
               fe.embed.embedId = uploadResult.embed_id;
+              fe.referenceBlock = createEmbedReferenceBlock(embedRef);
 
               if (!params.json) {
                 process.stderr.write(
@@ -2823,31 +3640,7 @@ async function sendMessageStreaming(
           finalMessage += embedRefs;
         }
 
-        // Encrypt all embeds for the WebSocket payload
-        try {
-          const { masterKey, userId } = client.getEmbedEncryptionKeys();
-          for (const fe of fileResult.embeds) {
-            // Note: chatKey is null for new chats — server assigns it.
-            // For existing chats, we'd need to fetch the chat key from cache.
-            // For now, only master key wrapping is used (sufficient for owner access).
-            const encrypted = await encryptEmbed(
-              fe.embed,
-              masterKey,
-              null, // chatKey — not available in CLI yet for new chats
-              params.chatId || "new", // will be replaced by server
-              "pending", // messageId set during send
-              userId,
-            );
-            if (encrypted) {
-              encryptedEmbeds.push(encrypted);
-            }
-          }
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          process.stderr.write(
-            `\x1b[33mWarning:\x1b[0m Embed encryption failed: ${msg}. Files sent without encryption.\n`,
-          );
-        }
+        preparedEmbeds.push(...fileResult.embeds.map((fileEmbed) => fileEmbed.embed));
       }
 
       // Show resolved mentions as confirmation
@@ -2867,15 +3660,43 @@ async function sendMessageStreaming(
     }
   }
 
+  const urlResult = prepareUrlEmbeds(finalMessage);
+  finalMessage = urlResult.message;
+  preparedEmbeds.push(...urlResult.embeds);
+
   const result = await client.sendMessage({
     message: finalMessage,
     chatId: params.chatId,
     incognito: params.incognito,
     onStream,
-    encryptedEmbeds: encryptedEmbeds.length > 0 ? encryptedEmbeds : undefined,
+    onSubChatEvent,
+    onSubChatApprovalRequest,
+    autoApproveSubChats: params.autoApproveSubChats,
+    autoApproveMemories: params.autoApproveMemories,
+    preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
   });
 
   clearTyping();
+
+  if (result.status === "waiting_for_user") {
+    const question = parseInteractiveQuestionBlock(result.assistant);
+    if (params.json && question) {
+      return toWaitingForUserResult({
+        chatId: result.chatId,
+        messageId: result.messageId ?? "",
+        parentId: result.chatId,
+        question,
+      });
+    }
+
+    if (!params.json) {
+      process.stderr.write(
+        "\x1b[33mOpenMates needs more input to continue.\x1b[0m\n" +
+          "Continue in the web app, or rerun with --json to inspect the structured waiting state.\n",
+      );
+    }
+    return result;
+  }
 
   if (!params.json) {
     if (!headerPrinted) {
@@ -2956,17 +3777,6 @@ async function sendMessageStreaming(
   }
 
   return result;
-}
-
-/**
- * Strip ```json embed blocks from content for clean streaming output.
- * These are rendered separately after the response completes.
- * Also collapses multiple blank lines left after stripping.
- */
-function stripEmbedJsonBlocks(content: string): string {
-  return content
-    .replace(/```(?:json_embed|json)\n[\s\S]*?\n```/g, "")
-    .replace(/\n{3,}/g, "\n\n");
 }
 
 function printIncognitoNoHistoryNotice(json: boolean): void {
@@ -3188,10 +3998,16 @@ async function printChatConversation(
   },
   messages: DecryptedMessage[],
   followUpSuggestions?: string[],
+  options: { example?: boolean } = {},
 ): Promise<void> {
   const block = ansiColorBlock(chat.category);
   const title = chat.title ?? "(no title)";
   const ts = formatTimestamp(chat.updatedAt);
+
+  if (options.example) {
+    process.stdout.write("\x1b[33mEXAMPLE CHAT\x1b[0m\n");
+    process.stdout.write("\x1b[2mThis is a public example chat. Log in to create and sync your own private chats.\x1b[0m\n\n");
+  }
 
   // Header: colored block + date + # Title
   process.stdout.write(`${block}  \x1b[2m${chat.shortId}  ${ts}\x1b[0m\n`);
@@ -3216,7 +4032,7 @@ async function printChatConversation(
     }
   }
   // Also check if any message text contains embed: refs at all
-  const hasEmbedRefs = messages.some(
+  const hasEmbedRefs = !options.example && messages.some(
     (m) => m.content && /\(embed:[^)]+\)/.test(m.content),
   );
   const embedRefIndex = hasEmbedRefs
@@ -3296,7 +4112,9 @@ async function printChatConversation(
   }
 
   process.stdout.write(
-    `\x1b[2mContinue: openmates chats send --chat ${chat.shortId} "your message"\x1b[0m\n`,
+    options.example
+      ? `\x1b[2mOpen in browser: openmates chats open ${chat.shortId}\x1b[0m\n`
+      : `\x1b[2mContinue: openmates chats send --chat ${chat.shortId} "your message"\x1b[0m\n`,
   );
 }
 
@@ -3315,9 +4133,15 @@ async function printChatConversationRaw(
     updatedAt: number | null;
   },
   messages: DecryptedMessage[],
+  options: { example?: boolean } = {},
 ): Promise<void> {
   const title = chat.title ?? "(no title)";
   const ts = formatTimestamp(chat.updatedAt);
+
+  if (options.example) {
+    process.stdout.write("EXAMPLE CHAT\n");
+    process.stdout.write("This is a public example chat. Log in to create and sync your own private chats.\n\n");
+  }
 
   process.stdout.write(`\x1b[2m${chat.shortId}  ${ts}\x1b[0m\n`);
   process.stdout.write(`\x1b[1;4m# ${title}\x1b[0m  \x1b[2m(raw)\x1b[0m\n\n`);
@@ -3677,6 +4501,29 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
       const items = group.results as ResultItem[] | undefined;
       if (Array.isArray(items)) totalItems += items.length;
     }
+    if (totalItems === 0) {
+      header(
+        `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${credits !== null ? `${credits} credits` : "no results"})\x1b[0m\n`,
+      );
+      console.log("No results found.");
+      const topLevelReason = str(data.no_result_reason) ?? str(data.error);
+      if (topLevelReason) kv("reason", topLevelReason, 12);
+      for (const group of topResults) {
+        const reason = str(group.no_result_reason) ?? str(group.error);
+        if (reason) kv("reason", reason, 12);
+        const groupSuggestions = group.suggestions;
+        if (Array.isArray(groupSuggestions) && groupSuggestions.length > 0) {
+          kv("try", (groupSuggestions as unknown[]).map((value) => String(value)).join(" · "), 12);
+        }
+      }
+      const responseSuggestions = data.suggestions_follow_up_requests;
+      if (Array.isArray(responseSuggestions) && responseSuggestions.length > 0) {
+        kv("try", (responseSuggestions as unknown[]).map((value) => String(value)).join(" · "), 12);
+      }
+      const provider = str(data.provider);
+      if (provider) console.log(`\x1b[2mProvider: ${provider}\x1b[0m`);
+      return;
+    }
     if (totalItems > 0) {
       header(
         `${capitalise(app)} › ${capitalise(skill)}  \x1b[2m(${totalItems} result${totalItems !== 1 ? "s" : ""}${credits !== null ? `, ${credits} credits` : ""})\x1b[0m\n`,
@@ -3734,12 +4581,9 @@ function printSkillResult(app: string, skill: string, raw: unknown): void {
 /**
  * Print a single skill result item with a numbered header line and full details.
  *
- * For known types (connection, stay, place_result) a compact human-readable
- * header line is printed first, followed by all remaining fields.
+ * For known high-volume search result types a compact human-readable card is
+ * printed by default. Full provider payloads remain available through --json.
  * For unknown types, printGenericObject renders every field.
- *
- * This ensures the CLI always shows the full REST API output — nothing is
- * hidden or summarised away.
  */
 function printSkillResultItem(
   item: Record<string, unknown>,
@@ -3781,18 +4625,11 @@ function printSkillResultItem(
       if (dur) parts.push(`(${dur})`);
       console.log(`  ${parts.join("  ")}`);
     }
-    // Full details — all remaining fields
-    printGenericObject(item, 1);
     // Booking link hint
     if (typeof item.booking_token === "string") {
-      const token = item.booking_token as string;
-      const ctxFlag =
-        item.booking_context && typeof item.booking_context === "object"
-          ? ` --context '${JSON.stringify(item.booking_context)}'`
-          : "";
       console.log(`\x1b[2m  → Get booking URL (25 credits):\x1b[0m`);
       console.log(
-        `\x1b[2m    openmates apps travel booking-link --token "${token}"${ctxFlag}\x1b[0m`,
+        `\x1b[2m    rerun with --json to copy booking_token, then use openmates apps travel booking-link\x1b[0m`,
       );
     }
     console.log("");
@@ -3809,7 +4646,42 @@ function printSkillResultItem(
     if (rating) summary.push(`★ ${rating}`);
     if (price) summary.push(price);
     console.log(`${numLabel}\x1b[1m${name}\x1b[0m  ${summary.join(" · ")}`);
-    printGenericObject(item, 1);
+    const amenities = Array.isArray(item.amenities)
+      ? (item.amenities as unknown[]).map((value) => String(value)).slice(0, 6)
+      : [];
+    if (amenities.length > 0) kv("amenities", amenities.join(", "), 14);
+    const reviews = item.reviews;
+    if (reviews !== undefined && reviews !== null) kv("reviews", String(reviews), 14);
+    const link = str(item.link) ?? str(item.url);
+    if (link) kv("url", link, 14);
+    console.log("");
+    return;
+  }
+
+  // ── Event result ────────────────────────────────────────────────────────
+  if (itemType === "event_result") {
+    const title = str(item.title) ?? str(item.name) ?? "Untitled event";
+    const provider = str(item.provider);
+    const start = str(item.date_start);
+    const end = str(item.date_end);
+    const venue = item.venue as Record<string, unknown> | undefined;
+    const venueName = venue && typeof venue === "object" ? str(venue.name) : null;
+    const city = venue && typeof venue === "object" ? str(venue.city) : null;
+    const price = formatEventPrice(item);
+    const summary = [provider, price].filter(Boolean).join(" · ");
+    console.log(`${numLabel}\x1b[1m${title}\x1b[0m${summary ? `  ${summary}` : ""}`);
+    if (start || end) {
+      console.log(`  ${[start, end ? `→ ${end}` : null].filter(Boolean).join("  ")}`);
+    }
+    if (venueName || city) kv("venue", [venueName, city].filter(Boolean).join(", "), 14);
+    const constraints = item.constraint_matches;
+    if (constraints && typeof constraints === "object") {
+      for (const [key, value] of Object.entries(constraints as Record<string, unknown>)) {
+        if (value !== undefined && value !== null && value !== "") kv(key, String(value), 14);
+      }
+    }
+    const url = str(item.url);
+    if (url) kv("url", url, 14);
     console.log("");
     return;
   }
@@ -3840,6 +4712,20 @@ function printSkillResultItem(
     printGenericObject(item, 1);
   }
   console.log("");
+}
+
+function formatEventPrice(item: Record<string, unknown>): string | null {
+  const fee = item.fee;
+  if (fee && typeof fee === "object") {
+    const feeRecord = fee as Record<string, unknown>;
+    const amount = str(feeRecord.amount) ?? str(feeRecord.display) ?? str(feeRecord.min);
+    const currency = str(feeRecord.currency);
+    if (amount) return currency && !amount.includes(currency) ? `${amount} ${currency}` : amount;
+  }
+  const price = str(item.price);
+  if (price) return price;
+  if (item.is_paid === false) return "free";
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -4530,6 +5416,7 @@ function printHelp(): void {
 
 Commands:
   openmates login                            Pair-auth login
+  openmates signup                           Create an account from the terminal
   openmates logout                           Log out and clear session
   openmates whoami [--json]                  Show account info
   openmates chats [--help]                   Chat commands (list, search, show, ...)
@@ -4541,23 +5428,60 @@ Commands:
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates server [--help]                   Server management (install, start, stop, ...)
   openmates docs [--help]                     Browse, search, and download documentation
+  openmates e2e provision-auth-accounts       Provision local E2E auth-account artifacts
 
 Flags:
   --json          Output raw JSON instead of formatted output
-  --api-url <url> Override API base URL (default: https://api.openmates.org)
+  --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
+}
+
+function printSignupHelp(): void {
+  console.log(`Signup command:
+  openmates signup --email <email> --username <name> --invite-code <code>
+
+Creates a password account using client-side encrypted signup crypto. Passwords
+are entered through hidden prompts and cannot be passed with --password.
+
+Options:
+  --email <email>                    Email address; prompted when omitted
+  --username <name>                  Username; prompted when omitted
+  --invite-code <code>               Invite code when required
+  --gift-card-code <code>            Redeem after account creation
+  --backup-codes-output <path>       Save backup codes to a 0600 file
+  --recovery-key-output <path>       Save recovery key to a 0600 file
+  --skip-2fa                         Explicitly skip 2FA setup after warning
+  --skip-recovery-key                Explicitly skip recovery key after warning
+  --yes                              Confirm warning prompts
+  --json                             Output non-secret JSON summary`);
+}
+
+function printE2EHelp(): void {
+  console.log(`E2E provisioning command:
+  openmates e2e provision-auth-accounts --slot 15 --artifact ./test-results/credential-updates/slot-15.env --api-url https://api.dev.openmates.org
+
+Creates local ignored credential artifacts for reserved E2E auth accounts. The
+command refuses production API URLs and does not upload GitHub secrets.
+
+Options:
+  --slot <15-20>                     Reserved auth-account slot
+  --artifact <path>                  Output .env artifact path
+  --email <email>                    Test email; prompted/generated when omitted
+  --domain <mail-domain>             Generate email at this domain
+  --force                            Overwrite local artifact files
+  --yes                              Confirm prompts where possible`);
 }
 
 function printChatsHelp(): void {
   console.log(`Chats commands:
   openmates chats list [--limit <n>] [--page <n>] [--json]
   openmates chats show <chat-id> [--raw] [--json]
-  openmates chats open [<n>] [--json]
+  openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--json]
-  openmates chats send [--chat <id>] [--incognito] <message> [--json]
-  openmates chats send --chat <id> --followup <n> [--json]
+  openmates chats new <message> [--json] [--auto-approve] [--auto-approve-memories]
+  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories]
+  openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
@@ -4575,6 +5499,8 @@ Options for 'show':
 
 Options for 'open':
   <n>           Position of the chat to open (default: 1 = most recent)
+  <example-id|slug>
+                Logged out: public example chat ID or slug
                 1 = most recent, 2 = second most recent, etc.
                 Opens the chat in your default browser.
 
@@ -4583,6 +5509,13 @@ Options for 'send':
   --followup <n>   Send the nth follow-up suggestion for this chat instead of
                    typing the full message (requires --chat)
   --incognito      Send without saving to chat history
+
+Options for 'new', 'send', and 'incognito':
+  --auto-approve           Automatically approve server-requested sub-chat batches.
+                           Without this, the CLI prompts in the terminal like the web app.
+  --auto-approve-memories  Explicitly approve server-requested memory categories.
+                           Memories are never approved by default.
+                           Use only for trusted non-interactive runs.
 
 Options for 'download':
   --output <path>  Target directory (default: current directory)
@@ -4614,6 +5547,7 @@ Examples:
   openmates chats list
   openmates chats open              (opens most recent chat in browser)
   openmates chats open 3            (opens 3rd most recent chat)
+  openmates chats open gigantic-airplanes-transporting-rocket-parts
   openmates chats show d262cb68
   openmates chats show last
   openmates chats show "Flight Connections Berlin to Bangkok"
@@ -4641,6 +5575,9 @@ function printAppsHelp(): void {
   openmates apps skill-info <app-id> <skill-id> [--json]
   openmates apps <app-id> <skill-id> "<query>" [--json]
   openmates apps <app-id> <skill-id> --input '<json>' [--json]
+  openmates apps code run --language python --code 'print("Hello")'
+  openmates apps code run --entry main.py --file main.py [--file requirements.txt]
+  openmates apps code run --entry main.py --dir ./project [--exclude node_modules]
   openmates apps travel booking-link --token "<token>" [--context '<json>']
 
 Authentication:
@@ -4653,6 +5590,7 @@ Examples:
   openmates apps web search "latest AI news"
   openmates apps news search "climate change"
   openmates apps ai ask "Summarise this: ..."
+  openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
   openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
   openmates apps travel booking-link --token "<booking_token from search result>"
   openmates apps skill-info web search`);
@@ -4913,8 +5851,26 @@ Examples:
   openmates docs download --all --output ./docs`);
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`Error: ${message}`);
-  process.exit(1);
-});
+function isCliEntrypoint(): boolean {
+  const entrypoint = process.argv[1];
+  if (!entrypoint) return false;
+
+  try {
+    const invokedPath = realpathSync(entrypoint);
+    const modulePath = realpathSync(fileURLToPath(import.meta.url));
+    return (
+      invokedPath === modulePath ||
+      (basename(invokedPath) === "cli.js" && dirname(invokedPath) === dirname(modulePath))
+    );
+  } catch {
+    return false;
+  }
+}
+
+if (isCliEntrypoint()) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Error: ${message}`);
+    process.exit(1);
+  });
+}

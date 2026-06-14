@@ -2,11 +2,47 @@
 status: active
 last_verified: 2026-04-09
 key_files:
+- backend/apps/ai/mates/
+- backend/apps/ai/utils/mate_utils.py
+- backend/apps/ai/processing/preprocessor.py
+- frontend/packages/ui/src/components/enter_message/utils/mateHelpers.ts
+- frontend/packages/ui/src/styles/mates.css
+claims:
+- id: arch-ai-mates-behavior
+  type: unit
+  claim: 'Mates: Domain Expert AI Personas is grounded in current source-of-truth files that parse or resolve successfully.'
+  source:
   - backend/apps/ai/mates/
   - backend/apps/ai/utils/mate_utils.py
   - backend/apps/ai/processing/preprocessor.py
   - frontend/packages/ui/src/components/enter_message/utils/mateHelpers.ts
   - frontend/packages/ui/src/styles/mates.css
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-ai-mates-behavior
+  verified: '2026-06-11'
+- id: arch-ai-mates-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-mates-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/utils/mate_utils.py
+- id: arch-ai-mates-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-mates-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/enter_message/utils/mateHelpers.ts
+- id: arch-ai-mates-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-ai-mates-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/data/matesMetadata.ts
 ---
 
 # Mates: Domain Expert AI Personas

@@ -4,7 +4,7 @@ vi.mock("$app/navigation", () => ({
   replaceState: vi.fn(),
 }));
 
-import { parseDeepLink, processSettingsDeepLink } from "../deepLinkHandler";
+import { buildChatMessageLink, parseDeepLink, processSettingsDeepLink } from "../deepLinkHandler";
 
 describe("parseDeepLink", () => {
   it("parses chat links with a bare autoplay-video flag", () => {
@@ -32,6 +32,35 @@ describe("parseDeepLink", () => {
         messageId: "msg-789",
         scrollToLatestResponse: true,
         embedId: "embed-456",
+        autoplayVideo: false,
+      },
+    });
+  });
+
+  it("accepts legacy messageid chat link params", () => {
+    expect(parseDeepLink("#chat-id=chat-123&messageid=msg-legacy"))?.toEqual({
+      type: "chat",
+      data: {
+        chatId: "chat-123",
+        messageId: "msg-legacy",
+        scrollToLatestResponse: false,
+        embedId: null,
+        autoplayVideo: false,
+      },
+    });
+  });
+
+  it("builds same-origin chat/message links that round-trip through parsing", () => {
+    const link = buildChatMessageLink("chat-123", "msg-789", "https://app.example.test/chat");
+
+    expect(link).toBe("https://app.example.test/chat#chat-id=chat-123&message-id=msg-789");
+    expect(parseDeepLink(link.slice(link.indexOf("#")))).toEqual({
+      type: "chat",
+      data: {
+        chatId: "chat-123",
+        messageId: "msg-789",
+        scrollToLatestResponse: false,
+        embedId: null,
         autoplayVideo: false,
       },
     });

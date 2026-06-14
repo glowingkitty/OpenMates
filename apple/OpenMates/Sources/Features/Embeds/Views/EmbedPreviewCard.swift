@@ -2,6 +2,13 @@
 // Mirrors UnifiedEmbedPreview.svelte with app gradient header, content area,
 // and status bar footer. Dispatches to per-type renderers via EmbedContentView.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 
 enum EmbedPreviewCardVariant {
@@ -18,6 +25,17 @@ struct EmbedPreviewCard: View {
         static let expandedInfoBarOffset: CGFloat = 15
         static let expandedBottomOutset: CGFloat = 30
         static let cornerRadius: CGFloat = 30
+        static let minimumProcessingDuration: TimeInterval = 0.5
+        static let storedEncryptedHintDuration: UInt64 = 2_000_000_000
+        static let openDetailsHintDuration: UInt64 = 2_000_000_000
+        static let standardHoverScale: CGFloat = 0.985
+        static let largeHoverScale: CGFloat = 0.995
+    }
+
+    private enum StatusHintPhase {
+        case settled
+        case storedEncrypted
+        case openDetails
     }
 
     let embed: EmbedRecord
@@ -27,6 +45,9 @@ struct EmbedPreviewCard: View {
     @State private var isHovering = false
     @State private var hoverX: CGFloat = 0
     @State private var hoverY: CGFloat = 0
+    @State private var processingStartDate: Date?
+    @State private var statusHintPhase: StatusHintPhase = .settled
+    @State private var statusHintTask: Task<Void, Never>?
 
     init(
         embed: EmbedRecord,
@@ -65,7 +86,7 @@ struct EmbedPreviewCard: View {
             .padding(.bottom, variant == .large ? Constants.expandedBottomOutset : 0)
             .rotation3DEffect(.degrees(isHovering ? -hoverY * tiltMaxAngle : 0), axis: (x: 1, y: 0, z: 0), perspective: 1 / tiltPerspective)
             .rotation3DEffect(.degrees(isHovering ? hoverX * tiltMaxAngle : 0), axis: (x: 0, y: 1, z: 0), perspective: 1 / tiltPerspective)
-            .scaleEffect(isHovering ? 1.02 : 1)
+            .scaleEffect(isHovering ? hoverScale : 1)
             #if os(macOS)
             .background(hoverTracker)
             #endif
@@ -79,6 +100,54 @@ struct EmbedPreviewCard: View {
             title: embedType?.displayName
         )
         .accessibilityValue(embed.status == .processing ? "Loading" : embed.status == .error ? "Failed to load" : embed.status == .cancelled ? "Cancelled" : "Ready")
+        .onAppear {
+            if embed.status == .processing && processingStartDate == nil {
+                processingStartDate = Date()
+            }
+        }
+        .onChange(of: embed.status) { oldStatus, newStatus in
+            handleStatusChange(from: oldStatus, to: newStatus)
+        }
+        .onDisappear {
+            statusHintTask?.cancel()
+        }
+    }
+
+    private func handleStatusChange(from oldStatus: EmbedStatus, to newStatus: EmbedStatus) {
+        statusHintTask?.cancel()
+
+        if newStatus == .processing {
+            processingStartDate = Date()
+            statusHintPhase = .settled
+            return
+        }
+
+        guard oldStatus == .processing, newStatus == .finished else {
+            processingStartDate = nil
+            statusHintPhase = .settled
+            return
+        }
+
+        let duration = processingStartDate.map { Date().timeIntervalSince($0) } ?? 0
+        processingStartDate = nil
+        guard duration >= Constants.minimumProcessingDuration else {
+            statusHintPhase = .settled
+            return
+        }
+
+        statusHintPhase = .storedEncrypted
+        statusHintTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: Constants.storedEncryptedHintDuration)
+                guard !Task.isCancelled else { return }
+                statusHintPhase = .openDetails
+                try await Task.sleep(nanoseconds: Constants.openDetailsHintDuration)
+                guard !Task.isCancelled else { return }
+                statusHintPhase = .settled
+            } catch {
+                // Cancellation is expected when the card unmounts or status changes again.
+            }
+        }
     }
 
     private var cardWidth: CGFloat? {
@@ -95,6 +164,10 @@ struct EmbedPreviewCard: View {
 
     private var tiltPerspective: CGFloat {
         variant == .large ? 1200 : 800
+    }
+
+    private var hoverScale: CGFloat {
+        variant == .large ? Constants.largeHoverScale : Constants.standardHoverScale
     }
 
     private var hoverTracker: some View {
@@ -296,6 +369,16 @@ struct EmbedPreviewCard: View {
     }
 
     private var statusSubtitle: String? {
+        if statusHintPhase == .storedEncrypted {
+            return AppStrings.embedStoredEncrypted
+        }
+        if statusHintPhase == .openDetails {
+            #if os(macOS)
+            return AppStrings.embedClickToShowDetails
+            #else
+            return AppStrings.embedTapToShowDetails
+            #endif
+        }
         if embed.isAppSkillUse {
             return nil
         }

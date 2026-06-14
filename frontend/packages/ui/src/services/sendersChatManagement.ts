@@ -367,9 +367,7 @@ export async function sendSetActiveChatImpl(
 	const payload: SetActiveChatPayload = { chat_id: chatId };
 	try {
 		await webSocketService.sendMessage("set_active_chat", payload);
-		console.debug(
-			`[ChatSyncService:Senders] Sent 'set_active_chat' to server: ${chatId}`
-		);
+		console.debug(`[ChatSyncService:Senders] Sent 'set_active_chat' to server: ${chatId}`);
 	} catch (error) {
 		console.error(
 			`[ChatSyncService:Senders] Error sending 'set_active_chat' for chat_id: ${chatId}:`,

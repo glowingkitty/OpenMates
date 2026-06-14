@@ -11,6 +11,11 @@ ARG VITE_ENV
 ARG VITE_UPLOAD_URL
 ARG VITE_UPLOAD_URL_DEV
 ARG VITE_UPLOAD_URL_PROD
+ARG BUILD_COMMIT_SHA
+ARG BUILD_COMMIT_MESSAGE
+ARG BUILD_BRANCH
+ARG BUILD_TIMESTAMP
+ARG BUILD_VERSION_TAG
 
 # Set environment variables from build args for Vite to use during build
 ENV VITE_API_URL=${VITE_API_URL}
@@ -18,6 +23,11 @@ ENV VITE_ENV=${VITE_ENV}
 ENV VITE_UPLOAD_URL=${VITE_UPLOAD_URL}
 ENV VITE_UPLOAD_URL_DEV=${VITE_UPLOAD_URL_DEV}
 ENV VITE_UPLOAD_URL_PROD=${VITE_UPLOAD_URL_PROD}
+ENV BUILD_COMMIT_SHA=${BUILD_COMMIT_SHA}
+ENV BUILD_COMMIT_MESSAGE=${BUILD_COMMIT_MESSAGE}
+ENV BUILD_BRANCH=${BUILD_BRANCH}
+ENV BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
+ENV BUILD_VERSION_TAG=${BUILD_VERSION_TAG}
 
 # Install pnpm globally
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
@@ -31,9 +41,12 @@ COPY package.json ./
 COPY pnpm-lock.yaml* ./
 
 # Copy backend directories needed for metadata generation
-# The generate-apps-metadata.js script reads from backend/apps and backend/providers
+# The metadata generation scripts read backend app.yml and provider YAML files.
 COPY backend/apps ./backend/apps
 COPY backend/providers ./backend/providers
+COPY docs ./docs
+COPY shared/config ./shared/config
+COPY shared/docs ./shared/docs
 
 # Copy frontend packages (needed for workspace dependencies)
 COPY frontend/packages ./frontend/packages
@@ -84,4 +97,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # -l: Listen on all interfaces (0.0.0.0)
 # -p: Port 5173 (Vite's default port)
 CMD ["serve", "-s", ".", "-l", "5173"]
-

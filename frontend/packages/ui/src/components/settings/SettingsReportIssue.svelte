@@ -51,14 +51,6 @@
     let authenticatedUserEmail = $state('');
 
     /**
-     * Admin-only: what agent action to trigger on submit.
-     * - 'none': no agent investigation (default)
-     * - 'research': research-only session (codebase + web analysis, posts findings)
-     * - 'fix': full investigation + direct fix attempt
-     */
-    let agentAction = $state<'none' | 'research' | 'fix'>('none');
-
-    /**
      * Admin-only: whether to create a Linear issue for this report.
      * Defaults to false so admins can be selective about what goes to Linear.
      */
@@ -585,9 +577,6 @@
                     // Recent OTel trace IDs for issue-to-trace correlation.
                     // Empty array if tracing is not active.
                     trace_ids: recentTraceIds,
-                    // Admin-only: trigger agent action on submit.
-                    // Only honoured server-side when reporter is a verified admin.
-                    agent_action: isAdminUser ? agentAction : 'none',
                     // Admin-only: whether to create a Linear issue (default false for admin).
                     // Non-admin reports always create Linear issues (server-side default).
                     add_to_linear: isAdminUser ? addToLinear : true,
@@ -1018,7 +1007,6 @@
             shareChatEnabled,
             chatOrEmbedUrl,
             contactEmail,
-            agentAction,
             addToLinear,
             sendEmailNotification,
             pickedElementHtml,
@@ -1491,7 +1479,6 @@
             shareChatEnabled = draft.shareChatEnabled;
             chatOrEmbedUrl = draft.chatOrEmbedUrl;
             contactEmail = draft.contactEmail;
-            if (draft.agentAction !== undefined) agentAction = draft.agentAction;
             if (draft.addToLinear !== undefined) addToLinear = draft.addToLinear;
             if (draft.sendEmailNotification !== undefined) sendEmailNotification = draft.sendEmailNotification;
             pickedElementHtml = draft.pickedElementHtml;
@@ -1648,7 +1635,7 @@
 
         <!-- Admin-only toggles for Linear issue creation and email notification -->
         {#if isAdminUser}
-            <div class="toggle-group">
+            <div class="toggle-group" data-testid="admin-add-to-linear">
                 <div class="toggle-row">
                     <label for="add-to-linear-toggle">{$text('settings.report_issue.add_to_linear_label')}</label>
                     <Toggle
@@ -1661,7 +1648,7 @@
                 <p class="input-hint">{$text('settings.report_issue.add_to_linear_hint')}</p>
             </div>
 
-            <div class="toggle-group">
+            <div class="toggle-group" data-testid="admin-send-email-notification">
                 <div class="toggle-row">
                     <label for="send-email-toggle">{$text('settings.report_issue.send_email_notification_label')}</label>
                     <Toggle
@@ -1672,55 +1659,6 @@
                     />
                 </div>
                 <p class="input-hint">{$text('settings.report_issue.send_email_notification_hint')}</p>
-            </div>
-        {/if}
-
-        <!-- Agent action selector — admin only -->
-        <!-- Controls what Claude Code does with this issue report. -->
-        {#if isAdminUser}
-            <div class="input-group">
-                <p class="input-label">{$text('settings.report_issue.agent_action_label')}</p>
-                <div class="agent-action-options">
-                    <label class="radio-option" class:selected={agentAction === 'none'}>
-                        <input
-                            type="radio"
-                            name="agent-action"
-                            value="none"
-                            bind:group={agentAction}
-                            disabled={isSubmitting}
-                        />
-                        <span class="radio-label">{$text('settings.report_issue.agent_action_none')}</span>
-                    </label>
-                    <label class="radio-option" class:selected={agentAction === 'research'}>
-                        <input
-                            type="radio"
-                            name="agent-action"
-                            value="research"
-                            bind:group={agentAction}
-                            disabled={isSubmitting}
-                        />
-                        <span class="radio-label">{$text('settings.report_issue.agent_action_research')}</span>
-                    </label>
-                    <label class="radio-option" class:selected={agentAction === 'fix'}>
-                        <input
-                            type="radio"
-                            name="agent-action"
-                            value="fix"
-                            bind:group={agentAction}
-                            disabled={isSubmitting}
-                        />
-                        <span class="radio-label">{$text('settings.report_issue.agent_action_fix')}</span>
-                    </label>
-                </div>
-                <p class="input-hint">
-                    {#if agentAction === 'none'}
-                        {$text('settings.report_issue.agent_action_hint_none')}
-                    {:else if agentAction === 'research'}
-                        {$text('settings.report_issue.agent_action_hint_research')}
-                    {:else}
-                        {$text('settings.report_issue.agent_action_hint_fix')}
-                    {/if}
-                </p>
             </div>
         {/if}
 
@@ -2002,42 +1940,6 @@
         color: var(--color-font-primary);
         flex: 1;
     }
-    
-    
-    .agent-action-options {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-2);
-    }
-
-    .radio-option {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-4);
-        padding: var(--spacing-4) var(--spacing-6);
-        border-radius: var(--radius-3);
-        cursor: pointer;
-        transition: background-color var(--duration-fast) var(--easing-default);
-    }
-
-    .radio-option:hover {
-        background-color: var(--color-grey-3);
-    }
-
-    .radio-option.selected {
-        background-color: var(--color-grey-4);
-    }
-
-    .radio-option input[type="radio"] {
-        accent-color: var(--color-primary);
-        margin: 0;
-    }
-
-    .radio-label {
-        font-size: 0.875rem;
-        color: var(--color-font-primary);
-    }
-
     .signal-reminder {
         padding: var(--spacing-6);
         background-color: var(--color-info-light, #e3f2fd);

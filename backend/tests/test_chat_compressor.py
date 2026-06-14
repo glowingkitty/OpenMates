@@ -14,6 +14,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
 try:
     from backend.apps.ai.processing.chat_compressor import (
         estimate_tokens_for_message,
@@ -24,6 +30,7 @@ try:
         _format_relative_time,
         _build_compression_prompt,
         compress_chat_history,
+        CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID,
         DEFAULT_COMPRESSION_TRIGGER_THRESHOLD,
         ESTIMATED_SYSTEM_PROMPT_OVERHEAD,
         RECENT_WINDOW_TOKEN_BUDGET,
@@ -409,7 +416,7 @@ class TestCompressChatHistory:
     def mock_secrets(self):
         return MagicMock()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_below_threshold_returns_not_compressed(self, mock_secrets):
         """When history is below threshold, should return immediately without calling LLM."""
         history = [_msg("short") for _ in range(3)]
@@ -421,7 +428,7 @@ class TestCompressChatHistory:
         assert result.was_compressed is False
         assert result.error is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_success_path(self, mock_secrets, monkeypatch):
         """Primary LLM succeeds: should return compressed result with correct metadata."""
         # Create a history that exceeds threshold with custom low threshold
@@ -454,7 +461,7 @@ class TestCompressChatHistory:
         assert result.compressed_up_to_timestamp > 0
         assert result.error is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_primary_fails_fallback_succeeds(self, mock_secrets, monkeypatch):
         """Primary LLM fails, Cerebras fallback succeeds."""
         history = _make_history(20, chars_per_msg=2000)
@@ -469,11 +476,13 @@ class TestCompressChatHistory:
         fallback_response = MagicMock()
         fallback_response.success = True
         fallback_response.direct_message_content = "## Summary from fallback"
+        fallback_model_ids = []
 
         async def fake_google_llm(**kwargs):
             return primary_response
 
         async def fake_cerebras_llm(**kwargs):
+            fallback_model_ids.append(kwargs.get("model_id"))
             return fallback_response
 
         monkeypatch.setattr(
@@ -494,8 +503,9 @@ class TestCompressChatHistory:
 
         assert result.was_compressed is True
         assert "fallback" in result.summary_content
+        assert fallback_model_ids == [CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID]
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_both_llms_fail(self, mock_secrets, monkeypatch):
         """Both primary and fallback LLM fail: should return error."""
         history = _make_history(20, chars_per_msg=2000)
@@ -539,7 +549,7 @@ class TestCompressChatHistory:
         assert "Google API error" in result.error
         assert "Cerebras API error" in result.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_primary_raises_exception(self, mock_secrets, monkeypatch):
         """Primary LLM raises an exception: should return error without crashing."""
         history = _make_history(20, chars_per_msg=2000)
@@ -563,7 +573,7 @@ class TestCompressChatHistory:
         assert result.error is not None
         assert "Network failure" in result.error
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_no_formattable_messages(self, mock_secrets, monkeypatch):
         """History exceeds threshold but all messages have non-string content."""
         # Create messages with list content (multimodal) that _build_compression_prompt skips

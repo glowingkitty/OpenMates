@@ -60,6 +60,8 @@ export interface MentionResult {
  */
 export interface ModelMentionResult extends MentionResult {
   type: "model";
+  /** Default provider/server ID used for backend routing */
+  providerId: string;
   /** Provider name for display */
   providerName: string;
   /** Model tier for styling */
@@ -294,8 +296,8 @@ function getModelMentionResults(): ModelMentionResult[] {
         mentionDisplayName: toHyphenatedName(model.name),
         subtitle: model.provider_name,
         icon: getProviderIconUrl(model.logo_svg),
-        // Backend syntax for processing - the actual text stored/sent
-        mentionSyntax: `@ai-model:${model.id}`,
+        // Backend syntax for processing - include provider so stale config cannot leave the model unroutable.
+        mentionSyntax: `@ai-model:${model.id}:${model.default_server}`,
         searchTerms: buildSearchTerms(
           model.name,
           model.provider_name,
@@ -304,6 +306,7 @@ function getModelMentionResults(): ModelMentionResult[] {
           // Include search aliases (e.g., "chatgpt" for OpenAI models)
           ...(model.search_aliases || []),
         ),
+        providerId: model.default_server,
         providerName: model.provider_name,
         tier: model.tier,
       }))
@@ -654,10 +657,12 @@ export function getSettingsMemoryEntryResults(
 
   // Get decrypted entries for this app + category
   const allDecryptedEntries = Array.from(storeState.decryptedEntries.values());
-  const categoryEntries = allDecryptedEntries.filter(
-    (entry) =>
-      entry.app_id === appId && entry.settings_group === memoryCategoryId,
-  );
+  const categoryEntries = allDecryptedEntries
+    .filter(
+      (entry) =>
+        entry.app_id === appId && entry.settings_group === memoryCategoryId,
+    )
+    .sort((a, b) => b.updated_at - a.updated_at);
 
   const totalCount = categoryEntries.length;
   const limitedEntries = categoryEntries.slice(0, limit);

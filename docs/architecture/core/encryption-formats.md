@@ -14,7 +14,7 @@
                    encryption/MetadataEncryptor.ts (Format C/D),
                    cryptoService.ts (base64 utils, key derivation)
   Related: encryption-architecture.md, chat-encryption-implementation.md,
-           zero-knowledge-storage.md
+           encryption-architecture.md
 -->
 
 ---
@@ -294,7 +294,7 @@ The base64 utilities and FNV-1a fingerprint function remain in `cryptoService.ts
 
 - [Encryption Architecture](./encryption-architecture.md) -- high-level architecture overview
 - [Chat Encryption Implementation](./chat-encryption-implementation.md) -- which fields use which format
-- [Zero-Knowledge Storage](./zero-knowledge-storage.md) -- key hierarchy and encryption tiers
+- [Encryption Architecture](./encryption-architecture.md) -- key hierarchy and encryption tiers
 - [Master Key Lifecycle](./master-key-lifecycle.md) -- key derivation and cross-device distribution
 
 ---

@@ -70,13 +70,32 @@ export interface ExampleChatEmbed {
 }
 
 /**
+ * A child chat spawned by a parent example chat.
+ * Deep-research focus examples use these to reproduce the real sub-chat tree.
+ */
+export interface ExampleSubChat {
+  chat_id: string;
+  title: string;
+  summary: string;
+  icon: string;
+  category: string;
+  follow_up_suggestions: string[];
+  messages: ExampleChatMessage[];
+  embeds: ExampleChatEmbed[];
+  parent_id: string;
+  is_sub_chat: true;
+  budget_limit?: number | null;
+  budget_spent?: number;
+}
+
+/**
  * A message in an example chat.
  * Uses actual content strings (not i18n keys), since example chats
  * are reproduced 1:1 from real shared conversations.
  */
 export interface ExampleChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string; // Actual message content (markdown with embed references)
   created_at: number; // Unix timestamp
   category?: string; // Mate category for assistant messages
@@ -103,8 +122,14 @@ export interface ExampleChat {
   follow_up_suggestions: string[];
   messages: ExampleChatMessage[];
   embeds: ExampleChatEmbed[];
+  sub_chats?: ExampleSubChat[];
   metadata: {
     featured: boolean; // Show in default 10 on homepage
     order: number; // Display order
+    app_skill_examples?: string[]; // App-store skill pages this chat demonstrates, e.g. "travel.search_connections"
+    content_embed_examples?: string[]; // App-store content pages this chat demonstrates, e.g. "videos.rendered_video"
+    app_focus_mode_examples?: string[]; // App-store focus mode pages this chat demonstrates, e.g. "web.research"
+    app_settings_memory_examples?: string[]; // App-store memory pages this chat demonstrates, e.g. "code.projects"
+    active_focus_id?: string; // Public cleartext focus mode active in this example, e.g. "web-research"
   };
 }

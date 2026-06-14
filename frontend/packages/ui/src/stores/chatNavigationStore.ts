@@ -75,6 +75,36 @@ let currentChatId: string | null = null;
  */
 let chatListOwnedByChatsComponent = false;
 
+function isHeaderNavigableChat(chat: Chat): boolean {
+  if (chat.group_key || chat.is_incognito) return true;
+
+  const hasMetadata = Boolean(
+    chat.title ||
+      chat.encrypted_title ||
+      chat.encrypted_chat_summary ||
+      chat.encrypted_icon ||
+      chat.encrypted_category,
+  );
+  const hasMessages =
+    (chat.messages_v ?? 0) > 0 || (chat.messages?.length ?? 0) > 0;
+  return hasMetadata || hasMessages;
+}
+
+function toHeaderNavigableChats(chats: Chat[]): Chat[] {
+  return chats.filter(isHeaderNavigableChat);
+}
+
+function updateNavigationFlags(activeChatId: string | null): void {
+  const idx = activeChatId
+    ? chatList.findIndex((c) => c.chat_id === activeChatId)
+    : -1;
+
+  chatNavigationStore.set({
+    hasPrev: idx > 0,
+    hasNext: idx >= 0 && idx < chatList.length - 1,
+  });
+}
+
 /**
  * Replace the internal navigation list without marking it as owned by Chats.svelte.
  *
@@ -86,7 +116,7 @@ function setProvisionalChatNavigationList(
   chats: Chat[],
   activeChatId: string | null,
 ): void {
-  chatList = chats;
+  chatList = toHeaderNavigableChats(chats);
   currentChatId = activeChatId;
 }
 
@@ -98,9 +128,10 @@ export function setChatNavigationList(
   chats: Chat[],
   activeChatId: string | null,
 ): void {
-  chatList = chats;
+  chatList = toHeaderNavigableChats(chats);
   currentChatId = activeChatId;
   chatListOwnedByChatsComponent = true;
+  updateNavigationFlags(activeChatId);
 }
 
 /**
@@ -210,11 +241,7 @@ export function updateNavFromCache(activeChatId: string): void {
     if (chatListOwnedByChatsComponent) {
       // Chats.svelte manages the list — just update position.
       currentChatId = activeChatId;
-      const idx = chatList.findIndex((c) => c.chat_id === activeChatId);
-      chatNavigationStore.set({
-        hasPrev: idx > 0,
-        hasNext: idx >= 0 && idx < chatList.length - 1,
-      });
+      updateNavigationFlags(activeChatId);
       return;
     }
 
@@ -228,10 +255,7 @@ export function updateNavFromCache(activeChatId: string): void {
     if (idx >= 0 && exampleCountInList >= exampleCountAvailable) {
       // Active chat found AND we haven't missed any example chats.
       currentChatId = activeChatId;
-      chatNavigationStore.set({
-        hasPrev: idx > 0,
-        hasNext: idx >= 0 && idx < chatList.length - 1,
-      });
+      updateNavigationFlags(activeChatId);
       return;
     }
 
@@ -357,11 +381,7 @@ function _applyNavigableList(allChats: Chat[], activeChatId: string): void {
   // setChatNavigationList(). This ensures cold-boot updates (example chats,
   // IndexedDB chats) keep flowing even when the sidebar never mounts.
   setProvisionalChatNavigationList(navigable, activeChatId);
-  const idx = navigable.findIndex((c) => c.chat_id === activeChatId);
-  chatNavigationStore.set({
-    hasPrev: idx > 0,
-    hasNext: idx >= 0 && idx < navigable.length - 1,
-  });
+  updateNavigationFlags(activeChatId);
 }
 
 /**

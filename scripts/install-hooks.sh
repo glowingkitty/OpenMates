@@ -5,8 +5,8 @@
 #   ./scripts/install-hooks.sh
 #
 # Hooks installed:
-#   pre-commit: runs translation validation when frontend files are staged,
-#               blocking commits that would break the Vercel build.
+#   pre-commit: runs staged maintainability checks and translation validation
+#               when frontend files are staged.
 
 set -euo pipefail
 
@@ -25,16 +25,20 @@ PRE_COMMIT="$HOOKS_DIR/pre-commit"
 cat > "$PRE_COMMIT" << 'HOOK'
 #!/usr/bin/env bash
 # pre-commit hook — installed by scripts/install-hooks.sh
-# Blocks commits that reference missing $text() translation keys.
+# Blocks high-confidence technical debt and missing $text() translation keys.
 
 set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+echo "[pre-commit] Running staged code-quality guard..."
+python3 "$REPO_ROOT/scripts/code_quality_guard.py"
 
 # Only run when frontend files are staged (avoid slow npm check for backend-only commits)
 if ! git diff --cached --name-only | grep -q "^frontend/"; then
     exit 0
 fi
 
-REPO_ROOT="$(git rev-parse --show-toplevel)"
 UI_DIR="$REPO_ROOT/frontend/packages/ui"
 
 if [ ! -f "$UI_DIR/package.json" ]; then
@@ -68,5 +72,5 @@ HOOK
 chmod +x "$PRE_COMMIT"
 echo "✅ Installed: $PRE_COMMIT"
 echo ""
-echo "The pre-commit hook will now block commits with missing \$text() keys."
+echo "The pre-commit hook will now block high-confidence debt and missing \$text() keys."
 echo "To skip in an emergency (not recommended): git commit --no-verify"

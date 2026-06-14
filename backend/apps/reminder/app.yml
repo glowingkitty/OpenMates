@@ -48,6 +48,28 @@ embed_types:
     icon: reminder
     gradient_var: "--color-app-reminder"
     i18n_namespace: embeds.reminder.set_reminder
+  - id: list_reminders
+    category: app-skill-use
+    skill_id: list-reminders
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: reminder/ReminderEmbedPreview.svelte
+    fullscreen_component: reminder/ReminderEmbedFullscreen.svelte
+    icon: task
+    gradient_var: "--color-app-reminder"
+    i18n_namespace: embeds.reminder.list_reminders
+  - id: cancel_reminder
+    category: app-skill-use
+    skill_id: cancel-reminder
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    preview_component: reminder/ReminderEmbedPreview.svelte
+    fullscreen_component: reminder/ReminderEmbedFullscreen.svelte
+    icon: delete
+    gradient_var: "--color-app-reminder"
+    i18n_namespace: embeds.reminder.cancel_reminder
 instructions:
   - instruction: |
       **Reminder Skills**

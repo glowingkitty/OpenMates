@@ -19,6 +19,17 @@ import { tmpdir } from "node:os";
 // node --test for consistency with the CI runner.
 import type { ServerConfig } from "../src/serverConfig.ts";
 
+const LLM_PROVIDER_ENV_KEYS = new Set([
+  "SECRET__MISTRAL_AI__API_KEY",
+  "SECRET__CEREBRAS__API_KEY",
+  "SECRET__GROQ__API_KEY",
+  "SECRET__OPENAI__API_KEY",
+  "SECRET__ANTHROPIC__API_KEY",
+  "SECRET__GOOGLE_AI_STUDIO__API_KEY",
+  "SECRET__OPENROUTER__API_KEY",
+  "SECRET__TOGETHER__API_KEY",
+]);
+
 // Import the functions we need to test. Since serverConfig.ts doesn't import
 // other .js modules, it works fine with --experimental-strip-types.
 import {
@@ -53,7 +64,7 @@ function hasLlmCredentials(envPath: string): boolean {
     const key = trimmed.slice(0, eqIdx);
     const value = trimmed.slice(eqIdx + 1).trim();
     if (
-      /^SECRET__\w+__API_KEY$/.test(key) &&
+      LLM_PROVIDER_ENV_KEYS.has(key) &&
       value &&
       value !== "IMPORTED_TO_VAULT"
     ) {
@@ -66,14 +77,30 @@ function hasLlmCredentials(envPath: string): boolean {
 /**
  * Inline copy of composeArgs for testing without requiring tsx.
  */
-function composeArgs(installPath: string, withOverrides: boolean): string[] {
-  const COMPOSE_FILE = join("backend", "core", "docker-compose.yml");
+function composeArgs(installPath: string, withOverrides: boolean, installMode?: "image" | "source"): string[] {
+  const resolvedInstallMode = installMode ?? (
+    existsSync(join(installPath, "backend", "core", "docker-compose.selfhost.yml")) ? "image" : "source"
+  );
+  const COMPOSE_FILE = resolvedInstallMode === "image"
+    ? join("backend", "core", "docker-compose.selfhost.yml")
+    : join("backend", "core", "docker-compose.yml");
   const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
   const args = ["compose", "--env-file", ".env", "-f", COMPOSE_FILE];
   if (withOverrides && existsSync(join(installPath, COMPOSE_OVERRIDE))) {
     args.push("-f", COMPOSE_OVERRIDE);
   }
   return args;
+}
+
+function docAssert(claimId: string, assertion: () => void): void {
+  try {
+    assertion();
+  } catch (error) {
+    if (error instanceof Error) {
+      error.message = `[doc-assert:${claimId}] ${error.message}`;
+    }
+    throw error;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -104,16 +131,22 @@ describe("ServerConfig", () => {
   });
 
   it("saves and loads a config", () => {
-    const config: ServerConfig = {
-      installPath: "/tmp/test-openmates",
-      installedAt: Date.now(),
-      composeProfile: "core",
-    };
-    saveServerConfig(config);
-    const loaded = loadServerConfig();
-    assert.ok(loaded);
-    assert.equal(loaded.installPath, config.installPath);
-    assert.equal(loaded.composeProfile, "core");
+    docAssert("cli-server-config-saves-loads-and-removes", () => {
+      const config: ServerConfig = {
+        installPath: "/tmp/test-openmates",
+        installedAt: Date.now(),
+        composeProfile: "core",
+        apiUrl: "http://localhost:8000",
+        appUrl: "http://localhost:5173",
+      };
+      saveServerConfig(config);
+      const loaded = loadServerConfig();
+      assert.ok(loaded);
+      assert.equal(loaded.installPath, config.installPath);
+      assert.equal(loaded.composeProfile, "core");
+      assert.equal(loaded.apiUrl, "http://localhost:8000");
+      assert.equal(loaded.appUrl, "http://localhost:5173");
+    });
   });
 
   it("returns null when no config exists", () => {
@@ -123,8 +156,10 @@ describe("ServerConfig", () => {
   });
 
   it("removeServerConfig is safe when file does not exist", () => {
-    removeServerConfig();
-    assert.doesNotThrow(() => removeServerConfig());
+    docAssert("cli-server-config-saves-loads-and-removes", () => {
+      removeServerConfig();
+      assert.doesNotThrow(() => removeServerConfig());
+    });
   });
 });
 
@@ -145,15 +180,19 @@ describe("resolveServerPath", () => {
   });
 
   it("resolves from --path flag", () => {
-    const result = resolveServerPath({ path: tempDir });
-    assert.equal(result, tempDir);
+    docAssert("cli-server-path-resolution-validates-installation", () => {
+      const result = resolveServerPath({ path: tempDir });
+      assert.equal(result, tempDir);
+    });
   });
 
   it("rejects --path that is not an OpenMates dir", () => {
-    assert.throws(
-      () => resolveServerPath({ path: tmpdir() }),
-      /does not appear to be an OpenMates installation/,
-    );
+    docAssert("cli-server-path-resolution-validates-installation", () => {
+      assert.throws(
+        () => resolveServerPath({ path: tmpdir() }),
+        /does not appear to be an OpenMates installation/,
+      );
+    });
   });
 
   it("resolves from saved config", () => {
@@ -165,6 +204,18 @@ describe("resolveServerPath", () => {
     const result = resolveServerPath({});
     assert.equal(result, tempDir);
     removeServerConfig();
+  });
+
+  it("resolves image-mode installs from the self-host compose marker", () => {
+    const imageDir = join(tmpdir(), `openmates-image-test-${Date.now()}`);
+    const composeDir = join(imageDir, "backend", "core");
+    mkdirSync(composeDir, { recursive: true });
+    writeFileSync(join(composeDir, "docker-compose.selfhost.yml"), "services: {}");
+
+    const result = resolveServerPath({ path: imageDir });
+
+    assert.equal(result, imageDir);
+    rmSync(imageDir, { recursive: true, force: true });
   });
 
   it("throws when no installation found", () => {
@@ -203,17 +254,44 @@ describe("composeArgs", () => {
   });
 
   it("returns base compose args without overrides", () => {
-    const args = composeArgs(tempDir, false);
-    assert.deepEqual(args, [
-      "compose", "--env-file", ".env",
-      "-f", join("backend", "core", "docker-compose.yml"),
-    ]);
+    docAssert("cli-server-compose-uses-base-and-optional-overrides", () => {
+      const args = composeArgs(tempDir, false);
+      assert.deepEqual(args, [
+        "compose", "--env-file", ".env",
+        "-f", join("backend", "core", "docker-compose.yml"),
+      ]);
+    });
   });
 
   it("includes override file when requested and exists", () => {
-    const args = composeArgs(tempDir, true);
-    assert.equal(args.length, 7);
-    assert.ok(args.includes(join("backend", "core", "docker-compose.override.yml")));
+    docAssert("cli-server-compose-uses-base-and-optional-overrides", () => {
+      const args = composeArgs(tempDir, true);
+      assert.equal(args.length, 7);
+      assert.ok(args.includes(join("backend", "core", "docker-compose.override.yml")));
+    });
+  });
+
+  it("uses self-host compose file for image mode", () => {
+    const args = composeArgs(tempDir, false, "image");
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.selfhost.yml"),
+    ]);
+  });
+
+  it("infers image mode from the self-host compose marker", () => {
+    const imageDir = join(tmpdir(), `openmates-image-compose-${Date.now()}`);
+    const composeDir = join(imageDir, "backend", "core");
+    mkdirSync(composeDir, { recursive: true });
+    writeFileSync(join(composeDir, "docker-compose.selfhost.yml"), "services: {}");
+
+    const args = composeArgs(imageDir, false);
+
+    assert.deepEqual(args, [
+      "compose", "--env-file", ".env",
+      "-f", join("backend", "core", "docker-compose.selfhost.yml"),
+    ]);
+    rmSync(imageDir, { recursive: true, force: true });
   });
 
   it("skips override file when it does not exist", () => {
@@ -246,8 +324,10 @@ describe("hasLlmCredentials", () => {
   });
 
   it("returns false when API key is IMPORTED_TO_VAULT", () => {
-    writeFileSync(tempEnv, "SECRET__OPENAI__API_KEY=IMPORTED_TO_VAULT\n");
-    assert.equal(hasLlmCredentials(tempEnv), false);
+    docAssert("cli-server-requires-real-llm-api-key", () => {
+      writeFileSync(tempEnv, "SECRET__OPENAI__API_KEY=IMPORTED_TO_VAULT\n");
+      assert.equal(hasLlmCredentials(tempEnv), false);
+    });
   });
 
   it("returns false when API key is empty", () => {
@@ -260,9 +340,16 @@ describe("hasLlmCredentials", () => {
     assert.equal(hasLlmCredentials(tempEnv), false);
   });
 
+  it("returns false when only non-model provider keys are set", () => {
+    writeFileSync(tempEnv, "SECRET__BRAVE__API_KEY=real-search-key\n");
+    assert.equal(hasLlmCredentials(tempEnv), false);
+  });
+
   it("returns true when a valid API key is set", () => {
-    writeFileSync(tempEnv, "SECRET__OPENAI__API_KEY=sk-proj-abc123\n");
-    assert.equal(hasLlmCredentials(tempEnv), true);
+    docAssert("cli-server-requires-real-llm-api-key", () => {
+      writeFileSync(tempEnv, "SECRET__OPENAI__API_KEY=sk-proj-abc123\n");
+      assert.equal(hasLlmCredentials(tempEnv), true);
+    });
   });
 
   it("returns true when any provider has a key among many entries", () => {

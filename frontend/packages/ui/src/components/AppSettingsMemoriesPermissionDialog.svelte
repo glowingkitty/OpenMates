@@ -135,6 +135,7 @@
 {#if $isPermissionDialogVisible && $currentPermissionRequest}
     <div 
         class="permission-dialog-container" 
+        data-testid="app-settings-memories-permission-dialog"
         role="dialog" 
         aria-labelledby="permission-dialog-title"
         transition:fade={{ duration: 200 }}
@@ -232,6 +233,7 @@
             </button>
             <button 
                 class="btn-reject" 
+                data-testid="btn-reject"
                 onclick={handleExclude}
                 disabled={$permissionDialogLoading}
             >

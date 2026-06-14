@@ -1,0 +1,571 @@
+id: apple-embed-rendering-parity
+title: Apple Embed Preview And Fullscreen Rendering Parity
+status: implementing
+
+goal: >
+  Create a repeatable parity workflow that proves Apple embed previews and
+  fullscreen views match the browser-rendered web app for every registered embed
+  type. The web app remains the rendered source of truth; v1 captures web style,
+  layout, text, variant, and screenshot artifacts, renders equivalent Apple
+  DEBUG/test surfaces on iPhone and iPad simulators, and gates completion through
+  artifact completeness plus agent-reviewed material visual differences rather
+  than exact pixel hashes.
+
+scope:
+  in:
+    - Enumerating all web embed preview/fullscreen registry entries from `embedRegistry.generated.ts` and `/dev/preview/embeds/[app]`.
+    - Capturing browser-rendered preview, group, and fullscreen contracts for every supported web embed showcase section and fixture variant.
+    - Expanding Apple DEBUG/test embed preview surfaces so every web-supported app/embed type has synthetic native fixture coverage or a documented native exception.
+    - Rendering Apple preview cards, grouped previews, and fullscreen containers on iPhone and iPad simulators with product chrome only.
+    - Pairing web and Apple screenshots/contracts by app id, embed registry key, display surface, fixture variant, device class, color scheme, and run id.
+    - Agent visual review of paired artifacts for material drift in structure, spacing, typography, colors, clipping, grouping, fullscreen chrome, and missing content.
+    - Deterministic gates for missing artifacts, missing registry coverage, malformed contracts, forbidden native product controls, unresolved high/critical material drift, and unsanitized private values.
+  out:
+    - Exact pixel-diff failure gates for all embed types in v1.
+    - Replacing semantic/agent review with screenshot hashes.
+    - Rewriting backend embed schemas or provider outputs unless a minimal synthetic fixture seam is required for Apple tests.
+    - Real provider API calls, private account screenshots, production secrets, or live user content in committed fixtures.
+    - Physical-device-only verification for camera, APNs, microphone, or OS-owned picker behavior.
+    - Physical-device-only behavior that cannot be verified in simulator.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials."
+    - "gh CLI fallback search for 'embed parity Apple fullscreen preview' returned no matching issues."
+  docs:
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/apple-example-chat-visual-parity/spec.yml
+    - docs/specs/application-embeds/spec.yml
+    - docs/architecture/frontend/data-driven-embed-fullscreen-routing.md
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/messaging/message-previews-grouping.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - .claude/rules/apple-ui.md
+  code_patterns:
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    - frontend/apps/web_app/src/routes/dev/preview/embeds/[app]/+page.svelte
+    - frontend/apps/web_app/src/routes/dev/preview/[...path]/+page.svelte
+    - frontend/packages/ui/src/components/embeds/**/*.svelte
+    - frontend/packages/ui/src/components/embeds/**/*.preview.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/services/embedFullscreenResolver.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/*.swift
+    - scripts/apple_ui_contracts.py
+  tests:
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMates/Sources/DevPreview/DevPreviewLaunchConfiguration.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/*.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesUITests/Fixtures/WebUIContracts/embeds.json
+  parity_expectations:
+    - Web artifacts are captured from the rendered browser DOM and computed CSS on `app.dev.openmates.org`, not inferred from Svelte source alone.
+    - Apple preview/fullscreen surfaces must use OpenMates primitives, generated tokens, and custom fullscreen chrome rather than default platform product UI.
+    - Apple fixtures must cover every registered web embed preview/fullscreen key unless the spec documents a native exception with a reason.
+    - Agent review is the v1 authority for material screenshot differences; deterministic checks enforce coverage, schema, sanitization, and unresolved finding status.
+  verification:
+    - "`python3 scripts/run_tests.py --spec apple-embed-rendering-contracts.spec.ts` after deployment to capture web artifacts from `app.dev.openmates.org`."
+    - "`python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/embeds.json --surface embeds`."
+    - "`python3 scripts/apple_ui_contracts.py audit --surface embeds`."
+    - Remote Mac `xcodebuild test` for `OpenMatesUITests/EmbedRenderingParityUITests` on iPhone 17 and iPad Pro 13-inch (M5).
+    - Agent visual review over paired web/native screenshots and generated style/layout summaries.
+  intentional_native_differences:
+    - Native status bars, safe areas, scrolling physics, video/PDF/map/web platform surfaces, and text rasterization may differ when classified separately and not obscuring product UI.
+    - Pixel-perfect screenshot matching is explicitly warning-only/out of scope for v1.
+    - Provider-owned or OS-owned media surfaces may render as simulator-safe placeholders when real media playback, maps, PDFs, or web previews are not reliable in CI.
+
+clarification:
+  rounds:
+    - question: Should v1 require exact screenshot pixel comparison, or start with rendered-style/layout metrics plus agent-reviewed screenshots before promoting pixel thresholds?
+      answer: >
+        Inherited from the current Apple visual parity workflow: screenshots are
+        supposed to be interpreted by an agent to see visual differences between
+        the web app and app version. Do not make exact pixel comparison the v1
+        gate.
+    - question: Should social media and weather embeds be added to the web showcase, and should inline link and quote block replicas be included in native parity coverage?
+      answer: >
+        Yes. Social media and weather apps also need web showcase coverage. Inline
+        link and quote block replicas also need parity coverage. The
+        implementation order does not matter, but the work is not complete until
+        all embeds are at parity with the web app versions.
+  vision_summary: >
+    Apple embed previews and fullscreen views should visually match the web app
+    at equivalent device sizes and states. The useful first slice is a complete
+    coverage and artifact pipeline for all registered embed types, with web
+    rendered contracts as source of truth, native simulator screenshots as
+    comparison evidence, and agent-reviewed material differences as the visual
+    completion gate.
+  approved_by_user: true
+
+inventory_snapshot:
+  web:
+    - "`embedRegistry.generated.ts` reports 62 embed types and maps preview components for 58 registry keys."
+    - "`embedRegistry.generated.ts` maps fullscreen components for 57 registry keys."
+    - "`/dev/preview/embeds/[app]` currently lists 20 app sections: code, docs, web, videos, images, news, travel, maps, math, music, events, reminder, sheets, audio, health, mail, pdf, shopping, electronics, home, nutrition."
+    - "Social media and weather embeds must be added to the web showcase and parity coverage."
+    - "The web showcase renders Inline Link, Quote Block, Group - Small, Group - Large where applicable, and Fullscreen for each section."
+  apple:
+    - "`EmbedType` currently lists 48 native embed cases, including direct embeds, composite search embeds, and selected app-skill-use embeds."
+    - "`DevEmbedPreviewApp` currently covers only code, web, images, travel, and events."
+    - "`EmbedContentView` falls back to `GenericEmbedRenderer` for native types not explicitly dispatched."
+  known_gaps:
+    - Apple debug gallery does not cover docs, videos, news, maps, math, music, reminder, sheets, audio, health, mail, pdf, shopping, electronics, home, or nutrition yet.
+    - Apple enum/render dispatch lacks several web registry keys, including code repositories, code applications, electronics, music, social media, weather, video generation, and full PDF read/search variants.
+    - Web has preview fixture files for more components than the Apple debug gallery currently mirrors.
+    - Inline link and quote block replicas must be paired with Apple parity coverage instead of remaining web-showcase-only states.
+
+scenarios:
+  - id: S-1
+    title: Web captures every registered embed surface as source of truth
+    given:
+      - The deployed dev web app exposes `/dev/preview/embeds/<app>` and the generated embed registry.
+      - Each registered preview/fullscreen component has a fixture or a documented no-fixture exception.
+    when:
+      - The web embed contract Playwright spec runs for configured iPhone and iPad-equivalent viewports.
+    then:
+      - Each supported app section and embed registry key has screenshot artifacts for preview, grouping where applicable, and fullscreen states.
+      - Each artifact includes app id, registry key, preview path, fullscreen path, variant, display surface, viewport, color scheme, visible text, computed styles, layout bounds, and screenshot path.
+      - Missing components, missing fixtures, selector failures, unresolved load errors, clipped core content, or malformed artifacts fail the Playwright run.
+
+  - id: S-2
+    title: Apple renders equivalent embed preview and fullscreen states
+    given:
+      - A committed or generated web embed contract fixture exists.
+      - The Apple app has DEBUG-only synthetic fixtures for each required web registry key or a documented native exception.
+    when:
+      - The Apple embed rendering parity UI test launches the debug embed surface on iPhone and iPad simulators.
+    then:
+      - Apple renders compact preview, large preview or grouped preview where applicable, and fullscreen for each required embed fixture.
+      - Native screenshots include product UI only, excluding debug counters, local hostnames, private paths, and non-product probes.
+      - The UI test fails when a required fixture cannot render, expected visible text is absent, a required accessibility identifier is missing, or a forbidden default native product control appears.
+
+  - id: S-3
+    title: Coverage audit prevents registry drift
+    given:
+      - Web registry data and Apple embed enum/fixture/renderer dispatch data can be inspected deterministically.
+    when:
+      - The embed parity audit runs.
+    then:
+      - Every web preview/fullscreen registry key is classified as native-rendered, native-placeholder-with-reason, web-only-with-reason, or intentionally unsupported.
+      - Every `/dev/preview/embeds/[app]` section maps to an Apple debug fixture or documented exception.
+      - Adding a new web embed type, preview component, fullscreen component, or app showcase section without native classification fails with a clear missing-coverage error.
+
+  - id: S-4
+    title: Artifact validation pairs web and Apple evidence
+    given:
+      - Web contract artifacts and Apple simulator screenshot exports exist for the same source commit.
+    when:
+      - The contract validation and pairing command runs.
+    then:
+      - Every required app id, registry key, display surface, variant, viewport class, and color scheme has matching web/native evidence.
+      - Generated manifests are indexed by source commit and run id, and contain no private emails, hostnames, IP addresses, credentials, local Mac paths, or private chat identifiers.
+      - The output manifest is ready for agent visual review.
+
+  - id: S-5
+    title: Agent reviews material visual differences
+    given:
+      - A paired artifact manifest contains web and Apple screenshots plus style/layout summaries.
+    when:
+      - The agent visual review workflow runs.
+    then:
+      - The report lists material differences such as missing previews, missing fullscreen content, wrong card chrome, wrong grouping, wrong typography, wrong color, wrong spacing, clipped media, wrong iconography, raw JSON leakage, and platform chrome leakage.
+      - Each finding includes severity, app id, registry key, display surface, device class, screenshot references, and likely source file area.
+      - Platform-only differences are classified separately and do not block unless they obscure or materially change product UI.
+
+  - id: S-6
+    title: Review status gates parity completion without pixel thresholds
+    given:
+      - An agent visual review report exists for the current paired artifacts.
+    when:
+      - The parity verification command runs before completion.
+    then:
+      - Verification fails if any required artifact is missing, any required embed state is unreviewed, or any high/critical material product drift remains unresolved or explicitly accepted.
+      - Verification does not fail solely because screenshots differ at the pixel level without an agent-classified material issue.
+      - Accepted native differences remain recorded with reasons for future sessions.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Web Playwright captures screenshot and computed-style/layout contracts for every registered embed preview, group where applicable, and fullscreen state at required viewports.
+  - id: AC-2
+    scenario: S-2
+    text: Apple UI tests render equivalent native embed preview/group/fullscreen states on iPhone and iPad simulators with product chrome only and export screenshots.
+  - id: AC-3
+    scenario: S-3
+    text: A deterministic coverage audit fails when web embed registry/showcase entries are not classified and covered by Apple fixtures or documented exceptions.
+  - id: AC-4
+    scenario: S-4
+    text: A validation/pairing command proves every required web/native artifact exists, is sanitized, and is indexed for review.
+  - id: AC-5
+    scenario: S-5
+    text: Agent visual review reports material product UI differences between web and Apple embed screenshots with severity, references, and likely source areas.
+  - id: AC-6
+    scenario: S-6
+    text: Completion is gated by artifact completeness and reviewed/unresolved material issues, not by exact pixel matching.
+
+contracts:
+  api:
+    - No production API changes are required.
+    - Apple DEBUG/test-only launch arguments may select embed preview surface, app id, registry key, display surface, variant, and visual snapshot mode.
+    - Test-only launch arguments must not be available as user-facing production navigation.
+  data:
+    - Web contract artifact schema includes `schemaVersion`, `surface: embeds`, `generatedAt`, `sourceCommit`, `viewport`, `colorScheme`, `apps`, `registryKeys`, `displaySurfaces`, `variants`, `elements`, `computedStyle`, `layoutBounds`, `screenshotPath`, and `redactions`.
+    - Apple artifact manifest includes `schemaVersion`, `surface: embeds`, `sourceCommit`, `simulator`, `viewportClass`, `colorScheme`, `appId`, `registryKey`, `displaySurface`, `variant`, `screenshotPath`, `xcresultPath`, and `testIdentifier`.
+    - Coverage classification includes `registryKey`, `previewComponent`, `fullscreenComponent`, `webShowcasePath`, `appleEmbedType`, `appleFixture`, `appleRenderer`, `status`, and optional `exceptionReason`.
+    - Pairing manifest includes one web/native artifact pair per app id, registry key, display surface, variant, viewport class, and color scheme.
+    - Agent review report includes `reviewedAt`, `reviewer`, `sourceCommit`, `pairs`, `findings`, `acceptedDifferences`, and `unresolvedBlockingFindings`.
+  ui_states:
+    - Inline link visual replicas from the web showcase with native parity coverage.
+    - Quote block visual replicas from the web showcase with native parity coverage.
+    - Compact embed preview cards.
+    - Large/grouped preview rows and carousel/group states where production supports grouping.
+    - Fullscreen embed shell, header actions, navigation, status/info bars, and scrollable detail content.
+    - Processing, finished, error, and empty states when corresponding `.preview.ts` variants exist.
+    - iPhone compact and iPad regular layout behavior.
+  privacy_security:
+    - Only synthetic public fixture content may be committed.
+    - Runtime screenshots from private accounts must not be promoted into committed fixtures.
+    - Artifacts must redact local paths, hostnames, IP addresses, private emails, raw test credentials, provider tokens, private chat IDs, and private user content.
+    - Agent review prompts must not include secrets or private remote connection details.
+
+tests:
+  - id: T-WEB-EMBED-CONTRACTS
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    command: python3 scripts/run_tests.py --spec apple-embed-rendering-contracts.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-4
+    assertions:
+      - Captures all `/dev/preview/embeds/[app]` sections listed in the web app showcase registry.
+      - Captures every required preview/group/fullscreen display surface and fixture variant.
+      - "Writes a sanitized `surface: embeds` contract with screenshots, computed styles, layout bounds, visible text, and registry metadata."
+      - Fails on missing component modules, missing fixture modules, load errors, missing screenshots, or malformed contract entries.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27242649356"
+        timestamp: "2026-06-09T23:35:15Z"
+
+  - id: T-LINT-EMBED-CONTRACTS
+    type: lint
+    file: scripts/apple_ui_contracts.py
+    command: python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/embeds.json --surface embeds
+    covers:
+      - AC-3
+      - AC-4
+    assertions:
+      - Validates schema version, surface name, required app/registry/display fields, required artifacts, and evidence pairing metadata.
+      - Rejects private emails, hostnames, IP addresses, credentials, local paths, private chat IDs, and volatile identifiers.
+      - Fails when a required web registry or showcase entry lacks native coverage classification or a documented exception.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed_with_warnings
+        run_id: "local-a27b"
+        timestamp: "2026-06-10T00:19:27Z"
+
+  - id: T-LINT-APPLE-EMBED-AUDIT
+    type: lint
+    file: scripts/apple_ui_contracts.py
+    command: python3 scripts/apple_ui_contracts.py audit --surface embeds
+    covers:
+      - AC-2
+      - AC-3
+      - AC-6
+    assertions:
+      - Fails when Apple `EmbedType`, debug fixtures, renderer dispatch, or fullscreen support lacks classification for web registry entries.
+      - Fails when touched embed product UI uses forbidden default native controls instead of OpenMates primitives.
+      - Reports visual/style drift as review metadata unless a specific surface is promoted to failure severity.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed_with_intentional_visual_review_warning
+        run_id: "local-a624 python3 scripts/apple_ui_contracts.py audit --surface embeds; python3 -m pytest backend/tests/test_apple_ui_contracts.py"
+        timestamp: "2026-06-10T05:53:59Z"
+
+  - id: T-BUILD-APPLE-EMBEDS
+    type: build
+    file: apple/OpenMates.xcodeproj/project.pbxproj
+    command: python3 scripts/apple_remote.py xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "generic/platform=iOS Simulator" build
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - The Apple app compiles after adding embed fixtures, parity tests, and renderer updates.
+      - Build output does not require private paths or secrets in committed files.
+    red_phase:
+      required: false
+      expected: not_required
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "macos-peer OpenMatesUITests/EmbedRenderingParityUITests at 292930a on iPhone 17 and iPad Pro 13-inch (M5)"
+        timestamp: "2026-06-10T06:07:22Z"
+
+  - id: T-APPLE-EMBED-UITESTS
+    type: manual
+    covers:
+      - AC-2
+      - AC-4
+    assertions:
+      - Remote Mac `xcodebuild test` runs `OpenMatesUITests/EmbedRenderingParityUITests` on iPhone 17 and iPad Pro 13-inch (M5).
+      - The UI tests export screenshot attachments for every required app id, registry key, display surface, fixture variant, and device class.
+      - The tests fail on missing visible fixture text, missing accessibility identifiers, forbidden native controls, or missing screenshot exports.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "macos-peer OpenMatesUITests/EmbedRenderingParityUITests at 292930a on iPhone 17 and iPad Pro 13-inch (M5)"
+        timestamp: "2026-06-10T06:07:22Z"
+
+  - id: T-MANUAL-AGENT-REVIEW
+    type: manual
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - Agent review compares paired web/native screenshots and style/layout summaries for every required embed artifact pair.
+      - The report classifies material product UI drift separately from platform-only rendering differences.
+      - Verification fails when high/critical material drift remains unresolved or unaccepted.
+    red_phase:
+      required: false
+      expected: not_required
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/apple-example-chat-visual-parity/spec.yml
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+    - scripts/apple_ui_contracts.py
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+  architecture: >
+    Extend the existing web-rendered Apple UI contract pipeline to an `embeds`
+    surface. The web side enumerates generated registry keys and the app showcase
+    page, captures rendered contracts and screenshots from deployed dev, then
+    promotes a sanitized fixture. The Apple side consumes that fixture through a
+    DEBUG-only embed preview route and UI tests that export screenshots for
+    agent review. A deterministic audit keeps web and native coverage in sync.
+  data_flow:
+    - Playwright opens `/dev/preview/embeds/<app>` on deployed dev and captures web artifacts for each app section, display surface, and fixture variant.
+    - The contract validator sanitizes and optionally promotes the artifact into Apple UI test fixtures.
+    - Apple DEBUG launch arguments open the native embed preview gallery for a selected app/registry/display/variant or all required entries.
+    - XCUITests capture native screenshots and an artifact manifest on iPhone and iPad simulators.
+    - The pairing/audit command joins web/native artifacts and produces an agent-review manifest.
+    - Agent review records material findings and accepted native differences; verification gates on unresolved high/critical findings.
+  affected_files:
+    - path: frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+      reason: Capture web-rendered embed contract artifacts from deployed dev.
+    - path: frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+      reason: Reuse or extend contract capture helpers for embed preview/fullscreen surfaces.
+    - path: scripts/apple_ui_contracts.py
+      reason: Validate, promote, pair, and audit embed contracts and native coverage.
+    - path: backend/tests/test_apple_ui_contracts.py
+      reason: Unit-test deterministic embed coverage aliases and renderer-only classifications.
+    - path: apple/OpenMatesUITests/Fixtures/WebUIContracts/embeds.json
+      reason: Store promoted sanitized web source-of-truth fixture for native tests.
+    - path: apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+      reason: Render every required native embed fixture/display state in DEBUG builds.
+    - path: apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      reason: Add synthetic fixtures and coverage classification for all required embed types.
+    - path: apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      reason: Add missing native embed type cases only when needed for covered web registry keys.
+    - path: apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+      reason: Add or classify renderer dispatch for missing registry keys.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/*.swift
+      reason: Fix visual parity issues found by artifact review.
+    - path: apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+      reason: Native screenshot/export verification for embed parity.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-embed-rendering-parity/spec.yml
+    - python3 scripts/run_tests.py --spec apple-embed-rendering-contracts.spec.ts
+    - python3 scripts/apple_ui_contracts.py validate apple/OpenMatesUITests/Fixtures/WebUIContracts/embeds.json --surface embeds
+    - python3 scripts/apple_ui_contracts.py audit --surface embeds
+    - Remote Mac `OpenMates_iOS` simulator build and `EmbedRenderingParityUITests` on iPhone/iPad after deploy or commit sync.
+    - Agent visual review of paired screenshots and style/layout summaries.
+
+tasks:
+  - id: TASK-1
+    title: Capture web embed rendering contracts
+    covers:
+      scenarios:
+        - S-1
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+    expected_files:
+      - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+      - frontend/apps/web_app/tests/helpers/apple-ui-contract-helpers.ts
+    verification:
+      - T-WEB-EMBED-CONTRACTS
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Add embed contract validation and coverage audit
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-6
+    expected_files:
+      - scripts/apple_ui_contracts.py
+      - backend/tests/test_apple_ui_contracts.py
+      - apple/OpenMatesUITests/Fixtures/WebUIContracts/embeds.json
+    verification:
+      - T-LINT-EMBED-CONTRACTS
+      - T-LINT-APPLE-EMBED-AUDIT
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Expand Apple DEBUG embed fixtures and renderer classification
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+    expected_files:
+      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
+      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    verification:
+      - T-LINT-APPLE-EMBED-AUDIT
+      - T-BUILD-APPLE-EMBEDS
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add Apple embed screenshot UI tests
+    covers:
+      scenarios:
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-2
+        - AC-4
+    expected_files:
+      - apple/OpenMates.xcodeproj/project.pbxproj
+      - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    verification:
+      - T-APPLE-EMBED-UITESTS
+      - T-BUILD-APPLE-EMBEDS
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Review artifacts and fix material embed visual drift by priority
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+    expected_files:
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedBasicInfoBar.swift
+      - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedFullscreenContainer.swift
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/*.swift
+    verification:
+      - T-MANUAL-AGENT-REVIEW
+      - T-LINT-APPLE-EMBED-AUDIT
+      - T-APPLE-EMBED-UITESTS
+    independently_deployable: false
+
+risks:
+  - The web registry, web showcase page, and Apple enum may use different keys for the same conceptual embed; the audit must classify aliases explicitly instead of assuming raw string equality.
+  - Some embeds use provider/media surfaces that may be unstable in simulator screenshots; v1 should allow simulator-safe placeholders only when documented and visibly equivalent around product chrome.
+  - A single all-embeds visual test can be slow and flaky; implementation may need app-key sharding while preserving one complete coverage manifest.
+  - Existing Apple generic/fallback renderers may hide missing type-specific parity; the audit must distinguish intentional generic rendering from accidental fallback.
+  - Agent-reviewed artifacts are only useful when screenshots are complete, named deterministically, and paired with enough style/layout data to localize drift.
+
+open_questions:
+  - none

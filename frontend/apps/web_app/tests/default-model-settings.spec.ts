@@ -40,13 +40,17 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, deleteActiveChat, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	startNewChat,
+	sendMessage,
+	deleteActiveChat,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -123,21 +127,13 @@ async function sendMessageAndGetModel(
 	stepLabel: string,
 	fixtureId: string
 ): Promise<string> {
-	// Type the question
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(withMockMarker(question, fixtureId));
-	logCheckpoint(`Typed question: "${question}"`);
-	await takeStepScreenshot(page, `${stepLabel}-question-typed`);
-
-	// Click send button
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeVisible({ timeout: 15000 });
-	await expect(sendButton).toBeEnabled({ timeout: 5000 });
-	await sendButton.click();
-	logCheckpoint('Clicked send button.');
-	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
+	await sendMessage(
+		page,
+		withMockMarker(question, fixtureId),
+		logCheckpoint,
+		takeStepScreenshot,
+		stepLabel
+	);
 
 	// Wait for URL to update to new chat ID
 	logCheckpoint('Waiting for URL to update to new chat ID...');
@@ -327,18 +323,17 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 		const toggleWrapper2 = autoSelectRow2.locator('[role="button"]').first();
 		await toggleWrapper2.click();
 		logCheckpoint('Toggled auto-select back ON.');
-		await page.waitForTimeout(1000);
+
+		// Assert before taking screenshots so the transient toast cannot expire first.
+		const notification3 = page.getByTestId('notification');
+		await expect(notification3).toBeVisible({ timeout: 5000 });
+		await expect(notification3).toContainText(
+			"Changed model for Simple requests from 'Mistral Small 3.2' to 'Auto'"
+		);
+		logCheckpoint('Descriptive success notification appeared after toggling auto-select ON.');
 	}
 
 	await takeStepScreenshot(page, '04-auto-select-on');
-
-	// Wait for the success notification with descriptive change text
-	const notification3 = page.getByTestId('notification');
-	await expect(notification3).toBeVisible({ timeout: 5000 });
-	await expect(notification3).toContainText(
-		"Changed model for Simple requests from 'Mistral Small 3.2' to 'Auto'"
-	);
-	logCheckpoint('Descriptive success notification appeared after toggling auto-select ON.');
 
 	// Wait for notification to dismiss
 	await page.waitForTimeout(3000);

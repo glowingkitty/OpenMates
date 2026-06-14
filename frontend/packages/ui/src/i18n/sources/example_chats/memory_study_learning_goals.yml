@@ -1,0 +1,1023 @@
+title:
+  context: "Title of example chat: Memory Study Learning Goals"
+  en: "Memory Study Learning Goals"
+  de: "Memory Study Learning Goals"
+  zh: "Memory Study Learning Goals"
+  es: "Memory Study Learning Goals"
+  fr: "Memory Study Learning Goals"
+  pt: "Memory Study Learning Goals"
+  ru: "Memory Study Learning Goals"
+  ja: "Memory Study Learning Goals"
+  ko: "Memory Study Learning Goals"
+  it: "Memory Study Learning Goals"
+  tr: "Memory Study Learning Goals"
+  vi: "Memory Study Learning Goals"
+  id: "Memory Study Learning Goals"
+  pl: "Memory Study Learning Goals"
+  nl: "Memory Study Learning Goals"
+  ar: "Memory Study Learning Goals"
+  hi: "Memory Study Learning Goals"
+  th: "Memory Study Learning Goals"
+  cs: "Memory Study Learning Goals"
+  sv: "Memory Study Learning Goals"
+  he: "Memory Study Learning Goals"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Memory Study Learning Goals"
+  en: "OpenMates uses saved study learning_goals memory in a real chat."
+  de: "OpenMates uses saved study learning_goals memory in a real chat."
+  zh: "OpenMates uses saved study learning_goals memory in a real chat."
+  es: "OpenMates uses saved study learning_goals memory in a real chat."
+  fr: "OpenMates uses saved study learning_goals memory in a real chat."
+  pt: "OpenMates uses saved study learning_goals memory in a real chat."
+  ru: "OpenMates uses saved study learning_goals memory in a real chat."
+  ja: "OpenMates uses saved study learning_goals memory in a real chat."
+  ko: "OpenMates uses saved study learning_goals memory in a real chat."
+  it: "OpenMates uses saved study learning_goals memory in a real chat."
+  tr: "OpenMates uses saved study learning_goals memory in a real chat."
+  vi: "OpenMates uses saved study learning_goals memory in a real chat."
+  id: "OpenMates uses saved study learning_goals memory in a real chat."
+  pl: "OpenMates uses saved study learning_goals memory in a real chat."
+  nl: "OpenMates uses saved study learning_goals memory in a real chat."
+  ar: "OpenMates uses saved study learning_goals memory in a real chat."
+  hi: "OpenMates uses saved study learning_goals memory in a real chat."
+  th: "OpenMates uses saved study learning_goals memory in a real chat."
+  cs: "OpenMates uses saved study learning_goals memory in a real chat."
+  sv: "OpenMates uses saved study learning_goals memory in a real chat."
+  he: "OpenMates uses saved study learning_goals memory in a real chat."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Memory Study Learning Goals. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Memory Study Learning Goals. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  de: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  zh: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  es: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  fr: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  pt: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  ru: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  ja: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  ko: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  it: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  tr: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  vi: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  id: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  pl: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  nl: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  ar: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  hi: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  th: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  cs: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  sv: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  he: |
+    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
+
+    ### One-Week Linear Algebra Intensive
+
+    **Day 1: The Geometry of Vectors and Linear Transformations**
+    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
+    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
+
+    **Day 2: Matrix Multiplication as Composition**
+    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
+    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
+
+    **Day 3: Determinants and the Change of Area**
+    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
+    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
+
+    **Day 4: Eigenvalues and Eigenvectors**
+    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
+    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
+
+    **Day 5: Matrix Decompositions (The ML Foundation)**
+    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
+    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
+
+    **Day 6: Applications in Graphics and ML**
+    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
+    *   **Key Concept:** Change of basis and coordinate systems.
+
+    **Day 7: Practical Exercise and Review**
+    Consolidate the week's concepts by working through a manual transformation exercise.
+
+    ***
+
+    ### Practical Exercise: The "Hand-Drawn" Transformation
+
+    To build your intuition for graphics and matrix operations, perform the following exercise:
+
+    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
+    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
+        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
+        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
+    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+  verified_by_human: []

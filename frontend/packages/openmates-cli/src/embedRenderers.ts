@@ -20,6 +20,7 @@
 
 import type { DecryptedEmbed } from "./client.js";
 import type { OpenMatesClient } from "./client.js";
+import qrcode from "qrcode-terminal";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -33,8 +34,11 @@ const str = (v: unknown): string | null =>
 const DIRECT_TYPES = new Set([
   "code",
   "code-code",
+  "code-application",
+  "application",
   "docs-doc",
   "doc",
+  "document",
   "sheets-sheet",
   "sheet",
   "pdf",
@@ -59,8 +63,11 @@ const DIRECT_TYPES = new Set([
 const DIRECT_TYPE_LABELS: Record<string, string> = {
   "code": "code",
   "code-code": "code",
+  "code-application": "application",
+  "application": "application",
   "docs-doc": "document",
   "doc": "document",
+  "document": "document",
   "sheets-sheet": "sheet",
   "sheet": "sheet",
   "pdf": "pdf",
@@ -247,6 +254,10 @@ export async function renderEmbedPreview(
       renderVideoTranscriptPreview(c, ln);
       break;
 
+    case "videos/create":
+      await renderRemotionCreatePreview(embed, c, ln, client);
+      break;
+
     case "health/search_appointments":
       await renderHealthSearchPreview(c, ln, client);
       break;
@@ -387,6 +398,10 @@ export async function renderEmbedFullscreen(
       renderVideoTranscriptFullscreen(c);
       break;
 
+    case "videos/create":
+      await renderRemotionCreateFullscreen(embed, c, client);
+      break;
+
     case "health/search_appointments":
       await renderHealthSearchFullscreen(c, client);
       break;
@@ -408,7 +423,7 @@ export async function renderEmbedFullscreen(
 async function renderSearchPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m+ ${count} results\x1b[0m`);
@@ -443,7 +458,7 @@ async function renderSearchFullscreen(
 async function renderEventsSearchPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m+ ${count} events\x1b[0m`);
@@ -484,7 +499,7 @@ async function renderEventsSearchFullscreen(
 async function renderVideosSearchPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m+ ${count} videos\x1b[0m`);
@@ -515,6 +530,151 @@ async function renderVideosSearchFullscreen(
     if (url) process.stdout.write(`  \x1b[2m${url}\x1b[0m\n`);
     console.log();
   }
+}
+
+async function renderRemotionCreatePreview(
+  embed: DecryptedEmbed,
+  c: Record<string, unknown>,
+  ln: (s: string) => void,
+  client: OpenMatesClient,
+): Promise<void> {
+  const meta = remotionMeta(c);
+  ln(`\x1b[1m${meta.filename}\x1b[0m`);
+  ln(`${meta.statusText}  \x1b[2mv${meta.sourceVersion} · ${meta.durationSeconds}s · ${meta.width}x${meta.height}\x1b[0m`);
+  if (meta.layers.length > 0) {
+    ln(`Timeline: ${meta.layers.slice(0, 4).join(" → ")}`);
+  }
+  if (meta.error) {
+    ln(`\x1b[31m${meta.error}\x1b[0m`);
+  }
+  if (meta.status === "finished") {
+    await renderRemotionShareLink(embed.embedId, client, ln);
+  }
+}
+
+async function renderRemotionCreateFullscreen(
+  embed: DecryptedEmbed,
+  c: Record<string, unknown>,
+  client: OpenMatesClient,
+): Promise<void> {
+  const meta = remotionMeta(c);
+  process.stdout.write(`\x1b[1m${meta.filename}\x1b[0m\n`);
+  process.stdout.write(`${meta.statusText}  \x1b[2mv${meta.sourceVersion} · ${meta.durationSeconds}s · ${meta.width}x${meta.height}\x1b[0m\n\n`);
+
+  if (meta.layers.length > 0) {
+    process.stdout.write("Timeline:\n");
+    for (const layer of meta.layers) {
+      process.stdout.write(`  - ${layer}\n`);
+    }
+    process.stdout.write("\n");
+  }
+
+  if (meta.source) {
+    process.stdout.write("Source:\n");
+    process.stdout.write("```tsx\n");
+    process.stdout.write(`${meta.source.trim()}\n`);
+    process.stdout.write("```\n\n");
+  }
+
+  if (meta.error) {
+    process.stdout.write(`\x1b[31mError:\x1b[0m ${meta.error}\n\n`);
+  }
+
+  if (meta.status === "finished") {
+    await renderRemotionShareLink(embed.embedId, client, (line) => process.stdout.write(`${line}\n`));
+  } else {
+    process.stdout.write("Run again after rendering finishes to get the rendered video link and QR code.\n");
+  }
+}
+
+async function renderRemotionShareLink(
+  embedId: string,
+  client: OpenMatesClient,
+  ln: (s: string) => void,
+): Promise<void> {
+  try {
+    const url = await client.createEmbedShareLink(embedId);
+    ln(`Rendered video link: ${url}`);
+    ln("QR code:");
+    const qr = await generateQr(url);
+    for (const line of qr.split("\n")) {
+      if (line.trim().length > 0) ln(line);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    ln(`\x1b[2mShare link unavailable: ${message}\x1b[0m`);
+  }
+}
+
+function generateQr(value: string): Promise<string> {
+  return new Promise((resolve) => {
+    qrcode.generate(value, { small: true }, (qr) => resolve(qr));
+  });
+}
+
+function remotionMeta(c: Record<string, unknown>): {
+  filename: string;
+  status: string;
+  statusText: string;
+  source: string;
+  sourceVersion: number;
+  durationSeconds: number;
+  width: number;
+  height: number;
+  layers: string[];
+  error: string | null;
+} {
+  const source = str(c.remotion_source) ?? str(c.source) ?? "";
+  const fps = firstInt(source, /fps\s*[:=]\s*(\d+)/) ?? 30;
+  const frames = firstInt(source, /durationInFrames\s*[:=]\s*(\d+)/) ?? 150;
+  const status = str(c.status) ?? "processing";
+  return {
+    filename: str(c.filename) ?? str(c.title) ?? "Composition.tsx",
+    status,
+    statusText: remotionStatusText(status),
+    source,
+    sourceVersion: numberValue(c.current_source_version ?? c.source_version) ?? 1,
+    durationSeconds: Math.max(1, Math.ceil(frames / Math.max(1, fps))),
+    width: firstInt(source, /width\s*[:=]\s*(\d+)/) ?? 1920,
+    height: firstInt(source, /height\s*[:=]\s*(\d+)/) ?? 1080,
+    layers: remotionLayers(source),
+    error: str(c.error) ?? str(c.error_message),
+  };
+}
+
+function remotionStatusText(status: string): string {
+  switch (status) {
+    case "rendering": return "Rendering video...";
+    case "processing": return "Preparing Remotion source...";
+    case "finished": return "Rendered video ready";
+    case "cancelled": return "Render stopped";
+    case "needs_rerender": return "Needs rerender";
+    case "error": return "Render failed";
+    default: return status;
+  }
+}
+
+function remotionLayers(source: string): string[] {
+  const names = [...source.matchAll(/<([A-Z][A-Za-z0-9]*)\b/g)]
+    .map((match) => match[1])
+    .filter((name) => name && !["AbsoluteFill", "Sequence", "Img", "Audio", "Video"].includes(name));
+  return Array.from(new Set(names.length > 0 ? names : ["Composition"])).slice(0, 6);
+}
+
+function firstInt(source: string, regex: RegExp): number | null {
+  const match = regex.exec(source);
+  if (!match?.[1]) return null;
+  const value = Number.parseInt(match[1], 10);
+  return Number.isFinite(value) ? value : null;
+}
+
+function numberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 // ── Maps search ──────────────────────────────────────────────────────────
@@ -558,7 +718,7 @@ function renderMapsSearchFullscreen(c: Record<string, unknown>): void {
 async function renderTravelConnectionsPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   const results = c.results as Array<Record<string, unknown>> | undefined;
@@ -631,7 +791,7 @@ async function renderTravelConnectionsFullscreen(
 async function renderTravelStaysPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m${count} stays\x1b[0m`);
@@ -915,7 +1075,7 @@ function renderVideoTranscriptFullscreen(c: Record<string, unknown>): void {
 async function renderHealthSearchPreview(
   c: Record<string, unknown>,
   ln: (s: string) => void,
-  client: OpenMatesClient,
+  _client: OpenMatesClient,
 ): Promise<void> {
   const count = resolveResultCount(c);
   if (count !== null) ln(`\x1b[2m+ ${count} appointments\x1b[0m`);
@@ -992,8 +1152,28 @@ function renderByDirectType(
       break;
     }
 
+    case "code-application":
+    case "application": {
+      const name = str(c.name) ?? str(c.title) ?? "Generated application";
+      const framework = str(c.framework) ?? "";
+      const runtime = str(c.runtime) ?? "";
+      ln(name);
+      if (framework || runtime) {
+        ln(`\x1b[2m${[framework, runtime].filter(Boolean).join("  ")}\x1b[0m`);
+      }
+      break;
+    }
+
     case "docs-doc":
     case "doc": {
+      const title = str(c.title) ?? str(c.filename) ?? "";
+      const wordCount = c.word_count;
+      if (title) ln(title);
+      if (wordCount) ln(`\x1b[2m${wordCount} words\x1b[0m`);
+      break;
+    }
+
+    case "document": {
       const title = str(c.title) ?? str(c.filename) ?? "";
       const wordCount = c.word_count;
       if (title) ln(title);
@@ -1166,6 +1346,17 @@ function renderDirectTypeFullscreen(
       break;
     }
 
+    case "code-application":
+    case "application": {
+      const name = str(c.name) ?? str(c.title);
+      const framework = str(c.framework);
+      const runtime = str(c.runtime);
+      if (name) process.stdout.write(`\x1b[1m${name}\x1b[0m\n`);
+      if (framework) process.stdout.write(`\x1b[2mFramework:\x1b[0m ${framework}\n`);
+      if (runtime) process.stdout.write(`\x1b[2mRuntime:\x1b[0m ${runtime}\n`);
+      break;
+    }
+
     case "docs-doc":
     case "doc": {
       const title = str(c.title);
@@ -1173,6 +1364,20 @@ function renderDirectTypeFullscreen(
       if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
       if (html) {
         // Strip HTML for text output
+        const text = html
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        console.log(text);
+      }
+      break;
+    }
+
+    case "document": {
+      const title = str(c.title);
+      const html = str(c.html) ?? "";
+      if (title) process.stdout.write(`\x1b[1m${title}\x1b[0m\n\n`);
+      if (html) {
         const text = html
           .replace(/<[^>]+>/g, " ")
           .replace(/\s+/g, " ")

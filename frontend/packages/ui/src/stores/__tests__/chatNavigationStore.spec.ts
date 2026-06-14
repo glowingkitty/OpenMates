@@ -301,7 +301,7 @@ describe("chatNavigationStore — example chat navigation", () => {
     sharedState.exampleChats = [];
     vi.clearAllMocks();
     // Re-ensure window.dispatchEvent is available
-    if (typeof window !== "undefined" && !window.dispatchEvent) {
+    if (typeof window !== "undefined") {
       window.dispatchEvent = vi.fn(() => true);
     }
   });
@@ -395,6 +395,78 @@ describe("chatNavigationStore — example chat navigation", () => {
       // The number of navigations should equal fullList.length - 1
       // (we visited every chat including all 5 example chats)
       expect(safety).toBe(fullList.length - 1);
+    });
+
+    it("skips empty metadata-less user chats as header navigation targets", async () => {
+      const newestChat = makeChat("newest-chat", {
+        encrypted_title: "encrypted-title",
+        messages_v: 2,
+        last_edited_overall_timestamp: Date.now(),
+      });
+      const emptyPlaceholder = makeChat("empty-placeholder", {
+        title: undefined,
+        encrypted_title: null,
+        messages_v: 0,
+        title_v: 0,
+        last_edited_overall_timestamp: Date.now() - 100,
+      });
+      const olderChat = makeChat("older-chat", {
+        encrypted_title: "older-encrypted-title",
+        messages_v: 1,
+        last_edited_overall_timestamp: Date.now() - 200,
+      });
+
+      setChatNavigationList([newestChat, emptyPlaceholder, olderChat], newestChat.chat_id);
+
+      expect(get(chatNavigationStore)).toEqual({ hasPrev: false, hasNext: true });
+
+      await navigateNext();
+
+      const dispatchCalls = vi.mocked(window.dispatchEvent).mock.calls;
+      const dispatchedEvent = dispatchCalls[dispatchCalls.length - 1]?.[0] as
+        | CustomEvent<{ chat: Chat }>
+        | undefined;
+      expect(dispatchedEvent?.detail.chat.chat_id).toBe(olderChat.chat_id);
+      expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: false });
+    });
+
+    it("skips draft-only user chats as header navigation targets", async () => {
+      const newestChat = makeChat("newest-chat", {
+        encrypted_title: "encrypted-title",
+        messages_v: 2,
+        last_edited_overall_timestamp: Date.now(),
+      });
+      const draftOnlyChat = makeChat("draft-only-chat", {
+        title: undefined,
+        encrypted_title: null,
+        encrypted_chat_summary: null,
+        encrypted_icon: null,
+        encrypted_category: null,
+        encrypted_draft_md: "encrypted-draft-md",
+        encrypted_draft_preview: "encrypted-draft-preview",
+        draft_v: 1,
+        messages_v: 0,
+        title_v: 0,
+        last_edited_overall_timestamp: Date.now() - 100,
+      });
+      const olderChat = makeChat("older-chat", {
+        encrypted_title: "older-encrypted-title",
+        messages_v: 1,
+        last_edited_overall_timestamp: Date.now() - 200,
+      });
+
+      setChatNavigationList([newestChat, draftOnlyChat, olderChat], newestChat.chat_id);
+
+      expect(get(chatNavigationStore)).toEqual({ hasPrev: false, hasNext: true });
+
+      await navigateNext();
+
+      const dispatchCalls = vi.mocked(window.dispatchEvent).mock.calls;
+      const dispatchedEvent = dispatchCalls[dispatchCalls.length - 1]?.[0] as
+        | CustomEvent<{ chat: Chat }>
+        | undefined;
+      expect(dispatchedEvent?.detail.chat.chat_id).toBe(olderChat.chat_id);
+      expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: false });
     });
   });
 

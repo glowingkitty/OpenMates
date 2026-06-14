@@ -77,6 +77,23 @@ function stripMarkdownForSchema(content: string): string {
 		.trim();
 }
 
+function summarizeJsonToolBlocks(content: string): string {
+	const summaries: string[] = [];
+
+	for (const match of content.matchAll(/```json\s*([\s\S]*?)```/g)) {
+		try {
+			const payload = JSON.parse(match[1]);
+			if (payload?.type === 'app_skill_use' && payload.app_id && payload.skill_id) {
+				summaries.push(`Used ${payload.app_id}.${payload.skill_id} to retrieve app results.`);
+			}
+		} catch {
+			continue;
+		}
+	}
+
+	return summaries.join(' ');
+}
+
 function buildEmbedRefMap(chat: ExampleChat): Map<string, SeoSource> {
 	const byRef = new Map<string, SeoSource>();
 
@@ -147,6 +164,11 @@ function toReadableMessageContent(role: string, content: string): string {
 	if (textLines.length > 0) {
 		displayContent = textLines.join('\n');
 	} else {
+		const toolSummary = summarizeJsonToolBlocks(displayContent);
+		if (toolSummary) {
+			displayContent = toolSummary;
+		}
+
 		const queryMatches = [...displayContent.matchAll(/"query"\s*:\s*"([^"]+)"/g)];
 		if (queryMatches.length > 0) {
 			displayContent = queryMatches.map((match) => `Searched: ${match[1]}`).join('\n');
@@ -156,9 +178,22 @@ function toReadableMessageContent(role: string, content: string): string {
 	return removeEmbedRefs(displayContent);
 }
 
+function isHiddenSystemMessage(msg: ExampleChat['messages'][number]): boolean {
+	if (msg.role !== 'system' || !msg.content.trimStart().startsWith('{')) return false;
+	try {
+		const payload = JSON.parse(msg.content) as { type?: string };
+		return (
+			payload.type === 'app_settings_memories_request' ||
+			payload.type === 'app_settings_memories_response'
+		);
+	} catch {
+		return false;
+	}
+}
+
 function buildVisibleMessages(chat: ExampleChat): SeoMessage[] {
 	const embedRefMap = buildEmbedRefMap(chat);
-	return chat.messages.map((msg) => {
+	return chat.messages.filter((msg) => !isHiddenSystemMessage(msg)).map((msg) => {
 		const translatedContent = t(msg.content);
 		return {
 			role: msg.role,
@@ -172,7 +207,7 @@ function buildQuestionAnswerPairs(messages: SeoMessage[]) {
 	const pairs: { question: string; answer: string }[] = [];
 	for (let i = 0; i < messages.length; i++) {
 		const current = messages[i];
-		const next = messages[i + 1];
+		const next = messages.slice(i + 1).find((message) => message.role !== 'system');
 		if (current?.role === 'user' && next?.role === 'assistant') {
 			pairs.push({
 				question: stripMarkdownForSchema(current.content),

@@ -40,16 +40,19 @@ from backend.core.api.app.routes import admin  # noqa: E402 # Import admin route
 from backend.core.api.app.routes.push import router as push_router, notifications_router  # noqa: E402 # Push notification routes
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
+from backend.core.api.app.routes import admin_newsletter_campaigns  # noqa: E402 # Hidden admin newsletter campaign scheduler
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
 from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Import ephemeral client log forwarding (all users, anonymized)
 from backend.core.api.app.routes import e2e_api  # noqa: E402 # Import E2E test client log forwarding router (scoped HMAC auth)
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
 from backend.core.api.app.routes import code_execution  # noqa: E402 # Import Code Run web-app execution router
+from backend.core.api.app.routes import application_preview, application_preview_gateway  # noqa: E402 # Generated application live preview routers
 from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
 from backend.core.api.app.routes import email_block  # noqa: E402 # Import email block router
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
 from backend.core.api.app.routes import generated_assets_api  # noqa: E402 # Generated media asset download links
+from backend.core.api.app.routes import video_remotion  # noqa: E402 # Remotion videos.create render endpoints
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import projects  # noqa: E402 # Import projects workspace router
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
@@ -59,6 +62,7 @@ from backend.core.api.app.routes import docs_routes  # noqa: E402 # Import docs 
 from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug sync status router (JWT-authed, non-admin, for window.debug integration)
 from backend.core.api.app.routes import sync_api  # noqa: E402 # Native/desktop optional offline sync endpoints
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
+from backend.core.api.app.routes import notifications as notifications_api  # noqa: E402 # Safe notification list + SSE stream
 from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
 from backend.core.api.app.routes import test_recordings  # noqa: E402 # Dev-only Playwright recording browser API
 from backend.core.api.app.routers import webhooks as webhooks_router  # noqa: E402 # Webhook CRUD + incoming webhook handler
@@ -430,16 +434,16 @@ async def lifespan(app: FastAPI):
     for _cms_attempt in range(10):
         try:
             async with httpx.AsyncClient() as _cms_client:
-                _cms_resp = await _cms_client.get(f"{cms_url}/server/health", timeout=3.0)
+                _cms_resp = await _cms_client.get(f"{cms_url}/server/ping", timeout=3.0)
                 if _cms_resp.status_code == 200:
-                    logger.info("CMS health check passed — Directus is ready.")
+                    logger.info("CMS ping check passed — Directus is reachable.")
                     break
-                logger.warning(f"CMS health check returned {_cms_resp.status_code}, retrying...")
+                logger.warning(f"CMS ping check returned {_cms_resp.status_code}, retrying...")
         except Exception as _cms_err:
             logger.warning(f"CMS not reachable ({type(_cms_err).__name__}), retrying in {min(2 ** (_cms_attempt + 1), 16)}s...")
         await asyncio.sleep(min(2 ** (_cms_attempt + 1), 16))
     else:
-        logger.error("CMS did not become healthy after 10 attempts. Startup data may be incomplete.")
+        logger.error("CMS did not become reachable after 10 attempts. Startup data may be incomplete.")
 
     # Initialize server stats service
     from backend.core.api.app.services.server_stats_service import ServerStatsService
@@ -1320,9 +1324,12 @@ def create_app() -> FastAPI:
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
+    app.include_router(application_preview.router, include_in_schema=False)  # Generated application preview sessions - web app only
+    app.include_router(application_preview_gateway.router, include_in_schema=False)  # Token-gated user-content preview gateway
     app.include_router(share.router, include_in_schema=False)  # Share router - web app only
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
+    app.include_router(admin_newsletter_campaigns.router, include_in_schema=False)  # Admin newsletter campaign scheduler - API key admin only
     app.include_router(admin_client_logs.router, include_in_schema=False)  # Admin client log forwarding - pushes browser console logs to Loki for admin users
     app.include_router(client_logs_ephemeral.router, include_in_schema=False)  # Ephemeral client log forwarding - anonymized console logs from all users (48h retention)
     app.include_router(e2e_api.router, include_in_schema=False)  # E2E test client log forwarding - scoped HMAC auth, no session required
@@ -1342,6 +1349,7 @@ def create_app() -> FastAPI:
     app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
     app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
+    app.include_router(video_remotion.router, include_in_schema=True)  # Remotion videos.create render, stop, and version endpoints
     app.include_router(profile_api.router, include_in_schema=True)  # Profile image API - authenticated proxy for AES-encrypted user profile images
     app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues
     app.include_router(default_inspirations.router, include_in_schema=False)  # Default inspirations public endpoint - returns published inspirations for DailyInspirationBanner
@@ -1355,6 +1363,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs
     app.include_router(push_router, include_in_schema=False)  # Push notification routes - VAPID key + subscription management
     app.include_router(notifications_router, include_in_schema=False)  # Native APNs device registration
+    app.include_router(notifications_api.router, include_in_schema=True)  # Safe notification list + SSE stream
     app.include_router(telemetry.router, include_in_schema=False)  # OTLP proxy for frontend browser traces (JWT auth, rate-limited)
     app.include_router(test_recordings.router, include_in_schema=False)  # Dev-only Playwright test recording browser
     app.include_router(webhooks_router.router, include_in_schema=True)  # Webhook CRUD + incoming webhook handler (JWT + webhook key auth)

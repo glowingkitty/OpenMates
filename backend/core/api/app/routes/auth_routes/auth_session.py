@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Request, Response, Cookie
 import logging
 import time
-import os
 import hashlib
 from typing import Optional # Added Dict, Any
 from backend.core.api.app.schemas.auth import SessionResponse
@@ -18,10 +17,29 @@ from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.schemas.user import UserResponse
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS, TOKEN_REFRESH_THRESHOLD_SECONDS
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
+from backend.core.api.app.utils.invite_code import get_signup_requirements
 from backend.core.api.app.utils.ws_token import create_ws_token
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+async def _has_free_testing_credits_grant(
+    user_id: str,
+    directus_service: DirectusService,
+    cache_service: CacheService,
+) -> bool:
+    try:
+        service = FreeTestingCreditsService(
+            directus_service=directus_service,
+            cache_service=cache_service,
+            encryption_service=None,
+        )
+        return await service.has_grant_for_user(user_id)
+    except Exception as exc:
+        logger.error("Failed to load Free testing grant marker for user %s: %s", user_id[:8], exc, exc_info=True)
+        return False
 
 @router.post("/session", response_model=SessionResponse)
 async def get_session(
@@ -39,37 +57,11 @@ async def get_session(
     try:
         logger.info("Processing POST /session")
 
-        # Check if invite code requirement is enabled based on SIGNUP_LIMIT
-        # SIGNUP_LIMIT=0 means open signup (no invite codes required)
-        # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
-        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-        logger.info(f"Checking invite code requirement against SIGNUP_LIMIT={signup_limit}")
-        
-        # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
-        if signup_limit == 0:
-            require_invite_code = False
-            logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
-        else:
-            # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
-            try:
-                # Check if we have this value cached
-                cached_require_invite_code = await cache_service.get("require_invite_code")
-                if cached_require_invite_code is not None:
-                    require_invite_code = cached_require_invite_code
-                else:
-                    # Get the count of users who completed signup (not just registered)
-                    # This counts users who completed payment/signup (last_opened is not a signup path)
-                    completed_signups = await directus_service.get_completed_signups_count()
-                    require_invite_code = completed_signups >= signup_limit
-                    # Cache this value for quick access
-                    await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
-                    logger.info(f"Completed signups count: {completed_signups}, signup limit: {signup_limit}, require_invite_code: {require_invite_code}")
-                    
-                logger.info(f"Invite code requirement check: limit={signup_limit}, completed_signups={completed_signups if 'completed_signups' in locals() else 'cached'}, required={require_invite_code}")
-            except Exception as e:
-                logger.error(f"Error checking user count against signup limit: {e}")
-                # Default to requiring invite code on error (safer default)
-                require_invite_code = True
+        try:
+            require_invite_code, _, _ = await get_signup_requirements(directus_service, cache_service)
+        except Exception as e:
+            logger.error(f"Error checking signup requirements: {e}")
+            require_invite_code = True
 
 
         # Step 1: Verify basic authentication (token validity) without device check
@@ -151,7 +143,6 @@ async def get_session(
 
         device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id, session_id)
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-        device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 
         # Step 3: Check if this device hash is already known for the user
         known_device_hashes = await directus_service.get_user_device_hashes(user_id)
@@ -438,6 +429,11 @@ async def get_session(
                 }
 
         logger.info(f"Session valid for user_id={user_id}. Returning user data.")
+        has_free_testing_credits_grant = await _has_free_testing_credits_grant(
+            user_id,
+            directus_service,
+            cache_service,
+        )
         return SessionResponse(
             success=True,
             message="Session valid",
@@ -463,6 +459,7 @@ async def get_session(
                     auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
                     auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
                     has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp")),
+                    has_free_testing_credits_grant=has_free_testing_credits_grant,
             ),
             token_refresh_needed=False,
             require_invite_code=require_invite_code,

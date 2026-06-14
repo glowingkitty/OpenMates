@@ -367,6 +367,7 @@
     class="notification notification-chat-message"
     class:expanded={isExpanded}
     data-testid="chat-notification"
+    data-chat-id={notification.chatId ?? ''}
     transition:slide={{ axis: 'y', duration: 300 }}
     role="button"
     tabindex="0"

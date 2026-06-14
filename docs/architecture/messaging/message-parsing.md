@@ -2,13 +2,49 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/message_parsing/parse_message.ts
+- frontend/packages/ui/src/message_parsing/embedParsing.ts
+- frontend/packages/ui/src/message_parsing/serializers.ts
+- frontend/packages/ui/src/message_parsing/types.ts
+- frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+- frontend/packages/ui/src/message_parsing/streamingSemantics.ts
+- frontend/packages/ui/src/components/enter_message/utils/tiptapContentProcessor.ts
+claims:
+- id: arch-messaging-message-parsing-behavior
+  type: unit
+  claim: Message Parsing Architecture is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/message_parsing/parse_message.ts
   - frontend/packages/ui/src/message_parsing/embedParsing.ts
   - frontend/packages/ui/src/message_parsing/serializers.ts
   - frontend/packages/ui/src/message_parsing/types.ts
   - frontend/packages/ui/src/message_parsing/documentEnhancement.ts
-  - frontend/packages/ui/src/message_parsing/streamingSemantics.ts
-  - frontend/packages/ui/src/components/enter_message/utils/tiptapContentProcessor.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-messaging-message-parsing-behavior
+  verified: '2026-06-11'
+- id: arch-messaging-message-parsing-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-parsing-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/enter_message/utils/tiptapContentProcessor.ts
+- id: arch-messaging-message-parsing-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-parsing-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/message_parsing/documentEnhancement.ts
+- id: arch-messaging-message-parsing-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-messaging-message-parsing-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/message_parsing/embedParsing.ts
 ---
 
 # Message Parsing Architecture

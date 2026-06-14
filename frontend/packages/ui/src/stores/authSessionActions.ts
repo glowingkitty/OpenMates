@@ -23,7 +23,7 @@ import { logout, deleteAllCookies, bumpLoginSessionGeneration } from "./authLogi
 import { setWebSocketToken, clearWebSocketToken } from "../utils/cookies"; // Import WebSocket token utilities
 import { notificationStore } from "./notificationStore"; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from "./userProfile"; // Import to load user profile from IndexedDB
-import { loginInterfaceOpen } from "./uiStateStore"; // Import loginInterfaceOpen to control login interface visibility
+import { loginInterfaceOpen, loginStayLoggedInRequested } from "./uiStateStore"; // Import login UI state controls
 import { activeChatStore } from "./activeChatStore"; // Import activeChatStore to navigate to demo-for-everyone on logout
 import { clearSignupData, clearIncompleteSignupData } from "./signupStore"; // Import signup cleanup functions
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService"; // Import sessionStorage draft cleanup
@@ -44,6 +44,7 @@ import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
 import { applyServerUiFont } from "./uiFont"; // Apply server UI font preference on session restore
 import { captureReferralCodeFromUrl, submitPendingReferralCode } from "../services/referralService";
+import { markDeviceReceivedFreeTestingCredits } from "./serverStatusStore";
 
 // Import core auth state and related flags
 import {
@@ -186,6 +187,10 @@ export async function checkAuth(
 
     // Handle Successful Authentication
     if (data.success && data.user) {
+      if (data.user.has_free_testing_credits_grant) {
+        markDeviceReceivedFreeTestingCredits();
+      }
+
       // Store WebSocket token if provided (for Safari iOS compatibility)
       // This MUST happen before updating authStore to avoid race conditions
       if (data.ws_token) {
@@ -659,6 +664,8 @@ export async function checkAuth(
           // Refund policy consent — used to skip redundant consent screens in settings
           has_accepted_refund_policy:
             data.user.has_accepted_refund_policy ?? false,
+          has_free_testing_credits_grant:
+            data.user.has_free_testing_credits_grant ?? false,
           default_ai_model_simple:
             data.user.default_ai_model_simple ?? null,
           default_ai_model_complex:
@@ -848,8 +855,15 @@ export async function checkAuth(
         notificationStore.autoLogout(
           $text("login.auto_logout_notification.message"),
           undefined, // No secondary message needed
-          7000, // Show for 7 seconds so user can read the hint
+          0, // Persist so the user can act on the login CTA
           $text("login.auto_logout_notification.title"),
+          {
+            actionLabel: $text("login.auto_logout_notification.login_again_action"),
+            onAction: () => {
+              loginStayLoggedInRequested.set(true);
+              loginInterfaceOpen.set(true);
+            },
+          },
         );
 
         // CRITICAL: If user is in signup flow, close signup interface and return to demo

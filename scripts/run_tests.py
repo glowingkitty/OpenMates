@@ -80,6 +80,24 @@ GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
 MAX_ACCOUNTS = 20
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
+E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
+E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
+RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {
+    "account-recovery-flow.spec.ts": 14,
+    "backup-code-login-flow.spec.ts": 15,
+    "backup-codes-settings.spec.ts": 16,
+    "cli-created-account-login.spec.ts": 17,
+    "recovery-key-login-flow.spec.ts": 17,
+    "recovery-key-settings.spec.ts": 18,
+    "settings-change-email.spec.ts": 19,
+    "api-keys-flow.spec.ts": 20,
+}
+RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS = frozenset(RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.values())
+NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS = tuple(
+    slot for slot in range(1, MAX_ACCOUNTS + 1)
+    if slot not in RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS
+)
+CREDENTIAL_UPDATE_ARTIFACT_NAMES = frozenset({"new_otp_key.txt", "api_key.txt"})
 POLL_INTERVAL = 15  # seconds between status checks
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
@@ -101,7 +119,7 @@ HOURLY_DEV_SPECS: list[str] = [
     # accumulated broken chat state that stalls DB init during login.
     # dev-smoke doesn't use account credentials, so it can safely run on any slot.
     "chat-flow.spec.ts",
-    "settings-buy-credits-stripe.spec.ts",
+    "settings-buy-credits-stripe-managed.spec.ts",
     "signup-flow-stripe-managed.spec.ts",
     "dev-smoke/dev-smoke-reachability.spec.ts",
 ]
@@ -126,6 +144,7 @@ class SpecResult:
     file: Optional[str] = None
     run_id: Optional[int] = None
     account: Optional[int] = None
+    account_email: Optional[str] = None
     retries: int = 0
     flaky: bool = False
     # Structured Playwright data for MD reports
@@ -651,6 +670,45 @@ def _build_multipart_body(
 # GitHubActionsClient
 # ---------------------------------------------------------------------------
 
+def _matching_dispatched_run_id(runs: list[dict], dispatch_token: str) -> Optional[int]:
+    """Return the run ID whose workflow title contains the dispatch token."""
+    for run in runs:
+        display_title = str(run.get("displayTitle") or "")
+        if dispatch_token not in display_title:
+            continue
+        try:
+            return int(run["databaseId"])
+        except (KeyError, TypeError, ValueError):
+            return None
+    return None
+
+
+def _configured_preflight_accounts(results: list[SpecResult]) -> list[dict]:
+    """Build a de-duplicated credit-guard payload from preflight results."""
+    accounts_by_email: dict[str, dict] = {}
+    for result in results:
+        if not result.account_email:
+            continue
+        normalized_email = result.account_email.strip().lower()
+        account = accounts_by_email.setdefault(
+            normalized_email,
+            {"slot": result.account, "email": result.account_email, "slots": []},
+        )
+        if result.account and result.account not in account["slots"]:
+            account["slots"].append(result.account)
+
+    payload: list[dict] = []
+    for account in sorted(
+        accounts_by_email.values(),
+        key=lambda item: min(item["slots"] or [item.get("slot") or 999]),
+    ):
+        slots = account.pop("slots")
+        if slots:
+            account["slot"] = min(slots)
+        payload.append(account)
+    return payload
+
+
 class GitHubActionsClient:
     """Wraps the `gh` CLI for workflow dispatch and status polling."""
 
@@ -676,8 +734,7 @@ class GitHubActionsClient:
         Returns the run ID or None on failure.
         """
         self.last_dispatch_error = None
-        # Record the latest run ID before dispatch so we can find the new one
-        pre_ids = self._recent_run_ids(limit=5)
+        dispatch_token = f"rt-{os.getpid()}-{time.time_ns()}-{account}"
 
         # playwright-spec.yml: lightweight 1-job workflow per spec
         rc = subprocess.run(
@@ -686,7 +743,10 @@ class GitHubActionsClient:
              "--ref", GH_BRANCH,
              "-f", f"spec={spec}",
              "-f", f"account={account}",
-             "-f", f"use_mocks={'true' if use_mocks else 'false'}"],
+             "-f", f"use_mocks={'true' if use_mocks else 'false'}",
+             "-f", "use_live_mocks=true",
+             "-f", "record_live_fixtures=false",
+             "-f", f"dispatch_token={dispatch_token}"],
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
@@ -695,33 +755,42 @@ class GitHubActionsClient:
             _log(f"Dispatch failed for {spec}: {detail}", "ERROR")
             return None
 
-        # Wait for GitHub to register the run, then find its ID
+        # Wait for GitHub to register the run, then find the exact dispatch.
+        # Concurrent OpenMates sessions can dispatch this workflow at the same
+        # time, so "newest run after dispatch" can attach to another spec.
         for attempt in range(6):
             time.sleep(2)
-            new_ids = self._recent_run_ids(limit=10)
-            fresh = [rid for rid in new_ids if rid not in pre_ids]
-            if fresh:
-                return fresh[0]  # Most recent new run
+            run_id = _matching_dispatched_run_id(self._recent_runs(limit=50), dispatch_token)
+            if run_id is not None:
+                return run_id
 
         _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
         self.last_dispatch_error = "Workflow dispatched, but GitHub did not expose a new run ID in time"
         return None
 
-    def _recent_run_ids(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[int]:
-        """Get the most recent run IDs for a workflow."""
+    def _recent_runs(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[dict]:
+        """Get the most recent runs for a workflow."""
         rc = subprocess.run(
             ["gh", "run", "list",
              "--repo", GH_REPO,
              "--workflow", workflow,
              "--limit", str(limit),
-             "--json", "databaseId"],
+             "--json", "databaseId,displayTitle"],
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
             return []
         try:
-            return [r["databaseId"] for r in json.loads(rc.stdout)]
-        except (json.JSONDecodeError, KeyError):
+            data = json.loads(rc.stdout)
+        except json.JSONDecodeError:
+            return []
+        return data if isinstance(data, list) else []
+
+    def _recent_run_ids(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[int]:
+        """Get the most recent run IDs for a workflow."""
+        try:
+            return [int(r["databaseId"]) for r in self._recent_runs(limit, workflow)]
+        except (KeyError, TypeError, ValueError):
             return []
 
     def poll_run(self, run_id: int) -> dict:
@@ -861,6 +930,35 @@ class GitHubActionsClient:
         return None
 
 
+def _effective_playwright_batch_size(requested_batch_size: int) -> int:
+    """Keep each batch from assigning the same normal account twice."""
+    if requested_batch_size <= 0:
+        return len(NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)
+    return min(requested_batch_size, len(NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS))
+
+
+def _account_for_spec_in_batch(spec: str, normal_index: int) -> int:
+    """Return the reserved account for mutating specs, otherwise a normal slot."""
+    reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(spec)
+    if reserved_account is not None:
+        return reserved_account
+    return NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[normal_index % len(NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)]
+
+
+def build_playwright_dispatch_plan(specs: list[str], batch_size: int) -> list[tuple[int, str, int]]:
+    """Build (batch_index, spec, account) tuples using the credential-isolation policy."""
+    effective_batch_size = _effective_playwright_batch_size(batch_size)
+    plan: list[tuple[int, str, int]] = []
+    for batch_idx, start in enumerate(range(0, len(specs), effective_batch_size)):
+        normal_index = 0
+        for spec in specs[start:start + effective_batch_size]:
+            account = _account_for_spec_in_batch(spec, normal_index)
+            if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+                normal_index += 1
+            plan.append((batch_idx, spec, account))
+    return plan
+
+
 # ---------------------------------------------------------------------------
 # BatchRunner
 # ---------------------------------------------------------------------------
@@ -888,12 +986,13 @@ class BatchRunner:
             return SuiteResult(status="skipped", reason="no specs to run")
 
         all_results: list[SpecResult] = []
-        total_batches = (len(self.specs) + self.batch_size - 1) // self.batch_size
+        effective_batch_size = _effective_playwright_batch_size(self.batch_size)
+        total_batches = (len(self.specs) + effective_batch_size - 1) // effective_batch_size
         suite_start = time.time()
 
         for batch_idx in range(total_batches):
-            start = batch_idx * self.batch_size
-            end = min(start + self.batch_size, len(self.specs))
+            start = batch_idx * effective_batch_size
+            end = min(start + effective_batch_size, len(self.specs))
             batch_specs = self.specs[start:end]
 
             print()
@@ -928,14 +1027,27 @@ class BatchRunner:
             duration_seconds=round(duration, 1),
         )
 
-    def _run_batch(self, specs: list[str], batch_idx: int) -> list[SpecResult]:
+    def _run_batch(
+        self,
+        specs: list[str],
+        batch_idx: int,
+        account_overrides: Optional[list[int]] = None,
+    ) -> list[SpecResult]:
         """Dispatch and wait for a single batch of specs."""
         # Dispatch all specs in this batch
         dispatched: list[tuple[str, int, int]] = []  # (spec, account, run_id)
         dispatch_errors: list[SpecResult] = []
+        normal_account_index = 0
 
         for i, spec in enumerate(specs):
-            account = (batch_idx * self.batch_size + i) % MAX_ACCOUNTS + 1
+            if account_overrides is not None:
+                account = account_overrides[i]
+            elif spec == ACCOUNT_PREFLIGHT_SPEC:
+                account = i + 1
+            else:
+                account = _account_for_spec_in_batch(spec, normal_account_index)
+            if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC and spec != ACCOUNT_PREFLIGHT_SPEC:
+                normal_account_index += 1
             _log(f"  Dispatching {spec} (account {account})")
 
             run_id = self.client.dispatch_spec(spec, account, self.use_mocks)
@@ -993,6 +1105,7 @@ class BatchRunner:
             pw_steps: list[dict] = []
             screenshot_paths: list[str] = []
             video_paths: list[str] = []
+            account_email: Optional[str] = None
 
             art_name = f"playwright-{spec.replace('/', '-')}"
             art_path = self.client.download_artifact(rid, art_name, artifact_dir)
@@ -1005,11 +1118,13 @@ class BatchRunner:
                     extracted_err, pw_errors, pw_steps = (
                         self._extract_structured_data_from_playwright_json(pw_json)
                     )
+                    account_email = self._extract_account_email_from_playwright_json(pw_json)
                     if extracted_err and status == "failed":
                         error = extracted_err
 
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
+                self._persist_credential_update_artifacts(spec, art_path)
                 self._persist_recording_artifacts(spec, art_path)
                 video_paths = self._collect_video_paths(art_path)
 
@@ -1040,7 +1155,7 @@ class BatchRunner:
 
             results.append(SpecResult(
                 name=spec, file=spec, status=status,
-                error=error, run_id=rid, account=account,
+                error=error, run_id=rid, account=account, account_email=account_email,
                 playwright_errors=pw_errors,
                 steps=pw_steps,
                 screenshot_paths=screenshot_paths,
@@ -1147,6 +1262,36 @@ class BatchRunner:
         return first_error, errors, steps
 
     @staticmethod
+    def _extract_account_email_from_playwright_json(pw_json: Path) -> Optional[str]:
+        """Extract the configured test account email from preflight stdout."""
+        marker = 'meta={"email":"'
+
+        def _walk_suite(suite: dict) -> Optional[str]:
+            for spec in suite.get("specs", []):
+                for test in spec.get("tests", []):
+                    for result in test.get("results", []):
+                        for entry in result.get("stdout", []):
+                            text = str(entry.get("text", ""))
+                            if marker in text:
+                                return text.split(marker, 1)[1].split('"}', 1)[0]
+            for child_suite in suite.get("suites", []):
+                email = _walk_suite(child_suite)
+                if email:
+                    return email
+            return None
+
+        try:
+            with open(pw_json) as f:
+                data = json.load(f)
+            for suite in data.get("suites", []):
+                email = _walk_suite(suite)
+                if email:
+                    return email
+        except Exception as e:
+            _log(f"Failed to extract preflight account email: {e}", "WARN")
+        return None
+
+    @staticmethod
     def _persist_failure_artifacts(spec: str, art_path: Path) -> None:
         """Copy screenshots, traces, and reports from a test's artifacts to
         test-results/screenshots/current/{spec-name}/ for MD report generation.
@@ -1185,6 +1330,22 @@ class BatchRunner:
                     audit_copied += 1
         if audit_copied:
             _log(f"    Saved {audit_copied} storage-audit snapshot(s) to test-results/storage-audits/")
+
+    @staticmethod
+    def _persist_credential_update_artifacts(spec: str, art_path: Path) -> None:
+        """Copy generated credential-update files outside screenshot directories."""
+        spec_name = spec.replace(".spec.ts", "")
+        dest = RESULTS_DIR / "credential-updates" / spec_name
+        copied = 0
+        for root, _dirs, files in os.walk(art_path):
+            for fname in files:
+                if fname not in CREDENTIAL_UPDATE_ARTIFACT_NAMES:
+                    continue
+                dest.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(Path(root) / fname, dest / fname)
+                copied += 1
+        if copied:
+            _log(f"    Saved {copied} credential update artifact(s) to test-results/credential-updates/{spec_name}/")
 
     @staticmethod
     def _collect_video_paths(art_path: Path) -> list[str]:
@@ -4767,12 +4928,14 @@ class TestOrchestrator:
         if not specs:
             return SuiteResult(status="skipped", reason="no specs to run")
 
-        _log(f"Playwright: {len(specs)} spec(s) via GitHub Actions (batch size: {self.max_concurrent})")
+        effective_batch_size = _effective_playwright_batch_size(self.max_concurrent)
+        _log(f"Playwright: {len(specs)} spec(s) via GitHub Actions (batch size: {effective_batch_size})")
 
         if self.dry_run:
             _log("Dry run — would dispatch these specs:")
-            for s in specs:
-                print(f"    {s}")
+            for _batch_idx, spec, account in build_playwright_dispatch_plan(specs, self.max_concurrent):
+                reserved = " reserved" if spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC else ""
+                print(f"    account {account:02d}{reserved}  {spec}")
             return SuiteResult(status="skipped", reason="dry run")
 
         if self.environment == "development" and not _wait_for_vercel_deployment(self.git_sha, self.dot_env):
@@ -4791,6 +4954,11 @@ class TestOrchestrator:
 
         if not self.spec and not self.only_failed:
             preflight = self._run_account_preflight(client)
+            if preflight.status == "failed":
+                return preflight
+        elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
+            account = _account_for_spec_in_batch(self.spec, 0)
+            preflight = self._run_account_preflight(client, accounts=[account])
             if preflight.status == "failed":
                 return preflight
 
@@ -4812,18 +4980,27 @@ class TestOrchestrator:
 
         return result
 
-    def _run_account_preflight(self, client: GitHubActionsClient) -> SuiteResult:
+    def _run_account_preflight(
+        self,
+        client: GitHubActionsClient,
+        accounts: Optional[list[int]] = None,
+    ) -> SuiteResult:
         """Validate each configured persistent E2E account before normal specs."""
         started = time.time()
-        _log(f"Playwright account preflight: {MAX_ACCOUNTS} account slot(s)")
+        target_accounts = accounts or list(range(1, MAX_ACCOUNTS + 1))
+        _log(f"Playwright account preflight: {len(target_accounts)} account slot(s)")
         runner = BatchRunner(
             client=client,
-            specs=[ACCOUNT_PREFLIGHT_SPEC] * MAX_ACCOUNTS,
-            batch_size=MAX_ACCOUNTS,
+            specs=[ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
+            batch_size=len(target_accounts),
             fail_fast=False,
             use_mocks=self.use_mocks,
         )
-        results = runner._run_batch([ACCOUNT_PREFLIGHT_SPEC] * MAX_ACCOUNTS, 0)
+        results = runner._run_batch(
+            [ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
+            0,
+            account_overrides=target_accounts,
+        )
         failures = [r for r in results if r.status != "passed"]
         if failures:
             failed_slots = ", ".join(str(r.account) for r in failures)
@@ -4832,12 +5009,72 @@ class TestOrchestrator:
             failed_slots = ""
             _log("Account preflight passed", "OK")
 
+        credit_guard_error = self._ensure_preflight_account_credits(results)
+        if credit_guard_error:
+            return SuiteResult(
+                status="failed",
+                tests=[runner._spec_result_to_dict(r) for r in results],
+                duration_seconds=round(time.time() - started, 1),
+                reason=credit_guard_error,
+            )
+
         return SuiteResult(
             status="failed" if failures else "passed",
             tests=[runner._spec_result_to_dict(r) for r in results],
             duration_seconds=round(time.time() - started, 1),
             reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
         )
+
+    @staticmethod
+    def _ensure_preflight_account_credits(results: list[SpecResult]) -> Optional[str]:
+        """Top up configured E2E accounts discovered by account preflight."""
+        if os.getenv("OPENMATES_E2E_CREDIT_GUARD", "1") in {"0", "false", "False"}:
+            _log("E2E credit guard disabled via OPENMATES_E2E_CREDIT_GUARD", "WARN")
+            return None
+
+        accounts = _configured_preflight_accounts(results)
+        missing_slots = [str(r.account) for r in results if r.account and not r.account_email]
+        if missing_slots:
+            _log(
+                "E2E credit guard: no configured credentials discovered for slot(s): "
+                + ", ".join(missing_slots),
+                "WARN",
+            )
+        if not accounts:
+            _log("E2E credit guard: no configured accounts discovered", "WARN")
+            return None
+
+        minimum = int(os.getenv("OPENMATES_E2E_CREDIT_MINIMUM", str(E2E_CREDIT_GUARD_DEFAULT_MINIMUM)))
+        target = int(os.getenv("OPENMATES_E2E_CREDIT_TARGET", str(E2E_CREDIT_GUARD_DEFAULT_TARGET)))
+        script_path = PROJECT_ROOT / "backend" / "scripts" / "top_up_test_account_credits.py"
+        try:
+            script_source = script_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            detail = f"credit guard script unavailable: {exc}"
+            _log(f"E2E credit guard failed: {detail}", "ERROR")
+            return f"E2E credit guard failed: {detail}"
+
+        proc = subprocess.run(
+            [
+                "docker", "exec", "-i", "api", "python", "-",
+                "--accounts-json", json.dumps(accounts),
+                "--minimum", str(minimum),
+                "--target", str(target),
+            ],
+            input=script_source,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        output = (proc.stdout or "").strip()
+        if output:
+            for line in output.splitlines():
+                _log(f"E2E credit guard: {line}")
+        if proc.returncode != 0:
+            detail = (proc.stderr or output or "unknown error").strip()[:MAX_ERROR_SNIPPET]
+            _log(f"E2E credit guard failed: {detail}", "ERROR")
+            return f"E2E credit guard failed: {detail}"
+        return None
 
     @staticmethod
     def _merge_cookie_audits() -> None:
@@ -4867,6 +5104,7 @@ class TestOrchestrator:
     # triggered manually via --spec.
     EXCLUDED_SPECS = {
         "create-test-account.spec.ts",
+        "selfhost-smoke.spec.ts",
         ACCOUNT_PREFLIGHT_SPEC,
     }
 
@@ -4952,29 +5190,12 @@ class TestOrchestrator:
                 shutil.rmtree(old_dir, ignore_errors=True)
                 _log(f"Pruned old screenshot archive: {old_dir.name}")
 
-        # Send summary email before any automated fixing starts. The failure
-        # count must reach the admin even if auto-fix takes hours or hangs.
+        # Keep daily runs notification-only. Follow-up fixing must be started
+        # separately so one day's remediation can never hold tomorrow's lock.
         _log("Sending summary email...")
         self.notification.send_summary_email(result)
-
-        # Start sequential OpenCode auto-fix on failures unless explicitly disabled.
-        # The controller is still safety-gated: it stops on dirty worktrees and
-        # only deploys small verified fixes.
         if _problem_count(result.summary) > 0:
-            auto_fix_setting = os.environ.get("E2E_AUTO_FIX_FAILED_TESTS", "true").lower()
-            auto_fix_enabled = auto_fix_setting not in {"0", "false", "no", "off"}
-            auto_fix_script = PROJECT_ROOT / "scripts" / "auto_fix_failed_tests.py"
-            if auto_fix_enabled and auto_fix_script.is_file():
-                _log("Auto fixing is started after summary email dispatch...")
-                subprocess.run(
-                    [sys.executable, str(auto_fix_script), "--from-daily-run"],
-                    env={**os.environ, "RESULTS_DIR": str(RESULTS_DIR)},
-                )
-            else:
-                if auto_fix_enabled:
-                    _log("Auto-fix enabled but scripts/auto_fix_failed_tests.py is missing", "WARN")
-                else:
-                    _log("Auto-fix disabled by E2E_AUTO_FIX_FAILED_TESTS; regular failure notifications only")
+            _log("Daily auto-fix disabled; use scripts/auto_fix_failed_tests.py manually if needed")
 
     def _print_summary(self, result: RunResult) -> None:
         """Print a formatted summary."""

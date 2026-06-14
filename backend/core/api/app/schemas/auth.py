@@ -141,6 +141,10 @@ class SetupPasswordRequest(BaseModel):
     lookup_hash: str = Field(..., description="Hash of email + password for authentication")
     language: str = Field("en", description="User's preferred language")
     darkmode: bool = Field(False, description="User's dark mode preference")
+    pending_gift_card_code: Optional[str] = Field(
+        None,
+        description="Gift card code captured from a signup deep link and queued for auto-redemption after account creation",
+    )
 
 class SetupPasswordResponse(BaseModel):
     """Response for password setup endpoint"""
@@ -222,6 +226,10 @@ class PasskeyRegistrationCompleteRequest(BaseModel):
     darkmode: bool = Field(False, description="User's dark mode preference")
     prf_enabled: bool = Field(..., description="Whether PRF extension was enabled in the credential")
     user_id: Optional[str] = Field(None, description="User ID if adding passkey to existing account (use 'current' to use authenticated user from session)")
+    pending_gift_card_code: Optional[str] = Field(
+        None,
+        description="Gift card code captured from a signup deep link and queued for auto-redemption after account creation",
+    )
 
 class PasskeyRegistrationCompleteResponse(BaseModel):
     """Response for passkey registration completion"""

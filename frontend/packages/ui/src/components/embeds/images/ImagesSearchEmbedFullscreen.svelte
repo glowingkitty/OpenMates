@@ -19,6 +19,9 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
+  import { embedStore } from '../../../services/embedStore';
+  import { chatSyncService } from '../../../services/chatSyncService';
+  import { buildImageSearchPreviewMetadata } from '../embedPreviewHydration';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -164,6 +167,25 @@
 
   /** Legacy results from direct prop (used in dev preview when no embedIds available) */
   let legacyResults = $derived(resultsProp && resultsProp.length > 0 ? resultsProp : undefined);
+
+  async function backfillParentPreviewMetadata(results: ImageResult[]): Promise<void> {
+    if (!embedId || results.length === 0) return;
+
+    const fields = buildImageSearchPreviewMetadata(results);
+    const result = await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, fields);
+    if (!result.updated) return;
+
+    if (result.storePayload) {
+      await chatSyncService.sendStoreEmbed(result.storePayload);
+    }
+
+    chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
+      detail: {
+        embed_id: embedId,
+        status: statusProp,
+      },
+    }));
+  }
 </script>
 
 <SearchResultsTemplate
@@ -179,6 +201,7 @@
   childEmbedTransformer={transformToImageResult}
   legacyResults={legacyResults}
   legacyResultTransformer={transformLegacyResults}
+  onResultsLoaded={(results) => { void backfillParentPreviewMetadata(results as ImageResult[]); }}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   {initialChildEmbedId}
   {hasPreviousEmbed}

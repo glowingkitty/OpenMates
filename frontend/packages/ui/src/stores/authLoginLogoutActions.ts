@@ -34,6 +34,7 @@ import { clientLogForwarder } from "../services/clientLogForwarder";
 import { resetUserAvailableSkills } from "./appSkillsStore";
 import { applyServerDarkMode } from "./theme";
 import { applyServerUiFont } from "./uiFont";
+import { markDeviceReceivedFreeTestingCredits } from "./serverStatusStore";
 
 // Import core auth state and related flags
 import {
@@ -268,6 +269,10 @@ export async function login(
 
         try {
           if (data.user) {
+            if (data.user.has_free_testing_credits_grant) {
+              markDeviceReceivedFreeTestingCredits();
+            }
+
             // Ensure user data exists before proceeding
             // Log auto top-up fields from backend response - ERROR if missing
             const hasAutoTopupFields =
@@ -322,6 +327,8 @@ export async function login(
               // Refund policy consent — used to skip redundant consent screens in settings
               has_accepted_refund_policy:
                 data.user.has_accepted_refund_policy ?? false,
+              has_free_testing_credits_grant:
+                data.user.has_free_testing_credits_grant ?? false,
               // Push notification fields — synced from server on login
               push_notification_enabled:
                 data.user.push_notification_enabled ?? false,

@@ -9,10 +9,15 @@
  */
 
 import { webcrypto, createHash } from "node:crypto";
+import nacl from "tweetnacl";
 
 const cryptoApi = globalThis.crypto ?? webcrypto;
 const PAIR_KDF_ITERATIONS = 100_000;
+const SIGNUP_KDF_ITERATIONS = 100_000;
 const AES_GCM_IV_LENGTH = 12;
+const EMAIL_SALT_LENGTH = 16;
+const MASTER_KEY_LENGTH = 32;
+const NACL_NONCE_LENGTH = 24;
 
 // New ciphertext format: [0x4F 0x4D][4-byte key fingerprint][IV][ciphertext]
 // The web app's encryptWithChatKey() now prepends "OM" magic + fingerprint.
@@ -34,6 +39,174 @@ function toArrayBuffer(input: Uint8Array): ArrayBuffer {
   const output = new ArrayBuffer(input.byteLength);
   new Uint8Array(output).set(input);
   return output;
+}
+
+export function generateSalt(length = EMAIL_SALT_LENGTH): Uint8Array {
+  return cryptoApi.getRandomValues(new Uint8Array(length));
+}
+
+export function generateSecureRecoveryKey(length = 24): string {
+  const uppercaseChars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowercaseChars = "abcdefghijkmnopqrstuvwxyz";
+  const numberChars = "23456789";
+  const specialChars = "#-=+_&%$";
+  const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
+  const result: string[] = new Array(length);
+  const requiredSets = [uppercaseChars, lowercaseChars, numberChars, specialChars];
+
+  for (let index = 0; index < requiredSets.length && index < length; index += 1) {
+    const randomByte = cryptoApi.getRandomValues(new Uint8Array(1))[0];
+    const chars = requiredSets[index];
+    result[index] = chars.charAt(randomByte % chars.length);
+  }
+
+  const randomBytes = cryptoApi.getRandomValues(new Uint8Array(length));
+  for (let index = requiredSets.length; index < length; index += 1) {
+    result[index] = allChars.charAt(randomBytes[index] % allChars.length);
+  }
+
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const randomByte = cryptoApi.getRandomValues(new Uint8Array(1))[0];
+    const swapIndex = Math.floor((randomByte / 256) * (index + 1));
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+
+  return result.join("");
+}
+
+export async function hashEmail(email: string): Promise<string> {
+  const hashBuffer = await cryptoApi.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(email),
+  );
+  return bytesToBase64(new Uint8Array(hashBuffer));
+}
+
+export async function hashKey(key: string, salt?: Uint8Array | null): Promise<string> {
+  const keyBytes = new TextEncoder().encode(key);
+  const dataToHash = salt
+    ? new Uint8Array(keyBytes.length + salt.length)
+    : keyBytes;
+  if (salt) {
+    dataToHash.set(keyBytes);
+    dataToHash.set(salt, keyBytes.length);
+  }
+  const hashBuffer = await cryptoApi.subtle.digest("SHA-256", toArrayBuffer(dataToHash));
+  return bytesToBase64(new Uint8Array(hashBuffer));
+}
+
+export async function deriveKeyFromPassword(password: string, salt: Uint8Array): Promise<Uint8Array> {
+  const keyMaterial = await cryptoApi.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const derivedBits = await cryptoApi.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: toArrayBuffer(salt),
+      iterations: SIGNUP_KDF_ITERATIONS,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256,
+  );
+  return new Uint8Array(derivedBits);
+}
+
+export async function encryptEmail(email: string, key: Uint8Array): Promise<string> {
+  if (key.length !== MASTER_KEY_LENGTH) {
+    throw new Error(`Email encryption key must be 32 bytes, got ${key.length}`);
+  }
+  const nonce = nacl.randomBytes(NACL_NONCE_LENGTH);
+  const ciphertext = nacl.secretbox(new TextEncoder().encode(email), nonce, key);
+  const combined = new Uint8Array(nonce.length + ciphertext.length);
+  combined.set(nonce);
+  combined.set(ciphertext, nonce.length);
+  return bytesToBase64(combined);
+}
+
+async function encryptRawKeyWithAesGcm(rawKey: Uint8Array, wrappingKeyBytes: Uint8Array): Promise<{ wrapped: string; iv: string }> {
+  const iv = cryptoApi.getRandomValues(new Uint8Array(AES_GCM_IV_LENGTH));
+  const wrappingKey = await cryptoApi.subtle.importKey(
+    "raw",
+    toArrayBuffer(wrappingKeyBytes),
+    { name: "AES-GCM" },
+    false,
+    ["encrypt"],
+  );
+  const encrypted = await cryptoApi.subtle.encrypt(
+    { name: "AES-GCM", iv: toArrayBuffer(iv) },
+    wrappingKey,
+    toArrayBuffer(rawKey),
+  );
+  return {
+    wrapped: bytesToBase64(new Uint8Array(encrypted)),
+    iv: bytesToBase64(iv),
+  };
+}
+
+export interface SignupCryptoMaterial {
+  hashedEmail: string;
+  encryptedEmail: string;
+  encryptedEmailWithMasterKey: string;
+  userEmailSaltB64: string;
+  emailEncryptionKeyB64: string;
+  masterKeyB64: string;
+  encryptedMasterKey: string;
+  keyIv: string;
+  saltB64: string;
+  lookupHash: string;
+}
+
+export async function createSignupCryptoMaterial(email: string, password: string): Promise<SignupCryptoMaterial> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const emailSalt = generateSalt(EMAIL_SALT_LENGTH);
+  const passwordSalt = generateSalt(EMAIL_SALT_LENGTH);
+  const masterKey = generateSalt(MASTER_KEY_LENGTH);
+  const emailEncryptionKeyB64 = await deriveEmailEncryptionKeyB64(normalizedEmail, bytesToBase64(emailSalt));
+  const emailEncryptionKey = base64ToBytes(emailEncryptionKeyB64);
+  const wrappingKey = await deriveKeyFromPassword(password, passwordSalt);
+  const encryptedMasterKey = await encryptRawKeyWithAesGcm(masterKey, wrappingKey);
+
+  return {
+    hashedEmail: await hashEmail(normalizedEmail),
+    encryptedEmail: await encryptEmail(normalizedEmail, emailEncryptionKey),
+    encryptedEmailWithMasterKey: await encryptWithAesGcmCombined(normalizedEmail, masterKey),
+    userEmailSaltB64: bytesToBase64(emailSalt),
+    emailEncryptionKeyB64,
+    masterKeyB64: bytesToBase64(masterKey),
+    encryptedMasterKey: encryptedMasterKey.wrapped,
+    keyIv: encryptedMasterKey.iv,
+    saltB64: bytesToBase64(passwordSalt),
+    lookupHash: await hashKey(password, emailSalt),
+  };
+}
+
+export interface RecoveryKeyMaterial {
+  recoveryKey: string;
+  lookupHash: string;
+  wrappedMasterKey: string;
+  keyIv: string;
+  saltB64: string;
+}
+
+export async function createRecoveryKeyMaterial(masterKeyB64: string, userEmailSaltB64: string): Promise<RecoveryKeyMaterial> {
+  const recoveryKey = generateSecureRecoveryKey();
+  const userEmailSalt = base64ToBytes(userEmailSaltB64);
+  const wrappingSalt = generateSalt(EMAIL_SALT_LENGTH);
+  const wrappingKey = await deriveKeyFromPassword(recoveryKey, wrappingSalt);
+  const encryptedMasterKey = await encryptRawKeyWithAesGcm(base64ToBytes(masterKeyB64), wrappingKey);
+
+  return {
+    recoveryKey,
+    lookupHash: await hashKey(recoveryKey, userEmailSalt),
+    wrappedMasterKey: encryptedMasterKey.wrapped,
+    keyIv: encryptedMasterKey.iv,
+    saltB64: bytesToBase64(wrappingSalt),
+  };
 }
 
 export async function derivePairKey(

@@ -67,6 +67,12 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
 
 ## Additional Test Rules
 
+- **New functionality verification order:** Test new functionality in OpenMates CLI first, web app `*.spec.ts` second, and Apple app third when there is a native counterpart. CLI evidence is the cheapest and fastest proof of backend/API/WebSocket correctness; Playwright proves browser-specific Svelte/TipTap/IndexedDB/user-interaction behavior; Apple verification proves native parity. Do not skip directly to Playwright for shared product behavior unless the change is clearly browser-only.
+- **Cross-app parity order:** For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync, or any feature that exists across clients, the same CLI → web → Apple order is mandatory. If a chat-related Playwright spec fails and no matching CLI contract exists, write or propose the minimal CLI contract before changing the web spec, unless the failure is clearly browser-only (selector, layout, screenshot, pointer-event overlay, or Svelte-only rendering).
+- When a spec failure points to a repeated flaky pattern, first look for a
+  deterministic helper or audit improvement that would prevent the class of
+  failure across specs. Prefer shared helpers and `scripts/audit_*` checks over
+  one-off sleeps or per-spec workarounds.
 - **NEVER use CSS class selectors in tests.** All element targeting MUST use `data-testid` attributes with `page.getByTestId('name')`. CSS classes are styling concerns and break when CSS changes.
   - Bad: `page.locator('.send-button')`, `page.locator('.chat-title')`
   - Good: `page.getByTestId('send-button')`, `page.getByTestId('chat-title')`
@@ -81,6 +87,7 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
 - **Sidebar-closed as default:** Always test chat features with sidebar closed (default <=1440px).
 - **Cold-boot verification:** After fixing chat/nav/sync bugs, verify by clearing IndexedDB + localStorage, then reload.
 - **Use Playwright specs for verification, not Firecrawl.** Specs are repeatable and don't consume API quota. Reserve Firecrawl for debugging when a spec fails.
+- **Apple impact check:** For changes to chat, sync, auth, settings, embeds, billing, shared UI, app chrome, or provider result rendering, check whether the Apple app has a counterpart. If affected and the session runs on Linux, you MUST attempt the redacted remote Mac wrapper `python3 scripts/apple_remote.py status` followed by `build-ios` or `test-ios` from `docs/contributing/guides/testing.md` / `apple/AGENTS.md` before saying Apple verification is unavailable. Record Mac/Xcode evidence or a sanitized failure class such as `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Use `Apple not affected` only when there is no Apple counterpart.
 
 ## Test-First Enforcement (Mandatory)
 
@@ -96,11 +103,14 @@ Every bug fix and feature MUST follow this test-first workflow. No exceptions un
 
 ### Features
 
-1. **Implement the feature.**
-2. **Check for existing spec:** Run `sessions.py check-tests --session <id>`.
-3. **Spec exists → extend it:** Add assertions for the new behavior. Run to confirm green.
-4. **No spec exists → propose a test plan:** For user-facing features, propose an E2E test (user flow, assertions, which spec to create or extend). Wait for user confirmation, then write and run.
-5. **Run related specs:** Ensure no regressions in adjacent functionality.
+1. **Plan the verification ladder:** identify the CLI command/contract, web `*.spec.ts`, and Apple `scripts/apple_remote.py test-ios` or `build-ios` evidence required for the feature. If no Apple counterpart exists, record `Apple not affected`.
+2. **Implement the feature.**
+3. **CLI first:** add or run the OpenMates CLI proof before Playwright for shared product behavior.
+4. **Check for existing web spec:** Run `sessions.py check-tests --session <id>`.
+5. **Spec exists → extend it:** Add assertions for the new behavior. Run to confirm green.
+6. **No spec exists → propose a test plan:** For user-facing features, propose an E2E test (user flow, assertions, which spec to create or extend). Wait for user confirmation, then write and run.
+7. **Apple third:** after CLI and web evidence are green, run or attempt Apple verification with `scripts/apple_remote.py` when the feature has an Apple counterpart.
+8. **Run related specs:** Ensure no regressions in adjacent functionality.
 
 ### Exempt Changes (no spec required)
 

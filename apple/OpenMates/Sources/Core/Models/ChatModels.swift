@@ -47,6 +47,13 @@ struct Chat: Identifiable, Decodable, Sendable {
     let titleV: Int?
     let draftV: Int?
     let lastVisibleMessageId: String?
+    let parentId: String?
+    let isSubChat: Bool?
+    let subChatSettings: SubChatSettings?
+    let budgetLimit: Double?
+    let budgetSpent: Double?
+    let encryptedActiveFocusId: String?
+    var activeFocusId: String?
 
     init(
         id: String,
@@ -68,7 +75,14 @@ struct Chat: Identifiable, Decodable, Sendable {
         messagesV: Int? = nil,
         titleV: Int? = nil,
         draftV: Int? = nil,
-        lastVisibleMessageId: String? = nil
+        lastVisibleMessageId: String? = nil,
+        parentId: String? = nil,
+        isSubChat: Bool? = nil,
+        subChatSettings: SubChatSettings? = nil,
+        budgetLimit: Double? = nil,
+        budgetSpent: Double? = nil,
+        encryptedActiveFocusId: String? = nil,
+        activeFocusId: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -90,6 +104,13 @@ struct Chat: Identifiable, Decodable, Sendable {
         self.titleV = titleV
         self.draftV = draftV
         self.lastVisibleMessageId = lastVisibleMessageId
+        self.parentId = parentId
+        self.isSubChat = isSubChat
+        self.subChatSettings = subChatSettings
+        self.budgetLimit = budgetLimit
+        self.budgetSpent = budgetSpent
+        self.encryptedActiveFocusId = encryptedActiveFocusId
+        self.activeFocusId = activeFocusId
     }
 
     init(from decoder: Decoder) throws {
@@ -121,6 +142,20 @@ struct Chat: Identifiable, Decodable, Sendable {
         titleV = try container.decodeIfPresent(Int.self, forKey: .titleV)
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV)
         lastVisibleMessageId = try container.decodeIfPresent(String.self, forKey: .lastVisibleMessageId)
+        parentId = try container.decodeIfPresent(String.self, forKey: .parentId)
+            ?? container.decodeIfPresent(String.self, forKey: .parentIdSnake)
+        isSubChat = try container.decodeIfPresent(Bool.self, forKey: .isSubChat)
+            ?? container.decodeIfPresent(Bool.self, forKey: .isSubChatSnake)
+        subChatSettings = try container.decodeIfPresent(SubChatSettings.self, forKey: .subChatSettings)
+            ?? container.decodeIfPresent(SubChatSettings.self, forKey: .subChatSettingsSnake)
+        budgetLimit = Self.decodeFlexibleDouble(container, .budgetLimit)
+            ?? Self.decodeFlexibleDouble(container, .budgetLimitSnake)
+        budgetSpent = Self.decodeFlexibleDouble(container, .budgetSpent)
+            ?? Self.decodeFlexibleDouble(container, .budgetSpentSnake)
+        encryptedActiveFocusId = try container.decodeIfPresent(String.self, forKey: .encryptedActiveFocusId)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedActiveFocusIdSnake)
+        activeFocusId = try container.decodeIfPresent(String.self, forKey: .activeFocusId)
+            ?? container.decodeIfPresent(String.self, forKey: .activeFocusIdSnake)
     }
 
     private static func decodeFlexibleDateString(
@@ -135,6 +170,19 @@ struct Chat: Identifiable, Decodable, Sendable {
         }
         if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
             return ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: value))
+        }
+        return nil
+    }
+
+    private static func decodeFlexibleDouble(
+        _ container: KeyedDecodingContainer<CodingKeys>,
+        _ key: CodingKeys
+    ) -> Double? {
+        if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
+            return value
+        }
+        if let value = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return Double(value)
         }
         return nil
     }
@@ -164,6 +212,20 @@ struct Chat: Identifiable, Decodable, Sendable {
         case titleV
         case draftV
         case lastVisibleMessageId
+        case parentId
+        case parentIdSnake = "parent_id"
+        case isSubChat
+        case isSubChatSnake = "is_sub_chat"
+        case subChatSettings
+        case subChatSettingsSnake = "sub_chat_settings"
+        case budgetLimit
+        case budgetLimitSnake = "budget_limit"
+        case budgetSpent
+        case budgetSpentSnake = "budget_spent"
+        case encryptedActiveFocusId
+        case encryptedActiveFocusIdSnake = "encrypted_active_focus_id"
+        case activeFocusId
+        case activeFocusIdSnake = "active_focus_id"
     }
 
     var displayTitle: String {
@@ -191,6 +253,37 @@ struct Chat: Identifiable, Decodable, Sendable {
             return date
         }
         return ISO8601DateFormatter().date(from: value)
+    }
+}
+
+struct SubChatSettings: Codable, Equatable, Sendable {
+    let waitForCompletion: Bool?
+    let reportTrigger: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case waitForCompletion
+        case waitForCompletionSnake = "wait_for_completion"
+        case reportTrigger
+        case reportTriggerSnake = "report_trigger"
+    }
+
+    init(waitForCompletion: Bool? = nil, reportTrigger: String? = nil) {
+        self.waitForCompletion = waitForCompletion
+        self.reportTrigger = reportTrigger
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        waitForCompletion = try container.decodeIfPresent(Bool.self, forKey: .waitForCompletion)
+            ?? container.decodeIfPresent(Bool.self, forKey: .waitForCompletionSnake)
+        reportTrigger = try container.decodeIfPresent(String.self, forKey: .reportTrigger)
+            ?? container.decodeIfPresent(String.self, forKey: .reportTriggerSnake)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(waitForCompletion, forKey: .waitForCompletionSnake)
+        try container.encodeIfPresent(reportTrigger, forKey: .reportTriggerSnake)
     }
 }
 

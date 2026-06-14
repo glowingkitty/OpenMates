@@ -22,6 +22,6 @@
         align-items: center;
         justify-content: center;
         background-color: var(--color-grey-5, #fafafa);
-        font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+        font-family: var(--font-primary, 'Lexend Deca', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
     }
 </style>

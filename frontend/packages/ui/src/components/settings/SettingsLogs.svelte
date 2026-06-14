@@ -144,7 +144,7 @@
     {#if filteredLogs.length === 0}
       <div class="logs-empty">No logs for this filter yet.</div>
     {:else}
-      {#each filteredLogs as entry (entry.timestamp + ':' + entry.level + ':' + entry.message)}
+      {#each filteredLogs as entry, index (`${index}:${entry.timestamp}:${entry.level}:${entry.message}`)}
         <div class="log-line {entry.level}">
           <span class="ts">[{formatTimestamp(entry.timestamp)}]</span>
           <span class="lvl">{entry.level.toUpperCase()}</span>

@@ -50,7 +50,7 @@ export const flightsBerlinBangkokChat: ExampleChat = {
     {
       embed_id: "2f88b2a0-4b85-4ac4-9200-74dccbb14823",
       type: "app_skill_use",
-      content: `app_id: travel\nskill_id: search_connections\nresult_count: 5\nembed_ids: c0328462-5112-4ef2-ac54-3e359f1b625e|3159a788-4f2e-4951-b165-dd9ef253cf8f|a79e18e2-a4a3-4331-aa8e-3792fda0d053|fde6eba7-280f-4672-aafb-834051fb14d8|220ff6a9-7ead-415a-9055-a84436b907d9\nstatus: finished\nlegs[1]{destination,date,origin}:\n  Bangkok,2026-04-14,Berlin`,
+      content: `app_id: travel\nskill_id: search_connections\nresult_count: 5\nembed_ids: c0328462-5112-4ef2-ac54-3e359f1b625e|3159a788-4f2e-4951-b165-dd9ef253cf8f|a79e18e2-a4a3-4331-aa8e-3792fda0d053|fde6eba7-280f-4672-aafb-834051fb14d8|220ff6a9-7ead-415a-9055-a84436b907d9\nstatus: finished\nembed_id: 2f88b2a0-4b85-4ac4-9200-74dccbb14823\nquery: Berlin to Bangkok flights April 14 2026\nprovider: Google Flights\nproviders: Google Flights\npreview_title: Berlin to Bangkok flight options\npreview_summary: 5 one-way flight connections with prices, carriers, stops, and timings.\nlegs[1]{destination,date,origin}:\n  Bangkok,2026-04-14,Berlin`,
       parent_embed_id: null,
       embed_ids: [
         "c0328462-5112-4ef2-ac54-3e359f1b625e",
@@ -106,5 +106,6 @@ export const flightsBerlinBangkokChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 4,
+    app_skill_examples: ["travel.search_connections"],
   },
 };

@@ -22,8 +22,29 @@ from backend.shared.python_schemas.embed_status import (
 )
 from backend.shared.providers.youtube.youtube_metadata import extract_youtube_id_from_url
 from backend.shared.providers.github import build_github_repo_embed, is_github_repo_url
+from backend.shared.providers.e2b_application_preview import (
+    ApplicationPreviewEntrypoint,
+    ApplicationPreviewFile,
+    ApplicationPreviewPlanningError,
+    plan_application_preview_startup,
+)
 
 logger = logging.getLogger(__name__)
+
+APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS = {"package.json"}
+IMAGE_SEARCH_PREVIEW_RESULT_LIMIT = 10
+WEB_SEARCH_PREVIEW_RESULT_LIMIT = 6
+GENERIC_RESULT_LIST_PREVIEW_RESULT_LIMIT = 6
+APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
+    ".svelte",
+    ".vue",
+    ".tsx",
+    ".jsx",
+    ".ts",
+    ".js",
+    ".css",
+    ".html",
+)
 
 EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
     "app_id",
@@ -38,6 +59,8 @@ EMBED_REQUEST_METADATA_EXCLUDE_FIELDS = {
     "embed_ref",
     "result_count",
     "results",
+    "preview_results",
+    "preview_thumbnails",
     "encrypted_content",
     "text_length_chars",
     "created_at",
@@ -133,6 +156,119 @@ class EmbedService:
                 merged[key] = value
 
         return merged
+
+    @staticmethod
+    def _build_parent_preview_metadata(
+        app_id: str,
+        skill_id: str,
+        results: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Return lightweight parent-only preview metadata for composite embeds."""
+        if app_id == "images" and skill_id == "search":
+            preview_results: List[Dict[str, Any]] = []
+            preview_fields = (
+                "title",
+                "source_page_url",
+                "image_url",
+                "thumbnail_url",
+                "source",
+                "favicon_url",
+            )
+            flat_results = EmbedService._flatten_grouped_preview_results(results)
+            for result in flat_results:
+                preview_result = {
+                    key: result[key]
+                    for key in preview_fields
+                    if result.get(key)
+                }
+                if not (preview_result.get("thumbnail_url") or preview_result.get("image_url")):
+                    continue
+                preview_results.append(preview_result)
+                if len(preview_results) >= IMAGE_SEARCH_PREVIEW_RESULT_LIMIT:
+                    break
+
+            if not preview_results:
+                return {}
+            return {
+                "preview_results": preview_results,
+                "preview_results_json": json.dumps(preview_results, separators=(",", ":")),
+            }
+
+        preview_results: List[Dict[str, Any]] = []
+        preview_fields = EmbedService._parent_preview_fields_for(app_id, skill_id)
+        flat_results = EmbedService._flatten_grouped_preview_results(results)
+
+        limit = WEB_SEARCH_PREVIEW_RESULT_LIMIT if app_id == "web" and skill_id == "search" else GENERIC_RESULT_LIST_PREVIEW_RESULT_LIMIT
+        for result in flat_results:
+            preview_result = {
+                key: result[key]
+                for key in preview_fields
+                if result.get(key)
+            }
+            if app_id == "web" and skill_id == "search" and not preview_result.get("url"):
+                continue
+            if not preview_result:
+                continue
+            preview_results.append(preview_result)
+            if len(preview_results) >= limit:
+                break
+
+        if not preview_results:
+            return {}
+        return {"preview_results": preview_results}
+
+    @staticmethod
+    def _parent_preview_fields_for(app_id: str, skill_id: str) -> Tuple[str, ...]:
+        """Return shallow fields safe for parent result-list preview cards."""
+        common_fields = (
+            "title",
+            "name",
+            "summary",
+            "url",
+            "html_url",
+            "source_url",
+            "source_page_url",
+            "website",
+            "domain",
+            "source",
+            "favicon",
+            "favicon_url",
+            "meta_url",
+            "thumbnail_url",
+            "image_url",
+            "preview_image_url",
+            "date",
+            "start_date",
+            "end_date",
+            "time",
+            "location",
+            "address",
+            "price",
+            "price_text",
+            "rating",
+            "provider",
+            "full_name",
+            "owner_avatar_url",
+            "stars",
+            "primary_language",
+        )
+        if app_id == "web" and skill_id == "search":
+            return (*common_fields, "snippet", "description")
+        return common_fields
+
+    @staticmethod
+    def _flatten_grouped_preview_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Flatten grouped skill results without pulling child embeds into previews."""
+        flat_results: List[Dict[str, Any]] = []
+        for result in results:
+            nested_results = result.get("results")
+            if isinstance(nested_results, list):
+                flat_results.extend(
+                    item for item in nested_results if isinstance(item, dict)
+                )
+            else:
+                flat_results.append(result)
+        return flat_results
 
     @staticmethod
     def _slugify_direct_ref_base(value: Any, fallback: str) -> str:
@@ -325,16 +461,12 @@ class EmbedService:
                 "app_id": app_id,
                 "skill_id": skill_id
             }
-            # Include query and provider from metadata if available
-            # This enables the frontend to display the query text immediately in grouped embeds
-            # without waiting for the embed data to arrive via WebSocket
+            # Include user-visible request metadata so previews can render useful
+            # context immediately, before the embed data arrives via WebSocket.
             if metadata:
-                if metadata.get("query"):
-                    embed_reference_payload["query"] = metadata["query"]
-                if metadata.get("provider"):
-                    embed_reference_payload["provider"] = metadata["provider"]
-                if metadata.get("providers"):
-                    embed_reference_payload["providers"] = metadata["providers"]
+                for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                    if metadata.get(key):
+                        embed_reference_payload[key] = metadata[key]
             embed_reference = json.dumps(embed_reference_payload)
 
             return {
@@ -754,6 +886,426 @@ class EmbedService:
         except Exception as e:
             logger.error(f"{log_prefix} Error updating code embed content: {e}", exc_info=True)
             return False
+
+    async def create_remotion_video_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        embed_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        filename: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a processing videos.create embed for explicit Remotion fences."""
+        try:
+            from backend.apps.ai.utils.remotion_fences import normalize_remotion_filename
+
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+            embed_id = embed_id or str(uuid.uuid4())
+            normalized_filename = normalize_remotion_filename(filename)
+            embed_ref = self._generate_direct_embed_ref(
+                "remotion-video",
+                embed_id,
+                {"filename": normalized_filename},
+            )
+            content = {
+                "type": "video_create",
+                "app_id": "videos",
+                "skill_id": "create",
+                "status": "processing",
+                "filename": normalized_filename,
+                "remotion_source": "",
+                "current_source_version": 1,
+                "active_render_version": None,
+                "embed_ref": embed_ref,
+                "timeline_manifest": [],
+            }
+            content_toon = encode(content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
+            created_at = int(datetime.now().timestamp())
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "app_skill_use",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": created_at,
+                "updated_at": created_at,
+            }
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="app_skill_use",
+                content_toon=content_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=created_at,
+                updated_at=created_at,
+                log_prefix=log_prefix,
+                app_id="videos",
+                skill_id="create",
+            )
+            embed_reference = json.dumps({"type": "app_skill_use", "embed_id": embed_id, "app_id": "videos", "skill_id": "create"})
+            return {"embed_id": embed_id, "embed_reference": embed_reference}
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating Remotion video embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_remotion_video_embed_content(
+        self,
+        embed_id: str,
+        remotion_source: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        filename: Optional[str] = None,
+        status: str = "processing",
+        source_version: int = 1,
+        render_metadata: Optional[Dict[str, Any]] = None,
+        files: Optional[Dict[str, Any]] = None,
+        thumbnail: Optional[Dict[str, Any]] = None,
+        log_prefix: str = "",
+    ) -> bool:
+        """Update a videos.create embed with source, render status, and artifacts."""
+        try:
+            from backend.apps.ai.utils.remotion_fences import normalize_remotion_filename
+
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Remotion video embed {embed_id} not found in cache")
+                return False
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            existing_content: Dict[str, Any] = {}
+            if existing_toon:
+                try:
+                    existing_content = decode(existing_toon)
+                except Exception as exc:
+                    logger.warning(f"{log_prefix} Failed to decode Remotion embed content: {exc}")
+            normalized_filename = normalize_remotion_filename(filename or existing_content.get("filename"))
+            embed_ref = existing_content.get("embed_ref") or self._generate_direct_embed_ref(
+                "remotion-video",
+                embed_id,
+                {"filename": normalized_filename},
+            )
+            updated_content = {
+                **existing_content,
+                "type": "video_create",
+                "app_id": "videos",
+                "skill_id": "create",
+                "status": status,
+                "filename": normalized_filename,
+                "remotion_source": remotion_source,
+                "current_source_version": source_version,
+                "active_render_version": source_version if status == "finished" else existing_content.get("active_render_version"),
+                "embed_ref": embed_ref,
+                "timeline_manifest": existing_content.get("timeline_manifest") or [],
+            }
+            if render_metadata:
+                updated_content["render_metadata"] = render_metadata
+            if files:
+                updated_content["files"] = files
+            if thumbnail:
+                updated_content["thumbnail"] = thumbnail
+
+            content_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(content_toon, user_vault_key_id)
+            updated_at = int(datetime.now().timestamp())
+            updated_embed_data = {
+                **cached_embed,
+                "type": "app_skill_use",
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": updated_at,
+            }
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="app_skill_use",
+                content_toon=content_toon,
+                chat_id=chat_id,
+                message_id=message_id or cached_embed.get("message_id", ""),
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status=status,
+                task_id=cached_embed.get("hashed_task_id"),
+                is_private=cached_embed.get("is_private", False),
+                is_shared=cached_embed.get("is_shared", False),
+                created_at=cached_embed.get("created_at"),
+                updated_at=updated_at,
+                log_prefix=log_prefix,
+                check_cache_status=False,
+                app_id="videos",
+                skill_id="create",
+            )
+            if status in {"finished", "error", "cancelled", "needs_rerender"}:
+                self._schedule_embed_persistence_fallback(embed_id)
+            return True
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating Remotion video embed content: {e}", exc_info=True)
+            return False
+
+    async def create_application_embed(
+        self,
+        *,
+        name: str,
+        framework: str,
+        runtime: str,
+        file_refs: List[Dict[str, Any]],
+        entrypoints: List[Dict[str, Any]],
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        provenance: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a finished generated-application parent embed for code file embeds."""
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+            child_embed_ids = [str(ref.get("embed_id")) for ref in file_refs if ref.get("embed_id")]
+            embed_ref = self._generate_direct_embed_ref(
+                "application",
+                embed_id,
+                {"name": name or "application"},
+            )
+
+            content = {
+                "type": "application",
+                "app_id": "code",
+                "skill_id": "application",
+                "name": name or "Generated application",
+                "framework": framework,
+                "runtime": runtime,
+                "file_refs": file_refs,
+                "entrypoints": entrypoints,
+                "embed_ids": child_embed_ids,
+                "embed_ref": embed_ref,
+                "status": "finished",
+            }
+            if provenance:
+                content["provenance"] = provenance
+            content_toon = encode(_flatten_for_toon_tabular(content))
+            text_length_chars = len(content_toon)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                content_toon,
+                user_vault_key_id,
+            )
+
+            created_at = int(datetime.now().timestamp())
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "application",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "finished",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": child_embed_ids,
+                "encrypted_content": encrypted_content,
+                "text_length_chars": text_length_chars,
+                "created_at": created_at,
+                "updated_at": created_at,
+            }
+
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="application",
+                content_toon=content_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="finished",
+                task_id=task_id,
+                embed_ids=child_embed_ids,
+                text_length_chars=text_length_chars,
+                created_at=created_at,
+                updated_at=created_at,
+                log_prefix=log_prefix,
+                check_cache_status=False,
+                app_id="code",
+                skill_id="application",
+            )
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
+            self._schedule_embed_persistence_fallback(embed_id)
+            logger.info(
+                f"{log_prefix} Created generated application embed {embed_id} "
+                f"with {len(child_embed_ids)} file refs"
+            )
+
+            embed_reference = json.dumps({
+                "type": "application",
+                "embed_id": embed_id,
+                "app_id": "code",
+                "skill_id": "application",
+            })
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference,
+                "child_embed_ids": child_embed_ids,
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating application embed: {e}", exc_info=True)
+            return None
+
+    async def create_application_artifact_embed(
+        self,
+        *,
+        name: str,
+        framework: str,
+        runtime: str,
+        files: List[Dict[str, Any]],
+        entrypoints: List[Dict[str, Any]],
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create child file embeds and one parent application embed from a structured artifact."""
+        try:
+            normalized_entrypoints = [
+                ApplicationPreviewEntrypoint(
+                    name=str(entrypoint.get("name") or "frontend"),
+                    command=str(entrypoint.get("command") or "npm run dev"),
+                    port=int(entrypoint.get("port") or 5173),
+                )
+                for entrypoint in entrypoints
+            ]
+            normalized_files = [
+                ApplicationPreviewFile(
+                    path=str(file.get("path") or file.get("filename") or ""),
+                    content=str(file.get("content") or ""),
+                )
+                for file in files
+            ]
+            plan = plan_application_preview_startup(
+                files=normalized_files,
+                entrypoints=normalized_entrypoints,
+            )
+        except (ApplicationPreviewPlanningError, TypeError, ValueError) as exc:
+            logger.warning(f"{log_prefix} Invalid generated application artifact: {exc}")
+            return None
+
+        paths = [file.path for file in plan.files]
+        has_manifest = any(path in APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS for path in paths)
+        has_source = any(path.endswith(APPLICATION_ARTIFACT_SOURCE_EXTENSIONS) for path in paths)
+        if not has_manifest or not has_source:
+            logger.info(
+                f"{log_prefix} Generated application artifact is incomplete "
+                f"(has_manifest={has_manifest}, has_source={has_source})"
+            )
+            return None
+
+        child_refs: List[Dict[str, Any]] = []
+        for planned_file in plan.files:
+            source_file = next(
+                (file for file in files if str(file.get("path") or file.get("filename") or "") == planned_file.path),
+                {},
+            )
+            language = source_file.get("language") or EmbedService._language_for_application_artifact_path(planned_file.path)
+            child_embed = await self.create_code_embed_placeholder(
+                language=str(language or ""),
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                user_vault_key_id=user_vault_key_id,
+                task_id=task_id,
+                filename=planned_file.path,
+                log_prefix=log_prefix,
+            )
+            if not child_embed:
+                logger.error(f"{log_prefix} Could not create generated application child embed for {planned_file.path}")
+                return None
+
+            child_embed_id = child_embed["embed_id"]
+            updated = await self.update_code_embed_content(
+                embed_id=child_embed_id,
+                code_content=planned_file.content,
+                chat_id=chat_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                user_vault_key_id=user_vault_key_id,
+                status="finished",
+                log_prefix=log_prefix,
+            )
+            if not updated:
+                logger.error(f"{log_prefix} Could not finalize generated application child embed {child_embed_id}")
+                return None
+
+            role = "dependency_manifest" if planned_file.path in APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS else "source"
+            child_refs.append({"path": planned_file.path, "embed_id": child_embed_id, "role": role})
+
+        return await self.create_application_embed(
+            name=name or "Generated application",
+            framework=framework or "web",
+            runtime=runtime or "node",
+            file_refs=child_refs,
+            entrypoints=plan.start_commands,
+            chat_id=chat_id,
+            message_id=message_id,
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            task_id=task_id,
+            provenance="structured_artifact",
+            log_prefix=log_prefix,
+        )
+
+    @staticmethod
+    def _language_for_application_artifact_path(path: str) -> str:
+        extension_map = {
+            ".css": "css",
+            ".html": "html",
+            ".js": "javascript",
+            ".jsx": "jsx",
+            ".json": "json",
+            ".svelte": "svelte",
+            ".ts": "typescript",
+            ".tsx": "tsx",
+            ".vue": "vue",
+        }
+        for extension, language in extension_map.items():
+            if path.endswith(extension):
+                return language
+        return ""
 
     # =========================================================================
     # Table/sheet embed methods (for markdown tables detected in AI responses)
@@ -3083,7 +3635,8 @@ class EmbedService:
                     "result_count": len(results),
                     "embed_ids": child_embed_ids,
                     "status": "finished",
-                    **original_metadata  # Preserve query, provider, url, etc. from placeholder
+                    **original_metadata,  # Preserve query, provider, url, etc. from placeholder
+                    **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
                 }
                 
                 # Log final parent content to verify query is included
@@ -3885,6 +4438,7 @@ class EmbedService:
                     "embed_ids": child_embed_ids,
                     "status": "finished",
                     "embed_ref": parent_embed_ref,
+                    **EmbedService._build_parent_preview_metadata(app_id, skill_id, results),
                 }
                 
                 # Add request metadata (query, provider, etc.) if available
@@ -3895,8 +4449,8 @@ class EmbedService:
                         parent_content["provider"] = request_metadata["provider"]
                     if "providers" in request_metadata:
                         parent_content["providers"] = request_metadata["providers"]
-                    # Add other metadata fields as needed
-                    for key in ["country", "search_lang", "safesearch"]:
+                    # Add other user-visible request metadata needed to distinguish searches.
+                    for key in ["country", "search_lang", "safesearch", "start_date", "end_date", "location"]:
                         if key in request_metadata:
                             parent_content[key] = request_metadata[key]
                 
@@ -3978,10 +4532,9 @@ class EmbedService:
                 # Include query and provider from request_metadata if available
                 # This enables the frontend to display the query text immediately in grouped embeds
                 if request_metadata:
-                    if request_metadata.get("query"):
-                        embed_reference_payload["query"] = request_metadata["query"]
-                    if request_metadata.get("provider"):
-                        embed_reference_payload["provider"] = request_metadata["provider"]
+                    for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                        if request_metadata.get(key):
+                            embed_reference_payload[key] = request_metadata[key]
                 embed_reference = json.dumps(embed_reference_payload)
                 
                 return {
@@ -4019,7 +4572,7 @@ class EmbedService:
                 
                 # Add request metadata if available
                 if request_metadata:
-                    for key in ["query", "expression", "provider", "url", "languages", "country", "search_lang", "safesearch"]:
+                    for key in ["query", "expression", "provider", "providers", "url", "languages", "country", "search_lang", "safesearch", "start_date", "end_date", "location"]:
                         if key in request_metadata:
                             content_with_metadata[key] = request_metadata[key]
                 
@@ -4085,12 +4638,17 @@ class EmbedService:
                 # CRITICAL: Include app_id and skill_id so frontend can properly group embeds
                 # by app+skill type (e.g., web.search embeds grouped separately from code.get_docs)
                 # Without these, undefined === undefined comparisons incorrectly group different skills
-                embed_reference = json.dumps({
+                embed_reference_payload = {
                     "type": "app_skill_use",
                     "embed_id": embed_id,
                     "app_id": app_id,
                     "skill_id": skill_id
-                })
+                }
+                if request_metadata:
+                    for key in ["query", "provider", "providers", "start_date", "end_date", "location"]:
+                        if request_metadata.get(key):
+                            embed_reference_payload[key] = request_metadata[key]
+                embed_reference = json.dumps(embed_reference_payload)
                 
                 return {
                     "parent_embed_id": embed_id,
@@ -4397,14 +4955,13 @@ class EmbedService:
                 f"{log_prefix} [QUOTE_VERIFY] Embed {embed_id} not in cache — "
                 f"cannot verify quote, treating as unverifiable"
             )
-            # If the embed is no longer in cache, we can't verify — don't flag as wrong
-            return True
+            return False
 
         try:
             decoded = decode(toon_str)
         except Exception as e:
             logger.warning(f"{log_prefix} [QUOTE_VERIFY] Failed to decode TOON for {embed_id}: {e}")
-            return True  # Can't verify — don't penalise
+            return False
 
         normalized_quote = self._normalize_for_quote_comparison(quoted_text)
         if not normalized_quote:

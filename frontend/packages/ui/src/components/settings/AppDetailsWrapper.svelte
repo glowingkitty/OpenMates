@@ -4,6 +4,7 @@
      This component handles dynamic app_store routes:
      - app_store/{app_id} -> AppDetails
      - app_store/{app_id}/skill/{skill_id} -> SkillDetails
+     - app_store/{app_id}/content/{content_type_id} -> ContentEmbedDetails
      - app_store/ai/skill/ask -> REMOVED (now lives in top-level SettingsAI)
      - app_store/ai/skill/ask/model/{model_id} -> AiAskModelDetails (AI Ask skill only)
      - app_store/{app_id}/skill/{skill_id}/model/{model_id} -> AppSkillModelDetails (all other skills)
@@ -20,6 +21,7 @@
 <script lang="ts">
     import AppDetails from './AppDetails.svelte';
     import SkillDetails from './SkillDetails.svelte';
+    import ContentEmbedDetails from './ContentEmbedDetails.svelte';
     import FocusModeDetails from './FocusModeDetails.svelte';
     import AppSettingsMemoriesCategory from './AppSettingsMemoriesCategory.svelte';
     import AppSettingsMemoriesCreateEntry from './AppSettingsMemoriesCreateEntry.svelte';
@@ -40,6 +42,7 @@
         | { type: 'invalid'; appId: '' }
         | { type: 'app_details'; appId: string }
         | { type: 'skill_details'; appId: string; skillId: string }
+        | { type: 'content_details'; appId: string; contentTypeId: string }
         | { type: 'ai_ask_model_details'; appId: string; skillId: string; modelId: string }
         | { type: 'app_skill_model_details'; appId: string; skillId: string; modelId: string }
         | { type: 'provider_details'; appId: string; skillId: string; providerId: string }
@@ -87,6 +90,9 @@
             // app_store/{app_id}/skill/{skill_id}
             // Note: AI Ask skill settings (ai/ask) now live in the top-level SettingsAI page
             return { type: 'skill_details', appId: parts[0], skillId: parts[2] };
+        } else if (parts.length === 3 && parts[1] === 'content') {
+            // app_store/{app_id}/content/{content_type_id}
+            return { type: 'content_details', appId: parts[0], contentTypeId: parts[2] };
         } else if (parts.length === 3 && parts[1] === 'focus') {
             // app_store/{app_id}/focus/{focus_mode_id}
             return { type: 'focus_details', appId: parts[0], focusModeId: parts[2] };
@@ -191,11 +197,37 @@
 {:else if routeInfo.type === 'reminder_entry'}
     <ReminderEntryDetail reminderId={routeInfo.reminderId} startInEditMode={routeInfo.startInEditMode} on:openSettings={handleOpenSettings} />
 {:else if routeInfo.type === 'skill_details'}
-    <SkillDetails appId={routeInfo.appId} skillId={routeInfo.skillId} on:openSettings={handleOpenSettings} />
+    <SkillDetails
+        appId={routeInfo.appId}
+        skillId={routeInfo.skillId}
+        on:openSettings={handleOpenSettings}
+        on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+        on:closeSettings={() => dispatch('closeSettings')}
+    />
+{:else if routeInfo.type === 'content_details'}
+    <ContentEmbedDetails
+        appId={routeInfo.appId}
+        contentTypeId={routeInfo.contentTypeId}
+        on:openSettings={handleOpenSettings}
+        on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+        on:closeSettings={() => dispatch('closeSettings')}
+    />
 {:else if routeInfo.type === 'focus_details'}
-    <FocusModeDetails appId={routeInfo.appId} focusModeId={routeInfo.focusModeId} on:openSettings={handleOpenSettings} />
+    <FocusModeDetails
+        appId={routeInfo.appId}
+        focusModeId={routeInfo.focusModeId}
+        on:openSettings={handleOpenSettings}
+        on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+        on:closeSettings={() => dispatch('closeSettings')}
+    />
 {:else if routeInfo.type === 'settings_memories_category'}
-    <AppSettingsMemoriesCategory appId={routeInfo.appId} categoryId={routeInfo.categoryId} on:openSettings={handleOpenSettings} />
+    <AppSettingsMemoriesCategory
+        appId={routeInfo.appId}
+        categoryId={routeInfo.categoryId}
+        on:openSettings={handleOpenSettings}
+        on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
+        on:closeSettings={() => dispatch('closeSettings')}
+    />
 {:else if createRouteInfo}
     {@const route = createRouteInfo}
     <!-- @ts-ignore - TypeScript limitation with discriminated unions in Svelte templates -->
@@ -215,4 +247,3 @@
         color: var(--error-color, #dc3545);
     }
 </style>
-

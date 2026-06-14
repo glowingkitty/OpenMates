@@ -24,6 +24,8 @@ struct ChatHeaderView: View {
         HStack(spacing: .spacing3) {
             if let appId {
                 AppIconView(appId: appId, size: 20)
+                    .accessibilityIdentifier("chat-header-icon")
+                    .accessibilityLabel(appId)
             }
 
             VStack(alignment: .leading, spacing: 0) {
@@ -31,6 +33,8 @@ struct ChatHeaderView: View {
                     .font(.omSmall).fontWeight(.semibold)
                     .foregroundStyle(Color.fontPrimary)
                     .lineLimit(1)
+                    .accessibilityIdentifier("chat-header-title")
+                    .accessibilityLabel(title)
             }
 
             Spacer()
@@ -41,6 +45,7 @@ struct ChatHeaderView: View {
             }
         }
         .padding(.horizontal, .spacing4)
+        .accessibilityElement(children: .contain)
     }
 
 }

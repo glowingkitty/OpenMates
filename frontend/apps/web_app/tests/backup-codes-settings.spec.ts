@@ -36,7 +36,7 @@ const {
 	setToggleChecked,
 	generateTotp,
 	assertNoMissingTranslations,
-	getTestAccount
+	getIsolatedTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -46,7 +46,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
  * feature in Settings > Account > Security > Two-Factor Authentication.
  *
  * ARCHITECTURE NOTES:
- * - Uses the existing test account (must have password + 2FA configured).
+ * - Uses isolated account slot 16 because this flow resets backup codes.
  * - Phase 1: Logs in with password + OTP.
  * - Phase 2: Navigates to Settings > Security > 2FA, clicks "Reset Backup Codes".
  * - Phase 3: Authenticates via SecurityAuth (password + OTP).
@@ -56,16 +56,16 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
  * This does NOT test login with backup codes (see backup-code-login-flow.spec.ts).
  *
  * REQUIRED ENV VARS:
- * - OPENMATES_TEST_ACCOUNT_EMAIL: Email of the existing test account.
- * - OPENMATES_TEST_ACCOUNT_PASSWORD: Password for the test account.
- * - OPENMATES_TEST_ACCOUNT_OTP_KEY: 2FA secret key for the test account.
+ * - Isolated slot 16 credentials, routed by scripts/run_tests.py.
  */
 
 const {
 	email: OPENMATES_TEST_ACCOUNT_EMAIL,
 	password: OPENMATES_TEST_ACCOUNT_PASSWORD,
 	otpKey: OPENMATES_TEST_ACCOUNT_OTP_KEY
-} = getTestAccount();
+} = getIsolatedTestAccount('backup-codes-settings.spec.ts');
+
+test.describe.configure({ mode: 'serial' });
 
 test('resets backup codes via Settings > Security > 2FA', async ({
 	page,
@@ -216,7 +216,7 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	logCheckpoint('Checked confirmation checkbox.');
 
 	// Click "Done" button (reset flow uses "Done" instead of "Complete Setup")
-	const doneButton = backupCodesContainer.getByRole('button');
+	const doneButton = backupCodesContainer.getByRole('button', { name: /^done$/i });
 	await expect(doneButton).toBeEnabled();
 	await doneButton.click();
 	logCheckpoint('Clicked Done to confirm codes stored.');
@@ -288,16 +288,21 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	await page.locator('#login-continue-button').click();
 	logCheckpoint('Submitted email for re-login.');
 
-	// Enter password
+	// Enter password first. The OTP field appears only after /login confirms that
+	// 2FA is required; /lookup stays generic for anti-enumeration.
 	const passwordInputRelogin = page.locator('#login-password-input');
 	await expect(passwordInputRelogin).toBeVisible({ timeout: 15000 });
 	await passwordInputRelogin.fill(OPENMATES_TEST_ACCOUNT_PASSWORD);
 	logCheckpoint('Filled password for re-login.');
+	const loginSubmitButton = page.locator('#login-submit-button');
+	await expect(loginSubmitButton).toBeVisible();
+	await loginSubmitButton.click();
+	logCheckpoint('Submitted password to reveal backup-code prompt.');
 
-	// The TFA input should already be visible (tfa_enabled=true from lookup)
 	const tfaInputRelogin = page.locator('#login-otp-input');
 	await expect(tfaInputRelogin).toBeVisible({ timeout: 15000 });
 	await takeStepScreenshot(page, 'tfa-prompt-relogin');
+	logCheckpoint('TFA input visible after password submission.');
 
 	// Switch to backup code mode using the toggle button
 	const backupModeButton = page.locator('#login-with-backup-code button');
@@ -319,7 +324,6 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	logCheckpoint('Entered backup code.');
 
 	// Submit login with password + backup code
-	const loginSubmitButton = page.locator('#login-submit-button');
 	await expect(loginSubmitButton).toBeVisible();
 	await loginSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');

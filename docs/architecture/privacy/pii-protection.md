@@ -2,14 +2,50 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+- frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+- frontend/packages/ui/src/components/enter_message/PIIWarningBanner.svelte
+- frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+- frontend/packages/ui/src/components/ChatHistory.svelte
+- frontend/packages/ui/src/services/db/chatKeyManagement.ts
+- frontend/packages/ui/src/types/chat.ts
+- backend/core/directus/schemas/messages.yml
+claims:
+- id: arch-privacy-pii-protection-behavior
+  type: unit
+  claim: PII Anonymization is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
   - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
   - frontend/packages/ui/src/components/enter_message/PIIWarningBanner.svelte
   - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
   - frontend/packages/ui/src/components/ChatHistory.svelte
-  - frontend/packages/ui/src/services/db/chatKeyManagement.ts
-  - frontend/packages/ui/src/types/chat.ts
-  - backend/core/directus/schemas/messages.yml
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-privacy-pii-protection-behavior
+  verified: '2026-06-11'
+- id: arch-privacy-pii-protection-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-pii-protection-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/directus/schemas/messages.yml
+- id: arch-privacy-pii-protection-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-pii-protection-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/ChatHistory.svelte
+- id: arch-privacy-pii-protection-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-pii-protection-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/components/enter_message/MessageInput.svelte
 ---
 
 # PII Anonymization
@@ -95,6 +131,5 @@ Users can click highlighted PII in the editor to exclude it from replacement (us
 
 ## Related Docs
 
-- [PII Detection Phase 2](./pii-detection-phase2.md) -- planned server-side document PII detection
 - [Sensitive Data Redaction](./sensitive-data-redaction.md) -- full redaction architecture (client-side PII + server-side content sanitization)
 - [Email Privacy](./email-privacy.md) -- email encryption architecture

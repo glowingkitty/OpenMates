@@ -6,7 +6,7 @@
 			"destination": "/"
 		},
 		{
-			"source": "/((?!_app|static|docs|status|announcements|tips|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/apple-app-site-association).*)",
+			"source": "/((?!_app|static|docs|status|announcements|tips|s/|share/|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/apple-app-site-association).*)",
 			"destination": "/"
 		}
 	],

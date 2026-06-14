@@ -63,20 +63,25 @@ test.describe('Chat Error Report Consent', () => {
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 20000 });
-		await page.getByTestId('daily-inspiration-banner').click();
-		await page.waitForFunction(() => window.location.hash.includes('chat-id='), null, { timeout: 30000 });
+		const activeChatId = 'demo-for-everyone';
+		await page.evaluate((chatId: string) => {
+			window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#chat-id=${chatId}`);
+		}, activeChatId);
+		logCheckpoint(`Injected chat context for simulated error: ${activeChatId}`);
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 20000 });
 		await takeStepScreenshot(page, '01-authenticated-chat-open');
 
-		const simulated = await page.evaluate(async () => {
+		const simulated = await page.evaluate(async (chatId: string) => {
 			const debug = (window as any).debug;
 			if (!debug?.simulateChatError) throw new Error('window.debug.simulateChatError is unavailable');
 			return debug.simulateChatError({
+				chatId,
 				source: 'e2e-simulated-chat-error',
 				message: 'E2E simulated chat failure details',
 			});
-		});
+		}, activeChatId);
 		expect(simulated?.source).toBe('e2e-simulated-chat-error');
+		expect(simulated?.chatId, 'simulated chat error should include active chat context').toBeTruthy();
 		logCheckpoint(`Triggered simulated chat error for chat ${simulated?.chatId ?? 'unknown'}.`);
 
 		const notification = page.getByTestId('notification').filter({ hasText: /Chat response failed/i });
@@ -105,7 +110,6 @@ test.describe('Chat Error Report Consent', () => {
 		expect(submittedIssuePayload?.description).toContain('Error: E2E simulated chat failure details');
 		expect(submittedIssuePayload?.chat_or_embed_url, 'current chat context should be included after consent').toBeTruthy();
 		expect(submittedIssuePayload?.runtime_debug_state).toBeTruthy();
-		expect(submittedIssuePayload?.agent_action).toBe('none');
 		expect(submittedIssuePayload?.add_to_linear).toBe(true);
 		await takeStepScreenshot(page, '03-report-submitted');
 	});

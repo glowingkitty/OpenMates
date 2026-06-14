@@ -71,7 +71,7 @@ struct CodeEmbedRenderer: View {
 
         case .fullscreen:
             VStack(spacing: 0) {
-                if outputPaneActive {
+                if previewActive {
                     GeometryReader { proxy in
                         HStack(spacing: 1) {
                             if horizontalSizeClass != .compact {
@@ -87,15 +87,29 @@ struct CodeEmbedRenderer: View {
                     .frame(minHeight: 420)
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
                 } else {
-                    codeSourcePanel(isSplit: false)
+                    ZStack(alignment: .top) {
+                        codeSourcePanel(isSplit: false)
+
+                        if let codeRunViewModel, codeRunViewModel.isPanelOpen {
+                            CodeRunTerminalView(
+                                viewModel: codeRunViewModel,
+                                chatId: chatId,
+                                embedId: embedId,
+                                file: runClientFile,
+                                onViewCode: { codeRunViewModel.closePanel() }
+                            )
+                            .padding(.top, .spacing8)
+                            .padding(.horizontal, horizontalSizeClass == .compact ? .spacing4 : .spacing10)
+                        }
+                    }
                 }
             }
-            .background(Color.grey15)
+            .background(Color.grey10)
         }
     }
 
     private var outputPaneActive: Bool {
-        previewActive || (codeRunViewModel?.isPanelOpen == true)
+        previewActive
     }
 
     @ViewBuilder
@@ -113,7 +127,7 @@ struct CodeEmbedRenderer: View {
                 .padding(.bottom, .spacing8)
                 .padding(.trailing, .spacing4)
         }
-        .background(Color.grey15)
+        .background(Color.grey10)
         .accessibilityIdentifier("code-source-panel")
     }
 
@@ -124,7 +138,7 @@ struct CodeEmbedRenderer: View {
                 .frame(minHeight: 420)
                 .clipShape(RoundedRectangle(cornerRadius: .radius4))
         } else if let codeRunViewModel {
-            CodeRunTerminalView(viewModel: codeRunViewModel, chatId: chatId, embedId: embedId, file: runClientFile)
+            CodeRunTerminalView(viewModel: codeRunViewModel, chatId: chatId, embedId: embedId, file: runClientFile, onViewCode: { codeRunViewModel.closePanel() })
                 .frame(minHeight: 420)
         } else {
             EmptyView()
@@ -173,64 +187,52 @@ private struct CodeRunTerminalView: View {
     let chatId: String?
     let embedId: String
     let file: CodeRunClientFile
+    let onViewCode: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
+        VStack(alignment: .leading, spacing: .spacing8) {
+            viewCodeButton
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(viewModel.events) { event in
                         Text(event.text)
-                            .font(.system(size: 13, design: .monospaced))
+                            .font(.system(size: 15, weight: .bold, design: .monospaced))
                             .foregroundStyle(color(for: event.kind))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
                     }
                 }
-                .padding(.horizontal, .spacing6)
-                .padding(.vertical, .spacing5)
+                .padding(.vertical, .spacing4)
             }
-            .background(Color(hex: 0x050B12))
+
+            Rectangle()
+                .fill(Color(hex: 0x8D8D8D))
+                .frame(height: 1)
+
+            terminalActions
         }
-        .background(Color(hex: 0x050B12))
-        .overlay(RoundedRectangle(cornerRadius: .radius3).stroke(Color(hex: 0x2D3748), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: .radius3))
-        .shadow(color: .black.opacity(0.38), radius: 30, x: 0, y: 10)
+        .padding(.horizontal, .spacing8)
+        .padding(.vertical, .spacing6)
+        .frame(maxWidth: 760, minHeight: 420, alignment: .topLeading)
+        .background(Color(hex: 0x242424))
+        .clipShape(RoundedRectangle(cornerRadius: 32))
+        .shadow(color: .black.opacity(0.28), radius: 24, x: 0, y: 14)
         .accessibilityIdentifier("code-run-terminal")
     }
 
-    private var header: some View {
-        HStack(alignment: .center, spacing: .spacing4) {
-            VStack(alignment: .leading, spacing: .spacing1) {
-                Text(AppStrings.codeRunOutput)
-                    .font(.omSmall)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color(hex: 0xF8FAFC))
-                Text(statusText)
-                    .font(.omXs)
-                    .foregroundStyle(Color(hex: 0x94A3B8))
-            }
-
-            Spacer(minLength: .spacing4)
-
-            HStack(spacing: .spacing3) {
-                terminalButton(AppStrings.codeRunCopyOutput, disabled: viewModel.programOutputText.isEmpty) {
-                    viewModel.copyOutput()
-                }
-                terminalButton(viewModel.isCancelling ? AppStrings.codeRunCancelling : AppStrings.codeRunStop, kind: .danger, disabled: !viewModel.isActive || viewModel.isCancelling) {
-                    viewModel.cancel()
-                }
-                terminalButton(AppStrings.codeRunAgain, disabled: viewModel.isActive) {
-                    Task { await viewModel.start(chatId: chatId, embedId: embedId, file: file) }
-                }
+    private var viewCodeButton: some View {
+        Button(action: onViewCode) {
+            HStack(spacing: .spacing4) {
+                ChevronShape()
+                    .stroke(Color(hex: 0xBCBCBC), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                    .frame(width: 14, height: 22)
+                Text(AppStrings.codeRunViewCode)
+                    .font(.omSmall.weight(.bold))
+                    .foregroundStyle(Color(hex: 0xBCBCBC))
             }
         }
-        .padding(.horizontal, .spacing6)
-        .padding(.vertical, .spacing5)
-        .background(Color(hex: 0x0B1220))
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Color(hex: 0x1F2937)).frame(height: 1)
-        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AppStrings.codeRunViewCode)
     }
 
     private var statusText: String {
@@ -238,28 +240,33 @@ private struct CodeRunTerminalView: View {
         return viewModel.files.isEmpty ? viewModel.status.rawValue : "\(viewModel.status.rawValue) · \(fileText)"
     }
 
-    private enum TerminalButtonKind {
-        case normal
-        case danger
+    private var terminalActions: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            if viewModel.isActive {
+                terminalAction(viewModel.isCancelling ? AppStrings.codeRunCancelling : AppStrings.codeRunStop, disabled: viewModel.isCancelling) {
+                    viewModel.cancel()
+                }
+            }
+            terminalAction(AppStrings.codeRunAskFollowup, disabled: true) {}
+            terminalAction(AppStrings.codeRunCopyOutput, disabled: viewModel.programOutputText.isEmpty) {
+                viewModel.copyOutput()
+            }
+            terminalAction(AppStrings.codeRunAgain, disabled: viewModel.isActive) {
+                Task { await viewModel.start(chatId: chatId, embedId: embedId, file: file) }
+            }
+        }
+        .accessibilityIdentifier("code-run-terminal-actions")
     }
 
-    private func terminalButton(_ title: String, kind: TerminalButtonKind = .normal, disabled: Bool, action: @escaping () -> Void) -> some View {
+    private func terminalAction(_ title: String, disabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
-                .font(.omXs)
-                .foregroundStyle(kind == .danger ? Color(hex: 0xFECACA) : Color(hex: 0xE5E7EB))
-                .padding(.horizontal, .spacing5)
-                .padding(.vertical, .spacing3)
-                .background(kind == .danger ? Color(hex: 0x450A0A) : Color(hex: 0x111827))
-                .overlay(
-                    RoundedRectangle(cornerRadius: .radius2)
-                        .stroke(kind == .danger ? Color(hex: 0x7F1D1D) : Color(hex: 0x334155), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: .radius2))
-                .opacity(disabled ? 0.55 : 1)
+            Text("> \(title)")
+                .font(.system(size: 15, weight: .bold, design: .monospaced))
+                .foregroundStyle(disabled ? Color(hex: 0x707070) : Color(hex: 0xBCBCBC))
         }
         .buttonStyle(.plain)
         .disabled(disabled)
+        .accessibilityLabel(title)
     }
 
     private func color(for kind: CodeRunEvent.Kind) -> Color {
@@ -268,6 +275,16 @@ private struct CodeRunTerminalView: View {
         case .stdout: return Color(hex: 0xD1D5DB)
         case .stderr: return Color(hex: 0xFCA5A5)
         }
+    }
+}
+
+private struct ChevronShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        return path
     }
 }
 

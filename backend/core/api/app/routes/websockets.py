@@ -9,6 +9,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, 
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
 from .connection_manager import ConnectionManager
@@ -16,6 +17,7 @@ from .auth_ws import get_current_user_ws
 from .handlers.websocket_handlers.title_update_handler import handle_update_title
 from .handlers.websocket_handlers.draft_update_handler import handle_update_draft
 from .handlers.websocket_handlers.message_received_handler import handle_message_received
+from .handlers.websocket_handlers.active_chat_handler import handle_set_active_chat
 from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
 from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
 from .handlers.websocket_handlers.message_highlight_handlers import (
@@ -164,6 +166,18 @@ async def _check_user_offline_and_send_email(
             logger.info(f"{log_prefix} Queued AI response for pending delivery")
     except Exception as e:
         logger.error(f"{log_prefix} Failed to queue AI response for pending delivery: {e}")
+
+    # Create a safe notification event for API/SSE consumers. This event keeps
+    # routing metadata only; assistant content remains out of notification APIs.
+    try:
+        if hasattr(app.state, 'cache_service'):
+            await NotificationEventService(app.state.cache_service).create_chat_assistant_message_event(
+                user_id=user_id,
+                chat_id=chat_id,
+                has_encrypted_preview=False,
+            )
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to create notification event: {e}", exc_info=True)
 
     # 2. Decide push vs. immediate email
     push_sent = False
@@ -2252,76 +2266,14 @@ async def websocket_endpoint(
                 )
             elif message_type == "set_active_chat":
                 active_chat_id = payload.get("chat_id") # Can be None to indicate no chat is active
-                manager.set_active_chat(user_id, device_fingerprint_hash, active_chat_id)
-                logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Set active chat to '{active_chat_id}'.")
-                
-                # Update user's last_opened field in both Redis cache AND Directus for Phase 1 sync.
-                # Redis cache is updated first (fast) so that subsequent reads (e.g. phased_sync_handler,
-                # cache warming on next login) always see the latest value without hitting Directus.
-                # Directus is updated second as the persistent source of truth.
-                #
-                # GUARD: Only persist real chat IDs (UUIDs or /chat/ paths).
-                # Demo/legal/public chats (e.g. "demo-for-everyone", "legal-privacy") are client-side-only
-                # static content that must NEVER overwrite the real last_opened value. The frontend should
-                # already filter these out, but this is a safety net.
-                import re
-                uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
-                is_real_chat = (
-                    active_chat_id
-                    and not active_chat_id.startswith("demo-")
-                    and not active_chat_id.startswith("legal-")
-                    and (uuid_pattern.match(active_chat_id) or active_chat_id.startswith("/chat/"))
+                await handle_set_active_chat(
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    active_chat_id=active_chat_id,
                 )
-                
-                if is_real_chat:
-                    try:
-                        update_payload = {"last_opened": active_chat_id, "signup_completed": True}
-                        
-                        # Update Redis cache first (fast, ensures phased sync and cache warming
-                        # always read the latest last_opened without needing a Directus round-trip)
-                        try:
-                            await cache_service.update_user(user_id, update_payload)
-                            logger.debug(f"User {user_id}: Updated last_opened in cache to {active_chat_id}")
-                        except Exception as cache_err:
-                            logger.warning(f"User {user_id}: Failed to update last_opened in cache: {cache_err}")
-                            # Non-critical: Directus update below is the persistent fallback
-                        
-                        # Update Directus (persistent source of truth)
-                        await directus_service.update_user(user_id, update_payload)
-                        logger.info(f"User {user_id}: Updated last_opened to chat {active_chat_id}")
-                    except Exception as e:
-                        logger.error(f"User {user_id}: Failed to update last_opened in Directus: {str(e)}")
-                        # Don't fail the whole operation if Directus update fails
-                elif active_chat_id:
-                    logger.debug(f"User {user_id}: Skipping last_opened update for non-real chat ID: {active_chat_id}")
-                else:
-                    logger.debug(f"User {user_id}: Skipping last_opened update (no active chat)")
-                
-                # Send acknowledgement to the sending client
-                await manager.send_personal_message(
-                    {"type": "active_chat_set_ack", "payload": {"chat_id": active_chat_id}},
-                    user_id,
-                    device_fingerprint_hash
-                )
-
-                # Broadcast the updated last_opened to OTHER connected devices so they
-                # can update their resume card in real-time without waiting for the next
-                # login/reconnect Phase 1 sync. Only broadcast for real chat IDs (same
-                # guard as the persistence step above).
-                if is_real_chat:
-                    try:
-                        await manager.broadcast_to_user(
-                            message={
-                                "type": "last_opened_updated",
-                                "payload": {"chat_id": active_chat_id}
-                            },
-                            user_id=user_id,
-                            exclude_device_hash=device_fingerprint_hash
-                        )
-                        logger.debug(f"User {user_id}: Broadcasted last_opened_updated to other devices for chat {active_chat_id}")
-                    except Exception as broadcast_err:
-                        # Non-critical: other devices will get the update on next login sync
-                        logger.warning(f"User {user_id}: Failed to broadcast last_opened_updated to other devices: {broadcast_err}")
             elif message_type == "cancel_ai_task":
                 await handle_cancel_ai_task(
                     websocket=websocket,

@@ -16,6 +16,17 @@ import {
   type MentionContext,
 } from "../src/mentions.ts";
 
+function docAssert(claimId: string, assertion: () => void): void {
+  try {
+    assertion();
+  } catch (error) {
+    if (error instanceof Error) {
+      error.message = `[doc-assert:${claimId}] ${error.message}`;
+    }
+    throw error;
+  }
+}
+
 /** Minimal mention context for testing */
 const testContext: MentionContext = {
   models: CHAT_MODELS,
@@ -32,7 +43,10 @@ const testContext: MentionContext = {
         { id: "search", name: "Search" },
         { id: "read", name: "Read" },
       ],
-      focus_modes: [{ id: "research", name: "Research" }],
+      focus_modes: [
+        { id: "research", name: "Research" },
+        { id: "deep_web_research", name: "Deep Research" },
+      ],
       settings_and_memories: [],
     },
     {
@@ -140,6 +154,7 @@ describe("parseMentions", () => {
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].wireSyntax, "@ai-model:gpt-5.4");
     });
+
   });
 
   describe("mates", () => {
@@ -184,6 +199,18 @@ describe("parseMentions", () => {
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].type, "focus_mode");
       assert.equal(result.resolved[0].wireSyntax, "@focus:web:research");
+    });
+
+    it("accepts backend focus wire syntax unchanged", () => {
+      const result = parseMentions(
+        "@focus:web:deep_web_research investigate egg prices",
+        testContext,
+      );
+      assert.equal(result.unresolved.length, 0);
+      assert.equal(result.resolved.length, 1);
+      assert.equal(result.resolved[0].type, "focus_mode");
+      assert.equal(result.resolved[0].wireSyntax, "@focus:web:deep_web_research");
+      assert.ok(result.processedMessage.startsWith("@focus:web:deep_web_research"));
     });
   });
 
@@ -265,12 +292,14 @@ describe("listMentionOptions", () => {
     assert.ok(options.length > 0);
 
     const types = new Set(options.map((o) => o.type));
-    assert.ok(types.has("model_alias"));
-    assert.ok(types.has("model"));
-    assert.ok(types.has("mate"));
-    assert.ok(types.has("skill"));
-    assert.ok(types.has("focus_mode"));
-    assert.ok(types.has("settings_memory"));
+    docAssert("cli-mentions-list-includes-skills-focus-and-memories", () => {
+      assert.ok(types.has("model_alias"));
+      assert.ok(types.has("model"));
+      assert.ok(types.has("mate"));
+      assert.ok(types.has("skill"));
+      assert.ok(types.has("focus_mode"));
+      assert.ok(types.has("settings_memory"));
+    });
   });
 
   it("filters by type", () => {

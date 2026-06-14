@@ -4,15 +4,139 @@
 # streamed tool_use blocks still need matched tool_result entries for provider
 # protocol integrity across Gemini, Bedrock, OpenAI, Anthropic, and Mistral.
 
+import importlib
 import json
+import sys
+import types
 from types import SimpleNamespace
 
-from backend.apps.ai.processing.main_processor import (
-    INVALID_TOOL_FALLBACK_MESSAGE,
-    INVALID_TOOL_RESULT_REASON,
-    _append_tool_call_turn_to_history,
-    _get_skill_execution_args,
-)
+toon_format_stub = types.ModuleType("toon_format")
+toon_format_stub.encode = lambda value: str(value)
+toon_format_stub.decode = lambda value: value
+sys.modules.setdefault("toon_format", toon_format_stub)
+
+ask_skill_stub = types.ModuleType("backend.apps.ai.skills.ask_skill")
+ask_skill_stub.AskSkillRequest = object
+sys.modules.setdefault("backend.apps.ai.skills.ask_skill", ask_skill_stub)
+
+preprocessor_stub = types.ModuleType("backend.apps.ai.processing.preprocessor")
+preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_ID = "test-model"
+preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_NAME = "Test Model"
+preprocessor_stub.PreprocessingResult = object
+sys.modules.setdefault("backend.apps.ai.processing.preprocessor", preprocessor_stub)
+
+mate_utils_stub = types.ModuleType("backend.apps.ai.utils.mate_utils")
+mate_utils_stub.MateConfig = object
+sys.modules.setdefault("backend.apps.ai.utils.mate_utils", mate_utils_stub)
+
+llm_utils_stub = types.ModuleType("backend.apps.ai.utils.llm_utils")
+llm_utils_stub.call_main_llm_stream = object
+llm_utils_stub.truncate_message_history_to_token_budget = object
+llm_utils_stub.AllServersFailedError = Exception
+llm_utils_stub.STANDARDIZED_USER_ERROR_MESSAGE = "Model unavailable."
+sys.modules.setdefault("backend.apps.ai.utils.llm_utils", llm_utils_stub)
+
+stream_utils_stub = types.ModuleType("backend.apps.ai.utils.stream_utils")
+stream_utils_stub.aggregate_paragraphs = object
+sys.modules.setdefault("backend.apps.ai.utils.stream_utils", stream_utils_stub)
+
+override_parser_stub = types.ModuleType("backend.core.api.app.utils.override_parser")
+override_parser_stub.UserOverrides = object
+sys.modules.setdefault("backend.core.api.app.utils.override_parser", override_parser_stub)
+
+for module_name, symbols in {
+    "backend.apps.ai.llm_providers.mistral_client": ["ParsedMistralToolCall", "MistralUsage"],
+    "backend.apps.ai.llm_providers.google_client": ["GoogleUsageMetadata", "ParsedGoogleToolCall"],
+    "backend.apps.ai.llm_providers.anthropic_client": ["ParsedAnthropicToolCall", "AnthropicUsageMetadata"],
+    "backend.apps.ai.llm_providers.bedrock_shared": ["ParsedBedrockToolCall", "BedrockUsageMetadata"],
+    "backend.apps.ai.llm_providers.openai_shared": ["ParsedOpenAIToolCall", "OpenAIUsageMetadata"],
+}.items():
+    module = types.ModuleType(module_name)
+    for symbol in symbols:
+        setattr(module, symbol, object)
+    sys.modules.setdefault(module_name, module)
+
+provider_types_stub = types.ModuleType("backend.apps.ai.llm_providers.types")
+provider_types_stub.UnifiedStreamChunk = object
+provider_types_stub.StreamChunkType = object
+sys.modules.setdefault("backend.apps.ai.llm_providers.types", provider_types_stub)
+
+app_metadata_stub = types.ModuleType("backend.shared.python_schemas.app_metadata_schemas")
+app_metadata_stub.AppYAML = object
+app_metadata_stub.AppSkillDefinition = object
+sys.modules.setdefault("backend.shared.python_schemas.app_metadata_schemas", app_metadata_stub)
+
+wikipedia_stub = types.ModuleType("backend.shared.providers.wikipedia.wikipedia_api")
+wikipedia_stub.normalize_wikipedia_language = lambda language: language
+sys.modules.setdefault("backend.shared.providers.wikipedia.wikipedia_api", wikipedia_stub)
+
+secrets_stub = types.ModuleType("backend.core.api.app.utils.secrets_manager")
+secrets_stub.SecretsManager = object
+sys.modules.setdefault("backend.core.api.app.utils.secrets_manager", secrets_stub)
+
+config_stub = types.ModuleType("backend.core.api.app.utils.config_manager")
+config_stub.config_manager = SimpleNamespace(get_model_pricing=lambda *_args, **_kwargs: None)
+sys.modules.setdefault("backend.core.api.app.utils.config_manager", config_stub)
+
+directus_stub = types.ModuleType("backend.core.api.app.services.directus.directus")
+directus_stub.DirectusService = object
+sys.modules.setdefault("backend.core.api.app.services.directus.directus", directus_stub)
+
+cache_stub = types.ModuleType("backend.core.api.app.services.cache")
+cache_stub.CacheService = object
+sys.modules.setdefault("backend.core.api.app.services.cache", cache_stub)
+
+encryption_stub = types.ModuleType("backend.core.api.app.utils.encryption")
+encryption_stub.EncryptionService = object
+sys.modules.setdefault("backend.core.api.app.utils.encryption", encryption_stub)
+
+translations_stub = types.ModuleType("backend.core.api.app.services.translations")
+translations_stub.TranslationService = object
+sys.modules.setdefault("backend.core.api.app.services.translations", translations_stub)
+
+tool_generator_stub = types.ModuleType("backend.apps.ai.processing.tool_generator")
+tool_generator_stub.generate_tools_from_apps = object
+sys.modules.setdefault("backend.apps.ai.processing.tool_generator", tool_generator_stub)
+
+audio_guard_stub = types.ModuleType("backend.apps.ai.processing.audio_recording_guard")
+audio_guard_stub.AUDIO_TRANSCRIBE_SKILL_ID = "audio-transcribe"
+audio_guard_stub.has_transcribed_web_audio_recording = lambda *_args, **_kwargs: False
+sys.modules.setdefault("backend.apps.ai.processing.audio_recording_guard", audio_guard_stub)
+
+sub_chat_stub = types.ModuleType("backend.apps.ai.sub_chat_orchestration")
+for symbol in [
+    "count_direct_sub_chats",
+    "create_and_dispatch_sub_chats",
+    "create_sub_chat_records",
+    "dispatch_sub_chat_task",
+    "expand_sub_chat_requests",
+    "get_sub_chat_context_policy",
+    "get_sub_chat_execution_mode",
+    "store_pending_sub_chat_confirmation",
+    "validate_sub_chat_capacity",
+]:
+    setattr(sub_chat_stub, symbol, object)
+sub_chat_stub.MAX_AUTO_SUB_CHATS_PER_TURN = 3
+sub_chat_stub.MAX_DIRECT_SUB_CHATS_PER_PARENT = 3
+sys.modules.setdefault("backend.apps.ai.sub_chat_orchestration", sub_chat_stub)
+
+skill_executor_stub = types.ModuleType("backend.apps.ai.processing.skill_executor")
+skill_executor_stub.execute_skill_with_multiple_requests = object
+skill_executor_stub.SkillCancelledException = Exception
+skill_executor_stub.generate_skill_task_id = lambda: "skill-task-id"
+skill_executor_stub.DEFAULT_SKILL_TIMEOUT = 30
+sys.modules.setdefault("backend.apps.ai.processing.skill_executor", skill_executor_stub)
+
+billing_stub = types.ModuleType("backend.shared.python_utils.billing_utils")
+billing_stub.calculate_total_credits = lambda *_args, **_kwargs: 0
+billing_stub.MINIMUM_CREDITS_CHARGED = 1
+sys.modules.setdefault("backend.shared.python_utils.billing_utils", billing_stub)
+
+main_processor = importlib.import_module("backend.apps.ai.processing.main_processor")
+INVALID_TOOL_FALLBACK_MESSAGE = main_processor.INVALID_TOOL_FALLBACK_MESSAGE
+INVALID_TOOL_RESULT_REASON = main_processor.INVALID_TOOL_RESULT_REASON
+_append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_history
+_get_skill_execution_args = main_processor._get_skill_execution_args
 
 
 def test_invalid_tool_calls_are_hidden_protocol_bookkeeping() -> None:

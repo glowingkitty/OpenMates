@@ -1914,7 +1914,7 @@ Usage Settings - View usage statistics and export usage data
         {@const ChatIcon = isOverviewIncognito ? null : getLucideIcon(chatIconName)}
         {@const chatTitle = isOverviewIncognito ? $text('settings.usage.incognito_chat') : (chatCanShow ? (chatMeta?.title || chatObj?.title || 'Chat') : 'Chat')}
         
-        <div class="usage-detail-view">
+        <div class="usage-detail-view" data-testid="usage-detail-view">
             <button 
                 class="back-button"
                 onclick={() => {
@@ -1978,11 +1978,12 @@ Usage Settings - View usage statistics and export usage data
                         : oAppName || entry.type || $text('settings.usage.unknown_activity')}
                     {@const oEntryIcon = getEntryIcon(entry)}
                     
-                    <button
-                        type="button"
-                        class="detail-entry clickable"
-                        onclick={() => overviewSelectedEntry = entry}
-                    >
+					<button
+						type="button"
+						data-testid="usage-chat-entry"
+						class="detail-entry clickable"
+						onclick={() => overviewSelectedEntry = entry}
+					>
                         <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
                         <div class="entry-content">
                             <div class="entry-icon icon icon_{oEntryIcon}"></div>

@@ -57,6 +57,18 @@ export function renderVideoGenerate(c: Record<string, unknown>): string {
 	return lines.filter(Boolean).join('\n');
 }
 
+/** app:videos:create */
+export function renderVideoCreate(c: Record<string, unknown>): string {
+	const filename = str(c.filename) ?? 'Composition.tsx';
+	const status = str(c.status) ?? 'processing';
+	const version = typeof c.current_source_version === 'number' ? `v${c.current_source_version}` : '';
+	const source = str(c.remotion_source) ?? '';
+	const lines: string[] = ['**Remotion Video**'];
+	lines.push([filename, version, status].filter(Boolean).join(' · '));
+	if (source) lines.push(trunc(source.replace(/\s+/g, ' '), 180));
+	return lines.join('\n');
+}
+
 /** videos-video — individual video */
 export function renderVideo(c: Record<string, unknown>): string {
 	const title = str(c.title) ?? '';

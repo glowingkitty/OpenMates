@@ -1,3 +1,87 @@
+---
+status: active
+doc_type: explanation
+audience:
+- contributors
+last_verified: 2026-04-14
+coverage:
+  policy: assertion-backed
+  reviewed_context:
+  - shared/docs/privacy_promises.yml
+  - shared/docs/privacy_promises.schema.json
+  - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+key_files:
+- shared/docs/privacy_promises.yml
+- shared/docs/privacy_promises.schema.json
+- frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+claims:
+- id: privacy-promises-registry-matches-schema
+  type: backend
+  file: backend/tests/test_privacy_promises.py
+  assertion: privacy-promises-registry-matches-schema
+  claim: Privacy Promises documents behavior that is covered by the linked assertion against current source code.
+  source: &id001
+  - shared/docs/privacy_promises.yml
+  - shared/docs/privacy_promises.schema.json
+  - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+  test:
+    file: backend/tests/test_privacy_promises.py
+    command: python3 -m pytest backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-registry-matches-schema
+  verified: '2026-06-11'
+- id: privacy-promises-linked-tests-contain-markers
+  type: backend
+  file: backend/tests/test_privacy_promises.py
+  assertion: privacy-promises-linked-tests-contain-markers
+  claim: Privacy Promises documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
+    file: backend/tests/test_privacy_promises.py
+    command: python3 -m pytest backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-linked-tests-contain-markers
+  verified: '2026-06-11'
+- id: privacy-promises-forbidden-terms-are-absent
+  type: backend
+  file: backend/tests/test_privacy_promises.py
+  assertion: privacy-promises-forbidden-terms-are-absent
+  claim: Privacy Promises documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
+    file: backend/tests/test_privacy_promises.py
+    command: python3 -m pytest backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-forbidden-terms-are-absent
+  verified: '2026-06-11'
+- id: privacy-promises-logging-redacts-sensitive-data
+  type: backend
+  file: backend/tests/test_privacy_promises.py
+  assertion: privacy-promises-logging-redacts-sensitive-data
+  claim: Privacy Promises documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
+    file: backend/tests/test_privacy_promises.py
+    command: python3 -m pytest backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-logging-redacts-sensitive-data
+  verified: '2026-06-11'
+- id: privacy-promises-cryptographic-erasure-deletes-keys-first
+  type: backend
+  file: backend/tests/test_privacy_promises.py
+  assertion: privacy-promises-cryptographic-erasure-deletes-keys-first
+  claim: Privacy Promises documents behavior that is covered by the linked assertion against current source code.
+  source: *id001
+  test:
+    file: backend/tests/test_privacy_promises.py
+    command: python3 -m pytest backend/tests/test_privacy_promises.py
+    assertion: privacy-promises-cryptographic-erasure-deletes-keys-first
+  verified: '2026-06-11'
+- id: arch-privacy-privacy-promises-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-privacy-promises-source-1
+  anchors:
+  - type: file_exists
+    path: shared/docs/privacy_promises.yml
+---
+
 <!--
   Privacy Promises — architecture + workflow
 
@@ -14,6 +98,12 @@
 -->
 
 # Privacy Promises
+
+## Summary
+
+- Privacy promises are declared once in `shared/docs/privacy_promises.yml`.
+- Backend and frontend tests must contain matching promise markers before a promise can stay active.
+- The public privacy policy renders technical privacy measures from the same registry, reducing drift between product claims, code, and tests.
 
 Every user-facing privacy claim OpenMates makes is declared in one registry file, linked to the code that enforces it, and verified by tests. If any of the three pieces drifts — the claim, the code, or the test — the meta-test fails and a Claude Code hook warns the next editor. The public privacy policy's "Technical Privacy Measures" section is generated from the same registry, so we can't publish a promise without wiring its enforcement.
 

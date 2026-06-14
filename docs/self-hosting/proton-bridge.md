@@ -1,6 +1,22 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: how-to
+audience:
+  - technical-users
+last_verified: 2026-06-11
+claims:
+  - id: self-hosting-proton-bridge-docs-provider-contract
+    type: unit
+    claim: Proton Bridge setup documents the provider env keys, fail-closed user allowlist, health check, and mail search source contracts.
+    source:
+      - backend/shared/providers/protonmail/protonmail_bridge.py
+      - backend/core/api/app/routes/apps.py
+      - backend/apps/mail/skills/search_skill.py
+    test:
+      file: scripts/tests/test_self_hosting_docs_claims.py
+      command: python3 -m pytest scripts/tests/test_self_hosting_docs_claims.py
+      assertion: self-hosting-proton-bridge-docs-provider-contract
+    verified: '2026-06-11'
 ---
 
 # Proton Mail Bridge Setup

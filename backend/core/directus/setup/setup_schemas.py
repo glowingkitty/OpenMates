@@ -646,6 +646,10 @@ def store_invite_code(token, invite_code, is_admin=False):
         print(f"Error storing invite code: {str(e)}")
         return False
 
+def signup_mode_uses_invites():
+    mode = os.getenv("SELF_HOST_SIGNUP_MODE", "invite_only").strip().lower()
+    return mode in {"invite_only", "invite_and_domain"}
+
 def setup_schemas():
     """Main function to set up schemas."""
     wait_for_directus()
@@ -711,21 +715,27 @@ def setup_schemas():
                     print(f"--- Finished processing: {os.path.basename(schema_file)} (Success: {success}) ---")
 
 
-        # Only create an admin invite code if the 'invite_codes' collection
-        # was newly created during this run (i.e., first setup).
+        # Only create the first signup invite code if the 'invite_codes'
+        # collection was newly created during this run (i.e., first setup).
         if invite_codes_newly_created:
-            print("\nFirst startup detected (invite_codes collection created) - generating invite code for admin user...")
-            invite_code = generate_invite_code()
+            if not signup_mode_uses_invites():
+                print("\nFirst startup detected, but signup mode does not require invite codes. Skipping first invite code creation.")
+                print('\nSchema setup complete')
+                return
+
+            print("\nFirst startup detected (invite_codes collection created) - creating first signup invite code...")
+            invite_code = os.getenv("SELF_HOST_FIRST_INVITE_CODE") or generate_invite_code()
             
-            # Store as admin invite code
-            if store_invite_code(token, invite_code, is_admin=True):
+            # Store as a normal signup invite. Admin access is granted separately
+            # with `openmates server make-admin <email>` after signup.
+            if store_invite_code(token, invite_code, is_admin=False):
                 print("\n==================================")
-                print("IMPORTANT: Use this invite code to create your first admin user:")
-                print(f"Admin Invite Code: {invite_code}")
-                print("This user will be granted full server admin privileges.")
+                print("IMPORTANT: Use this invite code to create the first user:")
+                print(f"First Signup Invite Code: {invite_code}")
+                print("After signup, run: openmates server make-admin <email>")
                 print("==================================\n")
             else:
-                print("Failed to store admin invite code")
+                print("Failed to store first signup invite code")
         
         print('\nSchema setup complete')
         

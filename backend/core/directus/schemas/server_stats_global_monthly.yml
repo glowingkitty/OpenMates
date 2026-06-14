@@ -67,6 +67,16 @@ server_stats_global_monthly:
       type: integer
       default: 0
 
+    free_testing_credits_granted:
+      type: integer
+      default: 0
+      note: "Promotional Free testing credits granted in this month. Not credits_sold."
+
+    free_testing_grants_created:
+      type: integer
+      default: 0
+      note: "Number of Free testing credit grants created in this month."
+
     subscription_creations:
       type: integer
       default: 0

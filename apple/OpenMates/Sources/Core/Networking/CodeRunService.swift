@@ -105,11 +105,11 @@ final class CodeRunViewModel: ObservableObject {
     private var pollTask: Task<Void, Never>?
 
     var isActive: Bool {
-        isPanelOpen && !status.isTerminal && status != .idle
+        !status.isTerminal && status != .idle
     }
 
     var ctaTitle: String {
-        isPanelOpen ? AppStrings.codeRunHideOutput : AppStrings.codeRunCode
+        status == .idle && events.isEmpty ? AppStrings.codeRunCode : AppStrings.codeRunShowOutput
     }
 
     var programOutputText: String {
@@ -125,7 +125,15 @@ final class CodeRunViewModel: ObservableObject {
             isPanelOpen = false
             return
         }
+        if status != .idle || !events.isEmpty {
+            isPanelOpen = true
+            return
+        }
         Task { await start(chatId: chatId, embedId: embedId, file: file) }
+    }
+
+    func closePanel() {
+        isPanelOpen = false
     }
 
     func start(chatId: String?, embedId: String, file: CodeRunClientFile) async {

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Report Issue E2E test.
@@ -59,8 +58,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -129,6 +127,12 @@ async function closeSettings(page: any): Promise<void> {
 	await page.waitForTimeout(500);
 }
 
+async function expectAdminReportActionsHidden(page: any): Promise<void> {
+	await expect(page.getByTestId('admin-implement-fix-directly')).toHaveCount(0);
+	await expect(page.getByTestId('admin-add-to-linear')).toHaveCount(0);
+	await expect(page.getByTestId('admin-send-email-notification')).toHaveCount(0);
+}
+
 // ---------------------------------------------------------------------------
 // Test
 // ---------------------------------------------------------------------------
@@ -137,6 +141,20 @@ test.describe('Report Issue Flow', () => {
 	// Login + settings navigation + form submission needs time
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	test('Guest report issue form hides admin automation controls', async ({ page }) => {
+		const logCheckpoint = createSignupLogger('REPORT_ISSUE_GUEST');
+		attachConsoleListeners(page, logCheckpoint);
+		attachNetworkListeners(page, logCheckpoint);
+
+		await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+		await navigateToReportIssue(page, logCheckpoint);
+
+		const reportForm = page.getByTestId('report-issue-form');
+		await expect(reportForm).toBeVisible({ timeout: 10000 });
+		await expectAdminReportActionsHidden(page);
+		logCheckpoint('Admin-only report issue actions are hidden for a guest/non-admin context.');
+	});
 
 	test('Report issue form submits successfully and shows confirmation', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('REPORT_ISSUE');
@@ -172,6 +190,34 @@ test.describe('Report Issue Flow', () => {
 		const submitButton = page.getByTestId('report-issue-submit');
 		await expect(submitButton).toBeVisible({ timeout: 5000 });
 		logCheckpoint('Submit button visible.');
+
+		await page.waitForFunction(async () => {
+			const debug = (window as any).debug;
+			const state = await debug?.state?.();
+			return Boolean(state?.user && state.user !== 'unavailable' && state.user.id);
+		}, null, { timeout: 10000 });
+		const adminControlsVisible = await page.getByTestId('admin-add-to-linear').count() > 0;
+		logCheckpoint(`Admin report controls visible for authenticated test account: ${adminControlsVisible}`);
+
+		// Direct calls to the admin investigation endpoint must not be accepted from
+		// a browser session without the internal sidecar key, even for the E2E account.
+		let adminInvestigationRejected = false;
+		try {
+			const adminInvestigationResponse = await page.request.post(`${API_BASE_URL}/admin/claude-investigate`, {
+				headers: { 'Content-Type': 'application/json' },
+				data: {
+					issue_id: 'e2e-non-admin-probe',
+					issue_title: 'E2E non-admin probe',
+					agent_action: 'fix',
+				},
+			});
+			adminInvestigationRejected = adminInvestigationResponse.status() >= 400 && adminInvestigationResponse.status() !== 202;
+			logCheckpoint(`Admin investigation endpoint rejected browser request with HTTP ${adminInvestigationResponse.status()}.`);
+		} catch (error) {
+			adminInvestigationRejected = true;
+			logCheckpoint(`Admin investigation endpoint rejected browser request at network layer: ${String(error)}`);
+		}
+		expect(adminInvestigationRejected).toBe(true);
 
 		// ── Step 4: Attempt empty submit — verify validation ───────────
 		// The submit button should be disabled when the form is invalid
@@ -243,16 +289,20 @@ test.describe('Report Issue Flow', () => {
 		expect(responseBody?.success).toBe(true);
 		expect(responseBody?.issue_id).toBeTruthy();
 		expect(responseBody?.screenshot_uploaded).toBe(true);
+		const submittedPayload = apiResponse.request().postDataJSON?.();
+		expect(submittedPayload?.add_to_linear).toBe(adminControlsVisible ? false : true);
+		expect(submittedPayload?.send_email_notification).toBe(adminControlsVisible ? false : true);
 		logCheckpoint(
 			`Issue created with ID: ${responseBody?.issue_id} ` +
 			`(screenshot_uploaded=${responseBody?.screenshot_uploaded})`
 		);
 		await takeStepScreenshot(page, '05-submitted');
 
-		// ── Step 6b: Poll /status until the YAML report S3 key is present ──
-		// The YAML report is generated and uploaded asynchronously by the
-		// issue_report_email_task Celery task. Poll until has_yaml_report=true
-		// or give up after the timeout (and fail the test).
+		// ── Step 6b: Poll /status until the async persistence state is ready ──
+		// Non-admin reports send email by default, and the email task generates the
+		// YAML report. Admin reports skip email by default, so they persist the
+		// screenshot synchronously but intentionally do not create YAML unless the
+		// admin enables email notifications.
 		const issueId: string = responseBody?.issue_id;
 		const statusUrl = `${API_BASE_URL}/v1/settings/issues/${issueId}/status`;
 		logCheckpoint(`Polling status endpoint: ${statusUrl}`);
@@ -266,7 +316,7 @@ test.describe('Report Issue Flow', () => {
 				const ct = statusResp.headers()['content-type'] || '';
 				if (ct.includes('application/json')) {
 					lastStatus = await statusResp.json();
-					if (lastStatus?.has_screenshot && lastStatus?.has_yaml_report) {
+					if (lastStatus?.has_screenshot && (adminControlsVisible || lastStatus?.has_yaml_report)) {
 						break;
 					}
 				} else {
@@ -279,8 +329,13 @@ test.describe('Report Issue Flow', () => {
 		logCheckpoint(`Final /status payload: ${JSON.stringify(lastStatus)}`);
 		expect(lastStatus, 'issue status endpoint returned nothing').not.toBeNull();
 		expect(lastStatus?.has_screenshot, 'screenshot never persisted to S3/Directus').toBe(true);
-		expect(lastStatus?.has_yaml_report, 'YAML debug report never persisted to S3/Directus').toBe(true);
-		logCheckpoint('Screenshot + YAML report confirmed persisted in Directus.');
+		if (adminControlsVisible) {
+			expect(lastStatus?.has_yaml_report, 'admin report should skip YAML when email notification is off by default').toBe(false);
+			logCheckpoint('Screenshot persisted; YAML correctly skipped for admin default email-off report.');
+		} else {
+			expect(lastStatus?.has_yaml_report, 'YAML debug report never persisted to S3/Directus').toBe(true);
+			logCheckpoint('Screenshot + YAML report confirmed persisted in Directus.');
+		}
 
 		// ── Step 7: Verify confirmation page ───────────────────────────
 		const confirmation = page.getByTestId('report-issue-confirmation');

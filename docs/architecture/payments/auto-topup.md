@@ -2,11 +2,46 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/api/app/routes/payments.py
+- backend/core/api/app/services/payment/stripe_service.py
+- backend/core/api/app/services/billing_service.py
+- frontend/packages/ui/src/components/signup/steps/autotopup/AutoTopUpBottomContent.svelte
+- shared/config/pricing.yml
+claims:
+- id: arch-payments-auto-topup-behavior
+  type: unit
+  claim: Auto Top-Up is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/routes/payments.py
   - backend/core/api/app/services/payment/stripe_service.py
   - backend/core/api/app/services/billing_service.py
-  - frontend/packages/ui/src/components/signup/steps/autotopup/AutoTopUpBottomContent.svelte
   - shared/config/pricing.yml
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-payments-auto-topup-behavior
+  verified: '2026-06-11'
+- id: arch-payments-auto-topup-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-payments-auto-topup-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/payments.py
+- id: arch-payments-auto-topup-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-payments-auto-topup-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/services/billing_service.py
+- id: arch-payments-auto-topup-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-payments-auto-topup-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/services/payment/stripe_service.py
 ---
 
 # Auto Top-Up

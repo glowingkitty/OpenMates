@@ -9,7 +9,7 @@ import {
 } from "./newsletterChatStore";
 
 // Export types
-export type { DemoChat, DemoMessage, ExampleChat, ExampleChatEmbed, ExampleChatMessage } from "./types";
+export type { DemoChat, DemoMessage, ExampleChat, ExampleChatEmbed, ExampleChatMessage, ExampleSubChat } from "./types";
 
 // Export conversion utilities
 export {
@@ -36,7 +36,14 @@ export {
   getExampleChatMessages,
   getExampleChatEmbeds,
   getExampleChatEmbed,
+  resolveExampleFullscreenTarget,
+  getExampleSubChats,
   getAllExampleChats,
+  getRecentExampleChats,
+  getExampleChatsForSkill,
+  getExampleChatsForContentEmbed,
+  getExampleChatsForFocusMode,
+  getExampleChatsForSettingsMemory,
   getFeaturedExampleChats,
   getExampleChatData,
   getAllExampleChatData,

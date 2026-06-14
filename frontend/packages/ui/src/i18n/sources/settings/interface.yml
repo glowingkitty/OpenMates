@@ -74,6 +74,26 @@ language:
 customization:
   context: Customization settings menu item in interface section
   en: Customization
+  de: Anpassung
+  zh: 个性化定制
+  es: Personalización
+  fr: Personnalisation
+  ru: Настройка
+  ja: カスタマイズ
+  ko: 커스터마이징
+  it: Personalizzazione
+  tr: Özelleştirme
+  vi: Tùy chỉnh
+  id: Kustomisasi
+  pl: Personalizacja
+  nl: Aanpassing
+  ar: التخصيص
+  hi: कस्टमाइज़ेशन
+  th: การปรับแต่ง
+  pt: Personalização
+  cs: Přizpůsobení
+  he: התאמה אישית
+  sv: Anpassning
   verified_by_human: []
 
 # Furry Mode strings are disabled until any furry art is made by human artists.
@@ -106,136 +126,676 @@ dark_mode:
 font:
   context: Font settings menu item in interface section
   en: Font
+  de: Schriftart
+  zh: 字体
+  es: Fuente
+  fr: Police
+  ru: Шрифт
+  ja: フォント
+  ko: 글꼴
+  it: Font
+  tr: Yazı tipi
+  vi: Phông chữ
+  id: Font
+  pl: Czcionka
+  nl: Lettertype
+  ar: الخط
+  hi: फ़ॉन्ट
+  th: แบบอักษร
+  pt: Fonte
+  cs: Písmo
+  he: גופן
+  sv: Typsnitt
   verified_by_human: []
 
 font.lexend:
   context: Interface font option using the OpenMates default Lexend Deca font
   en: Lexend Deca
+  de: Lexend Deca
+  zh: Lexend Deca
+  es: Lexend Deca
+  fr: Lexend Deca
+  ru: Lexend Deca
+  ja: Lexend Deca
+  ko: Lexend Deca
+  it: Lexend Deca
+  tr: Lexend Deca
+  vi: Lexend Deca
+  id: Lexend Deca
+  pl: Lexend Deca
+  nl: Lexend Deca
+  ar: Lexend Deca
+  hi: Lexend Deca
+  th: Lexend Deca
+  pt: Lexend Deca
+  cs: Lexend Deca
+  he: Lexend Deca
+  sv: Lexend Deca
   verified_by_human: []
 
 font.lexend.description:
   context: Description for the default OpenMates interface font option
   en: OpenMates default
+  de: OpenMates-Standard
+  zh: OpenMates 默认字体
+  es: Predeterminada de OpenMates
+  fr: Par défaut OpenMates
+  ru: По умолчанию в OpenMates
+  ja: OpenMatesのデフォルト
+  ko: OpenMates 기본값
+  it: Predefinito di OpenMates
+  tr: OpenMates varsayılanı
+  vi: Mặc định của OpenMates
+  id: Default OpenMates
+  pl: Domyślna OpenMates
+  nl: OpenMates-standaard
+  ar: افتراضي OpenMates
+  hi: OpenMates डिफ़ॉल्ट
+  th: ค่าเริ่มต้นของ OpenMates
+  pt: Padrão do OpenMates
+  cs: Výchozí pro OpenMates
+  he: ברירת המחדל של OpenMates
+  sv: OpenMates standard
   verified_by_human: []
 
 font.figtree:
   context: Interface font option using the Figtree font
   en: Figtree
+  de: Figtree
+  zh: Figtree
+  es: Figtree
+  fr: Figtree
+  ru: Figtree
+  ja: Figtree
+  ko: Figtree
+  it: Figtree
+  tr: Figtree
+  vi: Figtree
+  id: Figtree
+  pl: Figtree
+  nl: Figtree
+  ar: Figtree
+  hi: Figtree
+  th: Figtree
+  pt: Figtree
+  cs: Figtree
+  he: Figtree
+  sv: Figtree
   verified_by_human: []
 
 font.figtree.description:
   context: Description for the Figtree interface font option
   en: Friendly modern UI
+  de: Freundliche, moderne UI
+  zh: 亲切的现代 UI 风格
+  es: Interfaz moderna y amigable
+  fr: Interface moderne et conviviale
+  ru: Дружелюбный современный интерфейс
+  ja: 親しみやすくモダンなUI
+  ko: 친근하고 현대적인 UI
+  it: Interfaccia moderna e amichevole
+  tr: Dost canlısı modern arayüz
+  vi: Giao diện hiện đại, thân thiện
+  id: UI modern yang ramah
+  pl: Przyjazny, nowoczesny interfejs
+  nl: Vriendelijke moderne UI
+  ar: واجهة عصرية وودودة
+  hi: फ्रेंडली मॉडर्न UI
+  th: UI ทันสมัยและเป็นมิตร
+  pt: Interface moderna e amigável
+  cs: Přátelské moderní rozhraní
+  he: ממשק משתמש מודרני וידידותי
+  sv: Vänligt modernt gränssnitt
   verified_by_human: []
 
 font.rubik:
   context: Interface font option using the Rubik font
   en: Rubik
+  de: Rubik
+  zh: Rubik
+  es: Rubik
+  fr: Rubik
+  ru: Rubik
+  ja: Rubik
+  ko: Rubik
+  it: Rubik
+  tr: Rubik
+  vi: Rubik
+  id: Rubik
+  pl: Rubik
+  nl: Rubik
+  ar: Rubik
+  hi: Rubik
+  th: Rubik
+  pt: Rubik
+  cs: Rubik
+  he: Rubik
+  sv: Rubik
   verified_by_human: []
 
 font.rubik.description:
   context: Description for the Rubik interface font option
   en: Rounded and readable
+  de: Abgerundet und gut lesbar
+  zh: 圆润且易读
+  es: Redondeada y legible
+  fr: Arrondie et lisible
+  ru: Округлый и читаемый
+  ja: 丸みがあり読みやすい
+  ko: 둥글고 가독성 좋은 스타일
+  it: Arrotondato e leggibile
+  tr: Yuvarlatılmış ve okunabilir
+  vi: Bo tròn và dễ đọc
+  id: Bulat dan mudah dibaca
+  pl: Zaokrąglona i czytelna
+  nl: Afgerond en leesbaar
+  ar: دائري وسهل القراءة
+  hi: राउंडेड और पढ़ने में आसान
+  th: โค้งมนและอ่านง่าย
+  pt: Arredondada e legível
+  cs: Zaoblené a čitelné
+  he: מעוגל וקריא
+  sv: Rundat och lättläst
   verified_by_human: []
 
 font.inter:
   context: Interface font option using the Inter font
   en: Inter
+  de: Inter
+  zh: Inter
+  es: Inter
+  fr: Inter
+  ru: Inter
+  ja: Inter
+  ko: Inter
+  it: Inter
+  tr: Inter
+  vi: Inter
+  id: Inter
+  pl: Inter
+  nl: Inter
+  ar: Inter
+  hi: Inter
+  th: Inter
+  pt: Inter
+  cs: Inter
+  he: Inter
+  sv: Inter
   verified_by_human: []
 
 font.inter.description:
   context: Description for the Inter interface font option
   en: Neutral app interface
+  de: Neutrale App-Oberfläche
+  zh: 中性的应用界面风格
+  es: Interfaz de aplicación neutra
+  fr: "Interface d'application neutre"
+  ru: Нейтральный интерфейс приложения
+  ja: ニュートラルなアプリUI
+  ko: 중립적인 앱 인터페이스
+  it: Interfaccia app neutra
+  tr: Nötr uygulama arayüzü
+  vi: Giao diện ứng dụng trung tính
+  id: Antarmuka aplikasi netral
+  pl: Neutralny interfejs aplikacji
+  nl: Neutrale app-interface
+  ar: واجهة تطبيق محايدة
+  hi: न्यूट्रल ऐप इंटरफ़ेस
+  th: อินเทอร์เฟซแอปแบบเป็นกลาง
+  pt: Interface de app neutra
+  cs: Neutrální rozhraní aplikace
+  he: ממשק אפליקציה ניטרלי
+  sv: Neutralt app-gränssnitt
   verified_by_human: []
 
 font.public_sans:
   context: Interface font option using the Public Sans font
   en: Public Sans
+  de: Public Sans
+  zh: Public Sans
+  es: Public Sans
+  fr: Public Sans
+  ru: Public Sans
+  ja: Public Sans
+  ko: Public Sans
+  it: Public Sans
+  tr: Public Sans
+  vi: Public Sans
+  id: Public Sans
+  pl: Public Sans
+  nl: Public Sans
+  ar: Public Sans
+  hi: Public Sans
+  th: Public Sans
+  pt: Public Sans
+  cs: Public Sans
+  he: Public Sans
+  sv: Public Sans
   verified_by_human: []
 
 font.public_sans.description:
   context: Description for the Public Sans interface font option
   en: Clear professional style
+  de: Klarer, professioneller Stil
+  zh: 清晰的专业风格一线
+  es: Estilo profesional y claro
+  fr: Style professionnel clair
+  ru: Четкий профессиональный стиль
+  ja: 明快でプロフェッショナルなスタイル
+  ko: 명확하고 전문적인 스타일
+  it: Stile professionale e chiaro
+  tr: Net profesyonel stil
+  vi: Phong cách chuyên nghiệp, rõ ràng
+  id: Gaya profesional yang jelas
+  pl: Przejrzysty, profesjonalny styl
+  nl: Heldere professionele stijl
+  ar: نمط احترافي واضح
+  hi: स्पष्ट प्रोफेशनल स्टाइल
+  th: สไตล์มืออาชีพที่ชัดเจน
+  pt: Estilo profissional e claro
+  cs: Jasný profesionální styl
+  he: סגנון מקצועי וברור
+  sv: Tydlig professionell stil
   verified_by_human: []
 
 font.atkinson:
   context: Interface font option using the Atkinson Hyperlegible font
   en: Atkinson Hyperlegible
+  de: Atkinson Hyperlegible
+  zh: Atkinson Hyperlegible
+  es: Atkinson Hyperlegible
+  fr: Atkinson Hyperlegible
+  ru: Atkinson Hyperlegible
+  ja: Atkinson Hyperlegible
+  ko: Atkinson Hyperlegible
+  it: Atkinson Hyperlegible
+  tr: Atkinson Hyperlegible
+  vi: Atkinson Hyperlegible
+  id: Atkinson Hyperlegible
+  pl: Atkinson Hyperlegible
+  nl: Atkinson Hyperlegible
+  ar: Atkinson Hyperlegible
+  hi: Atkinson Hyperlegible
+  th: Atkinson Hyperlegible
+  pt: Atkinson Hyperlegible
+  cs: Atkinson Hyperlegible
+  he: Atkinson Hyperlegible
+  sv: Atkinson Hyperlegible
   verified_by_human: []
 
 font.atkinson.description:
   context: Description for the Atkinson Hyperlegible interface font option
   en: Designed for readability
+  de: Auf Lesbarkeit ausgelegt
+  zh: 专为易读性设计
+  es: Diseñada para la legibilidad
+  fr: Conçue pour la lisibilité
+  ru: Разработан для лучшей читаемости
+  ja: 読みやすさを追求したデザイン
+  ko: 가독성을 위해 설계됨
+  it: Progettato per la leggibilità
+  tr: Okunabilirlik için tasarlandı
+  vi: Được thiết kế để dễ đọc
+  id: Didesain untuk keterbacaan
+  pl: Zaprojektowana dla czytelności
+  nl: Ontworpen voor leesbaarheid
+  ar: مصمم لسهولة القراءة
+  hi: पढ़ने में आसानी के लिए डिज़ाइन किया गया
+  th: ออกแบบมาเพื่อให้อ่านง่ายโดยเฉพาะ
+  pt: Projetada para legibilidade
+  cs: Navrženo pro čitelnost
+  he: עוצב לשיפור הקריאות
+  sv: Designad för läsbarhet
   verified_by_human: []
 
 font.ibm_plex_sans:
   context: Interface font option using the IBM Plex Sans font
   en: IBM Plex Sans
+  de: IBM Plex Sans
+  zh: IBM Plex Sans
+  es: IBM Plex Sans
+  fr: IBM Plex Sans
+  ru: IBM Plex Sans
+  ja: IBM Plex Sans
+  ko: IBM Plex Sans
+  it: IBM Plex Sans
+  tr: IBM Plex Sans
+  vi: IBM Plex Sans
+  id: IBM Plex Sans
+  pl: IBM Plex Sans
+  nl: IBM Plex Sans
+  ar: IBM Plex Sans
+  hi: IBM Plex Sans
+  th: IBM Plex Sans
+  pt: IBM Plex Sans
+  cs: IBM Plex Sans
+  he: IBM Plex Sans
+  sv: IBM Plex Sans
   verified_by_human: []
 
 font.ibm_plex_sans.description:
   context: Description for the IBM Plex Sans interface font option
   en: Technical and balanced
+  de: Technisch und ausgewogen
+  zh: 技术感与平衡感并重
+  es: Técnica y equilibrada
+  fr: Technique et équilibrée
+  ru: Техничный и сбалансированный
+  ja: テクニカルでバランスの取れた
+  ko: 기술적이고 균형 잡힌 스타일
+  it: Tecnico e bilanciato
+  tr: Teknik ve dengeli
+  vi: Kỹ thuật và cân bằng
+  id: Teknis dan seimbang
+  pl: Techniczna i zrównoważona
+  nl: Technisch en gebalanceerd
+  ar: تقني ومتوازن
+  hi: तकनीकी और संतुलित
+  th: มีความเป็นเทคนิคและสมดุล
+  pt: Técnica e equilibrada
+  cs: Technické a vyvážené
+  he: טכני ומאוזן
+  sv: Teknisk och balanserad
   verified_by_human: []
 
 font.source_serif:
   context: Interface font option using the Source Serif font
   en: Source Serif 4
+  de: Source Serif 4
+  zh: Source Serif 4
+  es: Source Serif 4
+  fr: Source Serif 4
+  ru: Source Serif 4
+  ja: Source Serif 4
+  ko: Source Serif 4
+  it: Source Serif 4
+  tr: Source Serif 4
+  vi: Source Serif 4
+  id: Source Serif 4
+  pl: Source Serif 4
+  nl: Source Serif 4
+  ar: Source Serif 4
+  hi: Source Serif 4
+  th: Source Serif 4
+  pt: Source Serif 4
+  cs: Source Serif 4
+  he: Source Serif 4
+  sv: Source Serif 4
   verified_by_human: []
 
 font.source_serif.description:
   context: Description for the Source Serif interface font option
   en: Long-form reading
+  de: Für längere Texte
+  zh: 适合长文本阅读
+  es: Lectura de formato largo
+  fr: Lecture longue durée
+  ru: Для долгого чтения
+  ja: 長文の読解に
+  ko: 긴 글 읽기용
+  it: Lettura di testi lunghi
+  tr: Uzun metin okuma
+  vi: Đọc nội dung dài
+  id: Membaca teks panjang
+  pl: Dłuższe teksty
+  nl: Lange teksten lezen
+  ar: للقراءة المطولة
+  hi: लंबे समय तक पढ़ने के लिए
+  th: สำหรับการอ่านเนื้อหายาวๆ
+  pt: Leitura de textos longos
+  cs: Čtení delších textů
+  he: לקריאת טקסטים ארוכים
+  sv: Läsning av långa texter
   verified_by_human: []
 
 font.jetbrains_mono:
   context: Interface font option using the JetBrains Mono font
   en: JetBrains Mono
+  de: JetBrains Mono
+  zh: JetBrains Mono
+  es: JetBrains Mono
+  fr: JetBrains Mono
+  ru: JetBrains Mono
+  ja: JetBrains Mono
+  ko: JetBrains Mono
+  it: JetBrains Mono
+  tr: JetBrains Mono
+  vi: JetBrains Mono
+  id: JetBrains Mono
+  pl: JetBrains Mono
+  nl: JetBrains Mono
+  ar: JetBrains Mono
+  hi: JetBrains Mono
+  th: JetBrains Mono
+  pt: JetBrains Mono
+  cs: JetBrains Mono
+  he: JetBrains Mono
+  sv: JetBrains Mono
   verified_by_human: []
 
 font.jetbrains_mono.description:
   context: Description for the JetBrains Mono interface font option
   en: Developer-focused mono
+  de: Entwicklerorientierte Monospace
+  zh: 面向开发者的等宽字体
+  es: Mono enfocada en desarrolladores
+  fr: Mono axée développeurs
+  ru: Моноширинный для разработчиков
+  ja: 開発者向けの等幅フォント
+  ko: 개발자 중심의 고정폭 글꼴
+  it: Monospazio per sviluppatori
+  tr: Geliştirici odaklı mono
+  vi: Phông chữ đơn cách cho lập trình viên
+  id: Mono yang berfokus pada developer
+  pl: Dla programistów (mono)
+  nl: Mono voor ontwikkelaars
+  ar: خط أحادي المسافة للمطورين
+  hi: डेवलपर-केंद्रित मोनो
+  th: ตัวอักษรความกว้างคงที่สำหรับนักพัฒนา
+  pt: Mono focada em desenvolvedores
+  cs: Písmo pro vývojáře s pevnou šířkou
+  he: גופן ברוחב קבוע למפתחים
+  sv: Utvecklarfokuserad mono
   verified_by_human: []
 
 font.ibm_plex_mono:
   context: Interface font option using the IBM Plex Mono font
   en: IBM Plex Mono
+  de: IBM Plex Mono
+  zh: IBM Plex Mono
+  es: IBM Plex Mono
+  fr: IBM Plex Mono
+  ru: IBM Plex Mono
+  ja: IBM Plex Mono
+  ko: IBM Plex Mono
+  it: IBM Plex Mono
+  tr: IBM Plex Mono
+  vi: IBM Plex Mono
+  id: IBM Plex Mono
+  pl: IBM Plex Mono
+  nl: IBM Plex Mono
+  ar: IBM Plex Mono
+  hi: IBM Plex Mono
+  th: IBM Plex Mono
+  pt: IBM Plex Mono
+  cs: IBM Plex Mono
+  he: IBM Plex Mono
+  sv: IBM Plex Mono
   verified_by_human: []
 
 font.ibm_plex_mono.description:
   context: Description for the IBM Plex Mono interface font option
   en: Clean fixed width
+  de: Klare feste Breite
+  zh: 整洁的等宽字体
+  es: Ancho fijo y limpio
+  fr: Largeur fixe épurée
+  pt: Largura fixa limpa
+  ru: Чистый моноширинный
+  ja: すっきりとした等幅
+  ko: 깔끔한 고정 너비
+  it: Larghezza fissa pulita
+  tr: Temiz sabit genişlik
+  vi: Độ rộng cố định gọn gàng
+  id: Lebar tetap bersih
+  pl: Przejrzysta stała szerokość
+  nl: Strakke vaste breedte
+  ar: عرض ثابت ونظيف
+  hi: साफ़ फिक्स्ड विड्थ
+  th: ความกว้างคงที่ที่ดูสะอาดตา
+  cs: Čisté písmo s pevnou šířkou
+  he: רוחב קבוע נקי
+  sv: Ren fast bredd
   verified_by_human: []
 
 font.system:
   context: Interface font option using the operating system UI font
   en: System
+  de: System
+  zh: 系统字体
+  es: Sistema
+  fr: Système
+  pt: Sistema
+  ru: Системный
+  ja: システム
+  ko: 시스템
+  it: Sistema
+  tr: Sistem
+  vi: Hệ thống
+  id: Sistem
+  pl: Systemowa
+  nl: Systeem
+  ar: النظام
+  hi: सिस्टम
+  th: ระบบ
+  cs: Systémové
+  sv: System
+  he: מערכת
   verified_by_human: []
 
 font.system.description:
   context: Description for the system interface font option
   en: Uses your device's default UI font
+  de: Verwendet die Standard-Schriftart deines Geräts
+  zh: 使用你设备的默认 UI 字体
+  es: Usa la fuente de interfaz predeterminada de tu dispositivo
+  fr: "Utilise la police d'interface par défaut de ton appareil"
+  pt: Usa a fonte padrão do teu dispositivo
+  ru: Использует стандартный шрифт твоего устройства
+  ja: デバイスのデフォルトUIフォントを使用
+  ko: 기기의 기본 UI 글꼴 사용
+  it: Usa il carattere predefinito del tuo dispositivo
+  tr: Cihazının varsayılan arayüz yazı tipini kullanır
+  vi: Sử dụng phông chữ giao diện mặc định của thiết bị
+  id: Menggunakan font UI bawaan perangkatmu
+  pl: Używa domyślnej czcionki systemowej Twojego urządzenia
+  nl: Gebruikt het standaard UI-lettertype van je apparaat
+  ar: يستخدم خط واجهة المستخدم الافتراضي لجهازك
+  hi: आपके डिवाइस के डिफ़ॉल्ट UI फ़ॉन्ट का उपयोग करता है
+  th: ใช้ฟอนต์ UI เริ่มต้นของอุปกรณ์ของคุณ
+  cs: Používá výchozí písmo tvého zařízení
+  sv: Använder din enhets standardteckensnitt för gränssnittet
+  he: משתמש בגופן ברירת המחדל של המכשיר שלך
   verified_by_human: []
 
 font.serif:
   context: Interface font option using a classic serif font stack
   en: Serif
+  de: Serife
+  zh: 衬线体
+  es: Serif
+  fr: Serif
+  pt: Serifada
+  ru: С засечками
+  ja: セリフ
+  ko: 세리프
+  it: Serif
+  tr: Serif
+  vi: Có chân
+  id: Serif
+  pl: Szeryfowa
+  nl: Serif
+  ar: سيريف
+  hi: सेरिफ़
+  th: เซริฟ
+  cs: Patkové
+  sv: Serif
+  he: סריף
   verified_by_human: []
 
 font.serif.description:
   context: Description for the serif interface font option
   en: Classic reading style
+  de: Klassischer Lesestil
+  zh: 经典的阅读风格
+  es: Estilo de lectura clásico
+  fr: Style de lecture classique
+  pt: Estilo de leitura clássico
+  ru: Классический стиль для чтения
+  ja: クラシックな読書スタイル
+  ko: 클래식한 독서 스타일
+  it: Stile di lettura classico
+  tr: Klasik okuma stili
+  vi: Phong cách đọc cổ điển
+  id: Gaya baca klasik
+  pl: Klasyczny styl czytania
+  nl: Klassieke leesstijl
+  ar: نمط قراءة كلاسيكي
+  hi: क्लासिक रीडिंग स्टाइल
+  th: สไตล์การอ่านแบบคลาสสิก
+  cs: Klasický styl pro čtení
+  sv: Klassisk lässtil
+  he: סגנון קריאה קלאסי
   verified_by_human: []
 
 font.mono:
   context: Interface font option using a monospace font stack
   en: Mono
+  de: Mono
+  zh: 等宽字体
+  es: Mono
+  fr: Mono
+  pt: Mono
+  ru: Моноширинный
+  ja: モノ
+  ko: 모노
+  it: Mono
+  tr: Mono
+  vi: Đơn cách
+  id: Mono
+  pl: Mono
+  nl: Mono
+  ar: مونو
+  hi: मोनो
+  th: โมโน
+  cs: Mono
+  sv: Mono
+  he: מונו
   verified_by_human: []
 
 font.mono.description:
   context: Description for the monospace interface font option
   en: Code-like fixed width
+  de: Code-ähnliche feste Breite
+  zh: 类似代码的等宽字体
+  es: Ancho fijo tipo código
+  fr: Largeur fixe type code
+  pt: Largura fixa estilo código
+  ru: Моноширинный, как в коде
+  ja: コードのような等幅
+  ko: 코드 스타일의 고정 너비
+  it: Larghezza fissa stile codice
+  tr: Kod benzeri sabit genişlik
+  vi: Độ rộng cố định kiểu mã nguồn
+  id: Lebar tetap seperti kode
+  pl: Stała szerokość jak w kodzie
+  nl: Code-achtige vaste breedte
+  ar: عرض ثابت يشبه الكود
+  hi: कोड जैसी फिक्स्ड विड्थ
+  th: ความกว้างคงที่แบบโค้ด
+  cs: Pevná šířka jako u kódu
+  sv: Kodliknande fast bredd
+  he: רוחב קבוע בסגנון קוד
   verified_by_human: []
 
 dark_mode.auto:

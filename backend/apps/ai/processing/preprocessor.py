@@ -35,7 +35,7 @@ from backend.core.api.app.utils.override_parser import UserOverrides
 # This replaces the previous hardcoded keyword-based detection in china_sensitivity.py
 
 # Import model selector for intelligent model selection based on leaderboard rankings
-from backend.apps.ai.utils.model_selector import ModelSelector
+from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL, ModelSelector
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     remove_audio_transcribe_for_transcribed_recordings,
@@ -58,6 +58,7 @@ from backend.core.api.app.utils.config_manager import config_manager
 logger = logging.getLogger(__name__)
 
 ONBOARDING_SUPPORT_CATEGORY = "onboarding_support"
+SOFTWARE_DEVELOPMENT_CATEGORY = "software_development"
 ONBOARDING_FOCUS_ID = "openmates-welcome"  # active_focus_id when Welcome Onboarding is running
 USER_ROLE = "user"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
@@ -139,11 +140,11 @@ TOPIC_AREA_DESCRIPTIONS: Dict[str, str] = {
 TOPIC_AREA_TO_MATE_CATEGORY: Dict[str, str] = {
     "openmates_platform": ONBOARDING_SUPPORT_CATEGORY,
     "general_misc": "general_knowledge",
-    "software_development": "software_development",
-    "debugging_code": "software_development",
-    "devops_infrastructure": "software_development",
-    "data_ai_ml": "software_development",
-    "cybersecurity": "software_development",
+    "software_development": SOFTWARE_DEVELOPMENT_CATEGORY,
+    "debugging_code": SOFTWARE_DEVELOPMENT_CATEGORY,
+    "devops_infrastructure": SOFTWARE_DEVELOPMENT_CATEGORY,
+    "data_ai_ml": SOFTWARE_DEVELOPMENT_CATEGORY,
+    "cybersecurity": SOFTWARE_DEVELOPMENT_CATEGORY,
     "maker_fabrication": "maker_prototyping",
     "textiles_sewing": "maker_prototyping",
     "hobby_electronics": "maker_prototyping",
@@ -240,10 +241,22 @@ def _normalize_topic_area(raw_topic_area: Any) -> Optional[str]:
     return None
 
 
+def _normalize_task_area(raw_task_area: Any) -> Optional[str]:
+    """Return a stable task_area ID from defensive LLM output variants."""
+    task_area = raw_task_area
+    if isinstance(task_area, list):
+        task_area = task_area[0] if task_area else None
+    if not isinstance(task_area, str):
+        return None
+    normalized = task_area.strip().lower()
+    return normalized or None
+
+
 def _resolve_category_from_topic_area(
     *,
     raw_topic_area: Any,
     raw_topic_shift: Any,
+    raw_task_area: Any = None,
     previous_category: Optional[str],
     available_category_ids: set[str],
 ) -> Optional[str]:
@@ -252,6 +265,12 @@ def _resolve_category_from_topic_area(
     Topic areas are intentionally more granular than mates. The LLM picks a
     topic; code owns the topic -> mate mapping and follow-up continuity rules.
     """
+    if (
+        _normalize_task_area(raw_task_area) == "code"
+        and SOFTWARE_DEVELOPMENT_CATEGORY in available_category_ids
+    ):
+        return SOFTWARE_DEVELOPMENT_CATEGORY
+
     topic_area = _normalize_topic_area(raw_topic_area)
     if not topic_area:
         return None
@@ -2209,16 +2228,18 @@ async def handle_preprocessing(
                         f"with {IMAGE_CHAT_SAFE_MODEL_ID}"
                     )
             else:
-                # Could not resolve provider - this will fail billing preflight, but let it proceed
-                # so the error message is clear about the missing provider
                 logger.warning(
                     f"{log_prefix} USER_OVERRIDE: Could not resolve provider for model '{override_model_id}'. "
-                    f"Model not found in any provider configuration. This will likely fail billing validation."
+                    f"Model not found in any provider configuration. Falling back to {DEFAULT_FALLBACK_MODEL}."
                 )
-                selected_llm_for_main_id = override_model_id
-                selected_llm_for_main_name = override_model_id
+                selected_llm_for_main_id = DEFAULT_FALLBACK_MODEL
+                fallback_provider, fallback_model_id = DEFAULT_FALLBACK_MODEL.split("/", 1)
+                selected_llm_for_main_name = (
+                    config_manager.get_model_display_name(fallback_model_id, fallback_provider)
+                    or fallback_model_id
+                )
                 model_override_applied = True
-                model_selection_reason = f"User override (unresolved provider): {override_model_id}"
+                model_selection_reason = f"Unresolved user override {override_model_id}; fallback to {DEFAULT_FALLBACK_MODEL}"
 
         logger.info(
             f"{log_prefix} USER_OVERRIDE: Final model selection (after override): "
@@ -2363,16 +2384,29 @@ async def handle_preprocessing(
     validated_category = _resolve_category_from_topic_area(
         raw_topic_area=llm_analysis_args.get("topic_area"),
         raw_topic_shift=llm_analysis_args.get("topic_shift"),
+        raw_task_area=llm_analysis_args.get("task_area"),
         previous_category=previous_category,
         available_category_ids=available_category_ids,
     )
 
     if validated_category:
-        logger.info(
-            f"{log_prefix} TOPIC_ROUTING: Derived category '{validated_category}' from "
-            f"topic_area='{llm_analysis_args.get('topic_area')}', "
-            f"topic_shift='{llm_analysis_args.get('topic_shift')}', previous_category='{previous_category}'."
-        )
+        if (
+            _normalize_task_area(llm_analysis_args.get("task_area")) == "code"
+            and validated_category == SOFTWARE_DEVELOPMENT_CATEGORY
+        ):
+            logger.info(
+                f"{log_prefix} SOFTWARE_CATEGORY_GUARD: Forced category "
+                f"'{SOFTWARE_DEVELOPMENT_CATEGORY}' because task_area='code' "
+                f"(topic_area='{llm_analysis_args.get('topic_area')}', "
+                f"topic_shift='{llm_analysis_args.get('topic_shift')}', "
+                f"previous_category='{previous_category}')."
+            )
+        else:
+            logger.info(
+                f"{log_prefix} TOPIC_ROUTING: Derived category '{validated_category}' from "
+                f"topic_area='{llm_analysis_args.get('topic_area')}', "
+                f"topic_shift='{llm_analysis_args.get('topic_shift')}', previous_category='{previous_category}'."
+            )
         llm_analysis_args["category"] = validated_category
     else:
         logger.warning(
@@ -2828,6 +2862,19 @@ async def handle_preprocessing(
                 logger.debug(f"{log_prefix} Preprocessing selected no relevant focus modes.")
         else:
             logger.debug(f"{log_prefix} No focus mode preselection from preprocessing.")
+
+    if (
+        (
+            "web-research" in validated_relevant_focus_modes
+            or request_data.active_focus_id == "web-research"
+        )
+        and not enable_subchats_val
+    ):
+        enable_subchats_val = True
+        llm_analysis_args["enable_subchats"] = True
+        logger.info(
+            f"{log_prefix} Deep research focus mode active or selected; enabling sub-chats deterministically."
+        )
     
     # --- Rule-based skill forcing based on embed type in message history ---
     # The preprocessing LLM occasionally fails to select the correct skills when the

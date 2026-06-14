@@ -12,6 +12,7 @@
     import { get } from 'svelte/store';
     import { updateUsername } from '../../../../stores/userProfile';
     import { signupStore, clearSignupData } from '../../../../stores/signupStore';
+    import { signupFreeTestingCreditsPromotion } from '../../../../stores/serverStatusStore';
     import * as cryptoService from '../../../../services/cryptoService';
     import { isValidLocale } from '../../../../i18n/types';
 
@@ -547,7 +548,7 @@
     }
 
     // Add debounce helper
-    function debounce<T extends (...args: any[]) => void>(
+    function debounce<T extends (...args: unknown[]) => void>(
         fn: T,
         delay: number
     ): (...args: Parameters<T>) => void {
@@ -905,7 +906,7 @@
     // --- End Newsletter Subscription State ---
 </script>
 
-<h1><mark>{@html $text('signup.sign_up')}</mark></h1>
+<h1><mark>{$text('signup.sign_up')}</mark></h1>
 
 <!-- Advantages list: informs users about key benefits and pricing model to reduce signup cancellations -->
 <ul class="advantages-list">
@@ -923,7 +924,9 @@
     </li>
     <li class="advantage-item">
         <span class="advantage-check-icon"></span>
-        <span class="advantage-text">{$text('signup.advantage_pay_per_use')}</span>
+        <span class="advantage-text">
+            {$text($signupFreeTestingCreditsPromotion?.active ? 'signup.advantage_free_testing_credits' : 'signup.advantage_pay_per_use')}
+        </span>
     </li>
 </ul>
 
@@ -1036,13 +1039,13 @@
                     bind:checked={stayLoggedIn} 
                     ariaLabel={$text('login.stay_logged_in')} 
                 />
-                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in')}</label>
+                <label for="stayLoggedIn" class="agreement-text">{$text('login.stay_logged_in')}</label>
             </div>
 
             <div class="agreement-row">
                 <Toggle bind:checked={subscribeToNewsletter} id="newsletter-subscribe-toggle" />
                 <label for="newsletter-subscribe-toggle" class="agreement-text">
-                    {@html $text('signup.subscribe_to_newsletter')}
+                    {$text('signup.subscribe_to_newsletter')}
                 </label>
             </div>
 
@@ -1051,7 +1054,7 @@
                 <label for="terms-agreed-toggle" class="agreement-text">
                     {$text('signup.agree_to')} 
                     <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
-                        <mark>{@html $text('signup.terms_of_service')}</mark>
+                        <mark>{$text('signup.terms_of_service')}</mark>
                     </a>
                 </label>
             </div>
@@ -1061,7 +1064,7 @@
                 <label for="privacy-agreed-toggle" class="agreement-text">
                     {$text('signup.agree_to')} 
                     <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
-                        <mark>{@html $text('signup.privacy_policy')}</mark>
+                        <mark>{$text('signup.privacy_policy')}</mark>
                     </a>
                 </label>
             </div>

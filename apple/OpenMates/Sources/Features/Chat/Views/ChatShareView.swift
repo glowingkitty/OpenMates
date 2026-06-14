@@ -1,6 +1,13 @@
 // Chat sharing — generate encrypted shareable links with optional password and expiration.
 // Mirrors SettingsShare.svelte: link generation, QR code, copy, password protection.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+// CSS:     frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import CoreImage.CIFilterBuiltins
 
@@ -31,6 +38,7 @@ struct ChatShareView: View {
                                     .font(.omXs.monospaced())
                                     .foregroundStyle(Color.fontPrimary)
                                     .lineLimit(2)
+                                    .accessibilityIdentifier("share-short-link-url")
                                 Spacer()
                                 Button {
                                     copyToClipboard(shareLink)
@@ -44,6 +52,7 @@ struct ChatShareView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: .radius5))
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityIdentifier("share-copy-link")
                             }
 
                             if let qrImage = generateQRCode(from: shareLink) {
@@ -53,6 +62,9 @@ struct ChatShareView: View {
                                         .interpolation(.none)
                                         .resizable()
                                         .frame(width: 200, height: 200)
+                                        .accessibilityElement(children: .ignore)
+                                        .accessibilityLabel(LocalizationManager.shared.text("settings.share.qr_code"))
+                                        .accessibilityIdentifier("share-qr-code")
                                     Spacer()
                                 }
                                 .padding(.vertical, .spacing4)
@@ -71,6 +83,7 @@ struct ChatShareView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(OMSecondaryButtonStyle())
+                    .accessibilityIdentifier("share-native-sheet-button")
                 } else {
                     OMSettingsSection("Options") {
                         VStack(alignment: .leading, spacing: .spacing5) {
@@ -107,11 +120,20 @@ struct ChatShareView: View {
                     }
 
                     Button(action: generateLink) {
-                        Text(isGenerating ? AppStrings.loading : "Generate Link")
+                        Text(isGenerating ? AppStrings.sharingChatStatus : AppStrings.shareChat)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(OMPrimaryButtonStyle())
                     .disabled(isGenerating || (usePassword && password.isEmpty))
+                    .accessibilityIdentifier("share-generate-link")
+
+                    if isGenerating {
+                        Text(AppStrings.sharingChatStatus)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontSecondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .accessibilityIdentifier("share-generation-status")
+                    }
 
                     if let error {
                         Text(error).font(.omXs).foregroundStyle(Color.error)
@@ -129,6 +151,13 @@ struct ChatShareView: View {
 
         Task {
             do {
+                if let fixtureURL = ProcessInfo.processInfo.environment["UI_TEST_CHAT_SHARE_URL"], !fixtureURL.isEmpty {
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    shareLink = fixtureURL
+                    isGenerating = false
+                    return
+                }
+
                 var body: [String: Any] = [
                     "chat_id": chatId,
                     "expiration_hours": expirationHours
@@ -172,10 +201,26 @@ struct ChatShareView: View {
         guard let url = URL(string: shareLink) else { return }
         #if os(iOS)
         let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = scene.windows.first?.rootViewController {
-            rootVC.present(activityVC, animated: true)
+        guard let presenter = topMostViewController() else { return }
+        if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 1, height: 1)
         }
+        presenter.present(activityVC, animated: true)
         #endif
     }
+
+    #if os(iOS)
+    private func topMostViewController() -> UIViewController? {
+        let keyWindow = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }
+        var controller = keyWindow?.rootViewController
+        while let presented = controller?.presentedViewController {
+            controller = presented
+        }
+        return controller
+    }
+    #endif
 }

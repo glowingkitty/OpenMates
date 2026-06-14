@@ -13,7 +13,7 @@ This document tracks parity at the product-surface level, not at the file level.
 ## Source Of Truth
 
 - Canonical counterpart map: `apple/SVELTE_SWIFT_COUNTERPARTS.md`
-- Apple UI task baseline: `docs/architecture/frontend/apple-ui-redesign-task.md`
+- Apple app rules: `apple/AGENTS.md`
 - Generated inventory: `test-results/apple-parity-inventory.json`
 - Inventory script: `scripts/apple_parity_audit.py`
 - Apple app rules: `apple/AGENTS.md`

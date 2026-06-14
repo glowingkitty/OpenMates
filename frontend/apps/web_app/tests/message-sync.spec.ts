@@ -157,6 +157,78 @@ async function waitForMessageCount(
 	return lastStats;
 }
 
+/**
+ * Wait for messages_v to catch up with messageCount in IndexedDB.
+ * Uses page.waitForFunction to poll inside the browser until the
+ * version counter is at least equal to the stored message count,
+ * or the timeout expires. This is condition-driven rather than
+ * time-boxed, making it resilient to variable server propagation delays.
+ */
+async function waitForMessagesVSettled(
+	page: any,
+	chatId: string,
+	timeoutMs: number = 15000
+): Promise<void> {
+	await page.waitForFunction(async (id: string) => {
+		const DB_NAME = 'chats_db';
+		const CHATS_STORE = 'chats';
+		const MESSAGES_STORE = 'messages';
+
+		const openDB = (): Promise<IDBDatabase> => {
+			return new Promise((resolve, reject) => {
+				const request = indexedDB.open(DB_NAME);
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => resolve(request.result);
+			});
+		};
+
+		const db = await openDB();
+
+		const chatMeta = await new Promise<any>((resolve, reject) => {
+			const tx = db.transaction(CHATS_STORE, 'readonly');
+			const store = tx.objectStore(CHATS_STORE);
+			const request = store.get(id);
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result);
+		});
+
+		const messages = await new Promise<any[]>((resolve, reject) => {
+			const tx = db.transaction(MESSAGES_STORE, 'readonly');
+			const store = tx.objectStore(MESSAGES_STORE);
+			const index = store.index('chat_id');
+			const request = index.getAll(id);
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result || []);
+		});
+
+		db.close();
+
+		const messages_v = chatMeta?.messages_v || 0;
+		return messages_v >= messages.length;
+	}, chatId, { timeout: timeoutMs, polling: 500 });
+}
+
+async function waitForSyncedAssistantMessages(
+	page: any,
+	chatId: string,
+	expectedAssistantCount: number,
+	timeoutMs: number = 60000
+): Promise<{ messages_v: number; messageCount: number; roles: Record<string, number>; messageDetails: any[] }> {
+	const startTime = Date.now();
+	let lastStats = await getMessageStats(page, chatId);
+
+	while ((Date.now() - startTime) < timeoutMs) {
+		const syncedAssistantCount = lastStats.messageDetails.filter(
+			(message) => message.role === 'assistant' && message.status === 'synced'
+		).length;
+		if (syncedAssistantCount >= expectedAssistantCount) return lastStats;
+		await page.waitForTimeout(500);
+		lastStats = await getMessageStats(page, chatId);
+	}
+
+	return lastStats;
+}
+
 test('message sync: verifies all messages are synced after sending multiple messages', async ({ page }: { page: any }) => {
 	// Listen for console logs - filter for sync-related messages
 	page.on('console', (msg: any) => {
@@ -320,9 +392,15 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	expect(finalStats.messageCount).toBeGreaterThanOrEqual(4);
 	expect(finalStats.roles['user']).toBe(2);
 	expect(finalStats.roles['assistant']).toBeGreaterThanOrEqual(2);
-	
+
+	// Wait for messages_v to catch up — the server broadcasts version increments
+	// asynchronously after messages are persisted. Uses condition-driven polling
+	// rather than a fixed settle window.
+	await waitForMessagesVSettled(page, chatId);
+	const settledStats = await getMessageStats(page, chatId);
+
 	// messages_v should match message count (or be higher for server-side versioning)
-	expect(finalStats.messages_v).toBeGreaterThanOrEqual(4);
+	expect(settledStats.messages_v).toBeGreaterThanOrEqual(4);
 
 	// Run full inspection for debugging
 	const inspectionResult = await inspectChatInBrowser(page, chatId);
@@ -448,8 +526,10 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
 	
-	// Wait for AI response to be saved to IndexedDB (at least 2 messages)
-	stats = await waitForMessageCount(page, chatId, 2, 10000);
+	// Wait for the assistant response to finish, not just for the streaming
+	// placeholder to be saved. Streaming chunks are intentionally persisted with
+	// status="streaming", while messages_v advances only after final storage.
+	stats = await waitForSyncedAssistantMessages(page, chatId, 1, 60000);
 	versionsOverTime.push({ 
 		timestamp: 'after_ai_response', 
 		messages_v: stats.messages_v, 
@@ -457,6 +537,12 @@ test('message sync: verifies messages_v is properly updated', async ({ page }: {
 	});
 	logCheckpoint('After AI response:', stats);
 	console.log('📋 Message details after AI response:', JSON.stringify(stats.messageDetails, null, 2));
+
+	// Wait for messages_v to catch up — the server broadcasts version increments
+	// asynchronously after the AI response finishes. Uses condition-driven
+	// polling rather than a fixed settle window.
+	await waitForMessagesVSettled(page, chatId);
+	stats = await getMessageStats(page, chatId);
 
 	// Verify messages_v tracks message count
 	console.log('📊 messages_v tracking over time:', versionsOverTime);

@@ -51,7 +51,7 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    private static func sharedURLText(from value: Any?) -> String? {
+    nonisolated private static func sharedURLText(from value: Any?) -> String? {
         if let url = value as? URL {
             return url.absoluteString
         }
@@ -68,7 +68,7 @@ final class ShareViewController: UIViewController {
         return nil
     }
 
-    private static func sharedPlainText(from value: Any?) -> String? {
+    nonisolated private static func sharedPlainText(from value: Any?) -> String? {
         if let text = value as? String {
             return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
         }
@@ -121,12 +121,14 @@ final class ShareViewController: UIViewController {
         previewLabel.font = .systemFont(ofSize: 13, weight: .regular)
         previewLabel.textColor = .secondaryLabel
         previewLabel.numberOfLines = 4
+        previewLabel.accessibilityIdentifier = "share-extension-preview"
         previewLabel.layer.cornerRadius = 10
         previewLabel.layer.masksToBounds = true
         previewLabel.backgroundColor = .secondarySystemBackground
         stackView.addArrangedSubview(previewLabel)
 
         messageTextView.font = .systemFont(ofSize: 16)
+        messageTextView.accessibilityIdentifier = "share-extension-message-input"
         messageTextView.layer.borderColor = UIColor.separator.cgColor
         messageTextView.layer.borderWidth = 1
         messageTextView.layer.cornerRadius = 12
@@ -135,6 +137,7 @@ final class ShareViewController: UIViewController {
         stackView.addArrangedSubview(messageTextView)
 
         newChatButton.setTitle("New Chat", for: .normal)
+        newChatButton.accessibilityIdentifier = "share-extension-new-chat"
         newChatButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
         newChatButton.contentHorizontalAlignment = .leading
         var newChatConfiguration = UIButton.Configuration.plain()
@@ -157,6 +160,7 @@ final class ShareViewController: UIViewController {
         tableHeightConstraint?.isActive = true
 
         statusLabel.font = .systemFont(ofSize: 13)
+        statusLabel.accessibilityIdentifier = "share-extension-status"
         statusLabel.textColor = .secondaryLabel
         statusLabel.numberOfLines = 0
         stackView.addArrangedSubview(statusLabel)
@@ -180,6 +184,10 @@ final class ShareViewController: UIViewController {
             stackView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -20),
             stackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -32),
         ])
+
+        sendButton.accessibilityIdentifier = "share-extension-send"
+        cancelButton.accessibilityIdentifier = "share-extension-cancel"
+        view.accessibilityIdentifier = "share-extension-root"
     }
 
     private func extractSharedContent() {
@@ -223,7 +231,7 @@ final class ShareViewController: UIViewController {
     private func updatePreview() {
         let sharedText = sharedParts.map(\.text).joined(separator: "\n")
         previewLabel.text = sharedText.isEmpty ? "No URL or text was found." : sharedText
-        messageTextView.text = ""
+        messageTextView.text = sharedText
         sendButton.isEnabled = !sharedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -293,14 +301,7 @@ final class ShareViewController: UIViewController {
     private func buildFinalMessage() throws -> String {
         let userText = messageTextView.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let sharedText = sharedParts.map(\.text).joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        let message: String
-        if userText.isEmpty {
-            message = sharedText
-        } else if sharedText.isEmpty {
-            message = userText
-        } else {
-            message = "\(userText)\n\n\(sharedText)"
-        }
+        let message = userText.isEmpty ? sharedText : userText
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw BackgroundChatSendError.emptyMessage
         }

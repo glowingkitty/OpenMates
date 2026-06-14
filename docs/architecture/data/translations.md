@@ -1,15 +1,49 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-10
 key_files:
+- frontend/packages/ui/src/i18n/sources/
+- frontend/packages/ui/scripts/build-translations.js
+- frontend/packages/ui/package.json
+claims:
+- id: arch-data-translations-behavior
+  type: unit
+  claim: Translations (i18n) is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/i18n/sources/
   - frontend/packages/ui/scripts/build-translations.js
   - frontend/packages/ui/package.json
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-data-translations-behavior
+  verified: '2026-06-11'
+- id: arch-data-translations-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-translations-source-1
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/package.json
+- id: arch-data-translations-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-translations-source-2
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/scripts/build-translations.js
+- id: arch-data-translations-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-data-translations-source-3
+  anchors:
+  - type: file_exists
+    path: frontend/packages/ui/src/i18n/sources/
 ---
 
 # Translations (i18n)
 
-> YAML source files are the single source of truth for all 25 supported languages. A build step converts them to JSON locale files consumed at runtime.
+> YAML source files are the single source of truth for all 21 supported languages. A build step converts them to JSON locale files consumed at runtime.
 
 ## Why This Exists
 
@@ -61,7 +95,7 @@ cd frontend/packages/ui && npm run prepare
 
 The `prepare` script runs 8 steps in sequence: `build:translations`, `validate:locales`, `generate-apps-metadata`, `generate-embed-registry`, `generate-models-metadata`, `generate-providers-metadata`, `generate-icon-urls`, `validate:icon-refs`.
 
-`build:translations` specifically: recursively loads all YAML from `sources/`, merges by namespace, strips `context` fields, preserves newlines as `\n`, generates JSON for all 25 languages.
+`build:translations` specifically: recursively loads all YAML from `sources/`, merges by namespace, strips `context` fields, preserves newlines as `\n`, generates JSON for all 21 languages.
 
 ### Generated Files
 

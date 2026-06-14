@@ -2,11 +2,47 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/api/app/routes/settings.py
+- backend/core/api/app/tasks/user_cache_tasks.py
+- backend/core/api/app/services/compliance.py
+- backend/scripts/delete_user_account.py
+- frontend/packages/ui/src/components/settings/account/SettingsDeleteAccount.svelte
+claims:
+- id: arch-core-delete-account-behavior
+  type: unit
+  claim: Account Deletion is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/routes/settings.py
   - backend/core/api/app/tasks/user_cache_tasks.py
   - backend/core/api/app/services/compliance.py
   - backend/scripts/delete_user_account.py
   - frontend/packages/ui/src/components/settings/account/SettingsDeleteAccount.svelte
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-core-delete-account-behavior
+  verified: '2026-06-11'
+- id: arch-core-delete-account-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-delete-account-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/settings.py
+- id: arch-core-delete-account-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-delete-account-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/services/compliance.py
+- id: arch-core-delete-account-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-core-delete-account-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/tasks/user_cache_tasks.py
 ---
 
 # Account Deletion

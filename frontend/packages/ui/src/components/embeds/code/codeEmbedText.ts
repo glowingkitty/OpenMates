@@ -69,3 +69,20 @@ export function renderCodeRepo(c: Record<string, unknown>): string {
   if (facts.length) lines.push(facts.join(' · '));
   return lines.join('\n');
 }
+
+/** code-application — generated application parent embed */
+export function renderApplication(c: Record<string, unknown>): string {
+  const name = str(c.name) ?? 'Application';
+  const framework = str(c.framework);
+  const runtime = str(c.runtime);
+  const fileRefs = Array.isArray(c.file_refs) ? c.file_refs : [];
+  const lines = [`**Application** — ${name}`];
+  const facts = [framework, runtime, fileRefs.length ? `${fileRefs.length} files` : null].filter(Boolean);
+  if (facts.length) lines.push(facts.join(' · '));
+  for (const file of fileRefs.slice(0, 8)) {
+    if (file && typeof file === 'object' && 'path' in file) {
+      lines.push(`- ${String((file as { path?: unknown }).path)}`);
+    }
+  }
+  return lines.join('\n');
+}

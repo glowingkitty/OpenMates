@@ -65,6 +65,10 @@ struct AuthFlowView: View {
 
     @EnvironmentObject var authManager: AuthManager
 
+    private var prefersPasswordLoginForUITests: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-prefer-password-login")
+    }
+
     var body: some View {
         ZStack {
             Color.grey20.ignoresSafeArea()
@@ -171,6 +175,7 @@ struct AuthFlowView: View {
                 .clipShape(RoundedRectangle(cornerRadius: .radius3))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(mode == .login ? "auth-login-tab" : "auth-signup-tab")
     }
 
     @ViewBuilder
@@ -226,7 +231,7 @@ struct AuthFlowView: View {
         flowState.tfaEnabled = tfa
         flowState.userEmailSalt = userEmailSalt
 
-        if methods.contains(.passkey) {
+        if methods.contains(.passkey), !prefersPasswordLoginForUITests {
             flowState.currentStep = .passkeyLogin
             AccessibilityAnnouncement.screenChanged(LocalizationManager.shared.text("auth.passkey_login_screen"))
         } else {

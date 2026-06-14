@@ -2,12 +2,48 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/apps/ai/processing/preprocessor.py
+- backend/apps/ai/processing/main_processor.py
+- backend/core/api/app/services/embed_service.py
+- backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_deactivate_handler.py
+- frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte
+- frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+claims:
+- id: arch-apps-focus-modes-implementation-behavior
+  type: unit
+  claim: Focus Modes Implementation is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/ai/processing/preprocessor.py
   - backend/apps/ai/processing/main_processor.py
   - backend/core/api/app/services/embed_service.py
   - backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_deactivate_handler.py
   - frontend/packages/ui/src/components/embeds/FocusModeActivationEmbed.svelte
-  - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/FocusModeActivationRenderer.ts
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-apps-focus-modes-implementation-behavior
+  verified: '2026-06-11'
+- id: arch-apps-focus-modes-implementation-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-focus-modes-implementation-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/main_processor.py
+- id: arch-apps-focus-modes-implementation-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-focus-modes-implementation-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/preprocessor.py
+- id: arch-apps-focus-modes-implementation-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-focus-modes-implementation-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_deactivate_handler.py
 ---
 
 # Focus Modes Implementation

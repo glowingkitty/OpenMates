@@ -89,4 +89,27 @@ test.describe('Component Preview System', () => {
 		await expect(page.getByTestId('preview-toolbar')).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('breadcrumb-name')).toHaveText('WebSearchEmbedPreview');
 	});
+
+	test('website fullscreen highlights source quote text', async ({ page }) => {
+		const response = await page.goto('/dev/preview/embeds/web', { waitUntil: 'networkidle' });
+		expect(response?.status()).toBe(200);
+
+		const websiteSection = page.getByTestId('skill-section').filter({ has: page.getByTestId('skill-label').filter({ hasText: 'Website' }) });
+		await expect(websiteSection).toBeVisible({ timeout: 15000 });
+
+		await websiteSection.getByRole('button', { name: 'withHighlightedQuote' }).click();
+		const highlight = websiteSection.getByTestId('embed-source-text-highlight');
+		await expect(highlight).toBeVisible({ timeout: 10000 });
+		await expect(highlight).toHaveText('Svelte writes code that updates the DOM when state changes');
+
+		const styles = await highlight.evaluate((el: HTMLElement) => {
+			const computed = window.getComputedStyle(el);
+			return {
+				backgroundColor: computed.backgroundColor,
+				boxShadow: computed.boxShadow,
+			};
+		});
+		expect(styles.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+		expect(styles.boxShadow).not.toBe('none');
+	});
 });

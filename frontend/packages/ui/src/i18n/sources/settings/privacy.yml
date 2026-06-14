@@ -2518,6 +2518,30 @@ debug_logging_toggle_label:
   sv: Aktivera detaljerad felsökningsloggning
   he: אפשר רישום ניפוי שגיאות מפורט
   verified_by_human: []
+share_debug_logs:
+  context: Route title for the privacy sub-setting that opens temporary debug log sharing controls
+  en: Share Debug Logs
+  de: Debug-Protokolle teilen
+  zh: 分享调试日志
+  es: Compartir registros de depuración
+  fr: Partager les journaux de débogage
+  pt: Compartilhar logs de depuração
+  ru: Поделиться журналами отладки
+  ja: デバッグログを共有
+  ko: 디버그 로그 공유
+  it: Condividi i log di debug
+  tr: Hata ayıklama günlüklerini paylaş
+  vi: Chia sẻ nhật ký gỡ lỗi
+  id: Bagikan log debug
+  pl: Udostępnij logi debugowania
+  nl: Debuglogboeken delen
+  ar: مشاركة سجلات التصحيح
+  hi: डिबग लॉग साझा करें
+  th: แชร์บันทึกดีบัก
+  cs: Sdílet ladicí protokoly
+  sv: Dela felsökningsloggar
+  he: שיתוף יומני דיבאג
+  verified_by_human: []
 share_debug_logs_title:
   context: Label for the privacy sub-setting that opens temporary debug log sharing controls
   en: Share Debug Logs

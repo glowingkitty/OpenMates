@@ -7,7 +7,7 @@ import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
 import { chatSyncService } from "../../../services/chatSyncService"; // Import chatSyncService
-import type { Message } from "../../../types/chat"; // Import Message type
+import type { Chat, Message } from "../../../types/chat"; // Import Message type
 import { draftEditorUIState } from "../../../services/drafts/draftState";
 import {
   clearCurrentDraft,
@@ -37,6 +37,7 @@ import {
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
 import { demoMode } from "../../../stores/demoModeStore";
+import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -345,6 +346,56 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
  */
 let sendInProgress = false;
 
+const DRAFT_SAVE_IDLE_TIMEOUT_MS = 5000;
+
+function recordSendDebugStep(
+  step: string,
+  details: Record<string, unknown> = {},
+): void {
+  const debugWindow = window as Window & {
+    __openmatesLastSendDebug?: Record<string, unknown>;
+  };
+  debugWindow.__openmatesLastSendDebug = {
+    step,
+    details,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+async function waitForDraftSaveIdle(): Promise<void> {
+  if (!get(draftEditorUIState).isSaveInProgress) return;
+
+  console.info(
+    "[handleSend] Draft save already in progress; waiting before sending message",
+  );
+
+  const deadline = Date.now() + DRAFT_SAVE_IDLE_TIMEOUT_MS;
+  while (get(draftEditorUIState).isSaveInProgress && Date.now() < deadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
+  }
+
+  if (get(draftEditorUIState).isSaveInProgress) {
+    console.warn(
+      "[handleSend] Timed out waiting for draft save to finish; continuing send",
+    );
+  }
+}
+
+async function getRawChatForSendClassification(chatId: string): Promise<Chat | null> {
+  const transaction = await chatDB.getTransaction(chatDB.CHATS_STORE_NAME, "readonly");
+  const store = transaction.objectStore(chatDB.CHATS_STORE_NAME);
+
+  return new Promise((resolve, reject) => {
+    const request = store.get(chatId);
+    request.onsuccess = () => {
+      const rawChat = request.result as Chat | undefined;
+      if (rawChat) delete rawChat.messages;
+      resolve(rawChat ? { ...rawChat } : null);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
 /**
  * Handles sending a message via the message input
  *
@@ -362,7 +413,32 @@ export async function handleSend(
   activePIIExclusions: Set<string> = new Set(),
   broadcastToSiblings: boolean = false,
 ) {
+  const editorTextPreview = editor && !editor.isDestroyed ? editor.getText().slice(0, 120) : "";
+  console.info("[handleSend] Send invoked", {
+    currentChatId,
+    hasEditor: !!editor,
+    editorDestroyed: editor?.isDestroyed ?? null,
+    editorIsEmpty: editor?.isEmpty ?? null,
+    textLength: editorTextPreview.length,
+    textPreview: editorTextPreview,
+  });
+  recordSendDebugStep("send_invoked", {
+    currentChatId,
+    hasEditor: !!editor,
+    editorDestroyed: editor?.isDestroyed ?? null,
+    editorIsEmpty: editor?.isEmpty ?? null,
+    textLength: editorTextPreview.length,
+  });
+
   if (!editor || !hasActualContent(editor)) {
+    console.warn("[handleSend] Aborting send because editor has no actual content", {
+      currentChatId,
+      hasEditor: !!editor,
+      editorDestroyed: editor?.isDestroyed ?? null,
+      editorIsEmpty: editor?.isEmpty ?? null,
+      textLength: editorTextPreview.length,
+      textPreview: editorTextPreview,
+    });
     vibrateMessageField();
     return;
   }
@@ -375,10 +451,12 @@ export async function handleSend(
   if (sendInProgress) {
     console.warn(
       "[handleSend] Send already in progress, ignoring duplicate call",
+      { currentChatId, textPreview: editorTextPreview },
     );
     return;
   }
   sendInProgress = true;
+  recordSendDebugStep("send_guard_acquired", { currentChatId });
 
   // OTel instrumentation: root span covering the entire send pipeline
   const tracer = getTracer();
@@ -391,10 +469,32 @@ export async function handleSend(
   // debounced save to fire AFTER the message is sent, re-saving the already-sent
   // content as a draft. The server also clears drafts on message receipt, but
   // the client's debounced save fires afterwards and re-creates the draft.
+  console.debug("[handleSend] Preparing draft/deferred checks", { currentChatId });
   saveDraftDebounced.cancel();
+  const draftStateBeforeSend = get(draftEditorUIState);
+  recordSendDebugStep("draft_state_read", {
+    currentChatId,
+    draftChatId: draftStateBeforeSend.currentChatId,
+    isSaveInProgress: draftStateBeforeSend.isSaveInProgress,
+  });
+  console.debug("[handleSend] Draft state before send", {
+    currentChatId,
+    draftChatId: draftStateBeforeSend.currentChatId,
+    isSaveInProgress: draftStateBeforeSend.isSaveInProgress,
+  });
+  if (
+    draftStateBeforeSend.isSaveInProgress &&
+    (!currentChatId ||
+      !draftStateBeforeSend.currentChatId ||
+      currentChatId === draftStateBeforeSend.currentChatId)
+  ) {
+    await waitForDraftSaveIdle();
+  }
 
   // OTel: deferred send check span
+  console.debug("[handleSend] Starting deferred embed scan", { currentChatId });
   const deferredCheckSpan = tracer.startSpan('message.send.deferred_check');
+  recordSendDebugStep("deferred_scan_started", { currentChatId });
   // DEFERRED SEND: Detect embeds that are still in-flight.
   // Instead of blocking with a warning toast, we:
   //  1. Snapshot the editor state into a PendingSendContext (this function).
@@ -429,6 +529,14 @@ export async function handleSend(
   });
 
   deferredCheckSpan.end();
+  console.debug("[handleSend] Deferred embed scan complete", {
+    currentChatId,
+    blockingEmbedCount: blockingEmbeds.length,
+  });
+  recordSendDebugStep("deferred_scan_complete", {
+    currentChatId,
+    blockingEmbedCount: blockingEmbeds.length,
+  });
 
   if (blockingEmbeds.length > 0) {
     // -----------------------------------------------------------------------
@@ -615,9 +723,6 @@ export async function handleSend(
   // embed reference: ```json\n{"type":"image","embed_id":"..."}\n```
   // =========================================================================
   try {
-    const { encode: toonEncode } = await import("@toon-format/toon");
-    const { embedStore } = await import("../../../services/embedStore");
-
     // Collect nodes that need contentRef set
     interface UploadedImageNode {
       attrs: Record<string, unknown>;
@@ -635,7 +740,11 @@ export async function handleSend(
       return true;
     });
 
-    for (const { attrs } of uploadedImageNodes) {
+    if (uploadedImageNodes.length > 0) {
+      const { encode: toonEncode } = await import("@toon-format/toon");
+      const { embedStore } = await import("../../../services/embedStore");
+
+      for (const { attrs } of uploadedImageNodes) {
       const uploadEmbedId = attrs.uploadEmbedId as string;
 
       // Build TOON content mirroring the images/generate embed structure so that
@@ -720,6 +829,7 @@ export async function handleSend(
         return true;
       });
       dispatch(tr);
+      }
     }
   } catch (embedRegError) {
     console.error(
@@ -741,10 +851,6 @@ export async function handleSend(
   // the backend can inject it as context for the LLM.
   // =========================================================================
   try {
-    const { encode: toonEncodeAudio } = await import("@toon-format/toon");
-    const { embedStore: audioEmbedStore } =
-      await import("../../../services/embedStore");
-
     interface UploadedRecordingNode {
       attrs: Record<string, unknown>;
     }
@@ -761,7 +867,12 @@ export async function handleSend(
       return true;
     });
 
-    for (const { attrs } of uploadedRecordingNodes) {
+    if (uploadedRecordingNodes.length > 0) {
+      const { encode: toonEncodeAudio } = await import("@toon-format/toon");
+      const { embedStore: audioEmbedStore } =
+        await import("../../../services/embedStore");
+
+      for (const { attrs } of uploadedRecordingNodes) {
       const uploadEmbedId = attrs.uploadEmbedId as string;
 
       // Build TOON content for the audio recording embed.
@@ -837,6 +948,7 @@ export async function handleSend(
         return true;
       });
       recDispatch(recTr);
+      }
     }
   } catch (recEmbedRegError) {
     console.error(
@@ -859,13 +971,26 @@ export async function handleSend(
     !editorContent.content ||
     editorContent.content.length === 0
   ) {
-    console.warn("[handleSend] No editor content available");
+    console.warn("[handleSend] No editor content available", {
+      currentChatId,
+      textPreview: editorTextPreview,
+      editorContent,
+    });
     vibrateMessageField();
     return;
   }
 
   // Convert to markdown
   let markdown = tipTapToCanonicalMarkdown(editorContent);
+  recordSendDebugStep("markdown_converted", {
+    currentChatId,
+    markdownLength: markdown.length,
+  });
+  console.info("[handleSend] Editor content converted to markdown", {
+    currentChatId,
+    markdownLength: markdown.length,
+    markdownPreview: markdown.slice(0, 160),
+  });
 
   // Strip leading empty lines that were auto-prepended to allow cursor placement
   // before the first embed node (see ensureLeadingParagraph in embedHandlers.ts).
@@ -880,11 +1005,20 @@ export async function handleSend(
   // 2. Sent with the message to the server
   // 3. Cached server-side for LLM inference (so LLM gets the URL metadata)
   const urlSpan = tracer.startSpan('message.send.url_processing');
+  recordSendDebugStep("url_processing_started", { currentChatId });
   try {
     markdown = await processUrlsBeforeSend(markdown);
+    recordSendDebugStep("url_processing_complete", {
+      currentChatId,
+      markdownLength: markdown.length,
+    });
   } catch (error) {
     console.error("[handleSend] Error processing URLs before send:", error);
     // Continue with original markdown if URL processing fails
+    recordSendDebugStep("url_processing_failed", {
+      currentChatId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   } finally {
     urlSpan.end();
   }
@@ -902,6 +1036,7 @@ export async function handleSend(
   // - Disabled categories are skipped (user can toggle individual PII types)
   // - User-defined personal data entries (names, addresses, etc.) are also detected
   let piiMappingsForStorage: PIIMappingForStorage[] = [];
+  recordSendDebugStep("pii_detection_started", { currentChatId });
   try {
     // Read current privacy settings from the store
     const piiSettings: PIIDetectionSettings = get(personalDataStore.settings);
@@ -992,14 +1127,28 @@ export async function handleSend(
     console.error("[handleSend] Error in PII anonymization:", error);
     // Continue with original markdown if PII detection fails - user privacy is important
     // but we shouldn't block sending messages entirely
+    recordSendDebugStep("pii_detection_failed", {
+      currentChatId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   } finally {
     piiSpan.end();
   }
+  recordSendDebugStep("pii_detection_complete", {
+    currentChatId,
+    piiMappingCount: piiMappingsForStorage.length,
+  });
 
   // Check if a new chat suggestion was clicked - if so, track it for deletion
+  recordSendDebugStep("suggestion_tracker_import_started", { currentChatId });
   const { consumeClickedSuggestion } =
     await import("../../../stores/suggestionTracker");
+  recordSendDebugStep("suggestion_tracker_import_complete", { currentChatId });
   const encryptedSuggestionToDelete = consumeClickedSuggestion();
+  recordSendDebugStep("suggestion_consumed", {
+    currentChatId,
+    hasSuggestionToDelete: !!encryptedSuggestionToDelete,
+  });
 
   if (encryptedSuggestionToDelete) {
     // Delete from local IndexedDB immediately
@@ -1070,16 +1219,54 @@ export async function handleSend(
       );
     }
 
-    // Check if we're using an existing draft chat
-    const isUsingDraftChat =
-      !currentChatId &&
-      draftState.currentChatId &&
-      chatIdToUse === draftState.currentChatId;
+    // Check whether this ID already has a local chat record. ActiveChat stores a
+    // temporary new-chat ID in draft state before the chat/key exists; that must
+    // not be treated as an existing draft chat.
+    let existingChatCheck: import("../../../types/chat").Chat | null =
+      await getRawChatForSendClassification(chatIdToUse);
+    if (!existingChatCheck) {
+      try {
+        const { incognitoChatService } =
+          await import("../../../services/incognitoChatService");
+        existingChatCheck = await incognitoChatService.getChat(chatIdToUse);
+      } catch (incognitoLookupError) {
+        console.debug(
+          "[handleSend] Incognito chat lookup failed while checking draft chat existence:",
+          incognitoLookupError,
+        );
+      }
+    }
 
-    // Check if we're dealing with a temporary chat ID (not a real chat in the database)
-    // This happens when a temporaryChatId was set in ActiveChat but the chat doesn't actually exist in DB
-    // We need to check the database to determine if this is a real chat or temporary
-    const existingChatCheck = await chatDB.getChat(chatIdToUse);
+    let existingChatHasUsableKey = false;
+    if (existingChatCheck) {
+      if (existingChatCheck.is_incognito || isPublicChat(chatIdToUse)) {
+        existingChatHasUsableKey = true;
+      } else if (chatKeyManager.getKeySync(chatIdToUse)) {
+        existingChatHasUsableKey = true;
+      }
+
+      const isDraftOnlyChatMissingKey =
+        !existingChatHasUsableKey &&
+        draftState.currentChatId === chatIdToUse &&
+        (existingChatCheck.messages_v ?? 0) === 0;
+      if (isDraftOnlyChatMissingKey) {
+        console.warn(
+          `[handleSend] Draft chat ${chatIdToUse} exists without a usable key; treating it as new chat creation`,
+        );
+        existingChatCheck = null;
+      }
+    }
+
+    const isUsingDraftChat = shouldDispatchDraftChatAsNewChat({
+      currentChatId,
+      draftChatId: draftState.currentChatId,
+      chatIdToUse,
+      existingChat: existingChatCheck,
+      existingChatHasUsableKey,
+    });
+
+    // Check if we're dealing with a temporary chat ID (not a real chat in local storage)
+    // This happens when ActiveChat pre-allocates a temporaryChatId for the new-chat UI.
     const isTemporaryChat = !existingChatCheck && !isNewChatCreation;
     if (isTemporaryChat) {
       // For temporary chats, we need to create a new chat
@@ -1499,6 +1686,13 @@ export async function handleSend(
       newChat: isNewChatCreation || isUsingDraftChat ? chatToUpdate : undefined,
       isEditSend,
       editCreatedAt,
+    });
+    console.info("[handleSend] Dispatched local user message", {
+      chatId: messagePayload.chat_id,
+      messageId: messagePayload.message_id,
+      isNewChatCreation,
+      isUsingDraftChat,
+      contentLength: messagePayload.content.length,
     });
 
     // chatToUpdate should be the definitive version of the chat from the DB

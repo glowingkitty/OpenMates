@@ -65,6 +65,11 @@ final class AuthManager: ObservableObject {
 
     func checkSession() async {
         Self._shared = self
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-disable-auth-cache") {
+            sessionValidationState = .unauthenticated
+            state = .unauthenticated
+            return
+        }
         let restoredFromDisk = await restoreCachedSessionForStartup()
         guard !restoredFromDisk else { return }
         Task { @MainActor in

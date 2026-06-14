@@ -22,7 +22,8 @@ from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler
 )
 
 
-def test_phase1_partial_cache_metadata_is_filled_from_directus() -> None:
+def test_phase1_partial_cache_metadata_is_filled_from_directus(doc_assert) -> None:
+    doc_assert("phase1-partial-cache-metadata-fills-from-directus")
     cached_details = {
         "id": "chat-1",
         "encrypted_title": None,
@@ -117,7 +118,8 @@ def test_parent_chat_detection_excludes_sub_chats() -> None:
 
 
 @pytest.mark.anyio
-async def test_phase_all_does_not_run_phase3_background_content_sync(monkeypatch) -> None:
+async def test_phase_all_does_not_run_phase3_background_content_sync(monkeypatch, doc_assert) -> None:
+    doc_assert("phase-all-does-not-run-background-content-sync")
     calls = []
 
     async def fake_phase1(*args, **kwargs):
@@ -165,7 +167,8 @@ async def test_phase_all_does_not_run_phase3_background_content_sync(monkeypatch
 
 
 @pytest.mark.anyio
-async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats() -> None:
+async def test_phase1_full_content_ids_are_limited_to_recent_parent_chats(doc_assert) -> None:
+    doc_assert("phase1-full-content-limited-to-recent-parent-chats")
     parent_ids = [f"parent-{idx}" for idx in range(12)]
     recent_ids = []
     for idx, parent_id in enumerate(parent_ids):

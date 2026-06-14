@@ -2,10 +2,45 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- frontend/packages/ui/src/services/cryptoService.ts
+- backend/core/api/app/utils/encryption.py
+- backend/core/api/app/routes/auth_routes/auth_login.py
+- backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
+claims:
+- id: arch-privacy-email-privacy-behavior
+  type: unit
+  claim: Email Privacy Protection is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - frontend/packages/ui/src/services/cryptoService.ts
   - backend/core/api/app/utils/encryption.py
   - backend/core/api/app/routes/auth_routes/auth_login.py
   - backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-privacy-email-privacy-behavior
+  verified: '2026-06-11'
+- id: arch-privacy-email-privacy-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-email-privacy-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
+- id: arch-privacy-email-privacy-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-email-privacy-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/auth_routes/auth_login.py
+- id: arch-privacy-email-privacy-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-privacy-email-privacy-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/utils/encryption.py
 ---
 
 # Email Privacy Protection
@@ -70,5 +105,5 @@ Invoices use a 7-character randomly generated **Account ID** (e.g., "K7M9P2S") i
 
 ## Related Docs
 
-- [Zero-Knowledge Storage](../core/zero-knowledge-storage.md) -- overall encryption architecture
+- [Encryption Architecture](../core/encryption-architecture.md) -- overall encryption architecture
 - [Signup and Auth](../core/signup-and-auth.md) -- authentication flows

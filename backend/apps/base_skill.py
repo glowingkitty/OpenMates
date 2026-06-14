@@ -539,6 +539,78 @@ class BaseSkill:
         
         return (requests, None)
 
+    def _partition_requests_by_required_fields(
+        self,
+        requests: List[Dict[str, Any]],
+        required_fields: List[str],
+        field_display_names: Optional[Dict[str, str]],
+        empty_error_message: str,
+        logger: logging.Logger,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[str], Optional[str]]:
+        """Split multi-request payloads so one malformed item does not fail siblings."""
+        if not requests:
+            logger.error(f"No requests provided to {self.skill_name}")
+            return ([], [], [], empty_error_message)
+
+        requests = [
+            r.model_dump() if hasattr(r, "model_dump") else r
+            for r in requests
+        ]
+        valid_requests: List[Dict[str, Any]] = []
+        invalid_grouped_results: List[Dict[str, Any]] = []
+        errors: List[str] = []
+        request_ids = set()
+
+        for i, req in enumerate(requests):
+            request_id, error = self._validate_and_normalize_request_id(
+                req=req,
+                request_index=i,
+                total_requests=len(requests),
+                request_ids=request_ids,
+                logger=logger,
+            )
+            if error:
+                logger.error(f"Request {i+1} validation failed: {error}")
+                return ([], [], [], error)
+
+            missing_fields = [field for field in required_fields if not req.get(field)]
+            if missing_fields:
+                missing_labels = [
+                    (field_display_names or {}).get(field, field)
+                    for field in missing_fields
+                ]
+                joined_labels = ", ".join(f"'{label}'" for label in missing_labels)
+                error_message = f"Request {i+1} (id: {request_id}) is missing required {joined_labels} field"
+                logger.warning(
+                    "%s request %d is invalid but sibling requests will continue: %s",
+                    self.skill_name,
+                    i + 1,
+                    error_message,
+                )
+                invalid_grouped_results.append({
+                    "id": request_id,
+                    "results": [],
+                    "error": error_message,
+                })
+                errors.append(error_message)
+                continue
+
+            valid_requests.append(req)
+
+        return (valid_requests, invalid_grouped_results, errors, None)
+
+    def _merge_grouped_results_preserving_request_order(
+        self,
+        grouped_results: List[Dict[str, Any]],
+        invalid_grouped_results: List[Dict[str, Any]],
+        requests: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """Merge valid and invalid request groups while preserving caller order."""
+        merged = [*grouped_results, *invalid_grouped_results]
+        request_order = {req.get("id"): i for i, req in enumerate(requests)}
+        merged.sort(key=lambda group: request_order.get(group.get("id"), 999))
+        return merged
+
     async def _process_requests_in_parallel(
         self,
         requests: List[Dict[str, Any]],

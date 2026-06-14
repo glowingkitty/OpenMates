@@ -8,15 +8,23 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip
-from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
+from backend.core.api.app.utils.invite_code import is_email_domain_allowed, validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username, store_account_lifecycle_contact_email
+from backend.core.api.app.routes.auth_routes.auth_utils import (
+    verify_allowed_origin,
+    validate_username,
+    store_account_lifecycle_contact_email,
+    has_pending_signup_gift_card,
+)
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 from backend.core.api.app.schemas.auth import LoginRequest
 from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.utils.server_mode import get_server_edition, validate_request_domain
+from backend.core.api.app.routes.websockets import manager as ws_manager
+from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -43,9 +51,9 @@ async def setup_password(
         code_data = None
         
         # Get signup requirements based on server edition and configuration
-        # For self-hosted: domain restriction OR invite code required
+        # For self-hosted: explicit install-selected signup mode determines requirements
         # For non-self-hosted: use SIGNUP_LIMIT logic
-        require_invite_code, require_domain_restriction, _allowed_domains = await get_signup_requirements(
+        require_invite_code, require_domain_restriction, allowed_domains = await get_signup_requirements(
             directus_service, cache_service
         )
         
@@ -67,12 +75,27 @@ async def setup_password(
         verification_cache_key = f"email_verified:{setup_request.hashed_email}"
         verification_data = await cache_service.get(verification_cache_key)
         
-        if not verification_data:
+        if not verification_data and (get_server_edition() != "self_hosted" or require_domain_restriction):
             logger.warning("Password setup attempted without email verification")
             return SetupPasswordResponse(
                 success=False,
                 message="Email verification required. Please verify your email first."
             )
+
+        if require_domain_restriction and allowed_domains and verification_data:
+            verified_email = verification_data.get("email")
+            is_allowed_domain, email_domain = is_email_domain_allowed(verified_email, allowed_domains)
+            if not is_allowed_domain:
+                logger.warning(
+                    "Password signup rejected: verified email domain not allowed: "
+                    f"{email_domain or 'invalid email format'} (allowed: {', '.join(allowed_domains)})"
+                )
+                return SetupPasswordResponse(
+                    success=False,
+                    message="signup.domain_not_allowed"
+                )
+        elif get_server_edition() == "self_hosted":
+            verification_data = verification_data or {}
 
         # Validate username format
         username_valid, username_error = validate_username(setup_request.username)
@@ -103,9 +126,9 @@ async def setup_password(
                 message="This email is already registered. Please log in instead."
             )
 
-        # Extract additional information from invite code
-        is_admin = code_data.get('is_admin', False) if code_data else False
-        role = code_data.get('role') if code_data else None
+        # Invite codes grant signup access and optional credits only. Admin
+        # privileges are granted separately with `openmates server make-admin`.
+        is_admin = False
 
         # Create the user account with encrypted email
         success, user_data, create_message = await directus_service.create_user(
@@ -117,7 +140,7 @@ async def setup_password(
             language=setup_request.language,
             darkmode=setup_request.darkmode,
             is_admin=is_admin,
-            role=role,
+            role=None,
         )
 
         if not success:
@@ -404,6 +427,47 @@ async def setup_password(
         if plain_gift_value > 0:
             logger.info(f"Adding gifted credits ({plain_gift_value}) to user data for {user_id}")
             await cache_service.update_user(user_id, {"gifted_credits_for_signup": plain_gift_value})
+
+        try:
+            _, is_self_hosted_request, _ = validate_request_domain(request)
+            if is_self_hosted_request:
+                logger.info(
+                    "Skipping free testing credits for self-hosted password signup user %s",
+                    user_id[:8],
+                )
+            elif await has_pending_signup_gift_card(directus_service, setup_request.pending_gift_card_code):
+                logger.info(
+                    "Skipping free testing credits for password signup user %s with pending gift-card redemption",
+                    user_id[:8],
+                )
+            else:
+                free_testing_service = FreeTestingCreditsService(
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    websocket_manager=ws_manager,
+                    celery_app=celery_app,
+                )
+                grant_result = await free_testing_service.grant_to_new_signup(user_id)
+                if grant_result.granted:
+                    logger.info(
+                        "Granted %s free testing credits to new password signup user %s",
+                        grant_result.credits_granted,
+                        user_id[:8],
+                    )
+                else:
+                    logger.info(
+                        "No free testing credits granted to new password signup user %s: %s",
+                        user_id[:8],
+                        grant_result.reason,
+                    )
+        except Exception as free_testing_err:
+            logger.error(
+                "Failed to process free testing credits for password signup user %s: %s",
+                user_id[:8],
+                free_testing_err,
+                exc_info=True,
+            )
         
 
         return SetupPasswordResponse(

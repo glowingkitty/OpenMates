@@ -37,6 +37,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.shared.python_utils.image_mime import detect_image_mime_type
 
 logger = logging.getLogger(__name__)
 
@@ -390,8 +391,9 @@ class ViewSkill(BaseSkill):
 
             # --- Step 8: Encode and return as multimodal content list ---
             image_b64 = base64.b64encode(plaintext_bytes).decode("utf-8")
+            mime_type = detect_image_mime_type(plaintext_bytes, filename)
 
-            logger.info(f"{embed_log_prefix} Returning image as multimodal content block")
+            logger.info(f"{embed_log_prefix} Returning image as multimodal content block ({mime_type})")
             return [
                 {
                     "type": "text",
@@ -400,7 +402,7 @@ class ViewSkill(BaseSkill):
                 {
                     "type": "image_url",
                     "image_url": {
-                        "url": f"data:image/webp;base64,{image_b64}",
+                        "url": f"data:{mime_type};base64,{image_b64}",
                         "detail": "high",
                     },
                 },

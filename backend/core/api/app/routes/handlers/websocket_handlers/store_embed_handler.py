@@ -1,5 +1,6 @@
 import json
 import logging
+import hashlib
 from typing import Dict, Any
 from fastapi import WebSocket
 
@@ -8,6 +9,30 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
+
+
+async def _reject_store_embed_write(
+    manager: ConnectionManager,
+    user_id: str,
+    device_fingerprint_hash: str,
+    embed_id: str,
+    reason: str,
+) -> None:
+    logger.warning(
+        "Rejected unauthorized store_embed write for embed %s from user %s: %s",
+        embed_id,
+        user_id,
+        reason,
+    )
+    await manager.send_personal_message(
+        {"type": "error", "payload": {"message": "Not authorized to store embed"}},
+        user_id,
+        device_fingerprint_hash,
+    )
+
+
+def _user_hash(user_id: str) -> str:
+    return hashlib.sha256(user_id.encode()).hexdigest()
 
 async def handle_store_embed(
     websocket: WebSocket,
@@ -51,7 +76,7 @@ async def handle_store_embed(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("store_embed", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -88,10 +113,24 @@ async def handle_store_embed(
             except Exception as e:
                 logger.warning(f"Failed to check/merge cached s3_file_keys for embed {embed_id}: {e}")
 
+            authenticated_user_hash = _user_hash(user_id)
+
             # Check if embed already exists
             existing_embed = await directus_service.embed.get_embed_by_id(embed_id)
-        
+         
             if existing_embed:
+                existing_owner_hash = existing_embed.get("hashed_user_id")
+                if existing_owner_hash != authenticated_user_hash:
+                    await _reject_store_embed_write(
+                        manager,
+                        user_id,
+                        device_fingerprint_hash,
+                        embed_id,
+                        "existing embed owner mismatch",
+                    )
+                    return
+
+                payload["hashed_user_id"] = existing_owner_hash
                 # Update existing embed
                 logger.debug(f"Embed {embed_id} exists, updating...")
                 updated_embed = await directus_service.embed.update_embed(embed_id, payload)
@@ -115,6 +154,16 @@ async def handle_store_embed(
                 else:
                     logger.error(f"Failed to update embed {embed_id} in Directus")
             else:
+                if payload.get("hashed_user_id") != authenticated_user_hash:
+                    await _reject_store_embed_write(
+                        manager,
+                        user_id,
+                        device_fingerprint_hash,
+                        embed_id,
+                        "new embed hashed_user_id mismatch",
+                    )
+                    return
+
                 # Create new embed
                 logger.debug(f"Embed {embed_id} does not exist, creating...")
                 created_embed = await directus_service.embed.create_embed(payload)

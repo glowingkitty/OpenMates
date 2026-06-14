@@ -90,6 +90,15 @@ embed_types:
     icon: search
     gradient_var: "--color-app-web"
     i18n_namespace: embeds.web.search
+    content_catalog:
+      enabled: true
+      source: child
+      content_type_id: website
+      name: Website
+      description: Saved website result cards with title, URL, favicon, snippet, and page metadata.
+      icon: web
+      example_key: web.website
+      order: 10
     # Content fields for the parent app_skill_use embed (finished state)
     content_fields:
       - name: query
@@ -384,13 +393,19 @@ focuses:
   - id: check_reputation
     name_translation_key: web.check_reputation
     description_translation_key: web.check_reputation.description
-    stage: planning
-      You are an expert on identifying scams vs legit businesses.
+    process_translation_key: focus_modes.web_check_reputation.process
+    systemprompt_translation_key: focus_modes.web_check_reputation.systemprompt
+    stage: development
+    preprocessor_hint: >
+      Select when the user asks whether a business, seller, marketplace listing,
+      website, online shop, or service is legitimate, trustworthy, reliable, or
+      likely to be a scam before buying, signing up, or sharing information.
+      Do not select for general company background research unless the user is
+      explicitly asking about trust, reputation, fraud, or purchase risk.
   - id: analyze_privacy
     name_translation_key: web.analyze_privacy
     description_translation_key: web.analyze_privacy.description
     stage: planning
-      You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
   - id: research
     name_translation_key: web.research
     description_translation_key: web.research.description
@@ -398,14 +413,8 @@ focuses:
     systemprompt_translation_key: focus_modes.web_research.systemprompt
     stage: development
     preprocessor_hint: >
-      Select when the user wants in-depth research on a topic, asks to investigate or analyze something thoroughly,
-      or needs comprehensive information gathered from multiple web sources.
-      You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.
-  - id: deep_web_research
-    name_translation_key: web.deep_web_research
-    description_translation_key: web.deep_web_research.description
-    stage: planning
-      You are an expert for deep web research.
+      Select when the user asks about complex political, economic, market, geopolitical, policy, or news topics where surface explanations may be incomplete and incentives, competing narratives, or hidden causes matter.
+      Do not select for quick facts, simple current-info lookups, or single-page summaries where normal web search or web read is enough.
 
 marketing_discovery:
   skills:

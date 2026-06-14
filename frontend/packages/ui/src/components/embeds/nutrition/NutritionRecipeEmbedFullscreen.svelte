@@ -121,7 +121,7 @@
 >
   {#snippet embedHeaderCta()}
     {#if recipe.recipe_url}
-      <EmbedHeaderCtaButton label={$text('embeds.nutrition.view_on_rewe')} href={recipe.recipe_url} />
+      <EmbedHeaderCtaButton label={$text('embeds.nutrition.view_source')} href={recipe.recipe_url} />
     {/if}
   {/snippet}
 

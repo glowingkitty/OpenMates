@@ -1,13 +1,53 @@
 ---
-status: in-progress
+status: active
+doc_type: architecture
+audience:
+- contributors
+- technical-users
 last_verified: 2026-04-17
 key_files:
+- apple/project.yml
+- apple/OpenMates/Sources/App/OpenMatesApp.swift
+- apple/OpenMates/Sources/Core/Networking/APIClient.swift
+- apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+- apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+- frontend/packages/ui/src/tokens/generated/swift/
+claims:
+- id: arch-frontend-native-apps-behavior
+  type: unit
+  claim: Native Apps Architecture (Apple-First) is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - apple/project.yml
   - apple/OpenMates/Sources/App/OpenMatesApp.swift
   - apple/OpenMates/Sources/Core/Networking/APIClient.swift
   - apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
   - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
-  - frontend/packages/ui/src/tokens/generated/swift/
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-frontend-native-apps-behavior
+  verified: '2026-06-11'
+- id: arch-frontend-native-apps-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-native-apps-source-1
+  anchors:
+  - type: file_exists
+    path: apple/OpenMates/Sources/App/OpenMatesApp.swift
+- id: arch-frontend-native-apps-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-native-apps-source-2
+  anchors:
+  - type: file_exists
+    path: apple/OpenMates/Sources/Core/Crypto/CryptoManager.swift
+- id: arch-frontend-native-apps-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-frontend-native-apps-source-3
+  anchors:
+  - type: file_exists
+    path: apple/OpenMates/Sources/Core/Networking/APIClient.swift
 ---
 
 # Native Apps Architecture (Apple-First)

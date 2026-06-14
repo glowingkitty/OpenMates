@@ -36,6 +36,7 @@ web.search.1:
   cs: Rychlé a zdravé recepty na večeři do 30 minut
   sv: Snabba hälsosamma middagsrecept under 30 minuter
   he: מתכוני ארוחת ערב בריאים ומהירים בפחות מ-30 דקות
+  it: Ricette per cene sane e veloci in meno di 30 minuti
   verified_by_human: [en]
 web.search.2:
   context: Query label for the second web search example in the app store. Shown on a preview card that opens a real Brave Search result set for family-friendly beaches across southern Europe.
@@ -59,6 +60,7 @@ web.search.2:
   cs: Nejlepší pláže pro rodiny v jižní Evropě
   sv: Bästa familjevänliga stränderna i södra Europa
   he: החופים הטובים ביותר למשפחות בדרום אירופה
+  it: "Migliori spiagge per famiglie nell'Europa meridionale"
   verified_by_human: [en]
 web.search.3:
   context: Query label for the third web search example in the app store. Shown on a preview card that opens a real Brave Search result set for everyday, non-medical tips to improve your sleep naturally.
@@ -82,6 +84,7 @@ web.search.3:
   cs: Přírodní způsoby, jak zlepšit spánek
   sv: Naturliga sätt att förbättra din sömn
   he: דרכים טבעיות לשיפור השינה
+  it: Modi naturali per migliorare il sonno
   verified_by_human: [en]
 
 news.search.1:
@@ -106,6 +109,7 @@ news.search.1:
   cs: Evropské cestovní trendy pro léto 2026
   sv: Europeiska resetrender för sommaren 2026
   he: מגמות תיירות באירופה לקיץ 2026
+  it: "Tendenze di viaggio in Europa per l'estate 2026"
   verified_by_human: [en]
 news.search.2:
   context: Query label for the second news search example in the app store. Shown on a preview card that opens a real Brave news result set about healthy eating recommendations and dietary guidance across Europe.
@@ -129,6 +133,7 @@ news.search.2:
   cs: Doporučení pro zdravé stravování v Evropě
   sv: Rekommendationer för hälsosam kost i Europa
   he: המלצות לתזונה בריאה באירופה
+  it: "Consigli per un'alimentazione sana in Europa"
   verified_by_human: [en]
 news.search.3:
   context: Query label for the third news search example in the app store. Shown on a preview card that opens a real Brave news result set about cultural festivals happening across Europe this summer.
@@ -152,6 +157,7 @@ news.search.3:
   cs: Kulturní festivaly v Evropě toto léto
   sv: Kulturfestivaler i Europa i sommar
   he: פסטיבלי תרבות באירופה הקיץ
+  it: "Festival culturali in Europa quest'estate"
   verified_by_human: [en]
 
 videos.search.1:
@@ -176,6 +182,7 @@ videos.search.1:
   cs: Videa z mise Artemis II
   sv: Videor från Artemis II-uppdraget
   he: סרטונים של משימת ארטמיס 2
+  it: Video della missione Artemis II
   verified_by_human: [en]
 videos.search.2:
   context: Query label for the second videos search example in the app store. Shown on a preview card that opens real Brave video results for easy weeknight pasta recipe tutorials.
@@ -199,6 +206,7 @@ videos.search.2:
   cs: Snadné recepty na těstoviny k večeři
   sv: Enkla pastarecept för vardagskvällar
   he: מתכוני פסטה קלים לאמצע השבוע
+  it: Ricette di pasta facili e veloci
   verified_by_human: [en]
 videos.search.3:
   context: Query label for the third videos search example in the app store. Shown on a preview card that opens real Brave video results for a beginner morning yoga routine.
@@ -222,6 +230,7 @@ videos.search.3:
   cs: Ranní jóga pro začátečníky
   sv: Morgonyoga för nybörjare
   he: שגרת יוגה בוקר למתחילים
+  it: Routine di yoga mattutino per principianti
   verified_by_human: [en]
 
 maps.search.1:
@@ -246,6 +255,7 @@ maps.search.1:
   cs: Pekárny a kavárny v centru Paříže
   sv: Bagerier och kaféer i centrala Paris
   he: מאפיות ובתי קפה במרכז פריז
+  it: Panetterie e caffè nel centro di Parigi
   verified_by_human: [en]
 maps.search.2:
   context: Query label for the second maps search example in the app store. Shown on a preview card that opens a map of family-friendly parks across Berlin.
@@ -269,6 +279,7 @@ maps.search.2:
   cs: Parky pro rodiny v Berlíně
   sv: Familjevänliga parker i Berlin
   he: פארקים למשפחות בברלין
+  it: Parchi per famiglie a Berlino
   verified_by_human: [en]
 maps.search.3:
   context: Query label for the third maps search example in the app store. Shown on a preview card that opens a map of tapas bars in central Barcelona.
@@ -292,6 +303,7 @@ maps.search.3:
   cs: Tapas bary v centru Barcelony
   sv: Tapasbarer i centrala Barcelona
   he: טאפאס ברים במרכז ברצלונה
+  it: Tapas bar nel centro di Barcellona
   verified_by_human: [en]
 
 shopping.search_products.1:
@@ -389,6 +401,7 @@ travel.search_stays.1:
   cs: Hotely v centru Lisabonu
   sv: Hotell i centrala Lissabon
   he: מלונות במרכז ליסבון
+  it: Hotel nel centro di Lisbona
   verified_by_human: [en]
 travel.search_stays.2:
   context: Query label for the second travel stays example in the app store. Shown on a preview card that opens mountain cabin options in the Austrian Alps.
@@ -412,6 +425,7 @@ travel.search_stays.2:
   cs: Horské chaty v rakouských Alpách
   sv: Bergsstugor i de österrikiska Alperna
   he: בקתות הרים באלפים האוסטריים
+  it: Baite di montagna nelle Alpi austriache
   verified_by_human: [en]
 travel.search_stays.3:
   context: Query label for the third travel stays example in the app store. Shown on a preview card that opens family-friendly hotel options across the Greek islands.
@@ -435,6 +449,7 @@ travel.search_stays.3:
   cs: Rodinné hotely na řeckých ostrovech
   sv: Familjehotell på de grekiska öarna
   he: מלונות למשפחות באיי יוון
+  it: Hotel per famiglie nelle isole greche
   verified_by_human: [en]
 
 events.search.1:
@@ -459,6 +474,7 @@ events.search.1:
   cs: Farmářské trhy a gastrofestivaly v Lyonu
   sv: Bondens marknad och matfestivaler i Lyon
   he: שוקי איכרים ופסטיבלי אוכל בליון
+  it: Mercati agricoli e festival gastronomici a Lione
   verified_by_human: [en]
 events.search.2:
   context: Query label for the second events search example in the app store. Shown on a preview card that opens results for family-friendly weekend events in Vienna, Austria.
@@ -482,6 +498,7 @@ events.search.2:
   cs: Víkendové akce pro rodiny ve Vídni
   sv: Familjeevenemang i Wien i helgen
   he: אירועי סוף שבוע למשפחות בווינה
+  it: Eventi per famiglie nel weekend a Vienna
   verified_by_human: [en]
 events.search.3:
   context: Query label for the third events search example in the app store. Shown on a preview card that opens results for outdoor summer concerts in Amsterdam, Netherlands.
@@ -505,6 +522,7 @@ events.search.3:
   cs: Letní koncerty v Amsterdamu
   sv: Sommarkonserter i Amsterdam
   he: הופעות קיץ באמסטרדם
+  it: Concerti estivi ad Amsterdam
   verified_by_human: [en]
 
 images.search.1:
@@ -529,6 +547,7 @@ images.search.1:
   cs: Mise Artemis II
   sv: Artemis II-uppdraget
   he: משימת ארטמיס 2
+  it: Missione Artemis II
   verified_by_human: [en]
 images.search.2:
   context: Query label for the second images search example in the app store. Shown on a preview card that opens real Brave image results for a Mediterranean coastal village at sunset.
@@ -552,6 +571,7 @@ images.search.2:
   cs: Vesnice na středomořském pobřeží při západu slunce
   sv: Medelhavsby vid solnedgången
   he: כפר בחוף הים התיכון בשקיעה
+  it: Villaggio costiero mediterraneo al tramonto
   verified_by_human: [en]
 images.search.3:
   context: Query label for the third images search example in the app store. Shown on a preview card that opens real Brave image results for a cozy winter breakfast table setting.
@@ -575,6 +595,7 @@ images.search.3:
   cs: Útulný zimní snídaňový stůl
   sv: Mysigt frukostbord på vintern
   he: שולחן ארוחת בוקר חורפי ונעים
+  it: Tavola per colazione invernale accogliente
   verified_by_human: [en]
 
 code.get_docs.1:
@@ -964,6 +985,7 @@ videos.get_transcript.1:
   cs: Slavný projev s radami do života
   sv: Ett känt tal om livsråd
   he: נאום מפורסם עם עצות לחיים
+  it: Un famoso discorso con consigli di vita
   verified_by_human: [en]
 videos.get_transcript.2:
   context: Query label for the second video transcript example in the app store. Shown on a preview card that opens the transcript of a popular TED talk about body language.
@@ -987,6 +1009,7 @@ videos.get_transcript.2:
   cs: Populární TED talk o řeči těla
   sv: Ett populärt TED-tal om kroppsspråk
   he: הרצאת TED פופולרית על שפת גוף
+  it: Un popolare TED talk sul linguaggio del corpo
   verified_by_human: [en]
 videos.get_transcript.3:
   context: Query label for the third video transcript example in the app store. Shown on a preview card that opens the transcript of a popular TED talk about human connection and vulnerability.
@@ -1010,10 +1033,11 @@ videos.get_transcript.3:
   cs: Populární TED talk o lidském spojení
   sv: Ett populärt TED-tal om mänsklig kontakt
   he: הרצאת TED פופולרית על חיבור אנושי
+  it: Un popolare TED talk sulla connessione
   verified_by_human: [en]
 
 nutrition.search_recipes.1:
-  context: Query label for the first nutrition recipe search example in the app store. Shown on a preview card that displays vegetarian pasta recipes from the REWE search skill.
+  context: Query label for the first nutrition recipe search example in the app store. Shown on a preview card that displays vegetarian pasta recipes from the Edamam-backed nutrition recipe search skill.
   en: Vegetarian pasta recipes
   de: Vegetarische Pasta-Rezepte
   zh: 素食意面食谱
@@ -1034,10 +1058,11 @@ nutrition.search_recipes.1:
   cs: Vegetariánské recepty na těstoviny
   sv: Vegetariska pastarecept
   he: מתכוני פסטה צמחונית
+  it: Ricette per pasta vegetariana
   verified_by_human: [en]
 
 nutrition.search_recipes.2:
-  context: Query label for the second nutrition recipe search example in the app store. Shown on a preview card that displays easy casserole recipes from the REWE search skill.
+  context: Query label for the second nutrition recipe search example in the app store. Shown on a preview card that displays easy recipe results from the Edamam-backed nutrition recipe search skill.
   en: Easy casserole recipes
   de: Einfache Auflauf-Rezepte
   zh: 快速碗食谱
@@ -1058,10 +1083,11 @@ nutrition.search_recipes.2:
   cs: Rychlé recepty na misky
   sv: Snabba bowlrecept
   he: מתכוני קערות מהירים
+  it: Ricette facili per sformati
   verified_by_human: [en]
 
 nutrition.search_recipes.3:
-  context: Query label for the third nutrition recipe search example in the app store. Shown on a preview card that displays low-carb dinner recipes from the REWE search skill.
+  context: Query label for the third nutrition recipe search example in the app store. Shown on a preview card that displays low-carb dinner recipes from the Edamam-backed nutrition recipe search skill.
   en: Low carb dinner recipes
   de: Low-Carb-Abendessen-Rezepte
   zh: 低碳晚餐食谱
@@ -1082,6 +1108,7 @@ nutrition.search_recipes.3:
   cs: Recepty na nízkosacharidové večeře
   sv: Lågkolhydratmiddagsrecept
   he: מתכוני ארוחת ערב דלת פחמימות
+  it: Ricette per cene low carb
   verified_by_human: [en]
 
 math.calculate.1:
@@ -1106,6 +1133,7 @@ math.calculate.1:
   cs: "sqrt(144) + 3^4"
   sv: "sqrt(144) + 3^4"
   he: "sqrt(144) + 3^4"
+  it: sqrt(144) + 3^4
   verified_by_human: [en]
 
 math.calculate.2:
@@ -1130,6 +1158,7 @@ math.calculate.2:
   cs: 150 km/h na mph
   sv: 150 km/h till mph
   he: 150 קמ"ש ל-mph
+  it: 150 km/h in mph
   verified_by_human: [en]
 
 math.calculate.3:
@@ -1154,6 +1183,7 @@ math.calculate.3:
   cs: "sin(π/4) × cos(π/4)"
   sv: "sin(π/4) × cos(π/4)"
   he: "sin(π/4) × cos(π/4)"
+  it: sin(π/4) × cos(π/4)
   verified_by_human: [en]
 
 weather.forecast.1:
@@ -1178,6 +1208,7 @@ weather.forecast.1:
   cs: Předpověď počasí pro Berlín na tento týden
   sv: Väderprognos för Berlin den här veckan
   he: תחזית מזג האוויר בברלין לשבוע הזה
+  it: Previsioni meteo Berlino per questa settimana
   verified_by_human: [en]
 
 weather.forecast.2:
@@ -1202,6 +1233,7 @@ weather.forecast.2:
   cs: Předpověď počasí pro Tokio na několik příštích dní
   sv: Väderprognos för Tokyo de närmaste dagarna
   he: תחזית מזג האוויר בטוקיו לימים הקרובים
+  it: Previsioni meteo Tokyo per i prossimi giorni
   verified_by_human: [en]
 
 travel.get_flight.1:
@@ -1226,6 +1258,7 @@ travel.get_flight.1:
   cs: Let LH2472 Mnichov → Londýn
   sv: Flyg LH2472 München → London
   he: טיסה LH2472 מינכן → לונדון
+  it: Volo LH2472 Monaco → Londra
   verified_by_human: [en]
 
 travel.get_flight.2:
@@ -1250,6 +1283,7 @@ travel.get_flight.2:
   cs: Let BA918 Londýn → Řím
   sv: Flyg BA918 London → Rom
   he: טיסה BA918 לונדון → רומא
+  it: Volo BA918 Londra → Roma
   verified_by_human: [en]
 
 travel.get_flight.3:
@@ -1274,6 +1308,7 @@ travel.get_flight.3:
   cs: Let EW8614 Berlín → Barcelona
   sv: Flyg EW8614 Berlin → Barcelona
   he: טיסה EW8614 ברלין → ברצלונה
+  it: Volo EW8614 Berlino → Barcellona
   verified_by_human: [en]
 
 images.generate.1:
@@ -1298,6 +1333,7 @@ images.generate.1:
   cs: Keramické misky s bobulemi
   sv: Keramikskålar med bär
   he: קערות קרמיקה עם פירות יער
+  it: Ciotole in ceramica con frutti di bosco
   verified_by_human: [en]
 
 images.generate.2:
@@ -1322,6 +1358,7 @@ images.generate.2:
   cs: Betonový dům s výhledem na hory
   sv: Betonghus med bergsvy
   he: בית בטון עם נוף הרים
+  it: Casa in cemento con vista montagna
   verified_by_human: [en]
 
 images.generate.3:
@@ -1346,6 +1383,7 @@ images.generate.3:
   cs: Ranní rosa na pavučině
   sv: Morgondagg på spindelnät
   he: טל בוקר על קורי עכביש
+  it: Rugiada mattutina su ragnatela
   verified_by_human: [en]
 
 images.generate_draft.1:
@@ -1370,6 +1408,7 @@ images.generate_draft.1:
   cs: Ilustrace týdenního jídelníčku
   sv: Illustration av veckomatsplanerare
   he: איור של תכנון ארוחות שבועי
+  it: Illustrazione planner pasti settimanale
   verified_by_human: [en]
 
 images.generate_draft.2:
@@ -1394,6 +1433,7 @@ images.generate_draft.2:
   cs: Organizovaný pracovní stůl
   sv: Organiserad skrivbordsarbetsplats
   he: שולחן עבודה מסודר
+  it: Scrivania ordinata
   verified_by_human: [en]
 
 images.generate_draft.3:
@@ -1418,55 +1458,276 @@ images.generate_draft.3:
   cs: Evropská dlážděná ulička za soumraku
   sv: Europeisk kullerstensgata i skymningen
   he: רחוב אבן אירופי בין ערביים
+  it: Strada europea acciottolata al crepuscolo
   verified_by_human: [en]
 
 electronics.search_components.1:
   context: Query label for the first electronics component search example in the app store. Shown on a preview card that opens real TI WEBENCH buck converter recommendations for converting 12V to 5V.
   en: 12V to 5V buck converter
+  de: 12V zu 5V Abwärtswandler
+  zh: 12V 转 5V 降压转换器
+  es: Convertidor buck de 12V a 5V
+  fr: Convertisseur buck 12V vers 5V
+  pt: conversor buck de 12V para 5V
+  ru: Понижающий преобразователь с 12 В на 5 В
+  ja: 12Vから5Vへの降圧コンバータ
+  ko: 12V to 5V 벅 컨버터
+  it: Convertitore buck da 12V a 5V
+  tr: 12V - 5V buck dönüştürücü
+  vi: Bộ chuyển đổi buck 12V sang 5V
+  id: Buck converter 12V ke 5V
+  pl: Przetwornica buck 12V na 5V
+  nl: 12V naar 5V buck-converter
+  ar: محول خافض للجهد من 12 فولت إلى 5 فولت
+  hi: 12V से 5V बक कनवर्टर
+  th: วงจรลดแรงดัน (buck converter) 12V เป็น 5V
+  cs: Snižující měnič z 12 V na 5 V
+  sv: 12V till 5V buck-omvandlare
+  he: ממיר buck מ-12V ל-5V
   verified_by_human: [en]
 electronics.search_components.2:
   context: Query label for the second electronics component search example in the app store. Shown on a preview card that opens real TI WEBENCH regulator recommendations for converting 24V to 3.3V.
   en: 24V to 3.3V regulator module
+  de: 24V zu 3,3V Reglermodul
+  zh: 24V 转 3.3V 稳压模块
+  es: Módulo regulador de 24V a 3.3V
+  fr: Module régulateur 24V vers 3,3V
+  pt: módulo regulador de 24V para 3.3V
+  ru: Модуль стабилизатора с 24 В на 3,3 В
+  ja: 24Vから3.3Vへのレギュレータモジュール
+  ko: 24V to 3.3V 레귤레이터 모듈
+  it: Modulo regolatore da 24V a 3.3V
+  tr: 24V - 3.3V regülatör modülü
+  vi: Mô-đun ổn áp 24V sang 3.3V
+  id: Modul regulator 24V ke 3,3V
+  pl: Moduł regulatora 24V na 3.3V
+  nl: 24V naar 3,3V regulatormodule
+  ar: وحدة منظم جهد من 24 فولت إلى 3.3 فولت
+  hi: 24V से 3.3V रेगुलेटर मॉड्यूल
+  th: โมดูลรักษาระดับแรงดัน (regulator) 24V เป็น 3.3V
+  cs: Modul regulátoru z 24 V na 3,3 V
+  sv: 24V till 3,3V regulatormodul
+  he: מודול ווסת מ-24V ל-3.3V
   verified_by_human: [en]
 
 social_media.search.1:
   context: Query label for the first social media search example in the app store. Shown on a preview card that opens sample social posts about indie coffee setup inspiration.
   en: Indie coffee setup inspiration
+  de: Inspiration für Indie-Kaffee-Setups
+  zh: 独立咖啡馆布置灵感
+  es: Inspiración para cafetería indie
+  fr: Inspiration pour installation café indie
+  pt: Inspiração para setup de café indie
+  ru: Идеи для инди-кофейни
+  ja: インディーコーヒーセットアップのインスピレーション
+  ko: 인디 커피 셋업 영감
+  it: Ispirazione per setup caffè indie
+  tr: Bağımsız kahve köşesi ilhamı
+  vi: Cảm hứng thiết lập quầy cà phê indie
+  id: Inspirasi setup kopi indie
+  pl: Inspiracje do kącika kawowego indie
+  nl: Inspiratie voor indie koffie-setups
+  ar: إلهام لتجهيزات القهوة المستقلة
+  hi: इंडी कॉफ़ी सेटअप प्रेरणा
+  th: แรงบันดาลใจในการจัดมุมกาแฟแบบอินดี้
+  cs: Inspirace pro nezávislé kávové koutky
+  sv: Inspiration för indie-kaffe-setup
+  he: השראה לעמדת קפה אינדי
   verified_by_human: [en]
 social_media.search.2:
   context: Query label for the second social media search example in the app store. Shown on a preview card that opens sample social posts about remote workshop facilitation tips.
   en: Remote workshop facilitation tips
+  de: Tipps zur Moderation von Remote-Workshops
+  zh: 远程工作坊引导技巧
+  es: Consejos para facilitar talleres remotos
+  fr: "Conseils pour l'animation d'ateliers à distance"
+  pt: Dicas para facilitação de workshops remotos
+  ru: Советы по фасилитации удаленных воркшопов
+  ja: リモートワークショップのファシリテーションのコツ
+  ko: 원격 워크숍 퍼실리테이션 팁
+  it: Consigli per facilitare workshop da remoto
+  tr: Uzaktan atölye kolaylaştırıcılığı ipuçları
+  vi: Mẹo điều phối hội thảo từ xa
+  id: Tips fasilitasi lokakarya jarak jauh
+  pl: Wskazówki dotyczące prowadzenia warsztatów zdalnych
+  nl: Tips voor het faciliteren van remote workshops
+  ar: نصائح لتيسير ورش العمل عن بعد
+  hi: रिमोट वर्कशॉप सुविधा टिप्स
+  th: เคล็ดลับการดำเนินเวิร์กชอปทางไกล
+  cs: Tipy pro facilitaci workshopů na dálku
+  sv: Tips för facilitering av distansworkshops
+  he: טיפים להנחיית סדנאות מרחוק
   verified_by_human: [en]
 social_media.get_posts.1:
   context: Query label for the first social media get-posts example in the app store. Shown on a preview card that opens sample posts from a fictional garden account.
   en: Garden account posts
+  de: Beiträge von Garten-Accounts
+  zh: 园艺账号帖子
+  es: Publicaciones de cuenta de jardinería
+  fr: Publications de comptes de jardinage
+  pt: Publicações de conta de jardim
+  ru: Посты садового аккаунта
+  ja: ガーデニングアカウントの投稿
+  ko: 정원 계정 게시물
+  it: Post di account di giardinaggio
+  tr: Bahçe hesabı gönderileri
+  vi: Bài đăng từ tài khoản làm vườn
+  id: Postingan akun taman
+  pl: Posty z konta ogrodniczego
+  nl: Berichten van tuin-account
+  ar: منشورات حساب الحديقة
+  hi: गार्डन अकाउंट पोस्ट
+  th: โพสต์จากบัญชีคนรักสวน
+  cs: Příspěvky ze zahradnického účtu
+  sv: Inlägg från trädgårdskonto
+  he: פוסטים מחשבון גינון
   verified_by_human: [en]
 social_media.get_posts.2:
   context: Query label for the second social media get-posts example in the app store. Shown on a preview card that opens sample posts from a fictional travel community.
   en: Travel community posts
+  de: Beiträge von Reise-Communities
+  zh: 旅行社区帖子
+  es: Publicaciones de comunidad de viajes
+  fr: Publications de communautés de voyage
+  pt: Publicações de comunidade de viagens
+  ru: Посты сообщества путешественников
+  ja: 旅行コミュニティの投稿
+  ko: 여행 커뮤니티 게시물
+  it: Post di community di viaggi
+  tr: Seyahat topluluğu gönderileri
+  vi: Bài đăng từ cộng đồng du lịch
+  id: Postingan komunitas perjalanan
+  pl: Posty społeczności podróżniczej
+  nl: Berichten van reis-community
+  ar: منشورات مجتمع السفر
+  hi: ट्रैवल कम्युनिटी पोस्ट
+  th: โพสต์จากชุมชนท่องเที่ยว
+  cs: Příspěvky z cestovatelské komunity
+  sv: Inlägg från resecommunity
+  he: פוסטים מקהילת מטיילים
   verified_by_human: [en]
 
 code.search_repos.1:
   context: Query label for the first code repository search example in the app store. Shown on a preview card that opens real GitHub search results for svelte, including sveltejs/svelte.
   en: svelte
+  de: svelte
+  zh: svelte
+  es: svelte
+  fr: svelte
+  pt: svelte
+  ru: svelte
+  ja: svelte
+  ko: svelte
+  it: svelte
+  tr: svelte
+  vi: svelte
+  id: svelte
+  pl: svelte
+  nl: svelte
+  ar: svelte
+  hi: svelte
+  th: svelte
+  cs: svelte
+  sv: svelte
+  he: svelte
   verified_by_human: [en]
 code.search_repos.2:
   context: Query label for the second code repository search example in the app store. Shown on a preview card that opens public GitHub metadata for sveltejs/kit.
   en: SvelteKit framework
+  de: SvelteKit-Framework
+  zh: SvelteKit 框架
+  es: Framework SvelteKit
+  fr: Framework SvelteKit
+  pt: Framework SvelteKit
+  ru: Фреймворк SvelteKit
+  ja: SvelteKitフレームワーク
+  ko: SvelteKit 프레임워크
+  it: Framework SvelteKit
+  tr: SvelteKit framework
+  vi: Framework SvelteKit
+  id: Framework SvelteKit
+  pl: Framework SvelteKit
+  nl: SvelteKit-framework
+  ar: إطار عمل SvelteKit
+  hi: SvelteKit फ्रेमवर्क
+  th: เฟรมเวิร์ก SvelteKit
+  cs: Framework SvelteKit
+  sv: SvelteKit-ramverk
+  he: פריימוורק SvelteKit
   verified_by_human: [en]
 code.search_repos.3:
   context: Query label for the third code repository search example in the app store. Shown on a preview card that opens public GitHub metadata for fastapi/fastapi.
   en: FastAPI framework
+  de: FastAPI-Framework
+  zh: FastAPI 框架
+  es: Framework FastAPI
+  fr: Framework FastAPI
+  pt: Framework FastAPI
+  ru: Фреймворк FastAPI
+  ja: FastAPIフレームワーク
+  ko: FastAPI 프레임워크
+  it: Framework FastAPI
+  tr: FastAPI framework
+  vi: Framework FastAPI
+  id: Framework FastAPI
+  pl: Framework FastAPI
+  nl: FastAPI-framework
+  ar: إطار عمل FastAPI
+  hi: FastAPI फ्रेमवर्क
+  th: เฟรมเวิร์ก FastAPI
+  cs: Framework FastAPI
+  sv: FastAPI-ramverk
+  he: פריימוורק FastAPI
   verified_by_human: [en]
 
 music.generate.1:
   context: Query label for the music generation example in the app store. Shown on a preview card that opens a real generated lo-fi audio clip.
   en: Warm lo-fi writing loop
+  de: Warmer Lo-Fi-Schreib-Loop
+  zh: 温暖的 lo-fi 写作循环乐曲
+  es: Bucle de escritura lo-fi cálido
+  fr: "Boucle d'écriture lo-fi chaleureuse"
+  pt: Loop de escrita lo-fi quente
+  ru: Теплый lo-fi луп для письма
+  ja: 温かみのあるLo-Fi執筆用ループ
+  ko: 따뜻한 글쓰기용 로파이 루프
+  it: Loop lo-fi caldo per scrivere
+  tr: Sıcak lo-fi yazma döngüsü
+  vi: Vòng lặp nhạc lo-fi ấm áp để viết lách
+  id: Loop menulis lo-fi yang hangat
+  pl: Ciepła pętla lo-fi do pisania
+  nl: Warme lo-fi schrijf-loop
+  ar: مقطع lo-fi دافئ للكتابة
+  hi: वार्म लो-फाई राइटिंग लूप
+  th: ลูปเพลง lo-fi อบอุ่นสำหรับเขียนงาน
+  cs: Hřejivá lo-fi smyčka pro psaní
+  sv: Varm lo-fi-loop för skrivande
+  he: לופ lo-fi חמים לכתיבה
   verified_by_human: [en]
 
 videos.generate.1:
   context: Query label for the video generation example in the app store. Shown on a preview card that opens a real generated alpine meadow video.
   en: Alpine sunrise meadow
+  de: Alpenwiese bei Sonnenaufgang
+  zh: 阿尔卑斯日出草甸
+  es: Prado alpino al amanecer
+  fr: Prairie alpine au lever du soleil
+  pt: Prado alpino ao amanhecer
+  ru: Альпийский луг на рассвете
+  ja: アルプスの日の出の草原
+  ko: 알프스 일출 초원
+  it: "Prato alpino all'alba"
+  tr: Alp gün doğumu çayırı
+  vi: Đồng cỏ núi cao lúc bình minh
+  id: Padang rumput Alpen saat matahari terbit
+  pl: Alpejska łąka o wschodzie słońca
+  nl: Alpenweide bij zonsopgang
+  ar: مرج ألبيني عند شروق الشمس
+  hi: अल्पाइन सूर्योदय घास का मैदान
+  th: ทุ่งหญ้าบนเทือกเขาแอลป์ยามพระอาทิตย์ขึ้น
+  cs: Alpská louka při východu slunce
+  sv: Alpäng i soluppgång
+  he: אחו אלפיני בזריחה
   verified_by_human: [en]
 
 banner.sample_data:

@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-11
 ---
 
 # Testing Reference
@@ -10,6 +10,63 @@ Detailed test commands, Playwright Docker setup, test runner reference, and sequ
 ---
 
 ## Test Commands
+
+### New Functionality Verification Order
+
+For new functionality, verification must happen in this order by default:
+
+1. **OpenMates CLI first:** add or run an OpenMates CLI command or CLI contract
+   test that exercises the backend/API/WebSocket behavior. This is the cheapest
+   and fastest proof, and it catches backend processing, model routing, skill
+   invocation, embed resolution, sync, and WebSocket issues before browser state
+   is involved.
+2. **Web app E2E second:** after CLI evidence is green, add or run the
+   Playwright `*.spec.ts` that verifies the browser-specific flow through
+   `python3 scripts/run_tests.py --spec <name>.spec.ts`. Web specs prove Svelte,
+   TipTap, IndexedDB/localStorage, rendering, screenshots, and user interaction
+   behavior.
+3. **Apple app third:** after CLI and web evidence are green, run or attempt the
+   Apple app test through `scripts/apple_remote.py` when the feature has an
+   Apple counterpart. Use `test-ios` for native tests, `build-ios` when no
+   targeted test exists, and `cleanup` after simulator verification.
+
+Do not skip directly to Playwright for shared product behavior unless the change
+is clearly browser-only, such as selector changes, layout/screenshot diffs,
+pointer-event overlays, or Svelte-only rendering. Do not mark Apple
+`not affected` unless there is no native counterpart.
+
+### Cross-App Parity Order
+
+For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync,
+or any feature that exists across clients, tests must prove parity in this
+order: OpenMates CLI first, web app second, Apple app third.
+
+1. **CLI contract first:** add or run an OpenMates CLI test that exercises the
+   backend/API/WebSocket contract without browser UI, TipTap, IndexedDB UI
+   state, screenshots, or Svelte rendering. This is the required first proof for
+   chat and app-skill behavior because it isolates backend correctness.
+2. **Web app E2E second:** after the CLI contract is green, add or run the
+   Playwright spec that verifies the browser-specific flow, including composer
+   behavior, draft/autosave state, settings UI, embeds, rendering, and user
+   interactions. If the CLI contract passes but Playwright fails, debug the web
+   app path instead of the backend pipeline first.
+3. **Apple parity third:** when the product surface has an Apple counterpart,
+   run or attempt the relevant iOS/macOS verification through
+   `scripts/apple_remote.py` after CLI and web evidence are green. Record
+   Mac/Xcode evidence or a sanitized failure class per the Apple App section
+   below.
+
+Do not clone every Playwright spec into a CLI test. Prefer small reusable CLI
+contract tests for shared invariants such as message send, default-model
+routing, mock replay, skill invocation, embed resolution, sub-chat behavior, and
+sync lifecycle. Playwright remains responsible for browser UI and local web
+state; Apple tests remain responsible for native UI parity.
+
+When fixing a failing chat-related Playwright spec, first check whether a
+matching CLI contract exists. If not, write or propose the minimal CLI contract
+before editing the web spec. The exception is a clearly browser-only failure,
+such as a selector, layout, screenshot, pointer-event overlay, or Svelte-only
+rendering regression; document that exception in the test plan or summary.
 
 ### Backend
 
@@ -24,6 +81,47 @@ Detailed test commands, Playwright Docker setup, test runner reference, and sequ
 cd frontend/apps/web_app && npm run test:unit
 npm run test:unit -- --coverage
 ```
+
+### Apple App
+
+Apple verification is required when a change affects a product surface that also
+exists in `apple/OpenMates/`, including chat, sync, auth, settings, embeds,
+billing, shared UI primitives, app chrome, or provider result rendering.
+
+Use XcodeBuildMCP on a Mac when available. If the active OpenCode session runs
+on Linux/dev server, you MUST attempt the remote Mac Xcode CLI flow through the
+redacted wrapper in `scripts/apple_remote.py` before marking Apple verification
+unavailable. Use only operator-provided local runtime configuration, such as
+`~/.config/openmates/apple-remote.json`, `~/.ssh/config`, current environment
+variables, or explicit details from the user. The minimum acceptable attempt is
+`python3 scripts/apple_remote.py status` plus `python3 scripts/apple_remote.py
+build-ios`; for native test coverage use `python3 scripts/apple_remote.py
+test-ios --only-testing <target/test>`. A stronger verification is a full build,
+simulator launch, and screenshot parity check with `simctl`. Use the remote Mac
+flow in `apple/AGENTS.md`: verify SSH access, protect local Mac checkout changes,
+run `xcodebuild`, use `xcrun simctl` for simulator launch/screenshot checks when
+needed, and shut down any simulator booted by the session after verification.
+
+Remote Xcode CLI probe pattern, with all private connection details kept local:
+
+```bash
+python3 scripts/apple_remote.py status
+python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/<testName>"
+python3 scripts/apple_remote.py cleanup
+```
+
+If the Mac is reachable but the checkout cannot be found, or if key-based SSH is
+not available, record the sanitized failure class, such as `ssh_failed`,
+`project_not_found`, or `xcode_build_failed`, and ask the user for the missing
+access/path instead of silently skipping Apple verification. This Tailscale/SSH
+route was validated on 2026-06-08 with `xcodebuild -version`,
+`xcodebuild -showBuildSettings`, and a generic iOS Simulator build.
+
+Do not record private hostnames, IP addresses, usernames, SSH aliases, tailnet
+names, auth keys, device names, or personal local paths in tests, specs, docs,
+or final summaries. Use generic evidence such as scheme, simulator family, build
+status, screenshot path, and whether manual parity checks passed.
 
 ### Playwright E2E (GitHub Actions — NOT local)
 
@@ -108,7 +206,30 @@ python3 scripts/run_tests.py --daily --dry-run-notify
 
 Hourly archives: `test-results/hourly-dev/run-*.json` and `test-results/hourly-prod/run-*.json` (rotated to last 7 days).
 
-Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of 20 concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
+Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of concurrent runners, each with a separate test account (`OPENMATES_TEST_ACCOUNT_1_EMAIL` through `20`). Batch-level fail-fast: current batch finishes, then stops if any failures.
+
+### Reserved E2E Credential Accounts
+
+Most specs use the normal account pool. Specs that rotate, reset, or delete persistent auth credentials use reserved account slots and must call `getIsolatedTestAccount(<spec filename>)` instead of `getTestAccount()`.
+
+| Slot | Spec | Why reserved |
+|------|------|--------------|
+| 14 | `account-recovery-flow.spec.ts` | Account reset can delete encrypted account state and may require fresh 2FA setup. |
+| 15 | `backup-code-login-flow.spec.ts` | The Change App flow rotates the TOTP secret. |
+| 16 | `backup-codes-settings.spec.ts` | Backup code reset mutates login recovery material. |
+| 17 | `recovery-key-login-flow.spec.ts` | Recovery key regeneration mutates login recovery material. |
+| 17 | `cli-created-account-login.spec.ts` | Verifies the CLI-provisioned password/TOTP account can log in through the web app without mutating recovery material. |
+| 18 | `recovery-key-settings.spec.ts` | Recovery key regeneration mutates login recovery material. |
+| 19 | `settings-change-email.spec.ts` | Email roundtrip mutates the account login identifier. |
+| 20 | `api-keys-flow.spec.ts` | API-key lifecycle tests create/delete developer credentials. |
+
+`scripts/run_tests.py` applies this mapping for full-suite, only-failed, and single-spec dispatches. Normal specs are assigned only from slots 1-13. If you add a spec that changes password, email, 2FA, recovery keys, backup codes, API keys, passkeys, or account data destructively, first add it to the reserved policy and document the slot here.
+
+Use `cli-provision-auth-accounts.spec.ts` with `CREATE_ACCOUNT_SLOT` to provision reserved auth-test accounts for slots 15-20 when a slot secret is missing or intentionally rotated. The utility writes credential artifacts to the GitHub Actions artifact bundle; copy them into the matching `OPENMATES_TEST_ACCOUNT_<slot>_*` repository secrets and never commit generated credentials.
+
+Apple XCUITests that mutate sensitive account state use the same reserved slot variables through `RealAccountUITestSupport.fromReservedSlot(<slot>)`; tests must skip when a required reserved slot is absent rather than falling back to the normal account pool. Static sensitive-settings parity smokes can use narrow fixture launch arguments when they do not call live account APIs.
+
+API-key cleanup must only delete keys created by E2E specs, currently names starting with `E2E-Test-Key`, `E2E-RestAPI`, or `E2E-Limit-Key`. Never delete arbitrary existing keys to make room at the 5-key limit.
 
 Output: `test-results/run-<timestamp>.json` and `test-results/last-run.json`
 
@@ -365,3 +486,4 @@ gh run watch
 - [ ] Tests cover happy path AND at least one error path
 - [ ] Tests don't depend on external services (mock them)
 - [ ] No `time.sleep()` or arbitrary waits
+- [ ] Apple impact was checked for shared product surfaces, and Mac verification or an explicit `not affected` note was recorded

@@ -186,6 +186,16 @@ actor BackgroundChatSender {
         let category: String?
         let userMessageId: String?
         let encryptedChatKey: String?
+
+        static func empty(userMessageId: String) -> ChatMetadata {
+            ChatMetadata(
+                title: nil,
+                iconNames: [],
+                category: nil,
+                userMessageId: userMessageId,
+                encryptedChatKey: nil
+            )
+        }
     }
 
     private let crypto = CryptoManager.shared
@@ -301,16 +311,23 @@ actor BackgroundChatSender {
     ) async throws -> (taskId: String, metadata: ChatMetadata)? {
         var taskId: String?
         var metadata: ChatMetadata?
-        let deadline = Date().addingTimeInterval(20)
+        var deadline = Date().addingTimeInterval(20)
 
         while Date() < deadline {
-            let data = try await ws.receiveData()
+            guard let data = try await receiveData(ws, before: deadline) else { break }
             guard let inbound = try? decoder.decode(InboundMessage.self, from: data) else { continue }
             switch inbound.type {
             case "ai_task_initiated":
                 if inbound.stringField("chat_id") == chatId,
                    inbound.stringField("user_message_id") == userMessageId {
                     taskId = inbound.stringField("ai_task_id") ?? inbound.stringField("task_id")
+                    if let taskId {
+                        if let metadata { return (taskId, metadata) }
+                        let metadataGraceDeadline = Date().addingTimeInterval(1)
+                        if metadataGraceDeadline < deadline {
+                            deadline = metadataGraceDeadline
+                        }
+                    }
                 }
             case "ai_typing_started":
                 guard inbound.stringField("chat_id") == chatId else { continue }
@@ -334,7 +351,30 @@ actor BackgroundChatSender {
             }
         }
 
+        if let taskId {
+            return (taskId, metadata ?? ChatMetadata.empty(userMessageId: userMessageId))
+        }
         return nil
+    }
+
+    private func receiveData(_ ws: BackgroundWebSocket, before deadline: Date) async throws -> Data? {
+        let remainingSeconds = deadline.timeIntervalSinceNow
+        guard remainingSeconds > 0 else { return nil }
+        let remainingNanoseconds = UInt64(remainingSeconds * 1_000_000_000)
+
+        return try await withThrowingTaskGroup(of: Data?.self) { group in
+            group.addTask {
+                try await ws.receiveData()
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: remainingNanoseconds)
+                return nil
+            }
+
+            let result = try await group.next() ?? nil
+            group.cancelAll()
+            return result
+        }
     }
 
     private func sendEncryptedUserStoragePackage(

@@ -30,6 +30,13 @@ final class PersistedChat {
     var draftV: Int?
     var createdAt: String
     var updatedAt: String?
+    var parentId: String?
+    var isSubChat: Bool?
+    var subChatSettingsJSON: Data?
+    var budgetLimit: Double?
+    var budgetSpent: Double?
+    var encryptedActiveFocusId: String?
+    var activeFocusId: String?
 
     @Relationship(deleteRule: .cascade, inverse: \PersistedMessage.chat)
     var messages: [PersistedMessage]?
@@ -56,6 +63,13 @@ final class PersistedChat {
         self.draftV = chat.draftV
         self.createdAt = chat.createdAt
         self.updatedAt = chat.updatedAt
+        self.parentId = chat.parentId
+        self.isSubChat = chat.isSubChat
+        self.subChatSettingsJSON = try? JSONEncoder().encode(chat.subChatSettings)
+        self.budgetLimit = chat.budgetLimit
+        self.budgetSpent = chat.budgetSpent
+        self.encryptedActiveFocusId = chat.encryptedActiveFocusId
+        self.activeFocusId = chat.activeFocusId
     }
 
     func toChat() -> Chat {
@@ -72,7 +86,14 @@ final class PersistedChat {
             messagesV: messagesV,
             titleV: titleV,
             draftV: draftV,
-            lastVisibleMessageId: lastVisibleMessageId
+            lastVisibleMessageId: lastVisibleMessageId,
+            parentId: parentId,
+            isSubChat: isSubChat,
+            subChatSettings: subChatSettingsJSON.flatMap { try? JSONDecoder().decode(SubChatSettings.self, from: $0) },
+            budgetLimit: budgetLimit,
+            budgetSpent: budgetSpent,
+            encryptedActiveFocusId: encryptedActiveFocusId,
+            activeFocusId: activeFocusId
         )
     }
 }
@@ -329,6 +350,13 @@ final class OfflineStore: ObservableObject {
                 existing.messagesV = chat.messagesV
                 existing.titleV = chat.titleV
                 existing.draftV = chat.draftV
+                existing.parentId = chat.parentId
+                existing.isSubChat = chat.isSubChat
+                existing.subChatSettingsJSON = try? JSONEncoder().encode(chat.subChatSettings)
+                existing.budgetLimit = chat.budgetLimit
+                existing.budgetSpent = chat.budgetSpent
+                existing.encryptedActiveFocusId = chat.encryptedActiveFocusId
+                existing.activeFocusId = chat.activeFocusId
             } else {
                 context.insert(PersistedChat(from: chat))
             }
@@ -455,6 +483,35 @@ final class OfflineStore: ObservableObject {
             sortBy: [SortDescriptor(\.createdAt)]
         )
         return (try? context.fetch(descriptor))?.map { $0.toMessage() } ?? []
+    }
+
+    func loadLatestMessageWindow(chatId: String, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
+        guard let context = modelContext else { return [] }
+        let targetChatId = chatId
+        var descriptor = FetchDescriptor<PersistedMessage>(
+            predicate: #Predicate { $0.chatId == targetChatId },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        let newestFirst = (try? context.fetch(descriptor)) ?? []
+        return newestFirst.map { $0.toMessage() }.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func loadOlderMessageWindow(chatId: String, before messageId: String, limit: Int = ChatStore.boundedWindowSize) -> [Message] {
+        guard let context = modelContext else { return [] }
+        let targetChatId = chatId
+        let boundaryDescriptor = FetchDescriptor<PersistedMessage>(
+            predicate: #Predicate { $0.id == messageId }
+        )
+        guard let boundary = try? context.fetch(boundaryDescriptor).first else { return [] }
+        let boundaryCreatedAt = boundary.createdAt
+        var descriptor = FetchDescriptor<PersistedMessage>(
+            predicate: #Predicate { $0.chatId == targetChatId && $0.createdAt < boundaryCreatedAt },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        let newestFirst = (try? context.fetch(descriptor)) ?? []
+        return newestFirst.map { $0.toMessage() }.sorted { $0.createdAt < $1.createdAt }
     }
 
     func loadEmbeds(chatId: String) -> [EmbedRecord] {

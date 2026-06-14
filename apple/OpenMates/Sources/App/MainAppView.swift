@@ -97,8 +97,32 @@ struct MainAppView: View {
 
     private var filteredUnpinnedChats: [Chat] {
         let unpinned = chatStore.unpinnedChats.filter { self.publicChatGroup(for: $0.id) == nil }
-        guard !searchText.isEmpty else { return unpinned }
-        return unpinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
+        let filtered = searchText.isEmpty
+            ? unpinned
+            : unpinned.filter { $0.displayTitle.localizedCaseInsensitiveContains(searchText) }
+        return orderedWithSubChats(filtered)
+    }
+
+    private func orderedWithSubChats(_ chats: [Chat]) -> [Chat] {
+        let childrenByParent = Dictionary(grouping: chats.filter { $0.parentId != nil }) { $0.parentId ?? "" }
+        var emitted = Set<String>()
+        var ordered: [Chat] = []
+
+        func appendChat(_ chat: Chat) {
+            guard emitted.insert(chat.id).inserted else { return }
+            ordered.append(chat)
+            for child in childrenByParent[chat.id] ?? [] {
+                appendChat(child)
+            }
+        }
+
+        for chat in chats where chat.parentId == nil || !chats.contains(where: { $0.id == chat.parentId }) {
+            appendChat(chat)
+        }
+        for chat in chats {
+            appendChat(chat)
+        }
+        return ordered
     }
 
     private var visibleFilteredUnpinnedChats: [Chat] {
@@ -117,6 +141,11 @@ struct MainAppView: View {
 
     private var isCompactShell: Bool {
         horizontalSizeClass == .compact
+    }
+
+    private var isUITestShellMetricsEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-shell-metrics")
+            || ProcessInfo.processInfo.environment["UI_TEST_SHELL_METRICS"] == "1"
     }
 
     private func isSettingsSideBySide(width: CGFloat) -> Bool {
@@ -142,7 +171,6 @@ struct MainAppView: View {
     private static let backgroundSyncInterChunkPauseNs: UInt64 = 40_000_000
     private static let backgroundSyncForegroundPauseNs: UInt64 = 180_000_000
     private static let foregroundInteractionGraceSeconds: TimeInterval = 2.0
-    private static let notificationPreviewMaxCharacters = 200
 
     private var currentDailyInspiration: DailyInspirationBanner.DailyInspiration? {
         dailyInspirations.first
@@ -372,8 +400,44 @@ struct MainAppView: View {
             .contentShape(Rectangle())
             .simultaneousGesture(shellSwipeGesture(viewportWidth: viewportWidth))
             .animation(.easeInOut(duration: 0.24), value: isChatsPanelOpen)
+            .overlay(alignment: .bottomLeading) {
+                shellMetricsProbe(viewportWidth: viewportWidth, compactPanelWidth: compactPanelWidth)
+            }
         }
         .background(Color.grey0)
+    }
+
+    @ViewBuilder
+    private func shellMetricsProbe(viewportWidth: CGFloat, compactPanelWidth: CGFloat) -> some View {
+        if isUITestShellMetricsEnabled {
+            let metrics = shellMetricsLabel(viewportWidth: viewportWidth, compactPanelWidth: compactPanelWidth)
+            Text(metrics)
+                .font(.omMicro)
+                .foregroundStyle(Color.fontTertiary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing1)
+                .background(Color.grey0.opacity(0.86))
+                .accessibilityIdentifier("shell-responsive-metrics")
+                .accessibilityLabel(metrics)
+        }
+    }
+
+    private func shellMetricsLabel(viewportWidth: CGFloat, compactPanelWidth: CGFloat) -> String {
+        let shellMode = isCompactShell ? "compact" : "regular"
+        let panelMode = isCompactShell ? "drawer" : "side-by-side"
+        let activeMainWidth = isCompactShell ? viewportWidth : regularMainWidth(for: viewportWidth)
+        return [
+            "shell-width=\(Int(viewportWidth.rounded()))",
+            "shell-mode=\(shellMode)",
+            "panel-mode=\(panelMode)",
+            "chat-panel-open=\(isChatsPanelOpen)",
+            "chat-panel-visible=\(isChatsPanelOpen)",
+            "active-chat-visible=true",
+            "chat-panel-width=\(Int(compactPanelWidth.rounded()))",
+            "active-main-width=\(Int(activeMainWidth.rounded()))"
+        ].joined(separator: "; ")
     }
 
     private func regularMainWidth(for viewportWidth: CGFloat) -> CGFloat {
@@ -681,7 +745,7 @@ struct MainAppView: View {
                     HStack(spacing: showSettings ? .spacing10 : 0) {
                         shellContent
 
-                        settingsPanel(width: 323)
+                        settingsPanel(width: 323, closesOnExampleChatOpen: false)
                             .frame(width: showSettings ? 323 : 0, alignment: .trailing)
                             .opacity(showSettings ? 1 : 0)
                             .clipped()
@@ -766,10 +830,18 @@ struct MainAppView: View {
 
     // MARK: - Settings slide panel (web: slides from right, 323px wide, shadow)
 
-    private func settingsPanel(width: CGFloat) -> some View {
+    private func settingsPanel(width: CGFloat, closesOnExampleChatOpen: Bool) -> some View {
         SettingsView {
             withAnimation(.easeInOut(duration: 0.3)) {
                 showSettings = false
+            }
+        } onOpenExampleChat: { chatId in
+            selectedChatId = chatId
+            showNewChat = false
+            if closesOnExampleChatOpen {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showSettings = false
+                }
             }
         }
         .environmentObject(authManager)
@@ -797,7 +869,7 @@ struct MainAppView: View {
             if showSettings || dragReveal > 0 {
                 HStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    settingsPanel(width: panelWidth)
+                    settingsPanel(width: panelWidth, closesOnExampleChatOpen: true)
                         .offset(x: showSettings ? max(0, shellDragOffset) : max(0, panelWidth + shellDragOffset))
                 }
                 .transition(.move(edge: .trailing))
@@ -957,7 +1029,8 @@ struct MainAppView: View {
                         in: chat,
                         existingMessages: [],
                         wsManager: wsManager,
-                        chatStore: chatStore
+                        chatStore: chatStore,
+                        waitForRemoteSend: false
                     )
                     return result.chat.id
                 },
@@ -988,13 +1061,14 @@ struct MainAppView: View {
             )
         } else if isAuthenticated, let chatId = selectedChatId {
             let isPublic = publicChatGroup(for: chatId) != nil
+            let initialWindow: [Message] = isPublic ? [] : chatStore.initialMessageWindow(for: chatId)
             ChatView(
                 chatId: chatId,
                 bannerState: isPublic ? demoBannerState(for: chatId) : nil,
                 bannerCreatedAt: nil,
                 initialChat: isPublic ? nil : chatStore.chat(for: chatId),
-                initialMessages: isPublic ? [] : chatStore.messages(for: chatId),
-                initialEmbeds: isPublic ? [] : chatStore.embeds(for: chatId),
+                initialMessages: initialWindow,
+                initialEmbeds: isPublic ? [] : chatStore.initialEmbedsForVisibleWindow(for: chatId, messages: initialWindow),
                 wsManager: wsManager,
                 chatStore: chatStore,
                 isSettingsOpen: !isCompactShell && showSettings,
@@ -1002,6 +1076,7 @@ struct MainAppView: View {
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
+                onOpenChat: { selectedChatId = $0; showNewChat = false },
                 onNewChat: openNewChatScreen,
                 onScrollPositionChanged: { messageId in
                     sendScrollPositionUpdate(chatId: chatId, messageId: messageId)
@@ -1864,6 +1939,11 @@ struct MainAppView: View {
                     showNewChat = true
                 }
 
+            case "focus_mode_activated":
+                let envelope = try syncDecoder.decode(WSEnvelope<FocusModeActivatedPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                await applyFocusModeActivated(payload)
+
             default:
                 await loadInitialData()
             }
@@ -1899,7 +1979,11 @@ struct MainAppView: View {
             messagesV: payload.messagesV ?? existing?.messagesV,
             titleV: payload.encryptedTitle != nil ? 1 : existing?.titleV,
             draftV: existing?.draftV,
-            lastVisibleMessageId: existing?.lastVisibleMessageId
+            lastVisibleMessageId: existing?.lastVisibleMessageId,
+            parentId: payload.parentId ?? existing?.parentId,
+            isSubChat: payload.isSubChat ?? existing?.isSubChat,
+            encryptedActiveFocusId: existing?.encryptedActiveFocusId,
+            activeFocusId: existing?.activeFocusId
         )
         chat = await decryptChatMetadata(chat)
         chatStore.upsertChat(chat)
@@ -1945,7 +2029,11 @@ struct MainAppView: View {
             messagesV: existing?.messagesV,
             titleV: payload.title == nil ? existing?.titleV : max(existing?.titleV ?? 0, 1),
             draftV: existing?.draftV,
-            lastVisibleMessageId: existing?.lastVisibleMessageId
+            lastVisibleMessageId: existing?.lastVisibleMessageId,
+            parentId: existing?.parentId,
+            isSubChat: existing?.isSubChat,
+            encryptedActiveFocusId: existing?.encryptedActiveFocusId,
+            activeFocusId: existing?.activeFocusId
         )
         chat = await decryptChatMetadata(chat)
         chatStore.upsertChat(chat)
@@ -2012,7 +2100,14 @@ struct MainAppView: View {
             messagesV: nextMessagesV,
             titleV: existingChat.titleV,
             draftV: existingChat.draftV,
-            lastVisibleMessageId: existingChat.lastVisibleMessageId
+            lastVisibleMessageId: existingChat.lastVisibleMessageId,
+            parentId: existingChat.parentId,
+            isSubChat: existingChat.isSubChat,
+            subChatSettings: existingChat.subChatSettings,
+            budgetLimit: existingChat.budgetLimit,
+            budgetSpent: existingChat.budgetSpent,
+            encryptedActiveFocusId: existingChat.encryptedActiveFocusId,
+            activeFocusId: existingChat.activeFocusId
         )
         chatStore.upsertChat(updatedChat)
         chatStore.appendMessage(message, to: chatId)
@@ -2037,22 +2132,65 @@ struct MainAppView: View {
         guard scenePhase != .active else { return }
         guard selectedChatId != chat.id else { return }
 
-        let body = notificationPreview(from: message.content)
-        guard !body.isEmpty else { return }
         await pushManager.showChatMessageNotification(
-            chatId: chat.id,
-            title: chat.displayTitle,
-            body: body
+            chatId: chat.id
         )
     }
 
-    private func notificationPreview(from content: String?) -> String {
-        let normalized = (content ?? "")
-            .replacingOccurrences(of: "\n", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalized.count > Self.notificationPreviewMaxCharacters else { return normalized }
-        let end = normalized.index(normalized.startIndex, offsetBy: Self.notificationPreviewMaxCharacters)
-        return String(normalized[..<end]).trimmingCharacters(in: .whitespacesAndNewlines)
+    private func applyFocusModeActivated(_ payload: FocusModeActivatedPayload) async {
+        guard let existing = chatStore.chat(for: payload.chatId) else { return }
+        await loadChatKeyIfNeeded(chatId: payload.chatId, encryptedChatKey: existing.encryptedChatKey)
+        guard let key = ChatKeyManager.shared.key(for: payload.chatId),
+              let encryptedFocusId = try? await CryptoManager.shared.encryptContent(payload.focusId, key: key) else {
+            NativeSyncPerfLog.warning("phase=focusModeActivated reason=missingKey")
+            return
+        }
+        let updated = Chat(
+            id: existing.id,
+            title: existing.title,
+            lastMessageAt: existing.lastMessageAt,
+            createdAt: existing.createdAt,
+            updatedAt: ISO8601DateFormatter().string(from: Date()),
+            isArchived: existing.isArchived,
+            isPinned: existing.isPinned,
+            appId: existing.appId,
+            category: existing.category,
+            icon: existing.icon,
+            chatSummary: existing.chatSummary,
+            encryptedTitle: existing.encryptedTitle,
+            encryptedCategory: existing.encryptedCategory,
+            encryptedIcon: existing.encryptedIcon,
+            encryptedChatSummary: existing.encryptedChatSummary,
+            encryptedChatKey: existing.encryptedChatKey,
+            messagesV: existing.messagesV,
+            titleV: existing.titleV,
+            draftV: existing.draftV,
+            lastVisibleMessageId: existing.lastVisibleMessageId,
+            parentId: existing.parentId,
+            isSubChat: existing.isSubChat,
+            subChatSettings: existing.subChatSettings,
+            budgetLimit: existing.budgetLimit,
+            budgetSpent: existing.budgetSpent,
+            encryptedActiveFocusId: encryptedFocusId,
+            activeFocusId: payload.focusId
+        )
+        chatStore.upsertChat(updated)
+        chatStore.updateActiveFocus(
+            chatId: payload.chatId,
+            encryptedActiveFocusId: encryptedFocusId,
+            activeFocusId: payload.focusId
+        )
+        do {
+            try await wsManager.send(WSOutboundMessage(
+                type: "update_encrypted_active_focus_id",
+                payload: [
+                    "chat_id": payload.chatId,
+                    "encrypted_active_focus_id": encryptedFocusId
+                ]
+            ))
+        } catch {
+            print("[MainApp] Failed to persist focus sync metadata")
+        }
     }
 
     private func announceActiveChat(_ chatId: String?) async {
@@ -2557,6 +2695,15 @@ struct MainAppView: View {
                 print("[MainApp][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
             }
         }
+        if decrypted.activeFocusId == nil,
+           let encryptedActiveFocusId = decrypted.encryptedActiveFocusId,
+           let activeFocusId = await ChatKeyManager.shared.decryptChatField(
+                chatId: decrypted.id,
+                encryptedValue: encryptedActiveFocusId,
+                fieldName: "encrypted_active_focus_id"
+        ) {
+            decrypted.activeFocusId = activeFocusId
+        }
         return decrypted
     }
 
@@ -2688,6 +2835,8 @@ private struct NewChatMessagePayload: Decodable {
     let encryptedChatKey: String?
     let encryptedTitle: String?
     let encryptedCategory: String?
+    let parentId: String?
+    let isSubChat: Bool?
 }
 
 private struct AITypingStartedSyncPayload: Decodable {
@@ -2724,6 +2873,11 @@ private struct PendingAIResponsePayload: Decodable {
 
 private struct ChatDeletedSyncPayload: Decodable {
     let chatId: String
+}
+
+private struct FocusModeActivatedPayload: Decodable {
+    let chatId: String
+    let focusId: String
 }
 
 private struct Phase1SyncPayload: Decodable {
@@ -3851,7 +4005,7 @@ private struct WelcomeComposer: View {
                                 .clipShape(RoundedRectangle(cornerRadius: .radius8))
                         }
                         .buttonStyle(.plain)
-                        .accessibilityIdentifier("welcome-send-button")
+                        .accessibilityIdentifier("send-button")
                     }
                 }
                 .padding(.horizontal, .spacing5)
@@ -3863,7 +4017,6 @@ private struct WelcomeComposer: View {
                     isExpanded = true
                 }
             }
-            .accessibilityIdentifier("welcome-message-input")
 
             if isOpen {
                 Button {

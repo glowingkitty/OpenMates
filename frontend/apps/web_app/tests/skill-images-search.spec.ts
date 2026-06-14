@@ -106,6 +106,22 @@ test.describe('App: Images / Skill: search', () => {
 
 		const embed = await waitForEmbedFinished(page, 'images', 'search');
 		logCheckpoint('Images search embed finished.');
+		await expect(embed.getByTestId('images-search-thumbnail-strip')).toBeVisible({ timeout: 30_000 });
+		const firstParentThumbnail = embed.getByTestId('images-search-thumbnail').first();
+		await expect(firstParentThumbnail).toBeVisible({ timeout: 30_000 });
+		await expect(async () => {
+			const naturalWidth = await firstParentThumbnail.evaluate((img: HTMLImageElement) => img.naturalWidth);
+			expect(naturalWidth).toBeGreaterThan(0);
+		}).toPass({ timeout: 30_000 });
+		logCheckpoint('First parent preview thumbnail loaded.');
+
+		const firstInlineResult = page
+			.locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="image_result"][data-status="finished"]')
+			.first();
+		await expect(firstInlineResult).toBeVisible({ timeout: 30_000 });
+		await expect(firstInlineResult.getByTestId('image-result-preview-image')).toBeVisible({ timeout: 30_000 });
+		logCheckpoint('First inline image result preview visible.');
+
 		await expect(page.getByTestId('chat-header-image-bubble-left')).toBeVisible({ timeout: 30_000 });
 		logCheckpoint('Chat header image bubbles visible.');
 

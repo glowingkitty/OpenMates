@@ -1,0 +1,225 @@
+title:
+  context: "Title of example chat: Memory Docs Writing Style"
+  en: "Memory Docs Writing Style"
+  de: "Memory Docs Writing Style"
+  zh: "Memory Docs Writing Style"
+  es: "Memory Docs Writing Style"
+  fr: "Memory Docs Writing Style"
+  pt: "Memory Docs Writing Style"
+  ru: "Memory Docs Writing Style"
+  ja: "Memory Docs Writing Style"
+  ko: "Memory Docs Writing Style"
+  it: "Memory Docs Writing Style"
+  tr: "Memory Docs Writing Style"
+  vi: "Memory Docs Writing Style"
+  id: "Memory Docs Writing Style"
+  pl: "Memory Docs Writing Style"
+  nl: "Memory Docs Writing Style"
+  ar: "Memory Docs Writing Style"
+  hi: "Memory Docs Writing Style"
+  th: "Memory Docs Writing Style"
+  cs: "Memory Docs Writing Style"
+  sv: "Memory Docs Writing Style"
+  he: "Memory Docs Writing Style"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Memory Docs Writing Style"
+  en: "OpenMates uses saved docs writing_style memory in a real chat."
+  de: "OpenMates uses saved docs writing_style memory in a real chat."
+  zh: "OpenMates uses saved docs writing_style memory in a real chat."
+  es: "OpenMates uses saved docs writing_style memory in a real chat."
+  fr: "OpenMates uses saved docs writing_style memory in a real chat."
+  pt: "OpenMates uses saved docs writing_style memory in a real chat."
+  ru: "OpenMates uses saved docs writing_style memory in a real chat."
+  ja: "OpenMates uses saved docs writing_style memory in a real chat."
+  ko: "OpenMates uses saved docs writing_style memory in a real chat."
+  it: "OpenMates uses saved docs writing_style memory in a real chat."
+  tr: "OpenMates uses saved docs writing_style memory in a real chat."
+  vi: "OpenMates uses saved docs writing_style memory in a real chat."
+  id: "OpenMates uses saved docs writing_style memory in a real chat."
+  pl: "OpenMates uses saved docs writing_style memory in a real chat."
+  nl: "OpenMates uses saved docs writing_style memory in a real chat."
+  ar: "OpenMates uses saved docs writing_style memory in a real chat."
+  hi: "OpenMates uses saved docs writing_style memory in a real chat."
+  th: "OpenMates uses saved docs writing_style memory in a real chat."
+  cs: "OpenMates uses saved docs writing_style memory in a real chat."
+  sv: "OpenMates uses saved docs writing_style memory in a real chat."
+  he: "OpenMates uses saved docs writing_style memory in a real chat."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Memory Docs Writing Style. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Memory Docs Writing Style. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  de: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  zh: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  es: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  fr: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  pt: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  ru: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  ja: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  ko: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  it: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  tr: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  vi: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  id: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  pl: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  nl: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  ar: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  hi: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  th: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  cs: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  sv: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  he: |
+    ### Bulk Data Import
+    Bring your existing data into the platform in seconds with our new import tool.
+
+    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
+    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
+    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+  verified_by_human: []

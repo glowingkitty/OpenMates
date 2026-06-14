@@ -9,6 +9,14 @@ import CryptoKit
 
 @MainActor
 final class ChatViewModel: ObservableObject {
+    struct ChatOpeningMetrics: Equatable {
+        var initialMessagesReceived = 0
+        var initialMessagesDecrypted = 0
+        var initialEmbedsReceived = 0
+        var fullEmbedsDecrypted = 0
+        var firstUsefulRenderMs = 0
+    }
+
     @Published var chat: Chat?
     @Published var messages: [Message] = []
     @Published var embedRecords: [String: EmbedRecord] = [:]
@@ -18,7 +26,10 @@ final class ChatViewModel: ObservableObject {
     @Published var streamingMessageId: String?
     @Published var followUpSuggestions: [String] = []
     @Published var error: String?
+    @Published private(set) var openingMetrics = ChatOpeningMetrics()
     @Published private(set) var pendingComposerEmbeds: [ComposerPendingEmbed] = []
+    @Published var subChatApprovalRequest: SubChatApprovalRequest?
+    @Published var subChatProgress: SubChatProgress?
 
     var hasPendingComposerEmbeds: Bool {
         !pendingComposerEmbeds.isEmpty
@@ -47,6 +58,7 @@ final class ChatViewModel: ObservableObject {
     private var assistantCategoryByMessageId: [String: String] = [:]
     private var assistantModelNameByMessageId: [String: String] = [:]
     nonisolated(unsafe) private var embedRefreshObserver: Any?
+    nonisolated(unsafe) private var chatLifecycleObserver: Any?
 
     func configure(wsManager: WebSocketManager?, chatStore: ChatStore?) {
         self.wsManager = wsManager
@@ -100,6 +112,7 @@ final class ChatViewModel: ObservableObject {
             // Start listening for streaming events and embed updates
             subscribeToStream(chatId: id)
             subscribeToEmbedUpdates(chatId: id)
+            subscribeToChatLifecycle(chatId: id)
             isLoading = false
             scheduleEmbedHydration(
                 syncedEmbeds: [],
@@ -162,9 +175,12 @@ final class ChatViewModel: ObservableObject {
 
         chat = loadedChat
         let rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        openingMetrics.initialMessagesReceived = rawMessages.count
+        openingMetrics.initialEmbedsReceived = syncedEmbeds.count
         allMessages = rawMessages
         let visibleRawMessages = visibleWindow(from: rawMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
         let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: loadedChat.id)
+        openingMetrics.initialMessagesDecrypted = decryptedMessages.count
         guard generation == loadGeneration else { return }
         let embedded = PublicChatContent.attachEmbeds(to: decryptedMessages)
         let existingRecords = embedRecords
@@ -173,20 +189,17 @@ final class ChatViewModel: ObservableObject {
         embedRecords = existingRecords.merging(embedded.records) { _, new in new }
         followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
 
-        if visibleWindowStartIndex > 0 {
-            messages = embedded.messages
-            hasOlderMessages = true
-        } else {
-            messages = embedded.messages
-            hasOlderMessages = false
-        }
+        messages = embedded.messages
+        hasOlderMessages = chatStore?.hasOlderMessages(for: loadedChat.id, before: embedded.messages.first?.id) ?? (visibleWindowStartIndex > 0)
 
         subscribeToStream(chatId: loadedChat.id)
         subscribeToEmbedUpdates(chatId: loadedChat.id)
+        subscribeToChatLifecycle(chatId: loadedChat.id)
         isLoading = false
         NativeSyncPerfLog.info(
             "phase=loadSyncedChatFirstPaint chat=\(loadedChat.id.prefix(8)) visibleMessages=\(decryptedMessages.count) totalMessages=\(rawMessages.count) embedRefs=\(directEmbedRefs) inlineRecords=\(embedded.records.count) syncedEmbeds=\(syncedEmbeds.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
         )
+        openingMetrics.firstUsefulRenderMs = NativeSyncPerfLog.ms(since: start)
         scheduleEmbedHydration(
             syncedEmbeds: syncedEmbeds,
             referencedIds: referencedIds,
@@ -222,6 +235,7 @@ final class ChatViewModel: ObservableObject {
             self.embedRecords = decryptedSyncedEmbeds.reduce(into: self.embedRecords) { records, embed in
                 records[embed.id] = embed
             }
+            self.openingMetrics.fullEmbedsDecrypted += decryptedSyncedEmbeds.filter { $0.rawData != nil }.count
             await self.loadEmbeds(for: self.messages.map(\.id))
             NativeSyncPerfLog.info(
                 "phase=embedHydrationComplete source=\(source) chat=\(chatId.prefix(8)) referenced=\(referencedIds.count) related=\(relatedSyncedEmbeds.count) decrypted=\(decryptedSyncedEmbeds.filter { $0.rawData != nil }.count) totalRecords=\(self.embedRecords.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
@@ -300,6 +314,15 @@ final class ChatViewModel: ObservableObject {
             if NativeSyncPerfLog.verboseCrypto {
                 print("[ChatViewModel][decrypt] chat=\(decrypted.id.prefix(8)) summary missing after decrypt attempt")
             }
+        }
+        if decrypted.activeFocusId == nil,
+           let encryptedActiveFocusId = decrypted.encryptedActiveFocusId,
+           let activeFocusId = await ChatKeyManager.shared.decryptChatField(
+                chatId: decrypted.id,
+                encryptedValue: encryptedActiveFocusId,
+                fieldName: "encrypted_active_focus_id"
+        ) {
+            decrypted.activeFocusId = activeFocusId
         }
         return decrypted
     }
@@ -441,6 +464,25 @@ final class ChatViewModel: ObservableObject {
         guard hasOlderMessages, !isLoadingOlder else { return }
         isLoadingOlder = true
 
+        if let chatId = chat?.id,
+           let topMessageId = messages.first?.id,
+           let olderBatch = chatStore?.olderMessageWindow(for: chatId, before: topMessageId),
+           !olderBatch.isEmpty {
+            Task { @MainActor in
+                let decrypted = await decryptMessages(olderBatch, chatId: chatId)
+                let embedded = PublicChatContent.attachEmbeds(to: decrypted)
+                for (id, record) in embedded.records {
+                    embedRecords[id] = record
+                }
+                messages.insert(contentsOf: embedded.messages, at: 0)
+                allMessages.insert(contentsOf: olderBatch, at: 0)
+                hasOlderMessages = chatStore?.hasOlderMessages(for: chatId, before: embedded.messages.first?.id) ?? false
+                await loadEmbeds(for: embedded.messages.map(\.id))
+                isLoadingOlder = false
+            }
+            return
+        }
+
         let currentStartIndex = visibleWindowStartIndex
 
         if currentStartIndex > 0 {
@@ -472,7 +514,7 @@ final class ChatViewModel: ObservableObject {
 
     // MARK: - Send message
 
-    func sendMessage(_ content: String) async {
+    func sendMessage(_ content: String, broadcastToSiblings: Bool = false) async {
         guard let currentChat = chat else { return }
         do {
             let composerEmbeds = pendingComposerEmbeds
@@ -482,17 +524,47 @@ final class ChatViewModel: ObservableObject {
                 existingMessages: allMessages,
                 wsManager: wsManager,
                 chatStore: chatStore,
-                composerEmbeds: composerEmbeds
+                composerEmbeds: composerEmbeds,
+                broadcastToSiblings: broadcastToSiblings
             )
             chat = result.chat
             pendingUserMessagesById[result.message.id] = result.message
             appendOrReplaceLocalMessage(result.message)
+            if broadcastToSiblings {
+                await broadcastMessageToSiblingSubChats(content)
+            }
             pendingComposerEmbeds.removeAll()
             isStreaming = true
             streamingContent = ""
         } catch {
             self.error = error.localizedDescription
             isStreaming = false
+        }
+    }
+
+    private func broadcastMessageToSiblingSubChats(_ content: String) async {
+        guard let currentChat = chat,
+              let parentId = currentChat.parentId,
+              let chatStore else { return }
+        let siblings = chatStore.chats.filter { sibling in
+            sibling.parentId == parentId && sibling.id != currentChat.id
+        }
+        for sibling in siblings {
+            do {
+                _ = try await sendPipeline.sendUserMessage(
+                    content: content,
+                    in: sibling,
+                    existingMessages: chatStore.messages(for: sibling.id),
+                    wsManager: wsManager,
+                    chatStore: chatStore,
+                    activateChat: false,
+                    waitForRemoteSend: true,
+                    composerEmbeds: [],
+                    broadcastToSiblings: false
+                )
+            } catch {
+                print("[ChatViewModel] Failed to broadcast sub-chat message to \(sibling.id.prefix(8)): \(error)")
+            }
         }
     }
 
@@ -742,8 +814,193 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    private func subscribeToChatLifecycle(chatId: String) {
+        if let observer = chatLifecycleObserver {
+            NotificationCenter.default.removeObserver(observer)
+            chatLifecycleObserver = nil
+        }
+        chatLifecycleObserver = NotificationCenter.default.addObserver(
+            forName: .wsMessageReceived, object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let type = notification.userInfo?["type"] as? String,
+                  let raw = notification.userInfo?["raw"] as? Data else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.handleChatLifecycleEvent(type: type, raw: raw, activeChatId: chatId)
+            }
+        }
+    }
+
+    private func handleChatLifecycleEvent(type: String, raw: Data, activeChatId: String) async {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        do {
+            switch type {
+            case "sub_chat_confirmation_required":
+                let envelope = try decoder.decode(LifecycleEnvelope<SubChatApprovalRequest>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data, payload.chatId == activeChatId else { return }
+                subChatApprovalRequest = payload
+            case "sub_chat_progress":
+                let envelope = try decoder.decode(LifecycleEnvelope<SubChatProgress>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data, payload.chatId == activeChatId else { return }
+                subChatProgress = payload
+            case "sub_chat_confirmation_resolved":
+                subChatApprovalRequest = nil
+            case "spawn_sub_chats":
+                let envelope = try decoder.decode(LifecycleEnvelope<SpawnSubChatsPayload>.self, from: raw)
+                guard let payload = envelope.payload ?? envelope.data else { return }
+                await applySpawnedSubChats(payload, activeChatId: activeChatId)
+            default:
+                break
+            }
+        } catch {
+            print("[ChatViewModel] Failed to decode chat lifecycle event \(type): \(error)")
+        }
+    }
+
+    private func applySpawnedSubChats(_ payload: SpawnSubChatsPayload, activeChatId: String) async {
+        let parentId = payload.parentId ?? payload.chatId ?? activeChatId
+        guard parentId == activeChatId, let parentChat = chatStore?.chat(for: parentId) ?? chat else { return }
+        let parentKey = ChatKeyManager.shared.key(for: parentId)
+        for child in payload.subChats {
+            if let parentKey {
+                ChatKeyManager.shared.setKey(parentKey, for: child.id)
+            }
+            let createdAt = ISO8601DateFormatter().string(from: Date())
+            let encryptedContent: String?
+            if let parentKey {
+                encryptedContent = try? await CryptoManager.shared.encryptContent(child.prompt, key: parentKey)
+            } else {
+                encryptedContent = nil
+            }
+            let childChat = Chat(
+                id: child.id,
+                title: child.title ?? child.prompt,
+                lastMessageAt: createdAt,
+                createdAt: createdAt,
+                updatedAt: createdAt,
+                isArchived: false,
+                isPinned: false,
+                appId: parentChat.appId,
+                category: parentChat.category,
+                icon: parentChat.icon,
+                encryptedTitle: nil,
+                encryptedChatKey: parentChat.encryptedChatKey,
+                messagesV: 1,
+                titleV: child.title == nil ? 0 : 1,
+                parentId: parentId,
+                isSubChat: true,
+                subChatSettings: SubChatSettings(waitForCompletion: child.waitForCompletion, reportTrigger: nil)
+            )
+            let firstMessage = Message(
+                id: child.userMessageId,
+                chatId: child.id,
+                role: .user,
+                content: child.prompt,
+                encryptedContent: encryptedContent,
+                createdAt: createdAt,
+                updatedAt: nil,
+                appId: nil,
+                isStreaming: false,
+                embedRefs: nil
+            )
+            chatStore?.upsertChat(childChat)
+            chatStore?.appendMessage(firstMessage, to: child.id)
+        }
+    }
+
+    func approveSubChatRequest(count: Int? = nil) async {
+        guard let request = subChatApprovalRequest else { return }
+        do {
+            try await sendPipeline.sendSubChatConfirmation(
+                chatId: request.chatId,
+                taskId: request.taskId,
+                action: "approve",
+                approveCount: count ?? request.subChats?.count,
+                wsManager: wsManager
+            )
+            subChatApprovalRequest = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func cancelSubChatRequest() async {
+        guard let request = subChatApprovalRequest else { return }
+        do {
+            try await sendPipeline.sendSubChatConfirmation(
+                chatId: request.chatId,
+                taskId: request.taskId,
+                action: "cancel",
+                approveCount: nil,
+                wsManager: wsManager
+            )
+            subChatApprovalRequest = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func stopSubChats() async {
+        guard let chatId = chat?.id else { return }
+        do {
+            try await sendPipeline.sendSubChatStop(chatId: chatId, taskId: subChatProgress?.taskId, wsManager: wsManager)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func deactivateActiveFocusMode() async {
+        guard let currentChat = chat else { return }
+        let updated = Chat(
+            id: currentChat.id,
+            title: currentChat.title,
+            lastMessageAt: currentChat.lastMessageAt,
+            createdAt: currentChat.createdAt,
+            updatedAt: ISO8601DateFormatter().string(from: Date()),
+            isArchived: currentChat.isArchived,
+            isPinned: currentChat.isPinned,
+            appId: currentChat.appId,
+            category: currentChat.category,
+            icon: currentChat.icon,
+            chatSummary: currentChat.chatSummary,
+            encryptedTitle: currentChat.encryptedTitle,
+            encryptedCategory: currentChat.encryptedCategory,
+            encryptedIcon: currentChat.encryptedIcon,
+            encryptedChatSummary: currentChat.encryptedChatSummary,
+            encryptedChatKey: currentChat.encryptedChatKey,
+            messagesV: currentChat.messagesV,
+            titleV: currentChat.titleV,
+            draftV: currentChat.draftV,
+            lastVisibleMessageId: currentChat.lastVisibleMessageId,
+            parentId: currentChat.parentId,
+            isSubChat: currentChat.isSubChat,
+            subChatSettings: currentChat.subChatSettings,
+            budgetLimit: currentChat.budgetLimit,
+            budgetSpent: currentChat.budgetSpent,
+            encryptedActiveFocusId: nil,
+            activeFocusId: nil
+        )
+        chat = updated
+        chatStore?.updateActiveFocus(chatId: currentChat.id, encryptedActiveFocusId: nil, activeFocusId: nil)
+        do {
+            try await wsManager?.send(WSOutboundMessage(
+                type: "update_encrypted_active_focus_id",
+                payload: [
+                    "chat_id": currentChat.id,
+                    "encrypted_active_focus_id": NSNull()
+                ]
+            ))
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
     deinit {
         if let observer = embedRefreshObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = chatLifecycleObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }
@@ -886,8 +1143,9 @@ final class ChatViewModel: ObservableObject {
             let preferredStart = max(0, anchorIndex - 8)
             let maxStart = rawMessages.count - messagesPageSize
             let start = min(preferredStart, maxStart)
+            let end = min(rawMessages.count, start + messagesPageSize)
             visibleWindowStartIndex = start
-            return Array(rawMessages[start..<rawMessages.count])
+            return Array(rawMessages[start..<end])
         }
 
         visibleWindowStartIndex = rawMessages.count - messagesPageSize
@@ -895,29 +1153,11 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func relatedEmbeds(referencedIds: Set<String>, from embeds: [EmbedRecord]) -> [EmbedRecord] {
-        guard !referencedIds.isEmpty, !embeds.isEmpty else { return [] }
-        let recordsById = EmbedRecord.dictionaryById(embeds, context: "chatViewModel.relatedEmbeds")
-        var childIdsByParent: [String: Set<String>] = [:]
-        for embed in embeds {
-            if let parentId = embed.parentEmbedId {
-                childIdsByParent[parentId, default: []].insert(embed.id)
-            }
-            for childId in embed.childEmbedIds {
-                childIdsByParent[embed.id, default: []].insert(childId)
-            }
-        }
-
-        var included = referencedIds
-        var pending = Array(referencedIds)
-        while let id = pending.popLast() {
-            if let record = recordsById[id], let parentId = record.parentEmbedId, included.insert(parentId).inserted {
-                pending.append(parentId)
-            }
-            for childId in childIdsByParent[id] ?? [] where included.insert(childId).inserted {
-                pending.append(childId)
-            }
-        }
-        return embeds.filter { included.contains($0.id) }
+        EmbedRecord.relatedRecords(
+            referencedIds: referencedIds,
+            from: embeds,
+            context: "chatViewModel.relatedEmbeds"
+        )
     }
 
     private func extractFollowUpSuggestions(from messages: [Message]) -> [String] {
@@ -954,7 +1194,11 @@ final class ChatViewModel: ObservableObject {
     }
 
     func childEmbeds(for embed: EmbedRecord) -> [EmbedRecord] {
-        embed.childEmbedIds.compactMap { embedRecords[$0] }
+        let explicit = embed.childEmbedIds.compactMap { embedRecords[$0] }
+        if !explicit.isEmpty { return explicit }
+        return embedRecords.values
+            .filter { $0.parentEmbedId == embed.id }
+            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
     }
 
     func isStreamingMessage(_ messageId: String) -> Bool {
@@ -1098,6 +1342,34 @@ final class ChatViewModel: ObservableObject {
         pendingComposerEmbeds.removeAll { $0.id == id }
     }
 
+    #if DEBUG
+    func seedUITestPendingComposerEmbed() {
+        guard pendingComposerEmbeds.isEmpty else { return }
+        let upload = UploadFileResponse(
+            embedId: "ui-test-pending-image",
+            filename: "ui-test-image.png",
+            contentType: "image/png",
+            contentHash: nil,
+            files: [
+                "original": UploadedFileVariant(
+                    s3Key: "ui-test-image.png",
+                    sizeBytes: 128,
+                    width: 32,
+                    height: 32,
+                    format: "png"
+                )
+            ],
+            s3BaseUrl: "https://example.invalid/ui-test",
+            aesKey: "ui-test-aes-key",
+            aesNonce: "ui-test-aes-nonce",
+            vaultWrappedAesKey: "ui-test-wrapped-key",
+            pageCount: nil,
+            deduplicated: true
+        )
+        registerPendingComposerEmbed(upload, localData: Data(repeating: 0, count: 128), transcript: nil, duration: nil)
+    }
+    #endif
+
     private func registerPendingComposerEmbed(
         _ upload: UploadFileResponse,
         localData: Data?,
@@ -1181,6 +1453,37 @@ struct ComposerPendingEmbed: Identifiable {
     var canPersistDirectly: Bool {
         content != nil
     }
+
+    #if DEBUG
+    static var uiTestFixture: ComposerPendingEmbed {
+        from(
+            upload: UploadFileResponse(
+                embedId: "ui-test-pending-image",
+                filename: "ui-test-image.png",
+                contentType: "image/png",
+                contentHash: nil,
+                files: [
+                    "original": UploadedFileVariant(
+                        s3Key: "ui-test-image.png",
+                        sizeBytes: 128,
+                        width: 32,
+                        height: 32,
+                        format: "png"
+                    )
+                ],
+                s3BaseUrl: "https://example.invalid/ui-test",
+                aesKey: "ui-test-aes-key",
+                aesNonce: "ui-test-aes-nonce",
+                vaultWrappedAesKey: "ui-test-wrapped-key",
+                pageCount: nil,
+                deduplicated: true
+            ),
+            localData: Data(repeating: 0, count: 128),
+            transcript: nil,
+            duration: nil
+        )
+    }
+    #endif
 
     static func from(
         upload: UploadFileResponse,
@@ -2105,7 +2408,9 @@ final class ChatSendPipeline {
         wsManager: WebSocketManager?,
         chatStore: ChatStore?,
         activateChat: Bool = true,
-        composerEmbeds: [ComposerPendingEmbed] = []
+        waitForRemoteSend: Bool = true,
+        composerEmbeds: [ComposerPendingEmbed] = [],
+        broadcastToSiblings: Bool = false
     ) async throws -> SendResult {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
         let now = Date()
@@ -2146,9 +2451,6 @@ final class ChatSendPipeline {
         chatStore?.upsertChat(updatedChat)
         chatStore?.appendMessage(message, to: chat.id)
 
-        if activateChat {
-            try await sendSetActiveChat(chat.id, wsManager: wsManager)
-        }
         var messagePayload: [String: Any] = [
             "message_id": messageId,
             "role": "user",
@@ -2166,6 +2468,35 @@ final class ChatSendPipeline {
             "message": messagePayload,
             "encrypted_chat_key": keyMaterial.encryptedChatKey
         ]
+        outboundPayload.merge(
+            chatContextPayloadFields(
+                for: chat,
+                broadcastToSiblings: broadcastToSiblings,
+                activeFocusId: nil
+            ),
+            uniquingKeysWith: { _, new in new }
+        )
+        let activeFocusId: String?
+        if let inMemoryActiveFocusId = chat.activeFocusId {
+            activeFocusId = inMemoryActiveFocusId
+        } else if let encryptedActiveFocusId = chat.encryptedActiveFocusId {
+            activeFocusId = try? await crypto.decryptContent(
+                base64String: encryptedActiveFocusId,
+                key: keyMaterial.key
+            )
+        } else {
+            activeFocusId = nil
+        }
+        if let activeFocusId, !activeFocusId.isEmpty {
+            outboundPayload.merge(
+                chatContextPayloadFields(
+                    for: chat,
+                    broadcastToSiblings: broadcastToSiblings,
+                    activeFocusId: activeFocusId
+                ),
+                uniquingKeysWith: { _, new in new }
+            )
+        }
         let sendableEmbeds = composerEmbeds.compactMap(\.serverPayload)
         if !sendableEmbeds.isEmpty {
             outboundPayload["embeds"] = sendableEmbeds
@@ -2174,12 +2505,113 @@ final class ChatSendPipeline {
             outboundPayload["encrypted_embeds"] = encryptedEmbedPayloads
         }
 
+        if waitForRemoteSend {
+            try await sendRemoteUserMessage(
+                chatId: chat.id,
+                activateChat: activateChat,
+                wsManager: wsManager,
+                outboundPayload: outboundPayload
+            )
+        } else {
+            Task { @MainActor in
+                do {
+                    try await self.sendRemoteUserMessage(
+                        chatId: chat.id,
+                        activateChat: activateChat,
+                        wsManager: wsManager,
+                        outboundPayload: outboundPayload
+                    )
+                } catch {
+                    print("[ChatSendPipeline] Background send failed for chat \(chat.id.prefix(8)): \(error)")
+                }
+            }
+        }
+
+        return SendResult(chat: updatedChat, message: message)
+    }
+
+    func sendSubChatConfirmation(
+        chatId: String,
+        taskId: String,
+        action: String,
+        approveCount: Int?,
+        wsManager: WebSocketManager?
+    ) async throws {
+        guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        try await wsManager.send(WSOutboundMessage(
+            type: "sub_chat_confirmation",
+            payload: subChatConfirmationPayload(
+                chatId: chatId,
+                taskId: taskId,
+                action: action,
+                approveCount: approveCount
+            )
+        ))
+    }
+
+    func sendSubChatStop(chatId: String, taskId: String?, wsManager: WebSocketManager?) async throws {
+        guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        try await wsManager.send(WSOutboundMessage(
+            type: "sub_chat_stop",
+            payload: subChatStopPayload(chatId: chatId, taskId: taskId)
+        ))
+    }
+
+    func subChatConfirmationPayload(
+        chatId: String,
+        taskId: String,
+        action: String,
+        approveCount: Int?
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "chat_id": chatId,
+            "task_id": taskId,
+            "action": action
+        ]
+        if let approveCount {
+            payload["approve_count"] = approveCount
+        }
+        return payload
+    }
+
+    func subChatStopPayload(chatId: String, taskId: String?) -> [String: Any] {
+        var payload: [String: Any] = ["chat_id": chatId]
+        if let taskId {
+            payload["task_id"] = taskId
+        }
+        return payload
+    }
+
+    func chatContextPayloadFields(
+        for chat: Chat,
+        broadcastToSiblings: Bool,
+        activeFocusId: String?
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "broadcast": broadcastToSiblings
+        ]
+        if let parentId = chat.parentId, !parentId.isEmpty {
+            payload["parent_id"] = parentId
+        }
+        if let activeFocusId, !activeFocusId.isEmpty {
+            payload["active_focus_id"] = activeFocusId
+        }
+        return payload
+    }
+
+    private func sendRemoteUserMessage(
+        chatId: String,
+        activateChat: Bool,
+        wsManager: WebSocketManager,
+        outboundPayload: [String: Any]
+    ) async throws {
+        if activateChat {
+            try await sendSetActiveChat(chatId, wsManager: wsManager)
+        }
         try await wsManager.send(WSOutboundMessage(
             type: "chat_message_added",
             payload: outboundPayload
         ))
-
-        return SendResult(chat: updatedChat, message: message)
     }
 
     func sendEncryptedUserStoragePackage(
@@ -2576,7 +3008,14 @@ final class ChatSendPipeline {
             messagesV: messagesV ?? chat.messagesV,
             titleV: titleV ?? chat.titleV,
             draftV: chat.draftV,
-            lastVisibleMessageId: chat.lastVisibleMessageId
+            lastVisibleMessageId: chat.lastVisibleMessageId,
+            parentId: chat.parentId,
+            isSubChat: chat.isSubChat,
+            subChatSettings: chat.subChatSettings,
+            budgetLimit: chat.budgetLimit,
+            budgetSpent: chat.budgetSpent,
+            encryptedActiveFocusId: chat.encryptedActiveFocusId,
+            activeFocusId: chat.activeFocusId
         )
     }
 
@@ -2606,4 +3045,42 @@ private enum ChatSendError: LocalizedError {
             return "Realtime connection is not ready. Please try again."
         }
     }
+}
+
+struct SubChatApprovalRequest: Decodable, Equatable, Sendable {
+    let chatId: String
+    let taskId: String
+    let subChats: [SpawnedSubChat]?
+    let maxAutoSubChats: Int?
+    let maxDirectSubChats: Int?
+    let existingSubChats: Int?
+    let remainingSubChats: Int?
+}
+
+struct SubChatProgress: Decodable, Equatable, Sendable {
+    let chatId: String
+    let taskId: String?
+    let status: String?
+    let total: Int?
+    let completed: Int?
+    let activeSubChatId: String?
+}
+
+struct SpawnSubChatsPayload: Decodable, Equatable, Sendable {
+    let parentId: String?
+    let chatId: String?
+    let subChats: [SpawnedSubChat]
+}
+
+struct SpawnedSubChat: Decodable, Equatable, Identifiable, Sendable {
+    let id: String
+    let userMessageId: String
+    let prompt: String
+    let title: String?
+    let waitForCompletion: Bool?
+}
+
+private struct LifecycleEnvelope<Payload: Decodable>: Decodable {
+    let payload: Payload?
+    let data: Payload?
 }

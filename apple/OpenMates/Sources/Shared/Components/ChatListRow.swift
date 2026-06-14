@@ -58,6 +58,14 @@ struct ChatListRow: View {
 
     var body: some View {
         HStack(spacing: .spacing4) {
+            if chat.isSubChat == true {
+                Rectangle()
+                    .fill(Color.grey40)
+                    .frame(width: 2, height: 28)
+                    .padding(.leading, .spacing4)
+                    .accessibilityHidden(true)
+            }
+
             if let descriptor = publicIconDescriptor {
                 Circle()
                     .fill(descriptor.gradient)
@@ -121,10 +129,11 @@ struct ChatListRow: View {
             }
         }
         .padding(.vertical, .spacing4)
-        .padding(.horizontal, .spacing6)
+        .padding(.leading, chat.isSubChat == true ? .spacing10 : .spacing6)
+        .padding(.trailing, .spacing6)
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("chat-item-wrapper")
-        .accessibilityLabel("\(chat.displayTitle)\(chat.isPinned == true ? ", pinned" : "")")
+        .accessibilityIdentifier(chat.isSubChat == true ? "sub-chat-item" : "chat-item-wrapper")
+        .accessibilityLabel("\(chat.displayTitle)\(chat.isSubChat == true ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
         .accessibilityHint("Double tap to open, long press for options")
     }
 }

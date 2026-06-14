@@ -18,7 +18,7 @@ from typing import Any, Dict
 
 from toon_format import encode as toon_encode
 
-from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation
 from backend.apps.social_media.collection import GetPostsResponseItem, collect_posts
 from backend.apps.social_media.result_payload import build_social_media_task_result

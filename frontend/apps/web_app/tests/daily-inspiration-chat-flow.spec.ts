@@ -77,7 +77,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -139,18 +139,60 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	log('Daily inspiration banner is visible.');
 	await screenshot(page, 'inspiration-banner-visible');
 
-	// Feature inspirations open settings instead of creating a chat. Navigate to a
-	// chat-capable inspiration before testing the inspiration-chat regression flow.
-	const chatCta = page.getByText(/Click to start chat|Open chat/).first();
-	for (let attempt = 0; attempt < 3; attempt += 1) {
-		if (await chatCta.isVisible().catch(() => false)) break;
+	const inspirationPhrase = page.getByTestId('daily-inspiration-phrase');
+	const initialCarouselPhrase = (await inspirationPhrase.textContent())?.trim() ?? '';
+	await page.getByTestId('daily-inspiration-next').click();
+	await expect(inspirationPhrase).not.toHaveText(initialCarouselPhrase, { timeout: 3000 });
+	const nextCarouselPhrase = (await inspirationPhrase.textContent())?.trim() ?? '';
+	await page.waitForTimeout(800);
+	await expect(inspirationPhrase).toHaveText(nextCarouselPhrase);
+	await page.getByTestId('daily-inspiration-previous').click();
+	await expect(inspirationPhrase).toHaveText(initialCarouselPhrase, { timeout: 3000 });
+
+	const bannerBox = await inspirationBanner.boundingBox();
+	expect(bannerBox, 'Daily inspiration banner must have bounds for swipe test').toBeTruthy();
+	const centerY = bannerBox!.y + bannerBox!.height / 2;
+	await inspirationBanner.dispatchEvent('touchstart', {
+		touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
+	});
+	await inspirationBanner.dispatchEvent('touchmove', {
+		touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
+	});
+	await inspirationBanner.dispatchEvent('touchend', {
+		touches: [],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
+	});
+	await expect(inspirationPhrase).toHaveText(nextCarouselPhrase, { timeout: 3000 });
+
+	await inspirationBanner.dispatchEvent('touchstart', {
+		touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
+	});
+	await inspirationBanner.dispatchEvent('touchmove', {
+		touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
+	});
+	await inspirationBanner.dispatchEvent('touchend', {
+		touches: [],
+		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
+	});
+	await expect(inspirationPhrase).toHaveText(initialCarouselPhrase, { timeout: 3000 });
+	log('Authenticated daily inspiration carousel responds to buttons and touch swipes.');
+
+	// Feature inspirations open settings, and already-opened inspirations resume an
+	// existing chat. This regression needs a fresh inspiration chat creation path.
+	const startChatCta = page.getByText('Click to start chat').first();
+	for (let attempt = 0; attempt < 10; attempt += 1) {
+		if (await startChatCta.isVisible().catch(() => false)) break;
 		await page.getByTestId('daily-inspiration-next').click();
 		await page.waitForTimeout(300);
 	}
-	await expect(chatCta).toBeVisible({ timeout: 5000 });
+	await expect(startChatCta).toBeVisible({ timeout: 5000 });
 
 	// ── 9. Click the banner to create an inspiration chat ────────────────────
-	await inspirationBanner.click();
+	await startChatCta.click();
 	log('Clicked the daily inspiration banner to start a chat.');
 
 	// The chat ID should appear in the URL within a few seconds
@@ -191,31 +233,28 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	// this with "You cannot send messages to this shared chat." because the chat
 	// was not in the user's chat_ids_versions sorted set.
 	log('Typing follow-up message "tell me more"...');
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(withMockMarker('tell me more', 'daily_inspiration'));
-	await screenshot(page, 'followup-message-typed');
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
+	await sendMessage(
+		page,
+		withMockMarker('tell me more', 'daily_inspiration'),
+		log,
+		screenshot,
+		'followup'
+	);
 	log('Sent follow-up message "tell me more".');
-	await screenshot(page, 'followup-message-sent');
 
 	// ── 12. Wait for AI response ─────────────────────────────────────────────
-	// The AI should respond to the follow-up. We wait for a second assistant
-	// message to appear (the first being the inspiration intro, the second being
-	// the AI response to "tell me more").
+	// The AI should respond to the follow-up. The chat history can rehydrate after
+	// send and temporarily drop the inspiration intro, so use the shared response
+	// waiter instead of comparing against the pre-send assistant count directly.
 	log('Waiting for AI response to follow-up...');
-	const assistantMessages = page.getByTestId('message-assistant');
-	// After sending "tell me more", there should be at least 2 assistant messages
-	await expect(assistantMessages).toHaveCount(2, { timeout: 60000 });
+	const followUpResponse = await waitForAssistantMessage(page, {
+		timeout: 90000,
+		logCheckpoint: log
+	});
 	log('AI responded to follow-up message — Bug #1 regression check passed.');
 	await screenshot(page, 'ai-response-received');
 
-	// Verify the second assistant message has actual content (not blank / loading)
-	const followUpResponse = assistantMessages.last();
+	// Verify the follow-up assistant message has actual content (not blank / loading)
 	const responseText = await followUpResponse.textContent();
 	expect(responseText).toBeTruthy();
 	expect(responseText!.trim().length).toBeGreaterThan(10);

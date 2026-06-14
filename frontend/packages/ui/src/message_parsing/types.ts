@@ -81,6 +81,10 @@ export interface EmbedNodeAttributes {
   skill_id?: string;
   query?: string; // Search query for search skills
   provider?: string; // Search provider for search skills (e.g., 'Brave Search', 'Google')
+  providers?: string[] | string; // Multiple providers for search skills
+  start_date?: string; // Search start date/time for date-scoped skills
+  end_date?: string; // Search end date/time for date-scoped skills
+  location?: unknown; // Location metadata for location-scoped skills
 
   // Focus mode activation metadata
   // Used by FocusModeActivationRenderer to display the focus mode name and manage state

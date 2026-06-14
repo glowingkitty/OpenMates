@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
 from backend.apps.travel.providers.serpapi_provider import SerpApiProvider
 from backend.apps.travel.providers.db_provider import DeutscheBahnProvider
@@ -414,18 +414,25 @@ class SearchConnectionsSkill(BaseSkill):
         if error_response:
             return error_response
 
-        # 2. Validate requests array (require 'legs' field per request)
-        validated_requests, validation_error = self._validate_requests_array(
+        validated_requests, invalid_grouped_results, validation_errors, validation_error = self._partition_requests_by_required_fields(
             requests=requests,
-            required_field="legs",
-            field_display_name="legs",
+            required_fields=["legs"],
+            field_display_names={"legs": "legs"},
             empty_error_message="No connection search requests provided",
             logger=logger,
         )
         if validation_error:
             return SearchConnectionsResponse(results=[], error=validation_error)
         if not validated_requests:
-            return SearchConnectionsResponse(results=[], error="No valid requests to process")
+            return self._build_response_with_errors(
+                response_class=SearchConnectionsResponse,
+                grouped_results=invalid_grouped_results,
+                errors=validation_errors,
+                provider="",
+                providers=[],
+                suggestions=self.FOLLOW_UP_SUGGESTIONS,
+                logger=logger,
+            )
 
         # 3. Create providers (SerpApiProvider loads its API key from Vault)
         all_providers = _create_providers(secrets_manager=secrets_manager)
@@ -444,11 +451,16 @@ class SearchConnectionsSkill(BaseSkill):
         # 5. Group results by request ID
         grouped_results, errors = self._group_results_by_request_id(
             results=all_results,
-            requests=validated_requests,
+            requests=requests,
             logger=logger,
         )
+        grouped_results = self._merge_grouped_results_preserving_request_order(
+            grouped_results,
+            invalid_grouped_results,
+            requests,
+        )
 
-        request_by_id = {req.get("id"): req for req in validated_requests}
+        request_by_id = {req.get("id"): req for req in requests}
         searched_provider_ids: set[str] = set()
         for group in grouped_results:
             req = request_by_id.get(group.get("id"))
@@ -479,6 +491,7 @@ class SearchConnectionsSkill(BaseSkill):
             group["transport_methods"] = transport_methods
             group["providers"] = group_providers
             group["result_count"] = len(group.get("results", []))
+            self._annotate_empty_result_group(group, req)
 
         # 6. Determine provider attribution from searched providers first, falling
         # back to actual results for legacy embeds that lack request metadata.
@@ -514,6 +527,35 @@ class SearchConnectionsSkill(BaseSkill):
             suggestions=self.FOLLOW_UP_SUGGESTIONS,
             logger=logger,
         )
+
+    @staticmethod
+    def _annotate_empty_result_group(group: Dict[str, Any], request: Dict[str, Any]) -> None:
+        """Add no-result metadata for successful empty connection groups."""
+        if group.get("results") or group.get("error"):
+            return
+        has_constraints = any(
+            request.get(key) not in (None, "", False)
+            for key in (
+                "non_stop_only",
+                "max_stops",
+                "max_price",
+                "include_airlines",
+                "exclude_airlines",
+                "min_departure_time",
+                "max_departure_time",
+                "min_arrival_time",
+                "max_arrival_time",
+                "max_duration_minutes",
+                "max_layover_minutes",
+                "avoid_overnight_layovers",
+            )
+        )
+        group["no_result_reason"] = "filtered_out" if has_constraints else "no_matches"
+        group["suggestions"] = [
+            "Increase the price limit",
+            "Allow one stop or connection",
+            "Try nearby dates or airports",
+        ]
 
     async def _process_single_request(
         self,
@@ -744,6 +786,8 @@ class SearchConnectionsSkill(BaseSkill):
     def _extract_result_filters(req: Dict[str, Any]) -> Dict[str, Any]:
         """Return only supported result-level filters that were explicitly set."""
         filter_keys = (
+            "max_stops",
+            "max_price",
             "min_departure_time",
             "max_departure_time",
             "min_arrival_time",
@@ -773,6 +817,10 @@ class SearchConnectionsSkill(BaseSkill):
         """Apply cross-provider filters to normalized connection result dicts."""
         filtered: List[Dict[str, Any]] = []
         for result in results:
+            if not self._matches_max_stops(result, result_filters.get("max_stops")):
+                continue
+            if not self._matches_max_price(result, result_filters.get("max_price")):
+                continue
             if not self._matches_time_window(
                 result.get("departure"),
                 result_filters.get("min_departure_time"),
@@ -795,6 +843,33 @@ class SearchConnectionsSkill(BaseSkill):
                 continue
             filtered.append(result)
         return filtered
+
+    @staticmethod
+    def _matches_max_stops(result: Dict[str, Any], max_stops: Any) -> bool:
+        if max_stops in (None, ""):
+            return True
+        try:
+            max_stops_int = int(max_stops)
+        except (TypeError, ValueError):
+            return True
+        stops = result.get("stops")
+        if stops is None:
+            return False
+        try:
+            return int(stops) <= max_stops_int
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _matches_max_price(result: Dict[str, Any], max_price: Any) -> bool:
+        if max_price in (None, ""):
+            return True
+        try:
+            max_price_float = float(max_price)
+            price = float(result.get("total_price"))
+        except (TypeError, ValueError):
+            return False
+        return price <= max_price_float
 
     @staticmethod
     def _matches_time_window(

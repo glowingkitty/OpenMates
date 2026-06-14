@@ -24,6 +24,8 @@ import { decryptWithMasterKey } from "./encryption/MetadataEncryptor";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { get } from "svelte/store";
 import type { Message } from "../types/chat";
+import { text } from "../i18n/translations";
+import { markDeviceReceivedFreeTestingCreditsFromNotification } from "../stores/serverStatusStore";
 
 /**
  * Pending system-message queue for cross-device sync.
@@ -2532,6 +2534,8 @@ export async function handleReminderFiredImpl(
 interface UserNotificationPayload {
   notification_type?: "info" | "success" | "warning" | "error";
   message: string;
+  message_key?: string;
+  message_values?: Record<string, string | number | boolean | null>;
   /** Optional label for an action button rendered inside the toast */
   action_label?: string;
   /** Settings deep-link path (e.g. "chat/notifications") to open when the button is tapped */
@@ -2555,6 +2559,8 @@ export async function handleUserNotificationImpl(
     const {
       notification_type = "warning",
       message,
+      message_key,
+      message_values,
       action_label,
       action_deep_link,
       duration = 12000,
@@ -2564,8 +2570,15 @@ export async function handleUserNotificationImpl(
     console.warn("[ChatSyncService:UserNotification] Received user_notification:", {
       notification_type,
       message,
+      message_key,
       action_deep_link,
     });
+
+    markDeviceReceivedFreeTestingCreditsFromNotification(message_key);
+
+    const translatedMessage = message_key
+      ? get(text)(message_key, message_values ?? {})
+      : message;
 
     let onAction: (() => void) | undefined;
 
@@ -2580,7 +2593,7 @@ export async function handleUserNotificationImpl(
     }
 
     notificationStore.addNotificationWithOptions(notification_type, {
-      message,
+      message: translatedMessage,
       duration,
       dedupeKey: dedupe_key,
       dismissible: true,

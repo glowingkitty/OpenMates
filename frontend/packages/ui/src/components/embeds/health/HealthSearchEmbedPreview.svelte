@@ -147,67 +147,9 @@
       if (typeof content.error === 'string') localErrorMessage = content.error;
       if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
 
-      // When finished, load child embeds if parent has embed_ids but no inline results
-      if (
-        data.status === 'finished' &&
-        (!content.results || !Array.isArray(content.results) || content.results.length === 0)
-      ) {
-        const embedIds = content.embed_ids;
-        if (embedIds) {
-          const childEmbedIds: string[] =
-            typeof embedIds === 'string'
-              ? (embedIds as string).split('|').filter((cid: string) => cid.length > 0)
-              : Array.isArray(embedIds)
-              ? (embedIds as string[])
-              : [];
-
-          if (childEmbedIds.length > 0) {
-            console.debug(`[HealthSearchEmbedPreview] Loading child embeds for preview (${childEmbedIds.length})`);
-            loadChildEmbedsForPreview(childEmbedIds);
-          }
-        }
-      }
-
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results as AppointmentResult[];
       }
-    }
-  }
-
-  /**
-   * Load child embeds to extract appointment data for the preview card.
-   * Uses retry logic because child embeds might not be persisted immediately.
-   */
-  async function loadChildEmbedsForPreview(childEmbedIds: string[]) {
-    try {
-      const { loadEmbedsWithRetry, decodeToonContent } = await import('../../../services/embedResolver');
-      const childEmbeds = await loadEmbedsWithRetry(childEmbedIds, 5, 300);
-
-      if (childEmbeds.length > 0) {
-        const appointmentResults = await Promise.all(childEmbeds.map(async (embed) => {
-          const c = embed.content ? await decodeToonContent(embed.content) : null;
-          if (!c) return null;
-          return {
-            type: (c.type as string) || 'appointment',
-            slot_datetime: (c.slot_datetime as string) || undefined,
-            name: (c.name as string) || undefined,
-            speciality: (c.speciality as string) || undefined,
-            address: (c.address as string) || undefined,
-            insurance: (c.insurance as string) || undefined,
-            telehealth: (c.telehealth as boolean) || false,
-            rating: typeof c.rating === 'number' ? c.rating : undefined,
-            rating_count: typeof c.rating_count === 'number' ? c.rating_count : undefined,
-          } as AppointmentResult;
-        }));
-
-        const valid = appointmentResults.filter(r => r !== null) as AppointmentResult[];
-        if (valid.length > 0) {
-          localResults = valid;
-          console.debug(`[HealthSearchEmbedPreview] Loaded ${valid.length} appointment results from child embeds`);
-        }
-      }
-    } catch (error) {
-      console.warn('[HealthSearchEmbedPreview] Error loading child embeds for preview:', error);
     }
   }
 

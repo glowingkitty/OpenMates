@@ -125,10 +125,26 @@ Synthesize everything into this structured markdown block. Omit sections that ar
 
 ---
 
+### Spec-Driven Follow-Up
+
+After the brief, classify the required spec size using
+`docs/contributing/guides/spec-driven-development.md`:
+
+| Level | When | Next step |
+|-------|------|-----------|
+| No spec | Trivial/mechanical work | proceed normally |
+| Inline spec | Small behavior change | keep scenarios and ACs in the brief |
+| Full spec | Complex/risky/multi-session work | run `specify` |
+
+Full specs are required for auth, encryption, billing, privacy, teams, sharing,
+permissions, sync, AI pipeline, provider integrations, migrations, new API
+routes, app skills, embed types, background jobs, cron jobs, and Directus schema
+changes.
+
 ### After the Brief
 
 1. **If task type is Bug:** suggest running `/reproduce-first` as the next step.
-2. **If task type is Feature:** suggest running `/new-task` to create a GitHub Issue by default, or a Linear issue only for retained Linear categories.
+2. **If task type is Feature:** suggest running `/specify` when the work needs a full spec; otherwise suggest `/new-task` with the inline scenarios and acceptance criteria.
 3. **If a Linear issue was loaded in context:** offer to update its description with the Task Brief via `python3 scripts/linear.py update OPE-123 --description-file <file>`.
 
 ---

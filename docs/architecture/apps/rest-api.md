@@ -2,9 +2,43 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/api/app/routes/apps_api.py
+- backend/apps/base_skill.py
+- backend/apps/ai/processing/rate_limiting.py
+claims:
+- id: arch-apps-rest-api-behavior
+  type: unit
+  claim: REST API is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/routes/apps_api.py
   - backend/apps/base_skill.py
   - backend/apps/ai/processing/rate_limiting.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-apps-rest-api-behavior
+  verified: '2026-06-11'
+- id: arch-apps-rest-api-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-rest-api-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/rate_limiting.py
+- id: arch-apps-rest-api-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-rest-api-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/base_skill.py
+- id: arch-apps-rest-api-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-rest-api-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/routes/apps_api.py
 ---
 
 # REST API
@@ -13,7 +47,7 @@ key_files:
 
 ## Why This Exists
 
-Provides programmatic access to OpenMates app skills for automation, integrations, and the CLI package. The REST API cannot decrypt/encrypt chats (zero-knowledge architecture) -- use the CLI/SDK package for chat operations. See [CLI Package](./cli-package.md).
+Provides programmatic access to OpenMates app skills for automation, integrations, and the CLI package. The REST API cannot decrypt/encrypt chats (zero-knowledge architecture) -- use the CLI/SDK package for chat operations. See [CLI Package](../platforms/cli-package.md).
 
 ## How It Works
 
@@ -100,6 +134,6 @@ Standard HTTP status codes (200, 400, 401, 403, 404, 429, 500, 503). Error respo
 ## Related Docs
 
 - [Function Calling](./function-calling.md) -- LLM tool integration
-- [CLI Package](./cli-package.md) -- SDK with chat encryption support
+- [CLI Package](../platforms/cli-package.md) -- SDK with chat encryption support
 - [Action Confirmation](./action-confirmation.md) -- confirmation flow differences
 - [OpenAPI Docs](https://docs.openmates.org/api) -- auto-generated interactive reference

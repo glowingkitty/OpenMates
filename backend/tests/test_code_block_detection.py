@@ -10,10 +10,22 @@
 # usage, and the stream consumer incorrectly treated the example code
 # fence as a real code block, creating a broken embed with 13 chars.
 
+import asyncio
+import json
+from types import SimpleNamespace
+
 import pytest
 
 try:
     from backend.apps.ai.tasks.stream_consumer import (
+        _create_application_artifact_embed_reference,
+        _build_application_manifest_from_code_embeds,
+        _extract_code_embed_ids_from_response,
+        _extract_application_preview_files_from_markdown_code_block,
+        _has_stream_ready_application_manifest,
+        _parse_application_preview_combined_files,
+        _parse_application_preview_json_bundle_files,
+        _strip_code_file_header_from_content,
         _should_process_chunk_as_code_block,
     )
 except ImportError as _exc:
@@ -74,6 +86,7 @@ class TestRealCodeFenceDetection:
         result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=False)
         assert result is True
 
+
     def test_fence_at_start_of_response(self):
         """Code block as first content should be detected."""
         chunk = "```javascript\nconsole.log('hello')\n```"
@@ -122,6 +135,308 @@ class TestRealCodeFenceDetection:
         aggregated = "```python\ndef hello():\n"
         result = _should_process_chunk_as_code_block(chunk, aggregated, in_code_block=True)
         assert result is False
+
+
+class TestGeneratedApplicationManifestDetection:
+    """Test conservative grouping of generated code files into an app manifest."""
+
+    def test_structured_application_artifact_builder_creates_children_and_parent(self):
+        asyncio.run(self._test_structured_application_artifact_builder_creates_children_and_parent())
+
+    async def _test_structured_application_artifact_builder_creates_children_and_parent(self):
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        service = FakeApplicationArtifactEmbedService()
+
+        result = await EmbedService.create_application_artifact_embed(
+            service,
+            name="Recipe app",
+            framework="svelte",
+            runtime="node",
+            files=[
+                {"path": "package.json", "language": "json", "content": '{"scripts":{"dev":"vite"}}'},
+                {"path": "src/App.svelte", "language": "svelte", "content": "<main>Recipes</main>"},
+                {"path": "src/main.ts", "language": "typescript", "content": "import App from './App.svelte';"},
+            ],
+            entrypoints=[{"name": "frontend", "command": "npm run dev", "port": 5173}],
+            chat_id="chat-1",
+            message_id="message-1",
+            user_id="user-1",
+            user_id_hash="hash-1",
+            user_vault_key_id="vault-1",
+            task_id="task-1",
+        )
+
+        assert result["embed_id"] == "app-parent"
+        assert [child["filename"] for child in service.created_children] == [
+            "package.json",
+            "src/App.svelte",
+            "src/main.ts",
+        ]
+        assert [update["embed_id"] for update in service.updated_children] == [
+            "child-1",
+            "child-2",
+            "child-3",
+        ]
+        assert service.created_parent["file_refs"] == [
+            {"path": "package.json", "embed_id": "child-1", "role": "dependency_manifest"},
+            {"path": "src/App.svelte", "embed_id": "child-2", "role": "source"},
+            {"path": "src/main.ts", "embed_id": "child-3", "role": "source"},
+        ]
+        assert service.created_parent["provenance"] == "structured_artifact"
+
+    def test_structured_application_artifact_builder_rejects_unsafe_paths(self):
+        asyncio.run(self._test_structured_application_artifact_builder_rejects_unsafe_paths())
+
+    async def _test_structured_application_artifact_builder_rejects_unsafe_paths(self):
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        service = FakeApplicationArtifactEmbedService()
+
+        result = await EmbedService.create_application_artifact_embed(
+            service,
+            name="Unsafe app",
+            framework="svelte",
+            runtime="node",
+            files=[
+                {"path": "../package.json", "language": "json", "content": "{}"},
+                {"path": "src/App.svelte", "language": "svelte", "content": "<main />"},
+            ],
+            entrypoints=[{"name": "frontend", "command": "npm run dev", "port": 5173}],
+            chat_id="chat-1",
+            message_id="message-1",
+            user_id="user-1",
+            user_id_hash="hash-1",
+            user_vault_key_id="vault-1",
+            task_id="task-1",
+        )
+
+        assert result is None
+        assert service.created_children == []
+        assert service.created_parent is None
+
+    def test_stream_structured_artifact_helper_returns_only_parent_reference(self):
+        asyncio.run(self._test_stream_structured_artifact_helper_returns_only_parent_reference())
+
+    async def _test_stream_structured_artifact_helper_returns_only_parent_reference(self):
+        service = FakeApplicationArtifactEmbedService()
+        generated_code_file_embeds = []
+
+        result = await _create_application_artifact_embed_reference(
+            files=[
+                {"filename": "package.json", "language": "json", "content": "{}"},
+                {"filename": "src/App.svelte", "language": "svelte", "content": "<main />"},
+                {"filename": "src/main.ts", "language": "typescript", "content": "import App from './App.svelte';"},
+            ],
+            embed_service=service,
+            generated_code_file_embeds=generated_code_file_embeds,
+            request_data=SimpleNamespace(
+                chat_id="chat-1",
+                message_id="message-1",
+                user_id="user-1",
+                user_id_hash="hash-1",
+            ),
+            task_id="task-1",
+            user_vault_key_id="vault-1",
+            log_prefix="",
+        )
+
+        assert result == '```json\n{"type": "application", "embed_id": "app-parent"}\n```\n\n'
+        assert generated_code_file_embeds == [
+            {"embed_id": "child-1", "filename": "package.json", "language": "json"},
+            {"embed_id": "child-2", "filename": "src/App.svelte", "language": "svelte"},
+            {"embed_id": "child-3", "filename": "src/main.ts", "language": "typescript"},
+        ]
+
+    def test_requires_package_manifest_and_source_file(self):
+        result = _build_application_manifest_from_code_embeds([
+            {"embed_id": "file-app", "filename": "src/App.svelte", "language": "svelte"},
+        ])
+
+        assert result is None
+
+    def test_builds_svelte_node_application_manifest(self):
+        result = _build_application_manifest_from_code_embeds([
+            {"embed_id": "file-package", "filename": "./package.json", "language": "json"},
+            {"embed_id": "file-app", "filename": "src/App.svelte", "language": "svelte"},
+            {"embed_id": "file-main", "filename": "src/main.ts", "language": "typescript"},
+        ])
+
+        assert result == {
+            "name": "Generated application",
+            "framework": "svelte",
+            "runtime": "node",
+            "file_refs": [
+                {"path": "package.json", "embed_id": "file-package", "role": "dependency_manifest"},
+                {"path": "src/App.svelte", "embed_id": "file-app", "role": "source"},
+                {"path": "src/main.ts", "embed_id": "file-main", "role": "source"},
+            ],
+            "entrypoints": [{"name": "frontend", "command": "npm run dev", "port": 5173}],
+            "main_file": "src/main.ts",
+        }
+
+    def test_stream_ready_application_manifest_requires_entrypoint(self):
+        assert _has_stream_ready_application_manifest([
+            {"embed_id": "file-package", "filename": "package.json", "language": "json"},
+            {"embed_id": "file-app", "filename": "src/App.svelte", "language": "svelte"},
+        ]) is False
+
+        assert _has_stream_ready_application_manifest([
+            {"embed_id": "file-package", "filename": "package.json", "language": "json"},
+            {"embed_id": "file-app", "filename": "src/App.svelte", "language": "svelte"},
+            {"embed_id": "file-main", "filename": "src/main.ts", "language": "typescript"},
+        ]) is True
+
+    def test_parses_combined_application_preview_block(self):
+        result = _parse_application_preview_combined_files(
+            "application_preview",
+            """json:package.json
+{"scripts":{"dev":"vite"},"dependencies":{"@sveltejs/vite-plugin-svelte":"latest","vite":"latest","svelte":"latest"}}
+typescript:src/main.ts
+import App from './App.svelte';
+
+new App({ target: document.getElementById('app') });
+svelte:src/App.svelte
+<script lang="ts">
+  let recipes = ['Pasta'];
+</script>
+
+<main>{recipes[0]}</main>
+""",
+        )
+
+        assert result == [
+            {
+                "language": "json",
+                "filename": "package.json",
+                "content": '{"scripts":{"dev":"vite"},"dependencies":{"@sveltejs/vite-plugin-svelte":"latest","vite":"latest","svelte":"latest"}}',
+            },
+            {
+                "language": "typescript",
+                "filename": "src/main.ts",
+                "content": "import App from './App.svelte';\n\nnew App({ target: document.getElementById('app') });",
+            },
+            {
+                "language": "svelte",
+                "filename": "src/App.svelte",
+                "content": '<script lang="ts">\n  let recipes = [\'Pasta\'];\n</script>\n\n<main>{recipes[0]}</main>',
+            },
+        ]
+
+    def test_ignores_combined_preview_without_app_manifest(self):
+        result = _parse_application_preview_combined_files(
+            "application_preview",
+            """typescript:src/main.ts
+console.log('hello');
+""",
+        )
+
+        assert result == []
+
+    def test_ignores_combined_preview_when_language_is_regular_code(self):
+        result = _parse_application_preview_combined_files(
+            "typescript",
+            """json:package.json
+{"scripts":{"dev":"vite"}}
+typescript:src/main.ts
+console.log('hello');
+""",
+        )
+
+        assert result == []
+
+    def test_extracts_code_embed_ids_from_response_json_refs(self):
+        result = _extract_code_embed_ids_from_response(
+            'Intro\n```json\n{"type":"code","embed_id":"file-app"}\n```\n'
+            '```json\n{"type":"application","embed_id":"app-parent"}\n```\n'
+            '```json\n{"type":"code","embed_id":"file-package"}\n```\n'
+        )
+
+        assert result == ["file-app", "file-package"]
+
+    def test_strips_code_file_header_from_content(self):
+        code, language, filename = _strip_code_file_header_from_content(
+            "svelte:src/App.svelte\n<script>let count = 1;</script>"
+        )
+
+        assert language == "svelte"
+        assert filename == "src/App.svelte"
+        assert code == "<script>let count = 1;</script>"
+
+    def test_parses_json_files_bundle_as_application_preview_files(self):
+        result = _parse_application_preview_json_bundle_files(
+            "json",
+            """{
+  "files": {
+    "package.json": { "content": "{\\\"scripts\\\":{\\\"dev\\\":\\\"vite\\\"}}" },
+    "src/App.svelte": { "content": "<main>Hello</main>" },
+    "src/main.ts": { "content": "import App from './App.svelte';" }
+  }
+}""",
+        )
+
+        assert result == [
+            {
+                "language": "json",
+                "filename": "package.json",
+                "content": '{"scripts":{"dev":"vite"}}',
+            },
+            {
+                "language": "svelte",
+                "filename": "src/App.svelte",
+                "content": "<main>Hello</main>",
+            },
+            {
+                "language": "typescript",
+                "filename": "src/main.ts",
+                "content": "import App from './App.svelte';",
+            },
+        ]
+
+    def test_extracts_application_files_from_raw_markdown_json_fence(self):
+        files, cleaned = _extract_application_preview_files_from_markdown_code_block(
+            "Intro\n```json\n"
+            '{"files":{"package.json":{"content":"{}"},"src/App.svelte":{"content":"<main />"}}}'
+            "\n```\nOutro"
+        )
+
+        assert files == [
+            {"language": "json", "filename": "package.json", "content": "{}"},
+            {"language": "svelte", "filename": "src/App.svelte", "content": "<main />"},
+        ]
+        assert cleaned == "Intro\n\nOutro"
+
+
+class FakeApplicationArtifactEmbedService:
+    def __init__(self):
+        self.created_children = []
+        self.updated_children = []
+        self.created_parent = None
+
+    async def create_application_artifact_embed(self, **kwargs):
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        return await EmbedService.create_application_artifact_embed(self, **kwargs)
+
+    async def create_code_embed_placeholder(self, **kwargs):
+        embed_id = f"child-{len(self.created_children) + 1}"
+        self.created_children.append({**kwargs, "embed_id": embed_id})
+        return {
+            "embed_id": embed_id,
+            "embed_reference": json.dumps({"type": "code", "embed_id": embed_id}),
+        }
+
+    async def update_code_embed_content(self, **kwargs):
+        self.updated_children.append(kwargs)
+        return True
+
+    async def create_application_embed(self, **kwargs):
+        self.created_parent = kwargs
+        return {
+            "embed_id": "app-parent",
+            "embed_reference": json.dumps({"type": "application", "embed_id": "app-parent"}),
+            "child_embed_ids": [ref["embed_id"] for ref in kwargs["file_refs"]],
+        }
 
 
 # ---------------------------------------------------------------------------

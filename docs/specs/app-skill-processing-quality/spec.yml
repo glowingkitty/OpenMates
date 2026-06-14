@@ -1,0 +1,723 @@
+id: app-skill-processing-quality
+title: App Skill Processing Quality
+status: implementing
+
+goal: >
+  Make app-skill processing produce trustworthy, user-useful results instead of
+  technically successful but obviously poor output. The pipeline must preserve
+  user constraints, filter and rank results consistently across providers, explain
+  empty or partial results clearly, and render concise human-readable output in
+  chat and the CLI without leaking raw tool JSON.
+
+scope:
+  in:
+    - Shared app-skill processing contracts for filtering, ranking, no-result explanations, and user-visible output quality.
+    - Event search quality for provider-normalized event type, date window, price/free intent, location, and accessibility/family-intent constraints.
+    - Travel search quality for flight constraints, hotel budget/amenity/location constraints, no-result handling, and exposed tool schemas matching backend capabilities.
+    - Backend LLM app-skill result filtering so inference receives enough useful fields and excludes noisy/internal fields.
+    - Web chat responses that may include rendered embeds and human-readable inline embed links, but never raw fenced app-skill/tool JSON blocks.
+    - CLI direct skill output that is concise by default and keeps full raw data available through `--json` or an explicit verbose/debug path.
+    - Regression tests and quality probes using event and travel skills as representative high-risk app skills.
+  out:
+    - Adding new event or travel providers.
+    - Building a full itinerary planner or checkout/booking flow beyond existing booking-link lookup.
+    - Replacing the app-skill architecture, embed storage model, or app metadata registry.
+    - Apple app parity for this first slice.
+    - Guaranteeing every subjective query has perfect semantic matching; the contract is to avoid obvious mismatches and explain uncertainty.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"app skill processing output quality CLI raw app_skill_use travel events\" --state all --limit 10 --json number,title,state,labels,url` returned no direct issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/privacy/prompt-injection.md
+    - docs/architecture/apps/travel-train-api-research.md
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - docs/specs/code-run-cli-app-skill/spec.yml
+  code_patterns:
+    - backend/apps/ai/processing/main_processor.py:_filter_skill_results_for_llm and app-skill TOON/result normalization around grouped results.
+    - backend/apps/ai/tasks/stream_consumer.py:cleanup logic for failed embed references and inline embed-reference rewrites.
+    - backend/apps/events/skills/search_skill.py:multi-provider event search, provider normalization, date sorting, and event_type handling.
+    - backend/apps/travel/skills/search_connections.py:backend-supported flight filters including non_stop_only, max_stops, airline/time/duration/layover constraints.
+    - backend/apps/travel/skills/search_stays.py:hotel budget, rating, class, and result metadata handling.
+    - backend/apps/events/app.yml and backend/apps/travel/app.yml:public tool schemas and exclude_fields_for_llm contracts.
+    - frontend/packages/openmates-cli/src/cli.ts:printSkillResultItem default behavior currently prints compact headers followed by all remaining fields.
+    - frontend/apps/web_app/tests/embed-json-leak.spec.ts and related tests:existing raw JSON leak guards for embed references.
+  tests:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    - frontend/apps/web_app/tests/embed-json-leak.spec.ts
+    - frontend/apps/web_app/tests/copy-message-flow.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - backend/tests/test_events_provider_routing.py
+    - backend/tests/test_rest_api_events.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This first spec targets backend app-skill processing, web chat answer rendering, and the Node.js CLI. Apple app-skill/embed parity is explicitly deferred.
+  verification:
+    - Apple not affected for this first slice.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should this spec target the whole app-skill processing pipeline or only event/travel search?
+      answer: Whole pipeline.
+    - question: What should be the first shipped slice?
+      answer: Leak cleanup first.
+    - question: Where should successful app-skill references appear after the fix?
+      answer: Rendered embeds and inline embed links.
+    - question: How aggressive should the CLI formatted output become?
+      answer: Concise by default.
+    - question: Should Apple app parity/verification be required for this effort?
+      answer: Backend, web, and CLI only.
+    - question: What is the primary correction after reviewing the critique?
+      answer: Filtering and output quality and obvious bugs come first; users should not look at results and think they are bad.
+  vision_summary: >
+    The app-skill pipeline must feel reliable before it feels merely integrated.
+    A successful skill call should not return obviously wrong results, ignore clear
+    constraints, or make users inspect raw provider payloads to decide what is useful.
+    Event and travel are the representative first skills because real CLI testing
+    exposed bad filtering, noisy output, hidden schema capability gaps, weak empty-state
+    explanations, and raw tool JSON leakage.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Event search respects hard filters and normalizes provider fields
+    given:
+      - Alice searches for online data-engineering events near Berlin.
+      - "The request includes `event_type: ONLINE`, `location: Berlin`, and `provider: auto`."
+    when:
+      - The events search skill aggregates results from supported providers.
+    then:
+      - User-visible results do not include physical-only events unless the response explicitly labels them as fallback results outside the strict filter.
+      - Provider-specific event type values such as `offline`, `online`, `PHYSICAL`, and `ONLINE` are normalized to the shared event type contract.
+      - The response explains when a provider cannot enforce a requested filter and applies backend post-filtering where possible.
+
+  - id: S-2
+    title: Event search avoids obviously irrelevant or out-of-window results
+    given:
+      - Alice searches for free or cheap electronic music events in Berlin this weekend.
+      - The request includes a concrete start/end date window and price intent.
+    when:
+      - Providers return a mix of paid, unknown-price, and out-of-window events.
+    then:
+      - Events outside the requested window are excluded from strict results.
+      - Free/cheap events rank ahead of clearly expensive events when price data is available.
+      - Unknown-price events are labeled as unknown rather than treated as free.
+      - If no strict matches exist, the response shows a clear relaxed-results section and explains which constraints were relaxed.
+
+  - id: S-3
+    title: Accessibility and family intent are not silently ignored
+    given:
+      - Alice searches for wheelchair-accessible family events in Berlin this weekend.
+    when:
+      - Providers do not expose reliable accessibility metadata for most results.
+    then:
+      - Results that lack accessibility evidence are not presented as confirmed accessible.
+      - The answer labels accessibility as confirmed, mentioned, unknown, or unsupported by provider data.
+      - Generic unrelated events do not rank above family-relevant results solely because they are soon.
+      - The response suggests follow-up refinement when provider data cannot prove the requested accessibility constraint.
+
+  - id: S-4
+    title: Flight search exposes and honors supported constraints
+    given:
+      - Alice asks for direct flights from Berlin to Barcelona on 2026-07-10 under 200 EUR.
+    when:
+      - The AI preprocessor or direct CLI tool call prepares a travel/search_connections request.
+    then:
+      - The public tool schema exposes backend-supported constraints needed for the request, including max stops or non-stop, price/currency, airline include/exclude, time windows, duration, and layover constraints where supported.
+      - Direct/non-stop constraints are encoded using the canonical supported field and enforced before user-visible ranking.
+      - Results that violate hard constraints are excluded from strict results or clearly separated as relaxed alternatives.
+      - The final recommendation explains the tradeoff, such as cheapest late arrival versus slightly more expensive practical arrival.
+
+  - id: S-5
+    title: Hotel search applies budget, amenity, and location constraints transparently
+    given:
+      - Alice asks for Barcelona beach hotels with a pool under 180 EUR per night for July 10-13, 2026.
+    when:
+      - The travel/search_stays skill searches Google Hotels results.
+    then:
+      - Hotels above the requested nightly budget do not appear as strict matches.
+      - Pool and beach/proximity claims are based on returned amenities/location data or clearly labeled as inferred/unknown.
+      - If no strict hotel matches exist, the response says so and offers specific relaxed options such as increasing budget, widening distance, hostel/private room, or changing dates.
+      - Estimated or web-derived prices are not mixed with provider-confirmed prices without labeling the source and uncertainty.
+
+  - id: S-6
+    title: Successful chat responses do not leak raw app-skill JSON
+    given:
+      - Alice sends a chat prompt that triggers one or more successful app skills.
+    when:
+      - The assistant streams and persists the final answer.
+    then:
+      - "The visible assistant message contains no fenced JSON block with `type: app_skill_use`, `embed_id`, `app_id`, or `skill_id`."
+      - Rendered embeds remain available through structured embed metadata/events.
+      - Human-readable inline embed links such as `[Flight](embed:...)` remain allowed.
+      - Copying the message returns human-readable text, not raw tool JSON placeholders.
+
+  - id: S-7
+    title: Direct CLI skill output is concise by default
+    given:
+      - Alice runs `openmates apps events search`, `openmates apps travel search_connections`, or `openmates apps travel search_stays` without `--json`.
+    when:
+      - The skill returns result objects with provider-specific internal fields.
+    then:
+      - "The CLI prints compact result cards with the decision fields first: title/name, date/time, location/route, price, provider, rating/counts where relevant, and URL or booking hint."
+      - The default output hides noisy/internal fields such as hashes, raw coordinates, property tokens, image arrays, raw booking contexts, and long untrimmed descriptions.
+      - A full machine-readable payload remains available with `--json`.
+      - An explicit verbose/debug path can show additional provider fields when needed for debugging.
+
+  - id: S-8
+    title: LLM inference receives filtered but sufficient skill results
+    given:
+      - A skill returns rich provider payloads with useful decision fields and noisy/internal fields.
+    when:
+      - The backend prepares tool results for the follow-up LLM response.
+    then:
+      - Internal or high-volume fields are excluded from inference using a shared allow/deny contract.
+      - "Essential decision fields remain available: title/name, date/time, price, location, provider, URL or embed reference, rating/counts, amenities, route/stops/duration, and constraint match markers."
+      - The LLM has enough structured information to explain why a result matches or does not match the user request.
+      - Prompt-injection-sensitive provider text is not blindly promoted above normalized fields.
+
+  - id: S-9
+    title: No-result and partial-result states are explicit
+    given:
+      - A user asks for results with strict constraints and the skill returns zero strict matches or only provider errors.
+    when:
+      - The app-skill response is converted into chat, web embed, and CLI output.
+    then:
+      - The user sees whether there were no matches, provider data was unavailable, filters were unsupported, or all matches were filtered out.
+      - The response includes actionable relaxed-search suggestions based on the failed constraints.
+      - The pipeline does not silently charge credits for empty results unless the provider call consumed billable upstream quota and the UI clearly reports that behavior.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Event search normalizes provider event types and prevents physical-only results from appearing as strict online matches.
+  - id: AC-2
+    scenario: S-2
+    text: Event search excludes strict date-window violations and ranks known free/cheap matches above known expensive matches when price intent is present.
+  - id: AC-3
+    scenario: S-3
+    text: Event search labels unsupported accessibility claims and avoids presenting unknown accessibility as confirmed.
+  - id: AC-4
+    scenario: S-4
+    text: Travel connection public schemas expose supported constraints and direct/non-stop constraints are enforced through the canonical backend-supported field.
+  - id: AC-5
+    scenario: S-5
+    text: Travel stays distinguish strict hotel matches from relaxed/estimated alternatives for budget, pool, and beach-proximity requests.
+  - id: AC-6
+    scenario: S-6
+    text: Successful app-skill chat answers contain no raw fenced app_skill_use/tool JSON while preserving rendered embeds and human-readable inline embed links.
+  - id: AC-7
+    scenario: S-7
+    text: Direct CLI skill output is concise by default and hides noisy/internal provider fields unless the user requests JSON or verbose/debug output.
+  - id: AC-8
+    scenario: S-8
+    text: Backend inference filtering keeps decision-critical fields and removes high-volume/internal/provider-noise fields using a reusable contract.
+  - id: AC-9
+    scenario: S-9
+    text: No-result and partial-result states explain whether constraints, provider capability, upstream failure, or post-filtering caused the outcome.
+
+contracts:
+  app_skill_quality:
+    - name: strict_vs_relaxed_results
+      requirement: >
+        Skills with user constraints should separate strict matches from relaxed
+        alternatives when any hard constraint is not met. Strict results must not
+        silently include known violations.
+    - name: constraint_match_metadata
+      requirement: >
+        Representative search skills should expose enough normalized metadata for
+        downstream renderers and the LLM to explain matched, violated, unknown, and
+        unsupported constraints without parsing raw provider descriptions.
+    - name: no_result_reason
+      requirement: >
+        Empty or partial responses should include a machine-readable reason such as
+        no_matches, provider_error, unsupported_filter, filtered_out, or relaxed_only,
+        plus human-readable suggestions.
+  chat_output:
+    - surface: assistant_message
+      allowed:
+        - Normal prose.
+        - Rendered embed references carried through structured embed metadata/events.
+        - Human-readable inline embed links in the `embed:` link format.
+      forbidden:
+        - Fenced JSON blocks containing app_skill_use embed references.
+        - Raw tool-call or provider payload dumps in final user-visible prose.
+  cli_output:
+    - mode: default
+      requirement: Compact cards with decision fields only; no internal IDs/tokens/raw payload dumps by default.
+    - mode: json
+      requirement: Preserve full structured payload for automation and debugging.
+    - mode: verbose_or_debug
+      requirement: May expose additional provider fields, clearly labeled as debug/detail output.
+  privacy_security:
+    - Provider descriptions and URLs may contain prompt-injection text; normalized fields and explicit provider metadata should drive ranking/explanations before raw descriptions.
+    - Booking tokens, property tokens, hashes, raw coordinates, and provider contexts are internal/action metadata and should not appear in default user-facing text unless directly needed for an action.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_app_skill_processing_quality.py
+    command: python3 -m pytest backend/tests/test_app_skill_processing_quality.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-8
+      - AC-9
+    assertions:
+      - event_type normalization maps provider-specific online/offline values to the shared contract.
+      - strict online event filtering excludes physical-only results.
+      - strict date-window filtering excludes events outside the requested window.
+      - price/free intent treats unknown price separately from free.
+      - inference filtering preserves decision fields and removes noisy/internal fields.
+      - no-result responses include a reason and suggestions.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py"
+        timestamp: "2026-06-13T08:09:05Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py /app/backend/tests/test_app_skill_json_cleanup.py"
+        timestamp: "2026-06-13T09:20:30Z"
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_travel_skill_constraints.py
+    command: python3 -m pytest backend/tests/test_travel_skill_constraints.py
+    covers:
+      - AC-4
+      - AC-5
+      - AC-9
+    assertions:
+      - travel app metadata exposes canonical supported flight filters needed by the preprocessor and CLI.
+      - non-stop/direct constraints use one canonical backend-supported field and exclude stop violations.
+      - hotel budget filters do not present over-budget stays as strict matches.
+      - hotel no-result responses distinguish no matches from unsupported/relaxed constraints.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py"
+        timestamp: "2026-06-13T08:09:05Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py /app/backend/tests/test_app_skill_json_cleanup.py"
+        timestamp: "2026-06-13T09:20:30Z"
+
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_app_skill_json_cleanup.py
+    command: docker exec api python -m pytest /app/backend/tests/test_app_skill_json_cleanup.py
+    covers:
+      - AC-6
+    assertions:
+      - raw fenced app_skill_use JSON blocks are stripped from successful assistant text.
+      - human-readable inline embed links are preserved.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_json_cleanup.py"
+        timestamp: "2026-06-13T08:09:05Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_app_skill_processing_quality.py /app/backend/tests/test_travel_skill_constraints.py /app/backend/tests/test_app_skill_json_cleanup.py"
+        timestamp: "2026-06-13T09:20:30Z"
+
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    covers:
+      - AC-7
+      - AC-9
+    assertions:
+      - formatted event output prints compact event cards before descriptions.
+      - formatted travel connection output hides raw booking context, hashes, coordinates, and segment internals by default.
+      - formatted stay output hides property_token, image arrays, and raw nearby_places by default.
+      - no-result output prints clear reasons and suggestions instead of raw grouped payloads.
+      - JSON output still includes the full structured payload.
+      - verbose/debug output exposes additional fields only when explicitly requested.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli"
+        timestamp: "2026-06-13T08:05:58Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli"
+        timestamp: "2026-06-13T09:13:59Z"
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-events-search.spec.ts
+    command: python3 scripts/run_tests.py --spec skill-events-search.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-6
+      - AC-9
+    assertions:
+      - CLI direct event query for online-only results does not return physical-only strict matches.
+      - CLI direct event query with a date window does not return out-of-window strict matches.
+      - Web chat event response contains no raw fenced app_skill_use JSON.
+      - Web embed still renders finished event results or a clear no-results state.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+    command: python3 scripts/run_tests.py --spec skill-travel-connections.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+      - AC-6
+      - AC-9
+    assertions:
+      - CLI direct flight query for direct/non-stop flights returns only zero-stop strict results.
+      - Natural chat flight prompt produces a recommendation without raw fenced app_skill_use JSON.
+      - Memory approval behavior does not block direct app skill calls and is clearly reported when chat asks for memories.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-003
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    command: python3 scripts/run_tests.py --spec skill-travel-stays.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-5
+      - AC-6
+      - AC-9
+    assertions:
+      - CLI direct hotel query with max_price does not present over-budget hotels as strict matches.
+      - Web chat hotel response clearly labels no strict matches or relaxed alternatives.
+      - Web chat hotel response contains no raw fenced app_skill_use JSON.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-004
+    type: playwright
+    file: frontend/apps/web_app/tests/embed-json-leak.spec.ts
+    command: python3 scripts/run_tests.py --spec embed-json-leak.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-6
+    assertions:
+      - No visible assistant message text contains raw JSON embed placeholders.
+      - Inline embed links remain renderable when the assistant uses human-readable embed links.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - backend/apps/ai/processing/main_processor.py already applies skill result filtering and grouped-result flattening for LLM inference.
+    - backend/apps/ai/tasks/stream_consumer.py already strips failed embed references and fixes malformed inline embed references before persistence.
+    - frontend/packages/openmates-cli/src/cli.ts already has type-specific result headers and can be extended to hide noisy fields by default.
+    - Existing skill E2E specs already include CLI direct calls and web chat/embed phases for event and travel skills.
+  architecture: >
+    Add a reusable quality contract around app-skill results instead of one-off
+    prompt fixes. Each representative search skill should return normalized
+    constraint metadata and no-result reasons; backend processing should preserve
+    decision fields for inference while hiding noisy/internal fields from default
+    output; chat persistence should remove raw tool JSON blocks while retaining
+    structured embed metadata; the CLI should render concise cards by default.
+  data_flow:
+    - User request is parsed into app-skill tool arguments with explicit constraints.
+    - Skill/provider layer fetches raw provider results.
+    - Skill normalizes provider fields, applies strict filters, separates relaxed alternatives when needed, and returns no-result reason/suggestions.
+    - Main processor filters result fields for LLM inference while preserving decision-critical fields.
+    - Assistant final answer references rendered embeds or inline embed links, not raw app_skill_use JSON blocks.
+    - Web and CLI render concise user-facing output; `--json` keeps full structured payload for automation.
+  affected_files:
+    - path: backend/apps/events/skills/search_skill.py
+      reason: Normalize event types, date/price/accessibility filtering, strict/relaxed/no-result metadata.
+    - path: backend/apps/events/app.yml
+      reason: Document filter behavior and LLM-visible decision fields.
+    - path: backend/apps/travel/skills/search_connections.py
+      reason: Enforce canonical constraints and expose strict/relaxed/no-result metadata.
+    - path: backend/apps/travel/skills/search_stays.py
+      reason: Improve hotel budget/amenity/proximity handling and no-result explanations.
+    - path: backend/apps/travel/app.yml
+      reason: Align public tool schema with backend-supported filters and LLM preprocessor hints.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Shared skill-result filtering contract for LLM inference.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Remove raw successful app_skill_use JSON from persisted assistant content while keeping inline embed links.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Concise default direct skill rendering and explicit verbose/debug output path.
+    - path: frontend/apps/web_app/tests/skill-events-search.spec.ts
+      reason: Event quality regression coverage.
+    - path: frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+      reason: Flight quality regression coverage.
+    - path: frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+      reason: Hotel quality regression coverage.
+    - path: frontend/packages/openmates-cli/tests/cli.test.ts
+      reason: CLI formatting regression coverage.
+    - path: backend/tests/test_app_skill_processing_quality.py
+      reason: Backend shared filtering/no-result contract coverage.
+    - path: backend/tests/test_travel_skill_constraints.py
+      reason: Travel schema/filtering contract coverage.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/app-skill-processing-quality/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/app-skill-processing-quality/spec.yml --phase red
+    - python3 scripts/spec_verify.py docs/specs/app-skill-processing-quality/spec.yml --phase green
+  verification_order:
+    - Backend pytest/unit contracts first for filtering, schema, no-result, and inference field contracts.
+    - CLI unit tests second for concise default output and full JSON preservation.
+    - Playwright event/travel/embed leak specs third against app.dev.openmates.org after deploy.
+    - Apple not affected for this first slice.
+  live_cli_verification:
+    timestamp: "2026-06-13T09:20:30Z"
+    api_url: http://localhost:8000
+    commands:
+      - request: Online data-engineering events near Berlin.
+        result: Passed; venue-only physical Eventbrite results were filtered out and only online events remained.
+      - request: Free or cheap electronic music events in Berlin this weekend.
+        result: Passed; date filtering no longer crashes on naive provider dates, all results were inside the requested weekend window, and free/cheap options ranked first.
+      - request: Wheelchair-accessible family events in Berlin this weekend.
+        result: Passed; output labels accessibility as unknown or mentioned instead of presenting unproven accessibility as confirmed.
+      - request: Direct Berlin to Barcelona flights on 2026-07-10 under 200 EUR.
+        result: Passed; only direct flights under 200 EUR were shown and booking internals stayed hidden.
+      - request: Barcelona beach hotels with a pool under 180 EUR per night for 2026-07-10 to 2026-07-13.
+        result: Passed; no-result output shows filtered_out and actionable relaxed-search suggestions.
+      - request: Direct Berlin to Barcelona flights under 50 EUR.
+        result: Passed; no-result output shows filtered_out with price/stops/date relaxation suggestions.
+      - request: Barcelona beach hotels with a pool under 350 EUR per night.
+        result: Passed; successful stay output stays concise while showing rating, price, amenities, and review count.
+
+tasks:
+  - id: TASK-1
+    title: Add backend quality contract tests
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-8
+        - S-9
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-8
+        - AC-9
+    expected_files:
+      - backend/tests/test_app_skill_processing_quality.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add travel schema and constraint tests
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-9
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-9
+    expected_files:
+      - backend/tests/test_travel_skill_constraints.py
+    verification:
+      - T-PYTEST-002
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Fix event filtering and metadata normalization
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-9
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-9
+    expected_files:
+      - backend/apps/events/skills/search_skill.py
+      - backend/apps/events/app.yml
+    verification:
+      - T-PYTEST-001
+      - T-E2E-001
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Fix travel constraints and no-result behavior
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-9
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-9
+    expected_files:
+      - backend/apps/travel/skills/search_connections.py
+      - backend/apps/travel/skills/search_stays.py
+      - backend/apps/travel/app.yml
+    verification:
+      - T-PYTEST-002
+      - T-E2E-002
+      - T-E2E-003
+    independently_deployable: true
+
+  - id: TASK-5
+    title: Remove raw successful app-skill JSON from chat output
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/apps/ai/processing/main_processor.py
+      - frontend/apps/web_app/tests/embed-json-leak.spec.ts
+      - frontend/apps/web_app/tests/skill-events-search.spec.ts
+      - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+      - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    verification:
+      - T-E2E-001
+      - T-E2E-002
+      - T-E2E-003
+      - T-E2E-004
+    independently_deployable: true
+
+  - id: TASK-6
+    title: Make CLI direct skill output concise by default
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-7
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification:
+      - T-CLI-001
+    independently_deployable: true
+
+  - id: TASK-7
+    title: Extend live event and travel quality probes
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-9
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-9
+    expected_files:
+      - frontend/apps/web_app/tests/skill-events-search.spec.ts
+      - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
+      - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
+    verification:
+      - T-E2E-001
+      - T-E2E-002
+      - T-E2E-003
+    independently_deployable: false
+
+risks:
+  - Provider APIs expose inconsistent metadata; strict filtering may reduce result counts until relaxed-result explanations are implemented well.
+  - Over-filtering could hide useful but imperfect matches; strict and relaxed sections must make this tradeoff explicit.
+  - LLM-visible field filtering can accidentally remove decision-critical context; tests must cover field preservation, not only field removal.
+  - Raw JSON cleanup must not remove valid human-readable inline embed links or break embed rendering/persistence.
+  - Live provider data changes can make exact-result E2E assertions flaky; tests should assert contracts and invariants rather than specific event/hotel names.
+
+open_questions:
+  - Should verbose CLI output use an existing flag, a new `--verbose`, or a hidden debug flag for app-skill details?
+  - Should no-result credit reporting be standardized across all skills now, or only event/travel in the first implementation slice?
+  - "Which constraint metadata shape should become canonical for all search-like skills: `constraints`, `constraint_matches`, `strict_results`, and `relaxed_results`, or a smaller field set?"

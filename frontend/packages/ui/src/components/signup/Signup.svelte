@@ -37,6 +37,7 @@
     const STEP_PAYMENT = 'payment';
     const STEP_AUTO_TOP_UP = 'auto_top_up';
     const STEP_COMPLETION = 'completion';
+    const LEGACY_SIGNUP_PAYMENT_STEPS = [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP];
     import { authStore, isCheckingAuth } from '../../stores/authStore';
     import { isLoggingOut } from '../../stores/signupState';
     import { updateProfile } from '../../stores/userProfile';
@@ -44,6 +45,7 @@
     import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
     import { chatSyncService } from '../../services/chatSyncService'; // Import chat sync service for updating last_opened
     import { notificationStore } from '../../stores/notificationStore'; // Import notification store for payment failure notifications
+    import { clearPendingGiftCardRedemption, getPendingGiftCardRedemptionCode } from '../../stores/serverStatusStore';
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
     import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
     import { createOnboardingChat, hasOnboardingChat, ONBOARDING_ENABLED } from '../../services/onboardingChatService'; // Import onboarding chat creation
@@ -62,8 +64,6 @@
     import TfaAppReminderTopContent from './steps/tfaappreminder/TfaAppReminderTopContent.svelte';
     import SettingsTopContent from './steps/settings/SettingsTopContent.svelte';
     import MateSettingsTopContent from './steps/matesettings/MateSettingsTopContent.svelte';
-    import CreditsTopContent from './steps/credits/CreditsTopContent.svelte';
-    import PaymentTopContent from './steps/payment/PaymentTopContent.svelte';
     import AlphaDisclaimerContent from './steps/alpha_disclaimer/AlphaDisclaimerContent.svelte';
     import ConfirmEmailBottomContent from './steps/confirmemail/ConfirmEmailBottomContent.svelte';
     import PasswordBottomContent from './steps/password/PasswordBottomContent.svelte';
@@ -75,8 +75,6 @@
     import TfaAppReminderBottomContent from './steps/tfaappreminder/TfaAppReminderBottomContent.svelte';
     import SettingsBottomContent from './steps/settings/SettingsBottomContent.svelte';
     import MateSettingsBottomContent from './steps/matesettings/MateSettingsBottomContent.svelte';
-    import CreditsBottomContent from './steps/credits/CreditsBottomContent.svelte';
-    import PaymentBottomContent from './steps/payment/PaymentBottomContent.svelte';
     import RecoveryKeyTopContent from './steps/recoverykey/RecoveryKeyTopContent.svelte';
     import RecoveryKeyBottomContent from './steps/recoverykey/RecoveryKeyBottomContent.svelte';
 
@@ -235,9 +233,8 @@
             console.log(`[Signup] Email confirmation disabled (self-hosted), skipping to secure_account.`);
             currentSignupStep.set(STEP_SECURE_ACCOUNT);
             currentStep = STEP_SECURE_ACCOUNT;
-        } else if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(existingStep)) {
-            // If self-hosted and user is on a payment step, skip to completion
-            console.log(`[Signup] Payment disabled, skipping payment steps. Moving from ${existingStep} to completion.`);
+        } else if (LEGACY_SIGNUP_PAYMENT_STEPS.includes(existingStep)) {
+            console.log(`[Signup] Legacy signup payment step ${existingStep} restored, moving to completion.`);
             currentSignupStep.set(STEP_COMPLETION);
             currentStep = STEP_COMPLETION;
         } else if (!existingStep || existingStep === STEP_ALPHA_DISCLAIMER) {
@@ -254,7 +251,7 @@
         updateSettingsStep(''); // Provide empty string as initial prevStepValue
         
         // Update footer visibility based on step
-        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_COMPLETION];
         showSignupFooter.set(true);
         
         // Listen for credit updates via WebSocket (e.g., after successful payment)
@@ -349,7 +346,7 @@
     // Function to update settings step state and close panel if necessary
     function updateSettingsStep(prevStepValue: string) {
         // Check if current step should show settings
-        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT];
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS];
         const shouldShowSettings = settingsSteps.includes(currentStep);
         isSignupSettingsStep.set(shouldShowSettings);
 
@@ -537,12 +534,7 @@
     function handleSkip() {
         // Profile picture step removed - moved to settings
         if (currentStep === STEP_TFA_APP_REMINDER) {
-            // Skip settings and mate settings - go directly to credits (or completion if self-hosted)
-            if (!isSelfHosted) {
-                goToStep(STEP_CREDITS);
-            } else {
-                goToStep(STEP_COMPLETION);
-            }
+            goToStep(STEP_COMPLETION);
         }
     }
 
@@ -550,13 +542,13 @@
         let newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
         
-        // Skip email confirmation and payment steps if self-hosted
-        if (isSelfHosted && [STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(newStep)) {
+        // Skip email confirmation if self-hosted, and always skip removed signup payment steps.
+        if ((isSelfHosted && newStep === STEP_CONFIRM_EMAIL) || LEGACY_SIGNUP_PAYMENT_STEPS.includes(newStep)) {
             if (newStep === STEP_CONFIRM_EMAIL) {
                 console.log(`[Signup] Email confirmation disabled (self-hosted), redirecting to secure_account`);
                 newStep = STEP_SECURE_ACCOUNT;
             } else {
-                console.log(`[Signup] Payment disabled, redirecting from ${newStep} to completion`);
+                console.log(`[Signup] Signup payment removed, redirecting from ${newStep} to completion`);
                 newStep = STEP_COMPLETION;
             }
         }
@@ -666,7 +658,7 @@
         updateSettingsStep(oldStep); // Call update function with old step value
         
         // Update footer visibility based on step
-        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_COMPLETION];
         showSignupFooter.set(true);
 
         // If credits amount is provided (from step 9 to 10), store it
@@ -716,9 +708,8 @@
             console.log(`[Signup] Email confirmation disabled (self-hosted), redirecting to secure_account`);
             step = STEP_SECURE_ACCOUNT;
         }
-        // Skip payment steps if self-hosted - go to completion
-        else if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
-            console.log(`[Signup] Payment disabled, skipping step ${step} and going to completion`);
+        else if (LEGACY_SIGNUP_PAYMENT_STEPS.includes(step)) {
+            console.log(`[Signup] Signup payment removed, skipping step ${step} and going to completion`);
             step = STEP_COMPLETION;
         }
         const oldStep = currentStep; // Capture old step value
@@ -794,7 +785,7 @@
         updateSettingsStep(oldStep); // Call update function with old step value
         
         // Update footer visibility based on step
-        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_COMPLETION];
         showSignupFooter.set(true);
         
         // Scroll to top when step changes
@@ -1071,7 +1062,7 @@
 
         // Check for pending gift card code in sessionStorage to auto-redeem
         if (typeof window !== 'undefined') {
-            const pendingCode = sessionStorage.getItem('pending_gift_card_code');
+            const pendingCode = getPendingGiftCardRedemptionCode();
             if (pendingCode) {
                 const normalizedCode = pendingCode.trim().toUpperCase();
                 console.info(`[Signup] Found pending gift card code ${normalizedCode}, attempting auto-redemption...`);
@@ -1102,7 +1093,7 @@
                             const result = await response.json();
                             if (result.success) {
                                 console.info("[Signup] Gift card redeemed automatically upon signup:", result);
-                                sessionStorage.removeItem('pending_gift_card_code');
+                                clearPendingGiftCardRedemption();
                                 
                                 // Update profile store with new credit amount
                                 if (typeof result.current_credits === 'number') {
@@ -1464,9 +1455,6 @@
             [STEP_RECOVERY_KEY]: 10,
             [STEP_SETTINGS]: 11,
             [STEP_MATE_SETTINGS]: 12,
-            [STEP_CREDITS]: 13,
-            [STEP_PAYMENT]: 14,
-            [STEP_AUTO_TOP_UP]: 15,
             [STEP_COMPLETION]: 16
         };
         return fullStepMap[stepName] || 0;
@@ -1475,11 +1463,10 @@
     // Update showSkip logic to show for specific steps using Svelte 5 runes
     // Update the bindable showSkip prop
     $effect(() => {
-        showSkip = currentStep === STEP_TFA_APP_REMINDER || currentStep === STEP_CREDITS;
+        showSkip = currentStep === STEP_TFA_APP_REMINDER;
     });
 
-    // Show expanded header on credits and payment steps using Svelte 5 runes
-    let showExpandedHeader = $derived(currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT);
+    let showExpandedHeader = $derived(false);
 
     // For payment step, auto top-up step, secure account step, and backup codes step, use expanded height for the top content wrapper
     // For recovery key step, only expand if the creation UI is not active using Svelte 5 runes
@@ -1554,47 +1541,6 @@
                                         <SettingsTopContent />
                                     {:else if currentStep === STEP_MATE_SETTINGS}
                                         <MateSettingsTopContent />
-                                    {:else if currentStep === STEP_CREDITS}
-                                        <CreditsTopContent on:step={handleStep} />
-                                    {:else if currentStep === STEP_PAYMENT}
-                                        <PaymentTopContent
-                                            credits_amount={selectedCreditsAmount}
-                                            price={selectedPrice}
-                                            currency={selectedCurrency}
-                                            isGift={isGiftFlow}
-                                            isGiftCardRedemption={isGiftCardRedemption}
-                                            showSuccess={isGiftCardRedemption || paymentState === 'success'}
-                                            purchasedCredits={isGiftCardRedemption ? selectedCreditsAmount : null}
-                                            purchasedPrice={isGiftCardRedemption ? 0 : null}
-                                            paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
-                                            oncomplete={handleAutoTopUpComplete}
-                                            onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
-                                            on:consentGiven={handleRefundConsent}
-                                            on:complete={handleAutoTopUpComplete}
-                                            on:paymentFormVisibility={handlePaymentFormVisibilityChange}
-                                            on:openRefundInfo={handleOpenRefundInfo}
-                                            on:payment={handlePaymentSubmission}
-                                            on:paymentStateChange={handlePaymentStateChange}
-                                            on:step={handleStep}
-                                        />
-                                    {:else if currentStep === STEP_AUTO_TOP_UP}
-                                        <PaymentTopContent
-                                            credits_amount={selectedCreditsAmount}
-                                            price={selectedPrice}
-                                            currency={selectedCurrency}
-                                            isGiftCardRedemption={isGiftCardRedemption}
-                                            showSuccess={true}
-                                            purchasedCredits={selectedCreditsAmount}
-                                            purchasedPrice={isGiftCardRedemption ? 0 : selectedPrice}
-                                            paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
-                                            paymentMethodSaveError={isGiftCardRedemption ? null : paymentMethodSaveError}
-                                            oncomplete={handleAutoTopUpComplete}
-                                            onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
-                                            on:paymentMethodStatusUpdate={(event) => {
-                                                paymentMethodSaved = event.detail.saved;
-                                                paymentMethodSaveError = event.detail.error;
-                                            }}
-                                        />
                                     {/if}
                                 </div>
                             {/key}
@@ -1647,7 +1593,6 @@
                                             />
                                         {:else if currentStep === STEP_RECOVERY_KEY}
                                             <RecoveryKeyBottomContent
-                                                paymentEnabled={paymentEnabled}
                                                 on:step={handleStep}
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}
@@ -1669,24 +1614,6 @@
                                                 on:step={handleStep}
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}
-                                            />
-                                        {:else if currentStep === STEP_CREDITS}
-                                            <CreditsBottomContent
-                                                on:step={handleStep}
-                                                on:uploading={handleImageUploading}
-                                                on:selectedApp={handleSelectedApp}
-                                            />
-                                        {:else if currentStep === STEP_PAYMENT}
-                                            <PaymentBottomContent />
-                                        {:else if currentStep === STEP_AUTO_TOP_UP}
-                                            <PaymentBottomContent
-                                                purchasedCredits={selectedCreditsAmount}
-                                                purchasedPrice={selectedPrice}
-                                                currency={selectedCurrency}
-                                                paymentMethodSaved={paymentMethodSaved}
-                                                paymentMethodSaveError={paymentMethodSaveError}
-                                                oncomplete={handleAutoTopUpComplete}
-                                                onactivate-subscription={handleActivateSubscription}
                                             />
                                         {/if}
                                     {/if}

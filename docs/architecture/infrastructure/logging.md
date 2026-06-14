@@ -2,9 +2,43 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/api/app/utils/setup_logging.py
+- backend/core/api/app/utils/setup_compliance_logging.py
+- backend/core/api/app/utils/log_filters.py
+claims:
+- id: arch-infrastructure-logging-behavior
+  type: unit
+  claim: Logging System is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/core/api/app/utils/setup_logging.py
   - backend/core/api/app/utils/setup_compliance_logging.py
   - backend/core/api/app/utils/log_filters.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-infrastructure-logging-behavior
+  verified: '2026-06-11'
+- id: arch-infrastructure-logging-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-logging-source-1
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/utils/log_filters.py
+- id: arch-infrastructure-logging-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-logging-source-2
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/utils/setup_compliance_logging.py
+- id: arch-infrastructure-logging-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-infrastructure-logging-source-3
+  anchors:
+  - type: file_exists
+    path: backend/core/api/app/utils/setup_logging.py
 ---
 
 # Logging System

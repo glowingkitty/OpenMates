@@ -1,0 +1,351 @@
+title:
+  context: "Title of example chat: Memory Events Saved Events"
+  en: "Memory Events Saved Events"
+  de: "Memory Events Saved Events"
+  zh: "Memory Events Saved Events"
+  es: "Memory Events Saved Events"
+  fr: "Memory Events Saved Events"
+  pt: "Memory Events Saved Events"
+  ru: "Memory Events Saved Events"
+  ja: "Memory Events Saved Events"
+  ko: "Memory Events Saved Events"
+  it: "Memory Events Saved Events"
+  tr: "Memory Events Saved Events"
+  vi: "Memory Events Saved Events"
+  id: "Memory Events Saved Events"
+  pl: "Memory Events Saved Events"
+  nl: "Memory Events Saved Events"
+  ar: "Memory Events Saved Events"
+  hi: "Memory Events Saved Events"
+  th: "Memory Events Saved Events"
+  cs: "Memory Events Saved Events"
+  sv: "Memory Events Saved Events"
+  he: "Memory Events Saved Events"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Memory Events Saved Events"
+  en: "OpenMates uses saved events saved_events memory in a real chat."
+  de: "OpenMates uses saved events saved_events memory in a real chat."
+  zh: "OpenMates uses saved events saved_events memory in a real chat."
+  es: "OpenMates uses saved events saved_events memory in a real chat."
+  fr: "OpenMates uses saved events saved_events memory in a real chat."
+  pt: "OpenMates uses saved events saved_events memory in a real chat."
+  ru: "OpenMates uses saved events saved_events memory in a real chat."
+  ja: "OpenMates uses saved events saved_events memory in a real chat."
+  ko: "OpenMates uses saved events saved_events memory in a real chat."
+  it: "OpenMates uses saved events saved_events memory in a real chat."
+  tr: "OpenMates uses saved events saved_events memory in a real chat."
+  vi: "OpenMates uses saved events saved_events memory in a real chat."
+  id: "OpenMates uses saved events saved_events memory in a real chat."
+  pl: "OpenMates uses saved events saved_events memory in a real chat."
+  nl: "OpenMates uses saved events saved_events memory in a real chat."
+  ar: "OpenMates uses saved events saved_events memory in a real chat."
+  hi: "OpenMates uses saved events saved_events memory in a real chat."
+  th: "OpenMates uses saved events saved_events memory in a real chat."
+  cs: "OpenMates uses saved events saved_events memory in a real chat."
+  sv: "OpenMates uses saved events saved_events memory in a real chat."
+  he: "OpenMates uses saved events saved_events memory in a real chat."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Memory Events Saved Events. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  zh: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  es: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  fr: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pt: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ru: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ja: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ko: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  it: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  tr: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  vi: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  id: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  pl: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  nl: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  ar: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  hi: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  th: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  cs: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  sv: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  he: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Memory Events Saved Events. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  de: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  zh: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  es: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  fr: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pt: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ru: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ja: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ko: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  it: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  tr: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  vi: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  id: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  pl: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  nl: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  ar: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  hi: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  th: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  cs: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  sv: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  he: |
+    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
+
+    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
+
+    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
+    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
+    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
+    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
+    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
+    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  verified_by_human: []

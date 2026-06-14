@@ -25,6 +25,8 @@ type PageLike = {
 	screenshot: (options: Record<string, unknown>) => Promise<unknown>;
 };
 
+type DocAssertion = () => unknown | Promise<unknown>;
+
 const CHECKPOINT_ARTIFACT_DIR = path.resolve(process.cwd(), 'artifacts', 'doc-checkpoints');
 const SHOULD_UPDATE_DOC_SCREENSHOTS = process.env.UPDATE_DOC_SCREENSHOTS === '1';
 
@@ -57,4 +59,15 @@ async function docCheckpoint(page: PageLike, options: DocCheckpointOptions): Pro
 	);
 }
 
-module.exports = { docCheckpoint };
+async function docAssert(id: string, assertion: DocAssertion): Promise<unknown> {
+	try {
+		return await assertion();
+	} catch (error) {
+		if (error instanceof Error) {
+			error.message = `[doc-assert:${id}] ${error.message}`;
+		}
+		throw error;
+	}
+}
+
+module.exports = { docAssert, docCheckpoint };

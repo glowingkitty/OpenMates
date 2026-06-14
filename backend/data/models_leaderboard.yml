@@ -135,7 +135,7 @@ unranked:
     provider_id: mistral
     country_origin: FR
   - model_id: mistral-medium-latest
-    name: Mistral Medium
+    name: Mistral Medium 3.5
     provider_id: mistral
     country_origin: FR
   - model_id: devstral-2512

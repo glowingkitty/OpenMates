@@ -1,0 +1,558 @@
+id: search-parent-preview-metadata-sync
+title: Search Parent Preview Metadata Sync
+status: verified
+
+goal: >
+  Make every search/result-list parent embed useful, reload-safe, and scalable by
+  storing lightweight parent-level preview metadata at creation time and by
+  persisting owner-only click backfills through the existing encrypted embed sync
+  path. Parent previews must remain self-contained and must never hydrate child
+  embeds during chat render.
+
+scope:
+  in:
+    - Existing search/result-list composite parent embeds with child results, including web, images, events, maps, travel, shopping, nutrition, home, social/news/weather/videos-style result lists where the app.yml skill has `has_children: true` and renders a result-list preview.
+    - Backend parent embed creation/update metadata for new search/result-list results.
+    - Owner/write-only durable legacy backfill after explicit fullscreen/open action has already loaded child data.
+    - Shared-chat recipient local-only/read-only backfill for the current device/session.
+    - A deterministic synthetic example chat with many messages, parent embeds, and child embeds for repeatable load-performance testing without AI/provider calls.
+    - A deterministic audit script and path-scoped hook coverage so new child/composite result-list embed types declare or implement parent preview metadata behavior.
+    - Focused unit/pytest/vitest coverage and one targeted web E2E proposal for new and legacy behavior.
+  out:
+    - Background migration or chat-wide scans of legacy embeds.
+    - Preview-render child hydration, child embed decryption, or child embed server requests.
+    - Replacing the embed encryption/key wrapping model.
+    - Versioned embed history or diff-based metadata patches for this derived preview backfill.
+    - Changing billing, share permissions, ownership rules, or provider APIs.
+    - Backfilling non-result-list composite embeds such as generated applications unless they explicitly opt into this contract later.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials."
+    - "gh CLI fallback found no matching public issues for: embed preview metadata sync backfill search no results."
+    - "User requested a synthetic large example chat for performance/load testing after approving the spec."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/messaging/message-previews-grouping.md
+    - docs/contributing/guides/add-embed-type.md
+  code_patterns:
+    - backend/core/api/app/services/embed_service.py
+    - backend/apps/*/app.yml
+    - frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedSenders.ts
+    - scripts/audit_embed_preview_hydration.py
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
+  tests:
+    - backend/tests/test_skill_preview_metadata.py
+    - scripts/tests/test_audit_embed_preview_hydration.py
+    - frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+    - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    - frontend/apps/web_app/tests/chat-search-flow.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/page-load-performance.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This spec defines backend/frontend web embed storage and sync contracts. Apple embed rendering parity can consume the same durable parent metadata later but is not changed in this first implementation.
+  verification:
+    - Apple not affected for this web/backend metadata and sync slice.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should v1 target all composite parent embeds, or only search/result-list parent embeds?
+      answer: Focus v1 on search/result-list parent embeds while ensuring new child/composite embed types are created with the requirement in mind.
+    - question: For legacy parents, may durable backfill write/sync only when the viewer has owner/write access, while shared-chat recipients stay local/read-only?
+      answer: Yes. Owner/write viewers may persist and sync; shared-chat recipients may only apply local read-only backfill.
+    - question: Should durable owner backfill rewrite parent encrypted content in place or use a versioned/diff-style update?
+      answer: Rewrite in place with a guarded idempotent merge is preferred because these fields are derived lightweight preview metadata, not user-authored content.
+    - question: Should legacy backfill happen only after explicit user action or include a background migration/audit command?
+      answer: Only after explicit click/open action. Do not scan old chats or run background migrations in v1.
+    - question: Should the deterministic guard be a required audit only, or also a path-scoped hook?
+      answer: Add it as a hook as well so new child/composite embed types are checked when they are added.
+    - question: Should implementation include a synthetic example chat with many messages, embeds, and child embeds for load testing?
+      answer: Yes. Add an artificial deterministic example chat for testing fast loading of dense messages, parent embeds, and child embeds without invoking real providers or AI.
+  vision_summary: >
+    Search and result-list parent embeds should be self-contained cards: they show
+    counts, sources/thumbnails/favicons, and enough summary data from the parent
+    record without loading child content. New parent embeds must carry that
+    metadata from creation, and legacy parent embeds may be upgraded only after a
+    user explicitly opens them. Owner/write users can persist that metadata via
+    encrypted sync; shared-chat recipients remain local/read-only.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: New search parent embeds store lightweight preview metadata
+    given:
+      - Alice is authenticated and owns a writable chat.
+      - Alice asks OpenMates to search for "Berlin AI events" using a result-list search skill.
+      - The skill returns multiple child results.
+    when:
+      - The backend creates or updates the parent app_skill_use embed.
+    then:
+      - The parent encrypted content includes app_id, skill_id, status, result_count, embed_ids, query/provider metadata, and lightweight preview_results or a skill-specific equivalent.
+      - The preview metadata contains only allowlisted summary fields needed by the card, such as title, URL/source, favicon, thumbnail, date/location/price where applicable.
+      - The parent metadata does not include full child payloads, long descriptions, raw provider blobs, or hidden child content.
+      - Reloading the chat renders the preview from the parent record without loading child embeds.
+
+  - id: S-2
+    title: Legacy owner parent embed is durably backfilled after explicit open
+    given:
+      - Alice owns a writable chat with an older search parent embed.
+      - The parent has result_count or embed_ids but lacks preview_results.
+    when:
+      - Alice opens the embed fullscreen and child results load because of that explicit action.
+    then:
+      - OpenMates derives lightweight parent preview metadata from the loaded child results.
+      - OpenMates merges only allowlisted preview fields into the parent content, preserving existing fields and unknown fields.
+      - OpenMates re-encrypts and syncs the parent through the existing store_embed path.
+      - Reloading the chat shows the upgraded parent preview without reopening fullscreen.
+
+  - id: S-3
+    title: Shared-chat recipient backfill is local and read-only
+    given:
+      - Bob opens a shared-chat link as a recipient using the fragment key.
+      - The shared chat contains an older search parent embed without preview_results.
+    when:
+      - Bob opens the embed fullscreen and child results load locally.
+    then:
+      - OpenMates may merge lightweight preview metadata into local memory or IndexedDB for Bob's device.
+      - OpenMates does not call store_embed, store_embed_keys, or any server write endpoint for the backfill.
+      - The owner's encrypted parent embed is unchanged.
+      - Bob's local enhancement is treated as best-effort and read-only.
+
+  - id: S-4
+    title: Parent preview render never hydrates child embeds
+    given:
+      - A chat message contains search/result-list parent embeds with many child IDs.
+      - Some parents have preview_results and some legacy parents only have result_count or child IDs.
+    when:
+      - The chat message enters the visible viewport.
+    then:
+      - Preview components render from parent metadata only.
+      - Preview components do not call loadEmbedsWithRetry, request_embed, embedResolver child loading, or TOON decoding of child embeds.
+      - Parents with positive result_count or child IDs but no preview_results show a non-empty "open to view results" state rather than "No results found".
+      - Parents with explicit result_count zero show the no-results state.
+
+  - id: S-5
+    title: New result-list embed types are blocked without a parent preview contract
+    given:
+      - A developer adds or modifies an app.yml skill with has_children true and a search/result-list preview component.
+    when:
+      - The deterministic audit or path-scoped hook runs.
+    then:
+      - The check fails unless the skill is covered by parent preview metadata generation or has a documented exemption.
+      - The check explains which app/skill and files need metadata or an exemption.
+      - Existing non-result-list composite embeds are allowed only when explicitly exempted with a reason.
+
+  - id: S-6
+    title: Synthetic dense example chat opens quickly without provider calls
+    given:
+      - A deterministic example chat named search-parent-preview-stress-test exists in the local example-chat registry.
+      - The chat contains many alternating user/assistant messages.
+      - The assistant messages reference many search/result-list parent embeds and each parent has many child embed IDs.
+      - The parent embeds include lightweight preview metadata while child embeds include full result content.
+    when:
+      - A test opens the example chat from the app or direct example-chat route.
+    then:
+      - The chat opens from static fixture data without AI inference or external provider calls.
+      - Initial render shows useful parent previews from parent metadata.
+      - Initial render does not load or decode every child embed.
+      - The test can use this fixture to catch large-chat/embed graph regressions.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Every in-scope new search/result-list parent embed persists enough lightweight parent metadata for preview rendering without child hydration.
+  - id: AC-2
+    scenario: S-2
+    text: Owner/write fullscreen backfill rewrites parent encrypted content in place through the existing encrypted sync path and survives reload.
+  - id: AC-3
+    scenario: S-3
+    text: Shared-chat recipient backfill never writes to the server and remains local/read-only.
+  - id: AC-4
+    scenario: S-4
+    text: Parent preview rendering never loads, decrypts, decodes, or requests child embeds before an explicit user action.
+  - id: AC-5
+    scenario: S-4
+    text: Missing preview metadata with positive result_count or child IDs renders as an open-to-view state, while explicit zero result_count renders as no results.
+  - id: AC-6
+    scenario: S-5
+    text: A deterministic audit and path-scoped hook block new in-scope child/result-list parent embeds without metadata support or explicit exemption.
+  - id: AC-7
+    scenario: S-6
+    text: A deterministic synthetic large example chat exists and can be used by tests to verify dense parent/child embed graphs load without real AI or provider calls.
+
+contracts:
+  api:
+    - route: store_embed WebSocket event
+      request: "Existing encrypted parent embed payload with encrypted_content rewritten in place after owner/write backfill."
+      response: "Existing ACK/retry behavior. No new public API route is required for v1."
+      errors:
+        - Shared-chat recipient contexts must not emit this event for preview metadata backfill.
+        - Missing write access must leave backfill local-only and log a visible warning.
+  data:
+    - Parent embed content remains the durable source of truth for preview metadata.
+    - Allowlisted backfill fields include result_count, preview_results, preview_results_json, preview_sources, preview_thumbnails, and skill-specific shallow card fields approved by tests.
+    - Backfill must preserve app_id, skill_id, status, query, provider/providers, embed_ids, parent identifiers, embed_ref, and unknown fields.
+    - Backfill must never copy full child content, raw provider blobs, full descriptions beyond preview needs, encrypted child payloads, or child keys into parent content.
+    - Idempotent merge writes only when the merged parent content differs from the latest decoded parent content.
+  ui_states:
+    - Parent has preview metadata: render card details from parent fields.
+    - Parent has explicit result_count zero: render no-results state.
+    - Parent has child IDs or positive result_count but no preview metadata: render open-to-view state.
+    - Parent fullscreen opened by owner/write user: derive and sync backfill after child results load.
+    - Parent fullscreen opened by shared recipient: derive local-only backfill after child results load.
+  privacy_security:
+    - Shared-chat fragment keys are never sent to the server.
+    - Shared-chat recipients cannot mutate owner embed records through preview metadata backfill.
+    - Owner/write backfill uses the same encrypted embed-key model and store_embed retry behavior as finalized send_embed_data embeds.
+    - Preview metadata must not expose more information to a recipient than the parent/child embeds already authorized for that chat.
+  deterministic_guards:
+    - Audit search/result-list has_children skills in backend/apps/*/app.yml against metadata-builder coverage or an explicit exemption list.
+    - Audit preview components for forbidden child hydration calls.
+    - Wire the metadata audit into a path-scoped hook for app.yml, embed_service.py, preview components, and audit/exemption files.
+  fixtures:
+    - The synthetic stress chat must be generated or represented compactly in source so it does not add a huge hand-written fixture.
+    - The fixture must use deterministic IDs and content so tests are stable.
+    - The fixture must be hidden from normal marketing/example-chat browsing unless explicitly intended for dev/test surfaces.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_skill_preview_metadata.py
+    command: python3 -m pytest backend/tests/test_skill_preview_metadata.py
+    covers:
+      - AC-1
+      - AC-6
+    assertions:
+      - web and images search parents include lightweight preview metadata
+      - additional in-scope result-list skills either include metadata or explicit exemptions
+      - metadata builders flatten grouped results and cap preview count
+      - metadata builders omit long/full child-only fields
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: "failed_as_expected"
+        run_id: "pre-implementation-backend-metadata-coverage-missing"
+        timestamp: "2026-06-12T09:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: "passed"
+        run_id: "gh-27407834238"
+        timestamp: "2026-06-12T09:43:44Z"
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: scripts/tests/test_audit_search_parent_preview_metadata.py
+    command: python3 -m pytest scripts/tests/test_audit_search_parent_preview_metadata.py
+    covers:
+      - AC-6
+    assertions:
+      - new has_children search/result-list app.yml fixtures fail without coverage or exemption
+      - covered app/skill fixtures pass
+      - exempted non-result-list composite fixtures pass only with an explicit reason
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: "failed_as_expected"
+        run_id: "local-red-missing-audit-module"
+        timestamp: "2026-06-12T09:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: "passed"
+        run_id: "gh-27407834238"
+        timestamp: "2026-06-12T09:43:44Z"
+
+  - id: T-AUDIT-001
+    type: pytest
+    file: scripts/audit_search_parent_preview_metadata.py
+    command: python3 scripts/audit_search_parent_preview_metadata.py
+    covers:
+      - AC-6
+    assertions:
+      - repository app.yml metadata passes the audit after implementation
+      - audit output names app_id, skill_id, and missing contract when failing
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: "failed_as_expected"
+        run_id: "local-red-15-uncovered-result-list-contracts"
+        timestamp: "2026-06-12T09:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: "passed"
+        run_id: "local-audit-passed"
+        timestamp: "2026-06-12T09:16:00Z"
+
+  - id: T-VITEST-001
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/__tests__/embedPreviewHydration.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+    assertions:
+      - parent result state distinguishes explicit zero from missing metadata
+      - owner/write backfill payload generation preserves fields and allowlists metadata
+      - shared/read-only backfill mode does not call sync sender mocks
+      - preview helpers expose no child-hydration helper
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: "failed_as_expected"
+        run_id: "pre-implementation-missing-backfill-guard-tests"
+        timestamp: "2026-06-12T09:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: "passed"
+        run_id: "gh-27407785762"
+        timestamp: "2026-06-12T09:41:59Z"
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    command: python3 scripts/run_tests.py --spec legacy-search-parent-previews.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-3
+      - AC-5
+    assertions:
+      - legacy owner parent shows open-to-view before fullscreen instead of no-results
+      - owner opening fullscreen backfills metadata and reload preserves the preview
+      - shared recipient opening fullscreen does not issue a server write and remains read-only
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: "failed_as_expected"
+        run_id: "pre-deploy-legacy-preview-open-to-view-and-durable-backfill-missing"
+        timestamp: "2026-06-12T09:00:00Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: "passed"
+        run_id: "gh-27408008736"
+        timestamp: "2026-06-12T09:47:12Z"
+
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
+    command: python3 scripts/run_tests.py --spec search-parent-preview-stress.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+      - AC-7
+    assertions:
+      - synthetic stress example chat opens without invoking AI/provider APIs
+      - latest visible window renders parent search previews from parent metadata
+      - no false no-results state appears for positive-result parents
+      - child embed loading remains bounded before explicit fullscreen open
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: "failed_as_expected"
+        run_id: "pre-implementation-synthetic-stress-chat-missing"
+        timestamp: "2026-06-12T09:00:00Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: "passed"
+        run_id: "gh-27407687333"
+        timestamp: "2026-06-12T09:40:42Z"
+
+implementation_plan:
+  existing_patterns:
+    - backend/core/api/app/services/embed_service.py:_build_parent_preview_metadata
+    - frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts send_embed_data/store_embed encryption path
+    - scripts/audit_embed_preview_hydration.py
+  architecture: >
+    Keep parent previews self-contained by expanding server-side parent metadata
+    builders for in-scope search/result-list skills. Add a frontend owner/write
+    backfill helper that derives the same lightweight fields after fullscreen
+    child loading, merges them into decoded parent content, re-encrypts, stores
+    locally, and emits store_embed only when the current chat context is writable.
+    Shared contexts reuse the merge locally without server writes.
+  data_flow:
+    - New skill result completes and EmbedService creates child embeds.
+    - EmbedService builds parent preview metadata from the returned result objects before encrypting parent content.
+    - Preview renders from parent metadata only.
+    - Synthetic stress chat opens from static fixture data and exercises dense parent/child graphs without provider calls.
+    - Legacy owner opens fullscreen, child results load explicitly, helper builds preview metadata from loaded child results.
+    - Helper checks write access, merges allowlisted fields into parent content, encrypts with existing embed key, stores locally, and emits store_embed.
+    - Shared recipient opens fullscreen, same metadata is merged locally without store_embed/store_embed_keys.
+  affected_files:
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Expand parent preview metadata builders for in-scope result-list skills.
+    - path: backend/tests/test_skill_preview_metadata.py
+      reason: Backend coverage for metadata generation and allowlists.
+    - path: frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+      reason: Shared helpers for state classification, preview metadata builders, and idempotent parent merge.
+    - path: frontend/packages/ui/src/services/embedStore.ts
+      reason: Replace or supplement in-memory-only merge with local/durable owner-aware parent metadata update support.
+    - path: frontend/packages/ui/src/services/embedSenders.ts
+      reason: Reuse existing store_embed retry behavior if a small exported helper is needed.
+    - path: frontend/packages/ui/src/components/embeds/*/*SearchEmbedFullscreen.svelte
+      reason: Call backfill helper only after explicit fullscreen child loading.
+    - path: scripts/audit_search_parent_preview_metadata.py
+      reason: Deterministic audit for result-list parent metadata coverage.
+    - path: scripts/tests/test_audit_search_parent_preview_metadata.py
+      reason: Fixture coverage for deterministic audit.
+    - path: .claude/hooks or existing hook adapter paths
+      reason: Add path-scoped hook invocation for app.yml/embed metadata changes if the repo's hook architecture supports it.
+    - path: docs/contributing/guides/add-embed-type.md
+      reason: Document parent preview metadata requirement for new child/result-list embed types.
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/search-parent-preview-stress-test.ts
+      reason: Add deterministic dense example-chat fixture for load testing.
+    - path: frontend/packages/ui/src/demo_chats/exampleChatData.ts
+      reason: Register the synthetic stress chat behind a dev/test-only flag or internal fixture list.
+    - path: frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
+      reason: Verify dense synthetic parent/child embed graph loading behavior.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/search-parent-preview-metadata-sync/spec.yml
+    - python3 scripts/audit_embed_preview_hydration.py
+    - python3 scripts/audit_search_parent_preview_metadata.py
+    - python3 -m pytest scripts/tests/test_audit_embed_preview_hydration.py scripts/tests/test_audit_search_parent_preview_metadata.py backend/tests/test_skill_preview_metadata.py
+    - python3 scripts/run_tests.py --suite vitest
+    - deploy to dev, wait for Vercel Ready, then python3 scripts/run_tests.py --spec legacy-search-parent-previews.spec.ts
+    - deploy to dev, wait for Vercel Ready, then python3 scripts/run_tests.py --spec search-parent-preview-stress.spec.ts
+  verification_order:
+    - Backend pytest and audit red/green first.
+    - Vitest helper/sync behavior second.
+    - Web Playwright red before deploy and green after deploy for owner/shared behavior.
+    - Synthetic stress Playwright red before deploy and green after deploy for bounded dense embed loading.
+    - Apple not affected for v1.
+
+tasks:
+  - id: TASK-1
+    title: Enumerate in-scope result-list parent embeds and metadata contracts
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-6
+    expected_files:
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_skill_preview_metadata.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Add deterministic audit and path-scoped hook
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - scripts/audit_search_parent_preview_metadata.py
+      - scripts/tests/test_audit_search_parent_preview_metadata.py
+      - docs/contributing/guides/add-embed-type.md
+    verification:
+      - T-PYTEST-002
+      - T-AUDIT-001
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Implement owner-aware click backfill helper
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/embedPreviewHydration.ts
+      - frontend/packages/ui/src/services/embedStore.ts
+      - frontend/packages/ui/src/services/embedSenders.ts
+      - frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/images/ImagesSearchEmbedFullscreen.svelte
+    verification:
+      - T-VITEST-001
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Verify legacy owner and shared-chat behavior end to end
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-5
+    expected_files:
+      - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add synthetic dense example chat and stress-load E2E
+    covers:
+      scenarios:
+        - S-6
+        - S-4
+      acceptance_criteria:
+        - AC-7
+        - AC-4
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/data/example_chats/search-parent-preview-stress-test.ts
+      - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+      - frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
+    verification:
+      - T-E2E-002
+    independently_deployable: false
+
+risks:
+  - Some existing has_children skills may be composite but not result-list previews; the audit needs explicit exemptions to avoid noisy failures.
+  - Owner/write detection must be conservative. If access is unclear, fall back to local-only backfill and warn rather than writing.
+  - Re-encrypting parent content in place must preserve unknown fields to avoid losing app-specific metadata.
+  - Playwright shared-recipient write assertions may need a network/mock hook if server logs are too noisy.
+  - A large static example chat can bloat bundles if implemented as a hand-written array; prefer deterministic generation or dev/test-only registration.
+
+open_questions:
+  - Which exact non-search result-list skills should be covered in TASK-1 after app.yml enumeration, and which should be exempted as non-result-list composites?

@@ -25,7 +25,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 from backend.apps.base_skill import BaseSkill
-from backend.apps.ai.processing.celery_helpers import execute_skill_via_celery
+from backend.shared.python_utils.app_skill_helpers import execute_skill_via_celery
 from backend.shared.python_utils.media_generation_safety import (
     validate_media_generation_request,
 )

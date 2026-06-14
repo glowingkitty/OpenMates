@@ -27,9 +27,10 @@ Everything you need to know about using OpenMates as an end user.
 
 ## Billing & Account
 
-- [Pricing](pricing.md) - Credits-based pay-per-use pricing
-- [Usage & Billing](usage-and-billing.md) - Track your usage and costs
-- [Gift Cards](gift-cards.md) - Redeem gift cards for credits
+- [Billing](billing/README.md) - Pricing, usage, gift cards, invoices, and refunds
+- [Pricing](billing/pricing.md) - Credits-based pay-per-use pricing
+- [Usage & Billing](billing/usage.md) - Track your usage and costs
+- [Gift Cards](billing/gift-cards.md) - Redeem gift cards for credits
 - [Export Account](export-account.md) - Download all your data (GDPR)
 - [Import Account](import-account.md) - Restore chats from an OpenMates export
 - [Creators Program](creators-program.md) - Revenue sharing for content creators

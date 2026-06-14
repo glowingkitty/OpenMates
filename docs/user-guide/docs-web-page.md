@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-06-03
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-docs-web-page-source
+    type: unit
+    claim: Documentation site behavior is grounded in docs build and app documentation sources.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-docs-web-page-source
 ---
 
 # Documentation Site
@@ -18,7 +27,7 @@ Visit the **/docs** section of the OpenMates web app. From there you can:
 - **Browse** using the sidebar navigation with collapsible folders.
 - **Search** across all documentation with full-text search.
 - **Copy** a page (or an entire folder of pages) as markdown to your clipboard.
-- **Download** any page or folder as a PDF.
+- **Download** available page or folder exports where supported by the current build.
 
 ## Loading Behavior
 

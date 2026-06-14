@@ -23,6 +23,7 @@ const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helper
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const SAMPLE_PY = path.join(__dirname, 'fixtures', 'sample.py');
+const CODE_RUN_REQUESTS_PY = path.join(__dirname, 'fixtures', 'code_run_requests.py');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 async function createDocxBuffer(textLines: string[]): Promise<Buffer> {
@@ -78,6 +79,29 @@ async function attachFiles(
 	logCheckpoint(`Attaching ${filePaths.length} file(s): ${filePaths.join(', ')}`);
 	await fileInput.setInputFiles(filePaths);
 	logCheckpoint('Files attached via setInputFiles().');
+}
+
+async function openEmbedFullscreen(page: any, embed: any): Promise<any> {
+	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
+	await embed.scrollIntoViewIfNeeded();
+	await embed.click();
+	if (await fullscreenOverlay.isVisible({ timeout: 5000 }).catch(() => false)) {
+		return fullscreenOverlay;
+	}
+
+	await embed.click();
+	await expect(fullscreenOverlay).toBeVisible({ timeout: 15000 });
+	return fullscreenOverlay;
+}
+
+async function waitForCodeRunSurface(page: any, fileSelection: any, terminal: any): Promise<'selection' | 'terminal'> {
+	const deadline = Date.now() + 30000;
+	while (Date.now() < deadline) {
+		if (await terminal.isVisible({ timeout: 250 }).catch(() => false)) return 'terminal';
+		if (await fileSelection.isVisible({ timeout: 250 }).catch(() => false)) return 'selection';
+		await page.waitForTimeout(250);
+	}
+	throw new Error('Code Run did not show file selection or terminal output in time.');
 }
 
 test('uploaded Python file renders as code embed without JSON leakage', async ({ page }: { page: any }) => {
@@ -138,6 +162,103 @@ test('uploaded Python file renders as code embed without JSON leakage', async ({
 	log('Code embed rendered in sent message without raw JSON leakage.');
 
 	await stopActiveResponseIfNeeded(page, log);
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
+});
+
+test('code run output becomes the default code embed preview after reload', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(240000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('FILE_ATTACH_CODE_RUN_OUTPUT_PREVIEW');
+	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'file-attach-code-run-output' });
+	await archiveExistingScreenshots(log);
+
+	await page.goto(getE2EDebugUrl('/'));
+	await loginToTestAccount(page, log, screenshot);
+	await page.waitForTimeout(3000);
+
+	await openNewChat(page, log);
+	const editor = page.getByTestId('message-editor');
+	await editor.click();
+	await page.keyboard.type('Please run this Python file and keep the result visible:');
+
+	await attachFiles(page, [CODE_RUN_REQUESTS_PY], log);
+	await page.waitForTimeout(5000);
+
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeVisible({ timeout: 15000 });
+	await expect(sendButton).toBeEnabled({ timeout: 5000 });
+	await sendButton.click();
+	log('Message with Python file sent for Code Run output preview regression.');
+
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
+	const chatUrl = page.url();
+	const userMessage = page.getByTestId('message-user').last();
+	await expect(userMessage).toBeVisible({ timeout: 20000 });
+	const chatCodeEmbed = userMessage.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
+	);
+	await expect(chatCodeEmbed).toBeVisible({ timeout: 20000 });
+
+	const fullscreenOverlay = await openEmbedFullscreen(page, chatCodeEmbed);
+	await fullscreenOverlay.getByTestId('embed-run-button').click();
+
+	const fileSelection = fullscreenOverlay.getByTestId('code-run-file-selection');
+	const terminal = fullscreenOverlay.getByTestId('code-run-terminal');
+	if ((await waitForCodeRunSurface(page, fileSelection, terminal)) === 'selection') {
+		await expect(fileSelection.getByText('requests', { exact: true })).toBeVisible({ timeout: 30000 });
+		await expect(fileSelection).not.toContainText('Install Python packages');
+		const selectAllButton = fileSelection.getByRole('button', { name: 'Select all' });
+		if (await selectAllButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+			await selectAllButton.click();
+		}
+		await fileSelection.getByTestId('code-run-continue').click();
+	}
+
+	await expect(terminal).toBeVisible({ timeout: 20000 });
+	const terminalOverlay = fullscreenOverlay.getByTestId('code-run-overlay');
+	await expect(terminalOverlay).toBeVisible({ timeout: 20000 });
+	await expect(fullscreenOverlay.getByTestId('code-run-view-code')).toBeVisible({ timeout: 10000 });
+	await expect(fullscreenOverlay.getByRole('button', { name: 'Hide output' })).toHaveCount(0);
+	await expect(terminal).toContainText('Hello, World!', { timeout: 120000 });
+	await expect(terminal).toContainText('Exited', { timeout: 120000 });
+	await expect(fullscreenOverlay.getByTestId('code-run-terminal-actions')).toContainText('Copy output');
+	await expect(fullscreenOverlay.getByTestId('code-run-terminal-actions')).toContainText('Run again');
+	await stopActiveResponseIfNeeded(page, log);
+	await screenshot(page, 'code-run-output-visible-fullscreen');
+	await fullscreenOverlay.getByTestId('code-run-view-code').click();
+	await expect(terminalOverlay).not.toBeVisible({ timeout: 10000 });
+	await expect(fullscreenOverlay.getByTestId('code-source-panel')).toBeVisible({ timeout: 10000 });
+
+	await fullscreenOverlay.getByTestId('embed-minimize').click();
+	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 10000 });
+	await expect(chatCodeEmbed).toContainText('Hello, World!', { timeout: 120000 });
+	await expect(chatCodeEmbed).not.toContainText('def greet');
+	log('Code embed preview switched to run output after execution.');
+
+	await page.goto(chatUrl);
+	await page.reload({ waitUntil: 'networkidle' });
+	const reloadedUserMessage = page.getByTestId('message-user').last();
+	await expect(reloadedUserMessage).toBeVisible({ timeout: 30000 });
+	const reloadedCodeEmbed = reloadedUserMessage.locator(
+		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
+	);
+	await expect(reloadedCodeEmbed).toBeVisible({ timeout: 30000 });
+	await expect(reloadedCodeEmbed).toContainText('Hello, World!', { timeout: 120000 });
+	await expect(reloadedCodeEmbed).not.toContainText('def greet');
+	const reloadedFullscreenOverlay = await openEmbedFullscreen(page, reloadedCodeEmbed);
+	await expect(reloadedFullscreenOverlay.getByTestId('code-source-panel')).toBeVisible({ timeout: 10000 });
+	await reloadedFullscreenOverlay.getByTestId('embed-run-button').click();
+	await expect(reloadedFullscreenOverlay.getByTestId('code-run-terminal')).toBeVisible({ timeout: 10000 });
+	await expect(reloadedFullscreenOverlay.getByTestId('code-run-terminal')).toContainText('Hello, World!', { timeout: 10000 });
+	await reloadedFullscreenOverlay.getByTestId('code-run-view-code').click();
+	await expect(reloadedFullscreenOverlay.getByTestId('code-run-overlay')).not.toBeVisible({ timeout: 10000 });
+	await screenshot(page, 'code-run-output-visible-after-reload');
+	await reloadedFullscreenOverlay.getByTestId('embed-minimize').click();
+	await expect(reloadedFullscreenOverlay).not.toBeVisible({ timeout: 10000 });
+	log('Code embed preview still shows run output after reload.');
+
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
 

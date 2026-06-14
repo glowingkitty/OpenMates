@@ -15,7 +15,6 @@
   import { onMount, tick } from 'svelte';
   // Import highlight.js theme - using github-dark for dark mode compatibility
   import 'highlight.js/styles/github-dark.css';
-  import Button from '../../Button.svelte';
   // Import shared highlighting utilities (includes all language support + Svelte)
   import { highlightToLines } from './codeHighlighting';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
@@ -42,6 +41,8 @@
   import CodePreviewPane from './CodePreviewPane.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import Toggle from '../../Toggle.svelte';
+  import { SettingsSectionHeading } from '../../settings/elements';
   import {
     CodeRunStartError,
     cancelCodeRun,
@@ -414,22 +415,23 @@
     selectedVersion?: string;
   }
 
-  let runActive = $derived(runPanelOpen && !TERMINAL_RUN_STATUSES.has(runStatus));
-  let hasCodeHeaderCta = $derived((isRunnable && !!embedId) || isPreviewable);
+  let runActive = $derived(runStatus !== 'idle' && !TERMINAL_RUN_STATUSES.has(runStatus));
   let runSelectionOpen = $state(false);
   let runSelectionLoading = $state(false);
   let runSelectionError = $state<string | null>(null);
   let runCandidates = $state<CodeRunFileCandidate[]>([]);
   let requestedRunOutputKey = $state<string | null>(null);
-  let outputPaneActive = $derived(previewActive || runPanelOpen || runSelectionOpen);
+  let codeRunOverlayActive = $derived(runPanelOpen || runSelectionOpen);
+  let outputPaneActive = $derived(previewActive);
+  let splitPaneActive = $derived(outputPaneActive || codeRunOverlayActive);
+  let hasCodeHeaderCta = $derived(((isRunnable && !!embedId && !codeRunOverlayActive) || isPreviewable));
   let savedRunOutput = $state<SavedCodeRunOutput | null>(null);
   let runDisplayEvents = $derived(buildCompactRunEvents(runEvents));
   let selectableRunCandidates = $derived(runCandidates.filter((candidate) => !candidate.required));
   let allOptionalCandidatesSelected = $derived(selectableRunCandidates.length > 0 && selectableRunCandidates.every((candidate) => candidate.selected));
   let selectedRunCandidates = $derived(runCandidates.filter((candidate) => candidate.selected || candidate.required));
   let runCtaLabel = $derived.by(() => {
-    if (runSelectionOpen) return $text('app_skills.code.run.hide_files');
-    if (runPanelOpen) return $text('app_skills.code.run.hide_output');
+    if (runActive || runEvents.length > 0) return $text('app_skills.code.run.show_output');
     if (savedRunOutput) return $text('app_skills.code.run.show_output');
     return $text('app_skills.code.run_code');
   });
@@ -549,8 +551,57 @@
     return events.map(({ kind, text, timestamp }) => ({ kind, text, timestamp }));
   }
 
+  function isDependencyInstallEvent(event: CodeRunEvent): boolean {
+    const text = event.text.trimStart();
+    return (
+      event.kind === 'status' && text.startsWith('Installing selected ')
+      || text.startsWith('Collecting ')
+      || text.startsWith('Obtaining dependency information for ')
+      || text.startsWith('Downloading ')
+      || text.startsWith('Installing collected packages:')
+      || text.startsWith('Successfully installed ')
+      || text.startsWith('Requirement already satisfied:')
+    );
+  }
+
+  function hasFailedFinalStatus(events: CodeRunEvent[]): boolean {
+    return events.some((event) => {
+      const text = event.text.trimStart();
+      return event.kind === 'status' && (text.startsWith('Exited ') && !text.includes('code 0'));
+    });
+  }
+
+  function hasSuccessfulFinalStatus(events: CodeRunEvent[]): boolean {
+    return events.some((event) => {
+      const text = event.text.trimStart();
+      return event.kind === 'status' && text.startsWith('Exited ') && text.includes('code 0');
+    });
+  }
+
+  function omitSuccessfulDependencyInstallEvents(events: CodeRunEvent[]): CodeRunEvent[] {
+    const filtered: CodeRunEvent[] = [];
+    let inInstallBlock = false;
+    for (const event of events) {
+      const text = event.text.trimStart();
+      if (event.kind === 'status' && text.startsWith('Installing selected ')) {
+        inInstallBlock = true;
+        continue;
+      }
+      if (inInstallBlock && event.kind === 'status' && text.startsWith('Running ')) {
+        inInstallBlock = false;
+        filtered.push(event);
+        continue;
+      }
+      if (inInstallBlock && isDependencyInstallEvent(event)) continue;
+      if (!inInstallBlock) filtered.push(event);
+    }
+    return filtered;
+  }
+
   function buildCompactRunEvents(events: CodeRunEvent[]): CodeRunEvent[] {
-    return events.filter((event) => !event.text.startsWith('Queued code run for'));
+    const compactEvents = events.filter((event) => !event.text.startsWith('Queued code run for'));
+    if (!hasSuccessfulFinalStatus(compactEvents) || hasFailedFinalStatus(compactEvents)) return compactEvents;
+    return omitSuccessfulDependencyInstallEvents(compactEvents);
   }
 
   function compactRunOutputText(): string {
@@ -647,12 +698,11 @@
   }
 
   function toggleRunOutput() {
-    if (runSelectionOpen) {
+    if (codeRunOverlayActive) return;
+    if (runExecutionId || runEvents.length > 0) {
+      previewActive = false;
       runSelectionOpen = false;
-      return;
-    }
-    if (runPanelOpen) {
-      runPanelOpen = false;
+      runPanelOpen = true;
       return;
     }
     if (savedRunOutput) {
@@ -669,6 +719,11 @@
       return;
     }
     openRunSelectionOrRun();
+  }
+
+  function closeCodeRunOverlay() {
+    runSelectionOpen = false;
+    runPanelOpen = false;
   }
 
   function normalizeEmbedType(value: unknown): string {
@@ -753,14 +808,11 @@
 
   function dependencyCandidate(embedIdValue: string, install: CodeRunDependencyInstall): CodeRunFileCandidate {
     const packageList = install.packages.join(', ');
-    const titleKey = install.ecosystem === 'python'
-      ? 'app_skills.code.run.install_python_packages'
-      : 'app_skills.code.run.install_npm_packages';
     return {
       id: `dependency:${install.ecosystem}:${embedIdValue}:${install.packages.join('|')}`,
       embedId: embedIdValue,
       kind: 'dependency',
-      title: $text(titleKey, { values: { packages: packageList } }),
+      title: packageList,
       subtitle: $text('app_skills.code.run.detected_install_command'),
       selected: true,
       required: false,
@@ -787,11 +839,11 @@
       id: `dependency:${suggestion.ecosystem}:${suggestion.package}`,
       embedId: `dependency:${suggestion.package}`,
       kind: 'dependency',
-      title: $text('app_skills.code.run.install_detected_package', { values: { package: suggestion.package } }),
+      title: suggestion.package,
       subtitle: released
         ? $text('app_skills.code.run.detected_import_latest_release', { values: { importName: suggestion.import_name, version, releaseDate: released } })
         : $text('app_skills.code.run.detected_import_latest', { values: { importName: suggestion.import_name, version } }),
-      selected: false,
+      selected: true,
       required: false,
       dependencyPackage: suggestion.package,
       dependencyImportName: suggestion.import_name,
@@ -1222,7 +1274,7 @@
       <!-- Split-pane layout when preview or terminal output is active, full code otherwise -->
       <div
         class="code-fullscreen-container"
-        class:output-pane-active={outputPaneActive}
+        class:output-pane-active={splitPaneActive}
         class:with-header-cta={hasCodeHeaderCta}
       >
         {#if hasPII}
@@ -1258,10 +1310,19 @@
           </div>
         {/if}
 
-        <div class="code-split-wrapper" class:split-active={outputPaneActive}>
-          <!-- Code panel — always visible. When output is active, takes 30% on desktop,
-               or becomes a shortened scrollable container on mobile. -->
-          <div class="code-panel" class:code-panel-split={outputPaneActive} data-testid="code-source-panel">
+        <div
+          class="code-split-wrapper"
+          class:split-active={splitPaneActive}
+          class:preview-split-active={outputPaneActive}
+          class:code-run-pane-active={codeRunOverlayActive}
+        >
+          <div
+            class="code-panel"
+            class:code-panel-split={splitPaneActive}
+            class:code-panel-preview-split={outputPaneActive}
+            class:code-panel-code-run-split={codeRunOverlayActive}
+            data-testid="code-source-panel"
+          >
             <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
               {#each highlightedLines as lineHtml, i}
                 {@const lineNum = i + 1}
@@ -1279,94 +1340,181 @@
             </div>
           </div>
 
-          <!-- Output panel — rendered preview and terminal share the same right-side area. -->
-          {#if outputPaneActive}
+          <!-- Preview panel keeps the existing side-by-side rendering behavior. -->
+          {#if previewActive}
             <div class="preview-panel">
-              {#if previewActive}
-                <CodePreviewPane code={renderCodeContent} {previewType} />
-              {:else if runSelectionOpen}
-                <section class="code-run-selection" data-testid="code-run-file-selection">
-                  <div class="code-run-selection-header">
-                    <div>
-                      <div class="code-run-title">{$text('app_skills.code.run.select_files')}</div>
-                      <div class="code-run-subtitle">{$text('app_skills.code.run.select_files_description')}</div>
+              <CodePreviewPane code={renderCodeContent} {previewType} />
+            </div>
+          {/if}
+
+          {#if codeRunOverlayActive}
+            <div
+              class="code-run-overlay-layer"
+              data-testid="code-run-overlay-layer"
+              role="presentation"
+            >
+              <section
+                class="code-run-overlay"
+                class:code-run-overlay-terminal={runPanelOpen}
+                data-testid="code-run-overlay"
+                aria-live={runPanelOpen ? 'polite' : undefined}
+              >
+                <button class="code-run-breadcrumb" data-testid="code-run-view-code" onclick={closeCodeRunOverlay}>
+                  <span class="code-run-breadcrumb-chevron" aria-hidden="true"></span>
+                  <span>{$text('app_skills.code.run.view_code')}</span>
+                </button>
+
+                {#if runSelectionOpen}
+                  <section class="code-run-selection" data-testid="code-run-file-selection">
+                    <div class="code-run-execute-summary">
+                      <div class="code-run-execute-title">{$text('app_skills.code.run.upload_execute')}</div>
+                      <div class="code-run-execute-cost">{$text('app_skills.code.run.cost_per_minute')}</div>
+                      <button
+                        class="code-run-continue"
+                        data-testid="code-run-continue"
+                        onclick={() => handleRun(selectedRunCandidates)}
+                        disabled={runActive || selectedRunCandidates.length === 0}
+                      >
+                        <span class="code-run-continue-icon" aria-hidden="true"></span>
+                        <span>{$text('app_skills.code.run.continue')}</span>
+                      </button>
                     </div>
-                    <div class="code-run-selection-actions">
-                      {#if selectableRunCandidates.length > 0}
-                        <button class="code-run-again" onclick={toggleAllOptionalCandidates}>
-                          {allOptionalCandidatesSelected ? $text('app_skills.code.run.unselect_all') : $text('app_skills.code.run.select_all')}
-                        </button>
-                      {/if}
-                      <button class="code-run-again" onclick={() => { runSelectionOpen = false; }}>{$text('common.cancel')}</button>
-                      <Button onclick={() => handleRun(selectedRunCandidates)} disabled={runActive || selectedRunCandidates.length === 0}>
-                        {$text('app_skills.code.run.continue')}
-                      </Button>
-                    </div>
-                  </div>
-                  {#if runSelectionLoading}
-                    <div class="code-run-selection-message">{$text('app_skills.code.run.loading_files')}</div>
-                  {:else if runSelectionError}
-                    <div class="code-run-selection-message code-run-selection-error">{runSelectionError}</div>
-                  {/if}
-                  <div class="code-run-file-list">
-                    {#each runCandidates as candidate}
-                      <label class="code-run-file-option" class:required={candidate.required}>
-                        <input
-                          data-testid={candidate.required ? 'code-run-required-file-checkbox' : 'code-run-optional-file-checkbox'}
-                          type="checkbox"
-                          checked={candidate.selected || candidate.required}
-                          disabled={candidate.required}
-                          onchange={() => toggleRunCandidate(candidate.id)}
-                        />
-                        <span class="code-run-file-meta">
-                          <span class="code-run-file-title">{candidate.title}</span>
-                          <span class="code-run-file-subtitle">{candidate.subtitle}</span>
-                          {#if candidate.kind === 'dependency' && candidate.dependencyVersionOptions?.length && candidate.selectedVersion}
-                            <span class="code-run-dependency-version-row">
-                              <span>{$text('app_skills.code.run.version')}</span>
-                              <select
-                                value={candidate.selectedVersion}
-                                onclick={(event) => event.stopPropagation()}
-                                onchange={(event) => updateDependencyVersion(candidate.id, (event.currentTarget as HTMLSelectElement).value)}
-                              >
-                                {#each candidate.dependencyVersionOptions as option}
-                                  {@const released = formatDependencyReleaseDate(option.released_at)}
-                                  <option value={option.version}>{option.version}{released ? ` · ${released}` : ''}</option>
-                                {/each}
-                              </select>
-                            </span>
-                          {/if}
-                        </span>
-                      </label>
-                    {/each}
-                  </div>
-                </section>
-              {:else if runPanelOpen}
-                <section class="code-run-terminal" data-testid="code-run-terminal" aria-live="polite">
-                  <div class="code-run-header">
-                    <div>
-                      <div class="code-run-title">{$text('app_skills.code.run.output')}</div>
-                      <div class="code-run-subtitle">
-                        {#if runExecutionId}
-                          {runStatus} · {runFiles.length} file{runFiles.length === 1 ? '' : 's'} included
-                        {:else}
-                          {runStatus}
-                        {/if}
+
+                    {#if runSelectionLoading}
+                      <div class="code-run-selection-message">{$text('app_skills.code.run.loading_files')}</div>
+                    {:else if runSelectionError}
+                      <div class="code-run-selection-message code-run-selection-error">{runSelectionError}</div>
+                    {/if}
+
+                    <div class="code-run-selection-groups">
+                      <div class="code-run-selection-group">
+                        <SettingsSectionHeading title={$text('app_skills.code.run.files')} icon="code" />
+                        <div class="code-run-file-list">
+                          {#each runCandidates.filter((candidate) => candidate.kind !== 'dependency') as candidate}
+                            <button
+                              class="code-run-file-option"
+                              class:required={candidate.required}
+                              data-testid={candidate.required ? 'code-run-required-file-toggle' : 'code-run-optional-file-toggle'}
+                              type="button"
+                              role="switch"
+                              aria-checked={candidate.selected || candidate.required}
+                              aria-disabled={candidate.required}
+                              disabled={candidate.required}
+                              onclick={() => toggleRunCandidate(candidate.id)}
+                            >
+                              <span class="code-run-file-icon subsetting_icon code" aria-hidden="true"></span>
+                              <span class="code-run-file-title">{candidate.title}</span>
+                              <span class="code-run-row-spacer"></span>
+                              <span class="code-run-row-toggle" aria-hidden="true">
+                                <Toggle checked={candidate.selected || candidate.required} disabled={candidate.required} ariaLabel={candidate.title} presentationOnly />
+                              </span>
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+
+                      <div class="code-run-selection-group">
+                        <SettingsSectionHeading title={$text('app_skills.code.run.packages')} icon="download" />
+                        <div class="code-run-file-list">
+                          {#each runCandidates.filter((candidate) => candidate.kind === 'dependency') as candidate}
+                            <button
+                              class="code-run-file-option"
+                              data-testid="code-run-optional-file-toggle"
+                              type="button"
+                              role="switch"
+                              aria-checked={candidate.selected}
+                              aria-disabled="false"
+                              onclick={() => toggleRunCandidate(candidate.id)}
+                            >
+                              <span class="code-run-file-icon subsetting_icon download" aria-hidden="true"></span>
+                              <span class="code-run-file-meta">
+                                <span class="code-run-file-title">{candidate.title}</span>
+                                {#if candidate.kind === 'dependency' && candidate.dependencyVersionOptions?.length && candidate.selectedVersion}
+                                  <span class="code-run-dependency-version-row">
+                                    <span>{$text('app_skills.code.run.version')}</span>
+                                    <select
+                                      value={candidate.selectedVersion}
+                                      onclick={(event) => event.stopPropagation()}
+                                      onchange={(event) => updateDependencyVersion(candidate.id, (event.currentTarget as HTMLSelectElement).value)}
+                                    >
+                                      {#each candidate.dependencyVersionOptions as option}
+                                        {@const released = formatDependencyReleaseDate(option.released_at)}
+                                        <option value={option.version}>{option.version}{released ? ` · ${released}` : ''}</option>
+                                      {/each}
+                                    </select>
+                                  </span>
+                                {/if}
+                              </span>
+                              <span class="code-run-row-spacer"></span>
+                              <span class="code-run-row-toggle" aria-hidden="true">
+                                <Toggle checked={candidate.selected} ariaLabel={candidate.title} presentationOnly />
+                              </span>
+                            </button>
+                          {:else}
+                            <div class="code-run-selection-message">{$text('app_skills.code.run.no_packages')}</div>
+                          {/each}
+                        </div>
                       </div>
                     </div>
-                    <div class="code-run-header-actions">
-                      <button class="code-run-again" onclick={handleAskRunOutputFollowup} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.ask_followup')}</button>
-                      <button class="code-run-again" onclick={handleCopyRunOutput} disabled={!hasProgramRunOutput}>{$text('app_skills.code.run.copy_output')}</button>
-                      <button class="code-run-stop" onclick={handleCancelRun} disabled={!runActive || runCancelRequested}>{runCancelRequested ? $text('app_skills.code.run.cancelling_button') : $text('app_skills.code.run.stop')}</button>
-                      <button class="code-run-again" onclick={() => handleRun()} disabled={runActive}>{$text('app_skills.code.run.again')}</button>
+
+                    {#if selectableRunCandidates.length > 0}
+                      <div class="code-run-selection-footer">
+                        <button class="code-run-selection-link" type="button" onclick={toggleAllOptionalCandidates}>
+                          {allOptionalCandidatesSelected ? $text('app_skills.code.run.unselect_all') : $text('app_skills.code.run.select_all')}
+                        </button>
+                      </div>
+                    {/if}
+                  </section>
+                {:else if runPanelOpen}
+                  <section class="code-run-terminal" data-testid="code-run-terminal" aria-live="polite">
+                    <pre class="code-run-output">{#each runDisplayEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
+                    <div class="code-run-terminal-divider"></div>
+                    <div class="code-run-terminal-actions" data-testid="code-run-terminal-actions">
+                      {#if runActive}
+                        <button
+                          class="code-run-terminal-action"
+                          type="button"
+                          aria-label={runCancelRequested ? $text('app_skills.code.run.cancelling_button') : $text('app_skills.code.run.stop')}
+                          onclick={handleCancelRun}
+                          disabled={!runActive || runCancelRequested}
+                        >
+                          &gt; {runCancelRequested ? $text('app_skills.code.run.cancelling_button') : $text('app_skills.code.run.stop')}
+                        </button>
+                      {/if}
+                      <button
+                        class="code-run-terminal-action"
+                        data-testid="code-run-action-ask-followup"
+                        type="button"
+                        aria-label={$text('app_skills.code.run.ask_followup')}
+                        onclick={handleAskRunOutputFollowup}
+                        disabled={!hasProgramRunOutput}
+                      >
+                        &gt; {$text('app_skills.code.run.ask_followup')}
+                      </button>
+                      <button
+                        class="code-run-terminal-action"
+                        data-testid="code-run-action-copy-output"
+                        type="button"
+                        aria-label={$text('app_skills.code.run.copy_output')}
+                        onclick={handleCopyRunOutput}
+                        disabled={!hasProgramRunOutput}
+                      >
+                        &gt; {$text('app_skills.code.run.copy_output')}
+                      </button>
+                      <button
+                        class="code-run-terminal-action"
+                        data-testid="code-run-action-run-again"
+                        type="button"
+                        aria-label={$text('app_skills.code.run.again')}
+                        onclick={() => handleRun()}
+                        disabled={runActive}
+                      >
+                        &gt; {$text('app_skills.code.run.again')}
+                      </button>
                     </div>
-                  </div>
-                  {#if runFiles.length > 0}
-                    <div class="code-run-files">Included: {runFiles.join(', ')}</div>
-                  {/if}
-                  <pre class="code-run-output">{#each runDisplayEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
-                </section>
-              {/if}
+                  </section>
+                {/if}
+              </section>
             </div>
           {/if}
         </div>
@@ -1441,10 +1589,18 @@
   }
 
   .code-panel.code-panel-split {
-    width: 30%;
-    flex: 0 0 30%;
+    min-width: 0;
     overflow: auto;
     background-color: var(--color-grey-15);
+  }
+
+  .code-panel.code-panel-preview-split {
+    width: 30%;
+    flex: 0 0 30%;
+  }
+
+  .code-panel.code-panel-code-run-split {
+    display: none;
   }
 
   .preview-panel {
@@ -1457,102 +1613,208 @@
     position: relative;
   }
 
-  .code-run-terminal {
+  .code-run-overlay-layer {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: var(--spacing-8) var(--spacing-8) var(--spacing-10);
+    overflow: hidden;
+  }
+
+  .code-run-overlay {
     display: flex;
     flex-direction: column;
+    width: 100%;
     height: 100%;
-    margin: 0;
-    box-sizing: border-box;
-    border: 1px solid #2d3748;
-    border-radius: var(--radius-3);
-    background: #050b12;
-    color: #d1d5db;
-    color-scheme: dark;
+    min-height: 0;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
+    box-sizing: border-box;
+    border-radius: 2rem;
+    background: var(--color-grey-0);
+    color: var(--color-grey-100);
+    box-shadow: 0 8px 10px rgba(0, 0, 0, 0.22), 0 24px 44px rgba(0, 0, 0, 0.28);
+    padding: var(--spacing-6) var(--spacing-8) var(--spacing-8);
+  }
+
+  .code-run-overlay-terminal {
+    background: var(--color-grey-0);
+    color: var(--color-grey-100);
+  }
+
+  .code-run-breadcrumb {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    align-items: center;
+    gap: var(--spacing-3);
+    min-width: 0;
+    height: auto;
+    margin: 0 0 var(--spacing-8);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    filter: none;
+    color: var(--color-grey-70);
+    font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--font-size-small);
+    font-weight: 700;
+  }
+
+  .code-run-breadcrumb:hover,
+  .code-run-breadcrumb:focus-visible {
+    background: transparent;
+    color: var(--color-grey-100);
+    scale: 1;
+  }
+
+  .code-run-breadcrumb-chevron {
+    width: 1rem;
+    height: 1rem;
+    border-left: 0.2rem solid currentColor;
+    border-bottom: 0.2rem solid currentColor;
+    transform: rotate(45deg);
   }
 
   .code-run-selection {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    border: 1px solid var(--color-grey-30);
-    border-radius: var(--radius-3);
-    background: var(--color-grey-10);
-    overflow: hidden;
+    gap: var(--spacing-8);
+    min-height: 0;
+    overflow: auto;
   }
 
-  .code-run-selection-header {
+  .code-run-execute-summary {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--spacing-4);
-    padding: var(--spacing-5) var(--spacing-6);
-    border-bottom: 1px solid var(--color-grey-25);
+    gap: var(--spacing-2);
+    text-align: center;
   }
 
-  .code-run-selection-actions {
+  .code-run-execute-title {
+    color: var(--color-grey-100);
+    font-size: var(--font-size-p);
+    font-weight: 800;
+  }
+
+  .code-run-execute-cost {
+    color: var(--color-grey-70);
+    font-size: var(--font-size-small);
+    font-weight: 700;
+  }
+
+  .code-run-continue {
+    gap: var(--spacing-5);
+    margin: var(--spacing-4) 0 0;
+    min-width: 18rem;
+    color: var(--color-font-button);
+    font-weight: 800;
+  }
+
+  .code-run-continue-icon {
+    width: 1.4rem;
+    height: 1.4rem;
+    flex: 0 0 auto;
+    background: currentColor;
+    mask: url('/icons/play.svg') center / contain no-repeat;
+    -webkit-mask: url('/icons/play.svg') center / contain no-repeat;
+  }
+
+  .code-run-selection-groups {
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--spacing-3);
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: var(--spacing-8);
+  }
+
+  .code-run-selection-group :global(.settings-section-heading) {
+    padding: 0;
+    margin: 0 0 var(--spacing-4);
+  }
+
+  .code-run-selection-group :global(.heading-text) {
+    color: var(--color-grey-100);
   }
 
   .code-run-file-list {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: var(--spacing-4) var(--spacing-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
   }
 
   .code-run-file-option {
     display: flex;
-    gap: var(--spacing-4);
-    align-items: flex-start;
-    padding: var(--spacing-4);
-    border: 1px solid var(--color-grey-25);
-    border-radius: var(--radius-2);
-    background: var(--color-grey-0);
-    cursor: pointer;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 3.5rem;
+    margin: 0;
+    padding: var(--spacing-2) 0;
+    border: 0;
+    border-radius: var(--radius-3);
+    background: transparent;
+    box-shadow: none;
+    filter: none;
+    color: var(--color-grey-100);
+    text-align: left;
   }
 
-  .code-run-file-option + .code-run-file-option {
-    margin-top: var(--spacing-3);
+  .code-run-file-option:hover,
+  .code-run-file-option:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    scale: 1;
   }
 
-  .code-run-file-option.required {
+  .code-run-file-option:disabled {
+    opacity: 1;
     cursor: default;
-    border-color: var(--color-orange-50, #f59e0b);
+  }
+
+  .code-run-file-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    margin-right: var(--spacing-6);
   }
 
   .code-run-file-meta {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-1);
+    gap: var(--spacing-2);
     min-width: 0;
   }
 
   .code-run-file-title {
-    color: var(--color-font-primary);
-    font-size: var(--font-size-small);
-    font-weight: 700;
+    min-width: 0;
     overflow: hidden;
+    color: #9eb2ff;
+    font-family: 'Lexend Deca Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--font-size-p);
+    font-weight: 800;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .code-run-file-subtitle,
-  .code-run-selection-message {
-    color: var(--color-font-secondary);
-    font-size: var(--font-size-xxs);
+  .code-run-row-spacer {
+    flex: 1 1 auto;
+    min-width: var(--spacing-4);
+  }
+
+  .code-run-row-toggle {
+    display: inline-flex;
+    pointer-events: none;
   }
 
   .code-run-dependency-version-row {
     display: flex;
     align-items: center;
     gap: var(--spacing-2);
-    color: var(--color-font-secondary);
+    color: var(--color-grey-70);
     font-size: var(--font-size-xxs);
   }
 
@@ -1567,98 +1829,106 @@
   }
 
   .code-run-selection-message {
-    padding: var(--spacing-4) var(--spacing-6) 0;
+    color: var(--color-grey-70);
+    font-size: var(--font-size-small);
   }
 
   .code-run-selection-error {
     color: var(--color-error, #dc2626);
   }
 
-  .code-run-header {
+  .code-run-selection-footer {
     display: flex;
-    justify-content: space-between;
-    gap: var(--spacing-4);
-    align-items: center;
-    padding: var(--spacing-5) var(--spacing-6);
-    background: #0b1220;
-    border-bottom: 1px solid #1f2937;
+    justify-content: center;
   }
 
-  .code-run-header-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: var(--spacing-3);
-  }
-
-  .code-run-title {
-    color: #f8fafc;
+  .code-run-selection-link {
+    height: auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    filter: none;
+    color: var(--color-grey-70);
     font-size: var(--font-size-small);
     font-weight: 700;
   }
 
-  .code-run-subtitle,
-  .code-run-files {
-    color: #94a3b8;
-    font-size: var(--font-size-xxs);
+  .code-run-selection-link:hover,
+  .code-run-selection-link:focus-visible {
+    background: transparent;
+    color: var(--color-grey-100);
+    scale: 1;
   }
 
-  .code-run-files {
-    padding: var(--spacing-4) var(--spacing-6) 0;
-  }
-
-  .code-run-again {
-    border: 1px solid #334155;
-    border-radius: var(--radius-2);
-    background: #111827;
-    color: #e5e7eb;
-    padding: var(--spacing-3) var(--spacing-5);
-    cursor: pointer;
-    font-size: var(--font-size-xxs);
-  }
-
-  .code-run-again:not(:disabled):hover {
-    background: #1f2937;
-    border-color: #475569;
-  }
-
-  .code-run-again:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  .code-run-stop {
-    border: 1px solid #7f1d1d;
-    border-radius: var(--radius-2);
-    background: #450a0a;
-    color: #fecaca;
-    padding: var(--spacing-3) var(--spacing-5);
-    cursor: pointer;
-    font-size: var(--font-size-xxs);
-  }
-
-  .code-run-stop:not(:disabled):hover {
-    background: #7f1d1d;
-    border-color: #991b1b;
-  }
-
-  .code-run-stop:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
+  .code-run-terminal {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
   }
 
   .code-run-output {
     flex: 1;
     margin: 0;
-    padding: var(--spacing-5) var(--spacing-6) var(--spacing-6);
+    padding: var(--spacing-4) 0 var(--spacing-8);
     min-height: 0;
     overflow: auto;
     white-space: pre-wrap;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 0.82rem;
-    line-height: 1.45;
-    background: #050b12;
-    color: #d1d5db;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.55;
+    background: transparent;
+    color: var(--color-grey-100);
+  }
+
+  .code-run-terminal-divider {
+    height: 1px;
+    margin: 0 0 var(--spacing-5);
+    background: #8d8d8d;
+  }
+
+  .code-run-terminal-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+  }
+
+  .code-run-terminal-action {
+    height: auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    filter: none;
+    color: var(--color-grey-70);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.95rem;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .code-run-terminal-action:hover,
+  .code-run-terminal-action:focus-visible,
+  .code-run-terminal-action:active {
+    background: transparent;
+    color: var(--color-grey-100);
+    scale: 1;
+  }
+
+  .code-run-terminal-action:disabled {
+    color: #707070;
+    opacity: 1;
+    cursor: not-allowed;
   }
 
   .code-run-line {
@@ -1673,6 +1943,24 @@
     color: #fca5a5;
   }
 
+  @container fullscreen (min-width: 1400px) {
+    .code-split-wrapper.code-run-pane-active {
+      gap: var(--spacing-8);
+      background-color: transparent;
+    }
+
+    .code-panel.code-panel-code-run-split {
+      display: block;
+      width: 50%;
+      flex: 1 1 50%;
+    }
+
+    .code-run-pane-active .code-run-overlay-layer {
+      flex: 1 1 50%;
+      padding: 0 var(--spacing-8) var(--spacing-8) 0;
+    }
+  }
+
   /* Mobile: preview only — hide code panel, show full-width preview.
      The user can toggle the preview button off to see code again. */
   @media (max-width: 768px) {
@@ -1684,6 +1972,26 @@
       width: 100%;
       flex: 1 1 auto;
       min-height: 0;
+    }
+
+    .code-run-overlay-layer {
+      align-items: flex-start;
+      padding: var(--spacing-6) var(--spacing-3) var(--spacing-8);
+    }
+
+    .code-run-overlay {
+      width: 100%;
+      max-height: min(32rem, calc(100vh - 16rem));
+      border-radius: 1.75rem;
+      padding: var(--spacing-5) var(--spacing-5) var(--spacing-6);
+    }
+
+    .code-run-continue {
+      min-width: min(16rem, 100%);
+    }
+
+    .code-run-file-title {
+      font-size: var(--font-size-small);
     }
   }
 

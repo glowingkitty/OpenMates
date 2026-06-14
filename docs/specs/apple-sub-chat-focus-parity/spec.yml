@@ -1,0 +1,746 @@
+id: apple-sub-chat-focus-parity
+title: Apple Sub-Chat Processing And Focus Mode Web Parity
+status: implementing
+
+goal: >
+  Make the Apple app fully match the web app's zero-knowledge sub-chat
+  processing, focus-mode activation, and cross-surface chat sync contracts. An
+  Apple-created chat or sub-chat tree must appear correctly in the web app, and
+  a web-created sub-chat/focus-mode flow must appear correctly in Apple, without
+  weakening encryption or inventing Apple-only behavior.
+
+scope:
+  in:
+    - Apple iOS chat send/receive lifecycle parity with `chat-flow.spec.ts`, including encrypted message persistence, generated title/category/icon/summary metadata, reload/cold-boot behavior, and web visibility under the same test account.
+    - Full Apple parity for web sub-chat processing, including server approval requests, explicit approve/cancel UI, spawned child chat shell creation, progress updates, stop events, parent/child navigation, return-to-parent behavior, nested child rendering, and sending inside synced sub-chats.
+    - Sub-chat sibling broadcast behavior wherever the web app exposes it, using the same data contract and safe encryption/key reuse behavior.
+    - Apple focus-mode mention/search, activation, active pill/banner, details/indicator state, deactivation, and encrypted active-focus persistence parity with the web app.
+    - Cross-surface verification for Apple-created data in the web app and web-created data in the Apple app.
+    - Native data model, persistence, WebSocket, and UI-test support needed to represent web chat fields such as `parent_id`, `is_sub_chat`, sub-chat settings/progress, and `encrypted_active_focus_id`.
+    - Deterministic tests that prevent future Apple drift from web sub-chat and focus-mode contracts.
+  out:
+    - Changing backend sub-chat limits, depth rules, or approval policy unless an existing web parity bug requires a backend fix.
+    - Replacing the zero-knowledge encryption model or creating Apple-specific chat-key semantics.
+    - Reworking the whole Apple app shell or transcript implementation to UIKit unless profiling proves it is needed.
+    - Adding permanent production demo/example chats.
+    - Committing private account credentials, private hostnames, raw logs with identifiers, test chat IDs, or remote Mac details.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials."
+    - "gh CLI fallback search for 'apple chat sync parity sub chats focus modes' returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - docs/architecture/apple/responsive-and-next-spec-parity.md
+    - docs/architecture/data/sync.md
+    - apple/AGENTS.md
+    - .claude/rules/apple-ui.md
+    - .claude/rules/testing.md
+  code_patterns:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+  tests:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/SubChatProcessingTests.swift
+  parity_expectations:
+    - Apple must use the rendered web app and existing web E2E specs as the source of truth for sub-chat, focus-mode, and chat-sync behavior.
+    - Apple must use OpenMates-native primitives for product UI; no new default `List`, `Form`, default `Menu`, default `.sheet`, or stock product controls for approval/progress/focus UI.
+    - Native model and persistence fields must preserve web field names and semantics at API/sync boundaries while using idiomatic Swift properties internally.
+  verification:
+    - Remote Mac or XcodeBuildMCP build of `OpenMates_iOS`.
+    - Remote Mac `xcodebuild test` for unit tests covering model decoding, send payloads, sub-chat lifecycle, and focus metadata encryption.
+    - Remote Mac `xcodebuild test` for real-account Apple UI tests that run against live dev.
+    - Playwright runs through `python3 scripts/run_tests.py --spec ...` after deployment for matching web checks.
+    - Cross-surface orchestration evidence proving Apple-created chats/sub-chats appear in web and web-created sub-chats/focus state appear in Apple.
+  intentional_native_differences:
+    - Apple verification uses XCTest/XCUITest and remote Mac simulator flow instead of Playwright for native UI control.
+    - Native approval UI may be a custom OpenMates overlay/popover instead of the browser DOM component, but it must expose equivalent choices, status, accessibility, and sync side effects.
+
+clarification:
+  rounds:
+    - question: Should this Apple parity spec include full sub-chat approval UI now, or limit this slice to server-created/auto-approved sub-chats plus navigation/sync parity?
+      answer: The specs must cover full parity for sub chat processing with web app.
+  vision_summary: >
+    Apple must not implement only a simplified or auto-approved sub-chat path.
+    It must cover full web-app parity for sub-chat processing, including approval
+    and cancellation behavior, while also preserving the existing chat sync,
+    encryption, embed, and focus-mode parity goals discovered during this session.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Apple-created chat syncs to web with encrypted metadata and embeds
+    given:
+      - Alice is logged into the Apple app and web app with the same live dev test account.
+      - The Apple app is connected to the realtime WebSocket and has a valid master key and chat key cache.
+    when:
+      - Alice creates a new Apple chat and sends `Kyoto and Osaka quick tip test`.
+      - The assistant responds and post-processing completes.
+      - Alice opens or reloads the web app with the same account.
+    then:
+      - The web app shows the Apple-created chat as the most recent non-archived chat.
+      - The user and assistant messages decrypt in web with no `CLIENT_DECRYPT` or sync-guard errors for that chat.
+      - Generated title, category, icon, summary, quick-tip embeds, and timestamps match the Apple state within expected live-processing variance.
+      - Deleting the chat from either surface removes it from the other surface after sync.
+
+  - id: S-2
+    title: Apple handles web-equivalent sub-chat approval requests
+    given:
+      - Alice sends a parent chat request from Apple that causes the backend to emit a sub-chat approval request.
+      - The request includes task id, proposed child chats, server limits, and expected approval/cancel actions.
+    when:
+      - The approval request arrives before the parent assistant response completes.
+    then:
+      - Apple renders a custom OpenMates approval UI with the same approve/cancel choices and count constraints as the web app.
+      - Approving sends `sub_chat_confirmation` with `chat_id`, `task_id`, `action: approve`, and `approve_count` when applicable.
+      - Cancelling sends `sub_chat_confirmation` with `action: cancel` and does not create local child chats.
+      - The parent response stream stays active until the backend emits the final parent synthesis or a clear cancelled state.
+
+  - id: S-3
+    title: Apple creates and syncs server-spawned sub-chat shells securely
+    given:
+      - Alice approves a backend sub-chat batch from the Apple app.
+      - The backend emits child chat definitions with ids, prompts, and first user message ids.
+    when:
+      - Apple receives the sub-chat lifecycle frames.
+    then:
+      - Each child chat is stored with `parent_id` equal to the parent chat id and `is_sub_chat` true.
+      - Child chats reuse the parent chat key and do not generate independent random chat keys.
+      - Each child first user message is encrypted and synced using the same zero-knowledge metadata channel as web.
+      - The web app shows the same child chats under the parent after reload and can decrypt their first messages.
+
+  - id: S-4
+    title: Apple renders sub-chat progress, cards, tree, and navigation like web
+    given:
+      - A parent chat has one or more child chats and at least one grandchild chat.
+      - Some child chats are running, completed, cancelled, or stopped.
+    when:
+      - Alice opens the parent chat and navigates between parent, child, and grandchild chats in Apple.
+    then:
+      - Apple shows sub-chat cards or an equivalent custom native carousel for children referenced by parent messages.
+      - Apple shows parent/child tree structure in the chat list with clear nesting and current-chat state.
+      - Opening a child exposes a return-to-parent action and child context matching web behavior.
+      - Progress, stopped, completed, and cancelled states update from WebSocket events without requiring app restart.
+
+  - id: S-5
+    title: Apple supports sending inside synced sub-chats and sibling broadcast parity
+    given:
+      - Alice has opened a synced child sub-chat in Apple.
+      - The child has siblings under the same parent.
+    when:
+      - Alice sends a message inside the child sub-chat with sibling broadcast disabled.
+    then:
+      - Only the active child receives and syncs the message.
+      - The message payload includes `parent_id` context for the backend when web would include it.
+    and:
+      - When Alice enables the sibling broadcast control and sends another message, Apple mirrors web behavior by copying/sending the message to eligible sibling sub-chats using safe per-chat encryption and unique message ids.
+
+  - id: S-6
+    title: Web-created real sub-chat flow syncs into Apple
+    given:
+      - The web app runs the live sub-chat inference flow from `sub-chats-real-inference.spec.ts`.
+      - The backend creates at least one sub-chat under a parent chat.
+    when:
+      - Alice opens the same account in Apple after sync.
+    then:
+      - Apple shows the parent chat, child sub-chat cards/tree entries, and return-to-parent navigation.
+      - Apple can open the web-created sub-chat, decrypt messages, send a new child message, and receive an assistant response in that sub-chat.
+
+  - id: S-7
+    title: Apple focus-mode mention and activation mirror web
+    given:
+      - Alice starts a new Apple chat.
+    when:
+      - Alice types `@career` in the Apple composer.
+    then:
+      - Apple shows catalog-driven focus-mode mention results equivalent to the web mention dropdown.
+      - Selecting a focus mode inserts the same backend mention syntax as web and closes the dropdown.
+    and:
+      - When the backend emits `focus_mode_activated`, Apple encrypts the focus id with the chat key, stores it as `encrypted_active_focus_id`, sends `update_encrypted_active_focus_id`, and shows the active focus pill/banner state.
+
+  - id: S-8
+    title: Apple active focus mode persists, affects later sends, and deactivates like web
+    given:
+      - A chat has an active focus mode stored as `encrypted_active_focus_id`.
+    when:
+      - Alice reloads/cold-boots Apple and sends another message in that chat.
+    then:
+      - Apple decrypts `encrypted_active_focus_id` locally and includes plaintext `active_focus_id` only in the AI-processing WebSocket payload.
+      - Apple never stores plaintext focus id for private user chats.
+      - Deactivation uses the same web event contract and clears/persists the encrypted active-focus field across Apple and web.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple-created chats, messages, generated metadata, and embeds are visible and decryptable in the web app after reload under the same account.
+  - id: AC-2
+    scenario: S-2
+    text: Apple handles backend sub-chat approval requests with approve/cancel UI and sends the same `sub_chat_confirmation` payloads as web.
+  - id: AC-3
+    scenario: S-3
+    text: Apple-created sub-chat shells use `parent_id`, `is_sub_chat`, and parent-key encryption semantics matching web and CLI contracts.
+  - id: AC-4
+    scenario: S-4
+    text: Apple renders sub-chat progress, parent/child tree state, child cards, and return-to-parent navigation with web-equivalent behavior.
+  - id: AC-5
+    scenario: S-5
+    text: Apple supports sending inside synced sub-chats and sibling broadcast behavior using safe per-target encryption and unique message ids.
+  - id: AC-6
+    scenario: S-6
+    text: Web-created live sub-chat flows sync into Apple, remain decryptable, and can continue receiving child messages and assistant responses from Apple.
+  - id: AC-7
+    scenario: S-7
+    text: Apple focus-mode mention results and activation handling are catalog-driven and equivalent to the web `@career` flow.
+  - id: AC-8
+    scenario: S-8
+    text: Apple persists active focus mode as encrypted chat metadata, includes decrypted `active_focus_id` only in AI-processing payloads, and deactivates through the web-compatible contract.
+  - id: AC-9
+    scenario: S-1
+    text: No Apple parity implementation may introduce plaintext private chat content, child prompts, chat keys, or private focus IDs into durable unencrypted storage.
+
+contracts:
+  websocket:
+    - event: chat_message_added
+      direction: apple_to_server
+      payload: "{ chat_id: string, parent_id?: string|null, broadcast?: boolean, message: { message_id: string, role: user, content: string, created_at: number, chat_has_title: boolean, current_chat_title?: string|null }, encrypted_chat_key?: string|null, active_focus_id?: string|null, embeds?: array, encrypted_embeds?: array }"
+      apple_behavior:
+        - Include `parent_id` for sub-chat messages when web would include it.
+        - Include plaintext `active_focus_id` only after decrypting `encrypted_active_focus_id` locally for AI processing.
+        - Continue sending encrypted storage metadata separately after backend preprocessing.
+    - event: sub_chat_confirmation_required
+      direction: server_to_apple
+      payload: "{ chat_id: string, task_id: string, sub_chats: array, max_auto_sub_chats?: number, max_direct_sub_chats?: number, existing_sub_chats?: number, remaining_sub_chats?: number }"
+      apple_behavior:
+        - Render approve/cancel UI and keep parent stream alive.
+        - Do not create local child shells until approval/spawn data is accepted.
+    - event: sub_chat_confirmation
+      direction: apple_to_server
+      payload: "{ chat_id: string, task_id: string, action: approve|cancel, approve_count?: number|null }"
+      apple_behavior:
+        - Use the existing backend event name; do not add an Apple-only approval event.
+    - event: spawn_sub_chats
+      direction: server_to_apple
+      payload: "{ parent_id|chat_id: string, sub_chats: [{ id: string, user_message_id: string, prompt: string, wait_for_completion?: boolean }] }"
+      apple_behavior:
+        - Create encrypted child chat shells with `parent_id` and `is_sub_chat`.
+        - Store child first messages encrypted with the parent chat key.
+    - event: sub_chat_progress
+      direction: server_to_apple
+      payload: "{ chat_id: string, task_id?: string, status?: running|stopping|stopped|completed|cancelled, total?: number, completed?: number, active_sub_chat_id?: string|null }"
+      apple_behavior:
+        - Update parent and child UI without full reload.
+    - event: sub_chat_stop
+      direction: apple_to_server
+      payload: "{ chat_id: string, task_id?: string|null }"
+      apple_behavior:
+        - Stop the active sub-chat batch using the same web event contract.
+    - event: focus_mode_activated
+      direction: server_to_apple
+      payload: "{ chat_id: string, focus_id: string }"
+      apple_behavior:
+        - Encrypt `focus_id` with the chat key and persist as `encrypted_active_focus_id`.
+        - Send `update_encrypted_active_focus_id` after local encryption.
+    - event: update_encrypted_active_focus_id
+      direction: apple_to_server
+      payload: "{ chat_id: string, encrypted_active_focus_id: string|null }"
+      apple_behavior:
+        - Use this for activation persistence and deactivation clearing.
+  data:
+    - Apple `Chat` must decode, persist, merge, and sync `parent_id`, `is_sub_chat`, `sub_chat_settings`, budget metadata where present, and `encrypted_active_focus_id` without dropping unknown web-compatible fields during merges.
+    - Child chats under the current zero-knowledge sub-chat design share the parent chat key; Apple must not generate a fresh child key unless the backend/web contract changes first.
+    - Apple offline persistence must preserve enough sub-chat and focus metadata for cold boot before WebSocket sync.
+    - Apple embed persistence must keep embed refs and encrypted embed payloads associated with the correct parent or child chat.
+  ui_states:
+    - New parent chat, awaiting sub-chat approval, approving, cancelled, running child chats, completed children, stopped children, parent synthesis complete.
+    - Parent chat with child card carousel, child chat with return-to-parent action, nested child tree in chat list, sibling broadcast toggle, active focus pill/banner, focus details/indicator, and inactive focus state.
+    - Loading, websocket disconnected, approval send failed, child creation failed, decryption unavailable, and cleanup/delete states must be visible to the user and logged.
+  privacy_security:
+    - Chat keys, decrypted messages, child prompts, active focus ids, and assistant responses remain out of durable plaintext storage for private chats.
+    - Approval/progress UI may display proposed child prompts because the user must review them, but durable persistence uses existing encrypted message/chat storage.
+    - Test fixtures and committed specs must use placeholders for account, chat, host, and remote Mac identifiers.
+    - No broad silent fallback may hide sub-chat approval, encryption, or sync failures.
+
+tests:
+  - id: T-SWIFT-MODEL-001
+    type: unit
+    file: apple/OpenMatesTests/ChatSyncParityTests.swift
+    command: xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:OpenMatesTests/ChatSyncParityTests test
+    covers:
+      - AC-3
+      - AC-8
+      - AC-9
+    assertions:
+      - Chat decoding accepts snake_case `parent_id`, `is_sub_chat`, `sub_chat_settings`, and `encrypted_active_focus_id`.
+      - ChatStore merges incoming metadata without dropping existing decrypted metadata or sub-chat/focus fields.
+      - Offline persistence round-trips parent/child/focus metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-xcodebuild-OpenMatesTests-ChatSyncParityTests-fb9976a
+        timestamp: "2026-06-10T10:28:16+02:00"
+
+  - id: T-SWIFT-SUBCHAT-001
+    type: unit
+    file: apple/OpenMatesTests/SubChatProcessingTests.swift
+    command: xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:OpenMatesTests/SubChatProcessingTests test
+    covers:
+      - AC-2
+      - AC-3
+      - AC-5
+    assertions:
+      - Sub-chat approval payloads match web event names and fields.
+      - Spawned child chat shells reuse the parent chat key and include `parent_id` and `is_sub_chat`.
+      - Sibling broadcast creates unique message ids and encrypts per target chat without reusing an unsafe key.
+      - Sub-chat stop payloads match web.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-xcodebuild-OpenMatesTests-SubChatProcessingTests-fb9976a
+        timestamp: "2026-06-10T10:31:49+02:00"
+
+  - id: T-APPLE-E2E-001
+    type: unit
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:OpenMatesUITests/ChatFlowRealAccountUITests/testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse test
+    target: live_dev
+    covers:
+      - AC-1
+      - AC-9
+    assertions:
+      - Apple login with the real test account succeeds.
+      - Apple sends the Kyoto/Osaka marker prompt and receives an assistant response.
+      - Apple persists encrypted user and assistant messages plus generated chat metadata.
+      - No private credentials or raw account identifiers are written to committed logs.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-E2E-002
+    type: unit
+    file: apple/OpenMatesUITests/SubChatProcessingParityUITests.swift
+    command: xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:OpenMatesUITests/SubChatProcessingParityUITests test
+    target: live_dev
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+    assertions:
+      - Apple triggers a parent prompt that requests sub-chat approval.
+      - Apple approve and cancel paths send the correct WebSocket payloads.
+      - Approved child chats render as nested children with cards/progress and return-to-parent navigation.
+      - Apple sends inside a child sub-chat and receives an assistant response there.
+      - Apple sibling broadcast behavior matches web for eligible sibling sub-chats.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-E2E-003
+    type: unit
+    file: apple/OpenMatesUITests/FocusModeParityUITests.swift
+    command: xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:OpenMatesUITests/FocusModeParityUITests test
+    target: live_dev
+    covers:
+      - AC-7
+      - AC-8
+      - AC-9
+    assertions:
+      - Typing `@career` opens catalog-driven focus-mode mention results.
+      - Selecting a focus mode closes the dropdown and sends web-compatible mention syntax.
+      - "`focus_mode_activated` causes Apple to encrypt and persist `encrypted_active_focus_id`."
+      - Later sends include decrypted `active_focus_id` in AI-processing payload only.
+      - Deactivation clears focus state across Apple and web.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-WEB-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/chat-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec chat-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+    assertions:
+      - Web baseline chat lifecycle remains green after Apple parity changes.
+      - Web reload/logout/login decryption checks still pass.
+    red_phase:
+      required: false
+      expected: pass_existing
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-WEB-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    command: python3 scripts/run_tests.py --spec sub-chats-real-inference.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-6
+    assertions:
+      - Web baseline real sub-chat inference remains green after Apple parity changes.
+      - Server-created sub-chats still render and accept child messages in web.
+    red_phase:
+      required: false
+      expected: pass_existing
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-WEB-E2E-003
+    type: playwright
+    file: frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
+    command: python3 scripts/run_tests.py --spec focus-mode-ui-after-activation.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-7
+      - AC-8
+    assertions:
+      - Web baseline focus-mode activation, indicators, details, and stop behavior remain green after Apple parity changes.
+    red_phase:
+      required: false
+      expected: pass_existing
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CROSS-001
+    type: unit
+    file: scripts/apple_web_chat_parity.py
+    command: python3 scripts/apple_web_chat_parity.py --scenario apple-to-web-sub-chat
+    target: live_dev
+    covers:
+      - AC-1
+      - AC-3
+      - AC-4
+      - AC-5
+    assertions:
+      - A chat/sub-chat tree created from Apple is visible in web after reload.
+      - Web can decrypt the parent and child messages using the synced keys.
+      - Web shows child cards/tree entries and can delete cleanup data.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CROSS-002
+    type: unit
+    file: scripts/apple_web_chat_parity.py
+    command: python3 scripts/apple_web_chat_parity.py --scenario web-to-apple-sub-chat-focus
+    target: live_dev
+    covers:
+      - AC-6
+      - AC-7
+      - AC-8
+    assertions:
+      - A web-created live sub-chat tree appears in Apple after sync.
+      - A web-created active focus mode appears in Apple after sync.
+      - Apple can continue both the child sub-chat and focused parent chat without decryption errors.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/services/sendersChatMessages.ts: web message payload shape for parent_id, broadcast, and active_focus_id.
+    - frontend/packages/ui/src/services/sendersSync.ts: web sub-chat confirmation and stop senders.
+    - docs/specs/cli-sub-chat-deep-research/spec.yml: parent-key reuse and sub-chat shell contract.
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift: Apple dual-phase send/encrypted storage pipeline.
+    - apple/OpenMates/Sources/App/MainAppView.swift: Apple WebSocket sync event routing and metadata upsert patterns.
+  architecture: >
+    Extend Apple's existing chat model, sync routing, and send pipeline to carry
+    the same web fields and lifecycle events. Keep backend event names unchanged,
+    add native OpenMates UI for approval/progress/focus state, and verify parity
+    through both native simulator tests and web Playwright checks against live dev.
+  data_flow:
+    - Apple sends a parent message through `chat_message_added` with encrypted chat key and optional active focus/sub-chat context.
+    - Backend emits sub-chat approval/progress/spawn events through WebSocket.
+    - Apple approval UI sends `sub_chat_confirmation`; approved child shells are persisted with parent-key encryption.
+    - Apple and web both receive phased sync metadata/content and render the same parent-child tree and focus state after reload.
+  affected_files:
+    - path: apple/OpenMates/Sources/Core/Models/ChatModels.swift
+      reason: Add sub-chat and encrypted active-focus fields.
+    - path: apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      reason: Persist and load sub-chat/focus metadata across cold boot.
+    - path: apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+      reason: Route sub-chat and focus lifecycle events.
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Process sync/lifecycle events and cross-chat updates.
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Send sub-chat/focus payload fields and maintain child/focus UI state.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      reason: Render approval, progress, child navigation, broadcast, and focus controls.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+      reason: Replace local-only focus state with synced encrypted state.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+      reason: Make focus-mode mention results catalog-driven and web-compatible.
+    - path: apple/OpenMatesTests/ChatSyncParityTests.swift
+      reason: Unit coverage for model/persistence metadata.
+    - path: apple/OpenMatesTests/SubChatProcessingTests.swift
+      reason: Unit coverage for sub-chat WS/send contracts.
+    - path: apple/OpenMatesUITests/SubChatProcessingParityUITests.swift
+      reason: Real-account native sub-chat flow coverage.
+    - path: apple/OpenMatesUITests/FocusModeParityUITests.swift
+      reason: Real-account native focus-mode flow coverage.
+    - path: scripts/apple_web_chat_parity.py
+      reason: Cross-surface orchestration for Apple-web parity evidence.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-sub-chat-focus-parity/spec.yml
+    - xcodebuild unit tests for model/sub-chat/focus send contracts on remote Mac.
+    - xcodebuild UI tests for real-account Apple chat, sub-chat, and focus flows on remote Mac.
+    - python3 scripts/run_tests.py --spec chat-flow.spec.ts
+    - python3 scripts/run_tests.py --spec sub-chats-real-inference.spec.ts
+    - python3 scripts/run_tests.py --spec focus-mode-ui-after-activation.spec.ts
+    - python3 scripts/spec_verify.py docs/specs/apple-sub-chat-focus-parity/spec.yml
+
+tasks:
+  - id: TASK-1
+    title: Add Apple chat model and persistence parity fields
+    covers:
+      scenarios:
+        - S-3
+        - S-8
+      acceptance_criteria:
+        - AC-3
+        - AC-8
+        - AC-9
+    expected_files:
+      - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+      - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      - apple/OpenMatesTests/ChatSyncParityTests.swift
+    verification:
+      - T-SWIFT-MODEL-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement Apple sub-chat WebSocket and send contracts
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-5
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-5
+    expected_files:
+      - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMatesTests/SubChatProcessingTests.swift
+    verification:
+      - T-SWIFT-SUBCHAT-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add Apple sub-chat approval, progress, navigation, and broadcast UI
+    covers:
+      scenarios:
+        - S-2
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-2
+        - AC-4
+        - AC-5
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMatesUITests/SubChatProcessingParityUITests.swift
+    verification:
+      - T-APPLE-E2E-002
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Implement Apple focus-mode mention, persistence, and deactivation parity
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-7
+        - AC-8
+        - AC-9
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/MentionDropdownView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMatesUITests/FocusModeParityUITests.swift
+    verification:
+      - T-APPLE-E2E-003
+      - T-WEB-E2E-003
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add cross-surface Apple-web parity orchestration and regression checks
+    covers:
+      scenarios:
+        - S-1
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-6
+    expected_files:
+      - scripts/apple_web_chat_parity.py
+      - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    verification:
+      - T-APPLE-E2E-001
+      - T-WEB-E2E-001
+      - T-WEB-E2E-002
+      - T-CROSS-001
+      - T-CROSS-002
+    independently_deployable: false
+
+risks:
+  - Sub-chat approval and live inference flows can be slow and flaky; tests must use deterministic markers, generous timeouts, cleanup, and screenshot/log evidence.
+  - Parent-key reuse is security-sensitive; regression tests must fail on accidental child-key generation.
+  - Cross-surface tests require coordinating remote Mac simulator and Playwright live-dev runs without leaking credentials or host details.
+  - Existing Apple `MainAppView.swift` and `ChatViewModel.swift` are large files; implementation should prefer focused extractions rather than adding broad responsibilities inline.
+
+open_questions:
+  - Should the first implementation create a reusable native sub-chat approval component or keep it scoped inside chat UI until a second surface needs it?
+  - Which existing web focus-mode catalog source should Apple consume or generate from to avoid another hardcoded mention list?
+  - Should cross-surface orchestration live in one script or as two smaller scripts split by Apple-to-web and web-to-Apple direction?

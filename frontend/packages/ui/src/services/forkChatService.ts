@@ -35,14 +35,17 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { forkProgressStore } from "../stores/forkProgressStore";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
+import { chatSyncService } from "./chatSyncService";
 import { webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
+import { text } from "@repo/ui";
 import {
   encryptWithChatKey,
   decryptWithChatKey,
 } from "./cryptoService";
 import { get } from "svelte/store";
 import type { Message, Chat } from "../types/chat";
+import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 
 // How many messages to encrypt per "tick" before yielding to the event loop.
 // Keeps the UI responsive during large chats.
@@ -50,6 +53,19 @@ const BATCH_SIZE = 10;
 
 // Delay between batches (ms) to allow the UI to breathe.
 const BATCH_DELAY_MS = 0; // Use microtask-level yield (requestAnimationFrame below)
+const EXPLAIN_SELECTION_MAX_CHARS = 500;
+
+interface StartForkOptions {
+  suppressCompleteNotification?: boolean;
+  afterForkComplete?: (newChatId: string) => Promise<void> | void;
+  awaitStorageSync?: boolean;
+}
+
+interface ExplainInNewChatOptions {
+  sourceChatId: string;
+  upToMessageId: string;
+  selectedText: string;
+}
 
 // ---------------------------------------------------------------------------
 // Main entry point
@@ -67,6 +83,7 @@ export async function startFork(
   sourceChatId: string,
   upToMessageId: string,
   forkTitle: string,
+  options: StartForkOptions = {},
 ): Promise<string> {
   // Guard: only one fork at a time
   const current = forkProgressStore.getSnapshot();
@@ -112,13 +129,45 @@ export async function startFork(
   );
 
   // Run the actual work asynchronously so the caller returns immediately
-  runForkAsync(sourceChatId, newChatId, forkTitle, messagesToCopy).catch(
+  runForkAsync(sourceChatId, newChatId, forkTitle, messagesToCopy, options).catch(
     (err) => {
       console.error("[ForkChatService] Fork failed:", err);
       forkProgressStore.fail(err?.message ?? "Unknown error");
       notificationStore.error("fork.error_notification");
     },
   );
+
+  return newChatId;
+}
+
+export async function startExplainInNewChat({
+  selectedText,
+}: ExplainInNewChatOptions): Promise<string> {
+  const normalizedSelection = normalizeExplainSelection(selectedText);
+  if (!normalizedSelection) {
+    throw new Error("Selected text is required to start an explanation chat");
+  }
+
+  const $text = get(text);
+  const prompt = $text("chats.explain_in_new_chat.prompt", {
+    values: { term: normalizedSelection },
+  });
+
+  const newChatId = await createCleanExplanationChat(prompt);
+
+  notificationStore.addNotificationWithOptions("info", {
+    title: $text("chats.explain_in_new_chat.started_title"),
+    message: $text("chats.explain_in_new_chat.started_message", {
+      values: { term: normalizedSelection },
+    }),
+    duration: 12_000,
+    dismissible: true,
+    actionLabel: $text("chats.explain_in_new_chat.open_action"),
+    dedupeKey: `explain-in-new-chat:${newChatId}`,
+    onAction: () => {
+      void openChatWhenAvailable(newChatId);
+    },
+  });
 
   return newChatId;
 }
@@ -132,10 +181,11 @@ async function runForkAsync(
   newChatId: string,
   forkTitle: string,
   messagesToCopy: Message[],
+  options: StartForkOptions,
 ): Promise<void> {
   console.info(
     `[ForkChatService] Starting fork: ${sourceChatId} → ${newChatId} ` +
-      `(${messagesToCopy.length} messages, title: "${forkTitle}")`,
+      `(${messagesToCopy.length} messages)`,
   );
 
   // Step 1+2: Atomically create and persist the chat key through ChatKeyManager.
@@ -268,7 +318,7 @@ async function runForkAsync(
   //         mechanism: the backend detects an empty AI cache for this chat and
   //         asks the client for history. The client responds with all IndexedDB
   //         messages + active_focus_id via handleRequestChatHistoryImpl.
-  syncForkEncryptedToStorage(
+  const storageSync = syncForkEncryptedToStorage(
     newChatId,
     encryptedNewChatKey,
     encryptedTitle,
@@ -279,9 +329,21 @@ async function runForkAsync(
     messagesToCopy.length,
   );
 
+  if (options.awaitStorageSync) {
+    await storageSync;
+  }
+
+  if (options.afterForkComplete) {
+    await options.afterForkComplete(newChatId);
+  }
+
   // Done!
   forkProgressStore.complete();
   console.info(`[ForkChatService] Fork complete: new chat ${newChatId}`);
+
+  if (options.suppressCompleteNotification) {
+    return;
+  }
 
   // Show a "fork complete" notification that opens the forked chat on click
   notificationStore.addNotificationWithOptions("success", {
@@ -294,6 +356,80 @@ async function runForkAsync(
     },
     actionLabel: "chats.fork.complete_notification",
   });
+}
+
+function normalizeExplainSelection(selectedText: string): string {
+  return selectedText.replace(/\s+/g, " ").trim().slice(0, EXPLAIN_SELECTION_MAX_CHARS);
+}
+
+async function sendBackgroundExplanationPrompt(chatId: string, prompt: string): Promise<void> {
+  const nowTimestamp = Math.floor(Date.now() / 1000);
+  const message: Message = {
+    message_id: `${chatId.slice(-10)}-${crypto.randomUUID()}`,
+    chat_id: chatId,
+    role: "user",
+    content: prompt,
+    status: get(websocketStatus).status === "connected" ? "sending" : "waiting_for_internet",
+    created_at: nowTimestamp,
+    sender_name: "user",
+    encrypted_content: null,
+  };
+
+  await chatDB.saveMessage(message);
+
+  const chat = await chatDB.getChat(chatId);
+  if (chat) {
+    await chatDB.addChat({
+      ...chat,
+      messages_v: (chat.messages_v ?? 0) + 1,
+      updated_at: nowTimestamp,
+      last_edited_overall_timestamp: nowTimestamp,
+    });
+  }
+
+  window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chatId } }));
+  await chatSyncService.sendNewMessage(message);
+}
+
+async function createCleanExplanationChat(prompt: string): Promise<string> {
+  const chatId = crypto.randomUUID();
+  const nowTimestamp = Math.floor(Date.now() / 1000);
+  const { encryptedChatKey } = await chatKeyManager.createAndPersistKey(chatId);
+
+  const chat: Chat = {
+    chat_id: chatId,
+    encrypted_title: null,
+    encrypted_chat_key: encryptedChatKey,
+    messages_v: 0,
+    title_v: 0,
+    draft_v: 0,
+    encrypted_draft_md: null,
+    encrypted_draft_preview: null,
+    last_edited_overall_timestamp: nowTimestamp,
+    unread_count: 0,
+    created_at: nowTimestamp,
+    updated_at: nowTimestamp,
+    processing_metadata: false,
+    waiting_for_metadata: true,
+    is_incognito: false,
+  };
+
+  await chatDB.addChat(chat);
+  window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chatId } }));
+  await sendBackgroundExplanationPrompt(chatId, prompt);
+
+  return chatId;
+}
+
+async function openChatWhenAvailable(chatId: string): Promise<void> {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    if (await chatDB.getChat(chatId)) {
+      activeChatStore.setActiveChat(chatId);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  notificationStore.error(get(text)("chats.explain_in_new_chat.failed"));
 }
 
 // ---------------------------------------------------------------------------
@@ -386,8 +522,9 @@ async function reencryptMessage(
  * Also stores the encrypted title, category, and icon so that the chat appears
  * correctly on other devices (and after a full sync cycle).
  *
- * This is fire-and-forget (not awaited) because it happens after the fork is
- * considered complete from the user's perspective.
+ * Normal forks treat this as fire-and-forget because it happens after the fork
+ * is considered complete from the user's perspective. Explain-in-new-chat waits
+ * for the frame to be sent before sending its automatic follow-up prompt.
  */
 function syncForkEncryptedToStorage(
   newChatId: string,
@@ -398,13 +535,13 @@ function syncForkEncryptedToStorage(
   reencryptedMessages: Message[],
   nowTimestamp: number,
   messageCount: number,
-): void {
+): Promise<void> {
   const isConnected = get(websocketStatus).status === "connected";
   if (!isConnected) {
     console.info(
       "[ForkChatService] WebSocket offline — encrypted storage sync will be reconciled via phased_sync on reconnect",
     );
-    return;
+    return Promise.resolve();
   }
 
   // Build the message_history array for the History Injection Flow.
@@ -442,7 +579,7 @@ function syncForkEncryptedToStorage(
     payload.encrypted_icon = encryptedIcon;
   }
 
-  webSocketService
+  return webSocketService
     .sendMessage("encrypted_chat_metadata", payload)
     .then(() => {
       console.info(

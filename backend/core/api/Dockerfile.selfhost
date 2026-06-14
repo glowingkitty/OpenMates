@@ -1,0 +1,62 @@
+FROM python:3.13-slim
+
+ARG BUILD_COMMIT_SHA=""
+ARG BUILD_COMMIT_MESSAGE=""
+ARG BUILD_BRANCH=""
+ARG BUILD_TIMESTAMP=""
+ARG BUILD_VERSION_TAG=""
+
+WORKDIR /app
+
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "Acquire::Check-Valid-Until false;" > /etc/apt/apt.conf.d/99no-check-valid && \
+    echo 'Acquire::CompressionTypes::Order:: "gz";' > /etc/apt/apt.conf.d/99use-gzip-compression && \
+    for i in $(seq 1 3); do \
+        apt-get update -o Acquire::CompressionTypes::Order::="gz" && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential \
+            libpq-dev \
+            gcc \
+            curl \
+            git \
+            gosu \
+            libcairo2 \
+            libpango-1.0-0 \
+            libpangocairo-1.0-0 \
+            libgdk-pixbuf-xlib-2.0-0 \
+            libffi-dev \
+            shared-mime-info \
+            && break || \
+        sleep 5; \
+    done && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY backend/core/api/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt \
+    && pip install --no-cache-dir pytest pytest-asyncio pytest-json-report
+
+COPY backend /app/backend
+COPY shared /shared
+COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
+COPY frontend/packages/ui/src/i18n /app/frontend/packages/ui/src/i18n
+COPY frontend/apps/web_app/static/newsletter-assets /app/frontend/apps/web_app/static/newsletter-assets
+
+RUN mkdir -p /app/logs /app/backend/core/api/logs /celerybeat-data \
+    && chmod -R 777 /app/logs /app/backend/core/api/logs \
+    && adduser --disabled-password --gecos '' celeryuser \
+    && chown -R celeryuser:celeryuser /app /celerybeat-data
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/app
+ENV TRANSLATIONS_DIR=/app/frontend/packages/ui/src/i18n/locales
+ENV BUILD_COMMIT_SHA=${BUILD_COMMIT_SHA}
+ENV BUILD_COMMIT_MESSAGE=${BUILD_COMMIT_MESSAGE}
+ENV BUILD_BRANCH=${BUILD_BRANCH}
+ENV BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
+ENV BUILD_VERSION_TAG=${BUILD_VERSION_TAG}
+
+EXPOSE 8000
+
+CMD ["uvicorn", "backend.core.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "172.16.0.0/12"]

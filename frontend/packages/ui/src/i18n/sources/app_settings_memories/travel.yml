@@ -2,6 +2,25 @@ saved_connections:
   context: Settings/memory name for saved travel connections
   en: Saved connections
   de: Gespeicherte Verbindungen
+  zh: 已保存的交通路线
+  fr: Trajets enregistrés
+  pt: Conexões salvas
+  ru: Сохраненные маршруты
+  ja: 保存済みの乗り継ぎ・便
+  ko: 저장된 교통편
+  it: Collegamenti salvati
+  tr: Kaydedilen bağlantılar
+  vi: Chuyến đi đã lưu
+  id: Koneksi tersimpan
+  pl: Zapisane połączenia
+  nl: Opgeslagen verbindingen
+  ar: الرحلات المحفوظة
+  hi: सेव किए गए कनेक्शन
+  th: การเชื่อมต่อที่บันทึกไว้
+  es: Conexiones guardadas
+  cs: Uložená spojení
+  sv: Sparade anslutningar
+  he: חיבורים שמורים
   verified_by_human:
     - en
     - de
@@ -9,6 +28,25 @@ saved_connections.description:
   context: Description for saved travel connections settings/memory
   en: Flights and train connections you saved from search results.
   de: Flüge und Zugverbindungen, die du aus Suchergebnissen gespeichert hast.
+  zh: 你从搜索结果中保存的航班和火车路线。
+  fr: Vols et trajets en train que tu as enregistrés à partir des résultats de recherche.
+  pt: Voos e conexões de trem que salvaste dos resultados de pesquisa.
+  ru: Авиабилеты и ж/д маршруты, которые ты сохранил из результатов поиска.
+  ja: 検索結果から保存したフライトや列車の乗り継ぎ情報。
+  ko: 검색 결과에서 저장한 항공편 및 열차편입니다.
+  it: Voli e collegamenti ferroviari che hai salvato dai risultati di ricerca.
+  tr: Arama sonuçlarından kaydettiğin uçuş ve tren bağlantıları.
+  vi: Các chuyến bay và chuyến tàu bạn đã lưu từ kết quả tìm kiếm.
+  id: Penerbangan dan koneksi kereta yang kamu simpan dari hasil pencarian.
+  pl: Połączenia lotnicze i kolejowe zapisane z wyników wyszukiwania.
+  nl: Vluchten en treinverbindingen die je hebt opgeslagen uit de zoekresultaten.
+  ar: رحلات الطيران والقطارات التي حفظتها من نتائج البحث.
+  hi: सर्च रिज़ल्ट से आपके द्वारा सेव किए गए फ़्लाइट और ट्रेन कनेक्शन।
+  th: เที่ยวบินและการเชื่อมต่อรถไฟที่คุณบันทึกไว้จากผลการค้นหา
+  es: Vuelos y conexiones de tren que guardaste de los resultados de búsqueda.
+  cs: Lety a vlaková spojení, která sis uložil z výsledků vyhledávání.
+  sv: Flyg- och tågförbindelser som du har sparat från sökresultat.
+  he: טיסות וחיבורי רכבת ששמרת מתוצאות החיפוש.
   verified_by_human:
     - en
     - de
@@ -16,6 +54,25 @@ saved_stays:
   context: Settings/memory name for saved travel stays
   en: Saved stays
   de: Gespeicherte Unterkünfte
+  zh: 已保存的住宿处
+  fr: Séjours enregistrés
+  pt: Estadias salvas
+  ru: Сохраненные варианты проживания
+  ja: 保存済みの宿泊先
+  ko: 저장된 숙소
+  it: Soggiorni salvati
+  tr: Kaydedilen konaklamalar
+  vi: Chỗ ở đã lưu
+  id: Penginapan tersimpan
+  pl: Zapisane pobyty
+  nl: Opgeslagen verblijven
+  ar: أماكن الإقامة المحفوظة
+  hi: सेव किए गए स्टे
+  th: ที่พักที่บันทึกไว้
+  es: Estancias guardadas
+  cs: Uložené pobyty
+  sv: Sparade vistelser
+  he: שהיות שמורות
   verified_by_human:
     - en
     - de
@@ -23,6 +80,25 @@ saved_stays.description:
   context: Description for saved travel stays settings/memory
   en: Hotels and stays you saved from search results.
   de: Hotels und Unterkünfte, die du aus Suchergebnissen gespeichert hast.
+  zh: 你从搜索结果中保存的酒店和住宿。
+  fr: Hôtels et séjours que tu as enregistrés à partir des résultats de recherche.
+  pt: Hotéis e estadias que salvaste dos resultados de pesquisa.
+  ru: Отели и варианты проживания, которые ты сохранил из результатов поиска.
+  ja: 検索結果から保存したホテルや宿泊先。
+  ko: 검색 결과에서 저장한 호텔 및 숙소입니다.
+  it: Hotel e soggiorni che hai salvato dai risultati di ricerca.
+  tr: Arama sonuçlarından kaydettiğin oteller ve konaklamalar.
+  vi: Khách sạn và chỗ ở bạn đã lưu từ kết quả tìm kiếm.
+  id: Hotel dan penginapan yang kamu simpan dari hasil pencarian.
+  pl: Hotele i pobyty zapisane z wyników wyszukiwania.
+  nl: Hotels en verblijven die je hebt opgeslagen uit de zoekresultaten.
+  ar: الفنادق وأماكن الإقامة التي حفظتها من نتائج البحث.
+  hi: सर्च रिज़ल्ट से आपके द्वारा सेव किए गए होटल और स्टे।
+  th: โรงแรมและที่พักที่คุณบันทึกไว้จากผลการค้นหา
+  es: Hoteles y estancias que guardaste de los resultados de búsqueda.
+  cs: Hotely a pobyty, které sis uložil z výsledků vyhledávání.
+  sv: Hotell och vistelser som du har sparat från sökresultat.
+  he: מלונות ושהיות ששמרת מתוצאות החיפוש.
   verified_by_human:
     - en
     - de

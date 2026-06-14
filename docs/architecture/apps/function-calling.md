@@ -2,11 +2,47 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/apps/ai/processing/main_processor.py
+- backend/apps/ai/processing/preprocessor.py
+- backend/apps/ai/processing/tool_generator.py
+- backend/apps/ai/base_instructions.yml
+- backend/apps/base_skill.py
+claims:
+- id: arch-apps-function-calling-behavior
+  type: unit
+  claim: Function Calling is grounded in current source-of-truth files that parse or resolve successfully.
+  source:
   - backend/apps/ai/processing/main_processor.py
   - backend/apps/ai/processing/preprocessor.py
   - backend/apps/ai/processing/tool_generator.py
   - backend/apps/ai/base_instructions.yml
   - backend/apps/base_skill.py
+  test:
+    file: scripts/tests/test_architecture_behavioral_claims.py
+    command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
+    assertion: arch-apps-function-calling-behavior
+  verified: '2026-06-11'
+- id: arch-apps-function-calling-source-1
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-function-calling-source-1
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/base_instructions.yml
+- id: arch-apps-function-calling-source-2
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-function-calling-source-2
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/main_processor.py
+- id: arch-apps-function-calling-source-3
+  type: static
+  file: scripts/tests/test_architecture_static_claims.py
+  assertion: arch-apps-function-calling-source-3
+  anchors:
+  - type: file_exists
+    path: backend/apps/ai/processing/preprocessor.py
 ---
 
 # Function Calling

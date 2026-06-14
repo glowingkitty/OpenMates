@@ -27,6 +27,9 @@
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
+  import { chatDB } from '../../../services/db';
+  import { getCodeRunOutputForEmbed } from '../../../services/db/codeRunOutputs';
+  import type { CodeRunOutput } from '../../../types/chat';
   
   /**
    * Props for code embed preview
@@ -105,6 +108,51 @@
   
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
+  // isLargePreview is set reactively from the snippet param (isLarge).
+  // This drives previewLines and syntax highlighting to use more lines
+  // when the embed is rendered in the expanded (400px) large container.
+  let isLargePreview = $state(false);
+  let savedRunOutputText = $state('');
+  let savedRunOutputId = $state<string | null>(null);
+
+  const MAX_OUTPUT_PREVIEW_LINES_STANDARD = 8;
+  const MAX_OUTPUT_PREVIEW_LINES_LARGE = 18;
+
+  async function loadSavedRunOutput() {
+    if (!id) return;
+    try {
+      const output = await getCodeRunOutputForEmbed(chatDB, id);
+      if (!output) return;
+      applySavedRunOutput(output);
+    } catch (error) {
+      console.warn('[CodeEmbedPreview] Failed to load saved code run output:', error);
+    }
+  }
+
+  function applySavedRunOutput(output: CodeRunOutput | null | undefined) {
+    if (!output) return;
+    if (output.embed_id !== id || !output.output.trim()) return;
+    if (savedRunOutputId === output.id && savedRunOutputText === output.output) return;
+    savedRunOutputId = output.id;
+    savedRunOutputText = output.output;
+  }
+
+  let savedRunOutputPreviewText = $derived.by(() => {
+    if (!savedRunOutputText) return '';
+    const maxLines = isLargePreview ? MAX_OUTPUT_PREVIEW_LINES_LARGE : MAX_OUTPUT_PREVIEW_LINES_STANDARD;
+    const lines = savedRunOutputText.split('\n');
+    while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+    return lines.slice(-maxLines).join('\n');
+  });
+
+  onMount(() => {
+    void loadSavedRunOutput();
+    const handleSyncedOutput = (event: Event) => {
+      applySavedRunOutput((event as CustomEvent<CodeRunOutput>).detail);
+    };
+    window.addEventListener('codeRunOutputSynced', handleSyncedOutput);
+    return () => window.removeEventListener('codeRunOutputSynced', handleSyncedOutput);
+  });
 
   // Subscribe to the global embed PII store to get the current chat's PII state.
   // This allows the preview to reactively apply PII masking without needing
@@ -156,11 +204,6 @@
   let renderFilename = $derived(parsedContent.filename);
   let displayLanguage = $derived.by(() => formatLanguageName(renderLanguage));
   
-  // isLargePreview is set reactively from the snippet param (isLarge).
-  // This drives previewLines and syntax highlighting to use more lines
-  // when the embed is rendered in the expanded (400px) large container.
-  let isLargePreview = $state(false);
-
   let previewLines = $derived.by(() => {
     const c = renderCodeContent;
     if (!c) return [];
@@ -317,7 +360,11 @@
 	  {#snippet details({ isMobile: isMobileLayout, isLarge: isLargeLayout })}
 	    {(isLargePreview = isLargeLayout, undefined)}
 	    <div class="code-details" class:mobile={isMobileLayout}>
-	      {#if renderCodeContent}
+	      {#if savedRunOutputPreviewText}
+	        <div class="code-run-output-preview" data-testid="code-run-output-preview">
+	          <pre>{savedRunOutputPreviewText}</pre>
+	        </div>
+	      {:else if renderCodeContent}
 	        <!-- Code preview with syntax highlighting -->
 	        <div class="code-preview-container">
 	          {#if isLargePreview}
@@ -421,6 +468,38 @@
     font-size: inherit;
     line-height: inherit;
     font-family: inherit;
+  }
+
+  .code-run-output-preview {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid #2d3748;
+    border-radius: var(--radius-3);
+    background: #050b12;
+    color: #d1d5db;
+    color-scheme: dark;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  }
+
+  .code-run-output-preview pre {
+    margin: 0;
+    width: 100%;
+    padding: var(--spacing-4);
+    overflow: hidden;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    background: transparent;
+    color: inherit;
+  }
+
+  .code-details.mobile .code-run-output-preview pre {
+    font-size: var(--font-size-tiny);
+    line-height: 1.4;
   }
   
   /* Override highlight.js theme backgrounds - embeds use parent background */

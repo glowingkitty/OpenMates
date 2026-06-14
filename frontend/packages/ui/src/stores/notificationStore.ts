@@ -269,18 +269,25 @@ export const notificationStore = {
    * @param messageSecondary Secondary message (optional)
    * @param duration Duration in ms (default 7000)
    * @param title Custom title (default "You have been logged out")
+   * @param options Optional action button configuration
    */
   autoLogout: (
     message: string,
     messageSecondary?: string,
     duration?: number,
     title?: string,
+    options?: {
+      onAction?: () => void;
+      actionLabel?: string;
+    },
   ) =>
     notificationStore.addNotificationWithOptions("auto_logout", {
       title: title ?? "You have been logged out",
       message,
       messageSecondary,
       duration: duration ?? 7000,
+      onAction: options?.onAction,
+      actionLabel: options?.actionLabel,
     }),
 
   /**

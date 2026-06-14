@@ -15,23 +15,214 @@
 
 import SwiftUI
 
+enum SettingsRouteInventory {
+    static let webBaseRoutes: Set<String> = [
+        "pricing",
+        "ai",
+        "app_store",
+        "app_store/all",
+        "settings_memories",
+        "privacy",
+        "privacy/hide-personal-data",
+        "privacy/hide-personal-data/add-name",
+        "privacy/hide-personal-data/add-address",
+        "privacy/hide-personal-data/add-birthday",
+        "privacy/hide-personal-data/add-custom",
+        "privacy/auto-deletion/chats",
+        "privacy/auto-deletion/files",
+        "privacy/share-debug-logs",
+        "mates",
+        "billing",
+        "billing/buy-credits",
+        "billing/buy-credits/payment",
+        "billing/buy-credits/confirmation",
+        "billing/redeem-giftcard",
+        "billing/auto-topup",
+        "billing/auto-topup/low-balance",
+        "billing/auto-topup/monthly",
+        "billing/invoices",
+        "billing/referral-code",
+        "billing/gift-cards",
+        "billing/gift-cards/redeem",
+        "billing/gift-cards/redeemed",
+        "billing/gift-cards/buy",
+        "billing/gift-cards/buy/payment",
+        "billing/gift-cards/buy/confirmation",
+        "notifications",
+        "notifications/chat",
+        "notifications/backup",
+        "shared",
+        "shared/share",
+        "shared/tip",
+        "fork",
+        "interface",
+        "interface/language",
+        "interface/dark_mode",
+        "interface/font",
+        "account",
+        "account/timezone",
+        "account/username",
+        "account/email",
+        "account/security",
+        "account/security/passkeys",
+        "account/security/password",
+        "account/security/2fa",
+        "account/security/recovery-key",
+        "account/security/sessions",
+        "account/security/sessions/pair-initiate",
+        "account/security/sessions/confirm-pair",
+        "account/export",
+        "account/import",
+        "account/chats",
+        "account/storage",
+        "account/storage/images",
+        "account/storage/videos",
+        "account/storage/audio",
+        "account/storage/pdf",
+        "account/storage/code",
+        "account/storage/docs",
+        "account/storage/sheets",
+        "account/storage/archives",
+        "account/storage/other",
+        "account/profile-picture",
+        "account/delete",
+        "developers",
+        "developers/api-keys",
+        "developers/devices",
+        "developers/webhooks",
+        "newsletter",
+        "support",
+        "support/one-time",
+        "support/monthly",
+        "report_issue",
+        "report_issue/confirmation",
+        "incognito/info",
+        "server",
+        "server/software-update",
+        "server/stats",
+        "server/gift-cards",
+        "server/free-testing-credits",
+        "server/tests",
+        "logs",
+    ]
+
+    static let nativeRoutes: Set<String> = [
+        "pricing",
+        "ai",
+        "app_store",
+        "settings_memories",
+        "privacy",
+        "mates",
+        "billing",
+        "notifications",
+        "shared",
+        "interface",
+        "account",
+        "developers",
+        "newsletter",
+        "support",
+        "report_issue",
+        "server",
+        "logs",
+    ]
+
+    static let nativeEquivalentOrPlannedRoutes: Set<String> = [
+        "app_store/all",
+        "privacy/hide-personal-data",
+        "privacy/hide-personal-data/add-name",
+        "privacy/hide-personal-data/add-address",
+        "privacy/hide-personal-data/add-birthday",
+        "privacy/hide-personal-data/add-custom",
+        "privacy/auto-deletion/chats",
+        "privacy/auto-deletion/files",
+        "privacy/share-debug-logs",
+        "billing/buy-credits",
+        "billing/buy-credits/payment",
+        "billing/buy-credits/confirmation",
+        "billing/redeem-giftcard",
+        "billing/auto-topup",
+        "billing/auto-topup/low-balance",
+        "billing/auto-topup/monthly",
+        "billing/invoices",
+        "billing/referral-code",
+        "billing/gift-cards",
+        "billing/gift-cards/redeem",
+        "billing/gift-cards/redeemed",
+        "billing/gift-cards/buy",
+        "billing/gift-cards/buy/payment",
+        "billing/gift-cards/buy/confirmation",
+        "notifications/chat",
+        "notifications/backup",
+        "shared/share",
+        "shared/tip",
+        "fork",
+        "interface/language",
+        "interface/dark_mode",
+        "interface/font",
+        "account/timezone",
+        "account/username",
+        "account/email",
+        "account/security",
+        "account/security/passkeys",
+        "account/security/password",
+        "account/security/2fa",
+        "account/security/recovery-key",
+        "account/security/sessions",
+        "account/security/sessions/pair-initiate",
+        "account/security/sessions/confirm-pair",
+        "account/export",
+        "account/import",
+        "account/chats",
+        "account/storage",
+        "account/storage/images",
+        "account/storage/videos",
+        "account/storage/audio",
+        "account/storage/pdf",
+        "account/storage/code",
+        "account/storage/docs",
+        "account/storage/sheets",
+        "account/storage/archives",
+        "account/storage/other",
+        "account/profile-picture",
+        "account/delete",
+        "developers/api-keys",
+        "developers/devices",
+        "developers/webhooks",
+        "support/one-time",
+        "support/monthly",
+        "report_issue/confirmation",
+        "incognito/info",
+        "server/software-update",
+        "server/stats",
+        "server/gift-cards",
+        "server/free-testing-credits",
+        "server/tests",
+    ]
+
+    static var coveredWebBaseRoutes: Set<String> {
+        nativeRoutes.union(nativeEquivalentOrPlannedRoutes)
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.dismiss) var dismiss
     @Environment(\.openURL) private var openURL
     var onClose: (() -> Void)?
+    var onOpenExampleChat: ((String) -> Void)?
     @State private var showIncognitoInfo = false
     @State private var destination: SettingsDestination?
     @State private var navigationDirection: SettingsNavigationDirection = .forward
     @State private var homeScrollTop: CGFloat = 0
     @State private var destinationScrollTop: CGFloat = 0
 
-    init(onClose: (() -> Void)? = nil) {
+    init(onClose: (() -> Void)? = nil, onOpenExampleChat: ((String) -> Void)? = nil) {
         self.onClose = onClose
+        self.onOpenExampleChat = onOpenExampleChat
     }
 
-    private var isAuthenticated: Bool { authManager.currentUser != nil }
+    private var isAuthenticated: Bool { authManager.currentUser != nil || AccountSettingsUITestFixture.enabled }
     private var isAdmin: Bool { authManager.currentUser?.isAdmin == true }
 
     var body: some View {
@@ -99,6 +290,7 @@ struct SettingsView: View {
                         ) {
                             showIncognitoInfo = true
                         }
+                        .accessibilityIdentifier("settings-incognito-row")
                     }
 
                     row(.ai, AppStrings.settingsAI, icon: "ai")
@@ -111,14 +303,17 @@ struct SettingsView: View {
 
                     row(.mates, AppStrings.settingsMates, icon: "mates")
 
-                    if isAuthenticated {
+                    if isAuthenticated || BillingUITestFixture.enabled {
                         row(.billing, AppStrings.settingsBilling, icon: "billing")
+                    }
+
+                    if isAuthenticated {
                         row(.notifications, AppStrings.settingsNotifications, icon: "notifications")
                         row(.shared, AppStrings.settingsShared, icon: "shared")
                     }
 
                     row(.interface, AppStrings.settingsInterface, icon: "interface")
-                    row(.serverConnection, "Server", icon: "server")
+                    row(.serverConnection, AppStrings.serverConnection, icon: "server")
 
                     if isAuthenticated {
                         row(.account, AppStrings.settingsAccount, icon: "account")
@@ -143,12 +338,14 @@ struct SettingsView: View {
                         ) {
                             Task { await authManager.logout() }
                         }
+                        .accessibilityIdentifier("settings-logout-row")
                     }
 
                     // Footer — web: SettingsFooter.svelte, margin-top 100px
                     settingsFooter
                 }
             }
+            .accessibilityIdentifier("settings-menu")
         }
         .onPreferenceChange(SettingsHomeScrollOffsetPreferenceKey.self) { offset in
             homeScrollTop = offset
@@ -242,6 +439,7 @@ struct SettingsView: View {
         OMSettingsRow(title: title, icon: icon, iconGradient: gradient, isDestructive: isDestructive) {
             navigateTo(destination)
         }
+        .accessibilityIdentifier(destination.rowAccessibilityIdentifier)
     }
 
     private func navigateTo(_ destination: SettingsDestination) {
@@ -306,6 +504,7 @@ struct SettingsView: View {
     private func settingsDestinationContent(_ destination: SettingsDestination) -> some View {
         destinationContent(for: destination)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityIdentifier(destination.pageAccessibilityIdentifier)
             .environment(\.omSettingsScrollOffsetHandler, OMSettingsScrollOffsetHandler { offset in
                 destinationScrollTop = offset
             })
@@ -319,6 +518,8 @@ struct SettingsView: View {
                 onOpenApps: { navigateTo(.apps) },
                 onOpenAI: { navigateTo(.ai) }
             )
+        case .apps:
+            SettingsAppsFullView(onOpenExampleChat: onOpenExampleChat ?? { _ in })
         default:
             destination.view
         }
@@ -360,6 +561,7 @@ struct SettingsView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("settings-destination-back")
 
                             identityBlock
                                 .frame(height: identityHeight)
@@ -451,7 +653,7 @@ struct SettingsView: View {
             case .newsletter: return AppStrings.settingsNewsletter
             case .support: return AppStrings.settingsSupport
             case .reportIssue: return AppStrings.settingsReportIssue
-            case .serverConnection: return "Server"
+            case .serverConnection: return AppStrings.serverConnection
             case .server: return AppStrings.serverAdmin
             case .logs: return AppStrings.logs
             case .privacyPolicy: return AppStrings.privacyPolicy
@@ -484,6 +686,40 @@ struct SettingsView: View {
             }
         }
 
+        var rowAccessibilityIdentifier: String {
+            "settings-\(identifier)-row"
+        }
+
+        var pageAccessibilityIdentifier: String {
+            "settings-\(identifier)-page"
+        }
+
+        private var identifier: String {
+            switch self {
+            case .pricing: return "pricing"
+            case .ai: return "ai"
+            case .memories: return "memories"
+            case .apps: return "apps"
+            case .privacy: return "privacy"
+            case .mates: return "mates"
+            case .billing: return "billing"
+            case .notifications: return "notifications"
+            case .shared: return "shared"
+            case .interface: return "interface"
+            case .account: return "account"
+            case .developers: return "developers"
+            case .newsletter: return "newsletter"
+            case .support: return "support"
+            case .reportIssue: return "report-issue"
+            case .serverConnection: return "server-connection"
+            case .server: return "server"
+            case .logs: return "logs"
+            case .privacyPolicy: return "privacy-policy"
+            case .terms: return "terms"
+            case .imprint: return "imprint"
+            }
+        }
+
         var description: String {
             switch self {
             case .pricing: return LocalizationManager.shared.text("settings.pricing.description")
@@ -500,7 +736,7 @@ struct SettingsView: View {
             case .developers: return LocalizationManager.shared.text("settings.developers_description")
             case .newsletter: return LocalizationManager.shared.text("settings.newsletter.description")
             case .support: return LocalizationManager.shared.text("settings.support.description")
-            case .serverConnection: return "Choose the OpenMates server domain"
+            case .serverConnection: return AppStrings.serverConnectionDescription
             case .server: return LocalizationManager.shared.text("settings.server.description")
             default: return ""
             }
@@ -532,6 +768,12 @@ struct SettingsView: View {
             case .imprint: LegalChatView(documentType: .imprint)
             }
         }
+    }
+}
+
+private enum AccountSettingsUITestFixture {
+    static var enabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-account-settings-fixture")
     }
 }
 
@@ -766,15 +1008,30 @@ struct SettingsPrivacySubPage: View {
 
 struct SettingsInterfaceSubPage: View {
     @EnvironmentObject var themeManager: ThemeManager
+    @ObservedObject private var locManager = LocalizationManager.shared
     @State private var destination: InterfaceDestination?
 
     var body: some View {
         if let dest = destination {
             VStack(spacing: 0) {
                 HStack(spacing: .spacing4) {
-                    OMIconButton(icon: "back", label: AppStrings.back, size: 36) {
+                    Button {
                         destination = nil
+                    } label: {
+                        Icon("back", size: 18)
+                            .foregroundStyle(Color.fontPrimary)
+                            .frame(width: 36, height: 36)
+                            .background(Color.grey10)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: .radius7)
+                                    .stroke(Color.grey20, lineWidth: 1)
+                            )
+                            .contentShape(RoundedRectangle(cornerRadius: .radius7))
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(AppStrings.back)
+                    .accessibilityIdentifier(dest.backAccessibilityIdentifier)
                     Text(dest.title)
                         .font(.omH3)
                         .fontWeight(.semibold)
@@ -785,10 +1042,15 @@ struct SettingsInterfaceSubPage: View {
                 .padding(.vertical, .spacing6)
                 .background(Color.grey0)
 
+                Color.clear
+                    .frame(height: 0)
+                    .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
+
                 dest.view
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color.grey0)
+            .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: .spacing8) {
@@ -816,7 +1078,9 @@ struct SettingsInterfaceSubPage: View {
                         OMSettingsRow(
                             title: AppStrings.language,
                             icon: "language",
-                            iconGradient: .appLanguage
+                            iconGradient: .appLanguage,
+                            value: locManager.currentLanguage.name,
+                            accessibilityIdentifier: "settings-interface-language-row"
                         ) { destination = .language }
                     }
                 }
@@ -838,6 +1102,18 @@ struct SettingsInterfaceSubPage: View {
             }
         }
 
+        var backAccessibilityIdentifier: String {
+            switch self {
+            case .language: return "settings-language-back"
+            }
+        }
+
+        var pageAccessibilityIdentifier: String {
+            switch self {
+            case .language: return "settings-language-page"
+            }
+        }
+
         @ViewBuilder
         var view: some View {
             switch self {
@@ -852,7 +1128,7 @@ struct SettingsInterfaceSubPage: View {
 
 struct SettingsAccountSubPage: View {
     @EnvironmentObject var authManager: AuthManager
-    @State private var destination: AccountDestination?
+    @State private var destination: AccountDestination? = AccountDestination.uiTestInitialDestination
 
     var body: some View {
         if let dest = destination {
@@ -861,6 +1137,7 @@ struct SettingsAccountSubPage: View {
                     OMIconButton(icon: "back", label: AppStrings.back, size: 36) {
                         destination = nil
                     }
+                    .accessibilityIdentifier("settings-account-subpage-back")
                     Text(dest.title)
                         .font(.omH3)
                         .fontWeight(.semibold)
@@ -871,10 +1148,15 @@ struct SettingsAccountSubPage: View {
                 .padding(.vertical, .spacing6)
                 .background(Color.grey0)
 
+                Color.clear
+                    .frame(height: 0)
+                    .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
+
                 dest.view
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color.grey0)
+            .accessibilityIdentifier(dest.pageAccessibilityIdentifier)
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: .spacing8) {
@@ -882,55 +1164,90 @@ struct SettingsAccountSubPage: View {
                         OMSettingsRow(title: AppStrings.username, icon: "user", iconGradient: .primary) {
                             destination = .username
                         }
+                        .accessibilityIdentifier("settings-account-username-row")
                         OMSettingsRow(title: AppStrings.email, icon: "mail", iconGradient: .appMail) {
                             destination = .email
                         }
+                        .accessibilityIdentifier("settings-account-email-row")
                         OMSettingsRow(title: AppStrings.profilePicture, icon: "image", iconGradient: .appPhotos) {
                             destination = .profilePicture
                         }
+                        .accessibilityIdentifier("settings-account-profile-picture-row")
                         OMSettingsRow(title: AppStrings.usage, icon: "usage", iconGradient: .appFinance) {
                             destination = .usage
                         }
+                        .accessibilityIdentifier("settings-account-usage-row")
                         OMSettingsRow(title: AppStrings.storage, icon: "cloud", iconGradient: .appFiles) {
                             destination = .storage
                         }
+                        .accessibilityIdentifier("settings-account-storage-row")
                         OMSettingsRow(title: AppStrings.chats, icon: "chat", iconGradient: .appMessages) {
                             destination = .chats
                         }
+                        .accessibilityIdentifier("settings-account-chats-row")
                         OMSettingsRow(title: AppStrings.importChats, icon: "download", iconGradient: .appDocs) {
                             destination = .importChats
                         }
+                        .accessibilityIdentifier("settings-account-import-chats-row")
                         OMSettingsRow(title: AppStrings.exportData, icon: "upload", iconGradient: .appDocs) {
                             destination = .exportData
                         }
+                        .accessibilityIdentifier("settings-account-export-data-row")
                     }
 
                     OMSettingsSection(AppStrings.settingsSecurity) {
-                        OMSettingsRow(title: AppStrings.passkeys, icon: "passkey", iconGradient: .appSecrets) {
+                        OMSettingsRow(
+                            title: AppStrings.passkeys,
+                            icon: "passkey",
+                            iconGradient: .appSecrets,
+                            accessibilityIdentifier: "settings-account-passkeys-row"
+                        ) {
                             destination = .passkeys
                         }
-                        OMSettingsRow(title: AppStrings.password, icon: "lock", iconGradient: .appSecrets) {
+                        OMSettingsRow(
+                            title: AppStrings.password,
+                            icon: "lock",
+                            iconGradient: .appSecrets,
+                            accessibilityIdentifier: "settings-account-password-row"
+                        ) {
                             destination = .password
                         }
-                        OMSettingsRow(title: AppStrings.twoFactorAuth, icon: "tfas", iconGradient: .appSecrets) {
+                        OMSettingsRow(
+                            title: AppStrings.twoFactorAuth,
+                            icon: "tfas",
+                            iconGradient: .appSecrets,
+                            accessibilityIdentifier: "settings-account-2fa-row"
+                        ) {
                             destination = .twoFactor
                         }
-                        OMSettingsRow(title: AppStrings.recoveryKey, icon: "secret", iconGradient: .appSecrets) {
+                        OMSettingsRow(
+                            title: AppStrings.recoveryKey,
+                            icon: "secret",
+                            iconGradient: .appSecrets,
+                            accessibilityIdentifier: "settings-account-recovery-key-row"
+                        ) {
                             destination = .recoveryKey
                         }
-                        OMSettingsRow(title: AppStrings.activeSessions, icon: "desktop", iconGradient: .appCode) {
+                        OMSettingsRow(
+                            title: AppStrings.activeSessions,
+                            icon: "desktop",
+                            iconGradient: .appCode,
+                            accessibilityIdentifier: "settings-account-sessions-row"
+                        ) {
                             destination = .sessions
                         }
                         OMSettingsRow(title: AppStrings.pairNewDevice, icon: "dummyqr", iconGradient: .primary) {
                             destination = .pairDevice
                         }
+                        .accessibilityIdentifier("settings-account-pair-device-row")
                     }
 
                     OMSettingsSection {
                         OMSettingsRow(
                             title: AppStrings.deleteAccount,
                             icon: "delete",
-                            isDestructive: true
+                            isDestructive: true,
+                            accessibilityIdentifier: "settings-account-delete-row"
                         ) { destination = .deleteAccount }
                     }
                 }
@@ -947,6 +1264,13 @@ struct SettingsAccountSubPage: View {
         case username, email, profilePicture, usage, storage, chats
         case importChats, exportData, deleteAccount
         case passkeys, password, twoFactor, recoveryKey, sessions, pairDevice
+
+        static var uiTestInitialDestination: AccountDestination? {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-account-delete-preview") {
+                return .deleteAccount
+            }
+            return nil
+        }
 
         var title: String {
             switch self {
@@ -965,6 +1289,26 @@ struct SettingsAccountSubPage: View {
             case .recoveryKey: return AppStrings.recoveryKey
             case .sessions: return AppStrings.activeSessions
             case .pairDevice: return AppStrings.pairNewDevice
+            }
+        }
+
+        var pageAccessibilityIdentifier: String {
+            switch self {
+            case .username: return "settings-account-username-page"
+            case .email: return "settings-account-email-page"
+            case .profilePicture: return "settings-account-profile-picture-page"
+            case .usage: return "settings-account-usage-page"
+            case .storage: return "settings-account-storage-page"
+            case .chats: return "settings-account-chats-page"
+            case .importChats: return "settings-account-import-chats-page"
+            case .exportData: return "settings-account-export-data-page"
+            case .deleteAccount: return "settings-account-delete-page"
+            case .passkeys: return "settings-account-passkeys-page"
+            case .password: return "settings-account-password-page"
+            case .twoFactor: return "settings-account-2fa-page"
+            case .recoveryKey: return "settings-account-recovery-key-page"
+            case .sessions: return "settings-account-sessions-page"
+            case .pairDevice: return "settings-account-pair-device-page"
             }
         }
 
@@ -1021,6 +1365,7 @@ struct SettingsDeleteAccountView: View {
                             .textContentType(.password)
                             .textFieldStyle(OMTextFieldStyle())
                             .accessibleInput(AppStrings.enterPassword, hint: LocalizationManager.shared.text("auth.enter_account_password"))
+                            .accessibilityIdentifier("delete-account-password-input")
 
                         TextField(AppStrings.deleteAccountConfirmText, text: $confirmText)
                             .textFieldStyle(OMTextFieldStyle())
@@ -1029,6 +1374,7 @@ struct SettingsDeleteAccountView: View {
                             .textInputAutocapitalization(.never)
                             #endif
                             .accessibleInput(AppStrings.deleteAccountConfirmText, hint: LocalizationManager.shared.text("settings.type_delete_confirm_hint"))
+                            .accessibilityIdentifier("delete-account-confirm-input")
                     }
                     .padding(.spacing6)
                 }
@@ -1057,6 +1403,7 @@ struct SettingsDeleteAccountView: View {
                 .buttonStyle(.plain)
                 .disabled(!canDelete || isDeleting)
                 .accessibleButton(AppStrings.permanentlyDeleteAccount, hint: LocalizationManager.shared.text("settings.delete_account_hint"))
+                .accessibilityIdentifier("delete-account-final-button")
 
                 if let error {
                     Text(error)

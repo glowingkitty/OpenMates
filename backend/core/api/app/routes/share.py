@@ -5,16 +5,20 @@
 
 import logging
 import hashlib
+import json
 import re
 import time
 import os
-from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Request, Depends
+from typing import Dict, Any, Optional, List, Literal
+from urllib.parse import urlparse
+from urllib.request import Request as UrlRequest, urlopen
+from fastapi import APIRouter, HTTPException, Request, Depends, Query, Response
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services import cache_config
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
@@ -53,14 +57,17 @@ class ShareChatMetadataUpdate(BaseModel):
     chat_id: str
     title: Optional[str] = None
     summary: Optional[str] = None
+    share_cta_text: Optional[str] = None
     category: Optional[str] = None
     icon: Optional[str] = None
     follow_up_suggestions: Optional[List[str]] = None
+    image_bubbles: Optional[List[Dict[str, Optional[str]]]] = None
     is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
     share_pii: Optional[bool] = None  # Whether shared chat viewers may receive encrypted PII mappings
     share_highlights: Optional[bool] = None  # Whether shared chat viewers may receive encrypted highlights/comments
     share_with_community: Optional[bool] = None  # Whether to email the share link to admin for community consideration
     share_link: Optional[str] = None  # Full share link with encryption key (for community sharing email)
+    encrypted_shared_short_url: Optional[str] = None  # Client-encrypted /s/<token>#<shortKey> for owner share UI reuse
 
 class UnshareChatRequest(BaseModel):
     """Request model for unsharing a chat"""
@@ -101,6 +108,102 @@ def generate_dummy_encrypted_data(chat_id: str) -> Dict[str, Any]:
         "encrypted_chat_summary": dummy_summary,
         "messages": dummy_messages,
         "is_dummy": True  # Internal flag, not sent to client
+    }
+
+async def get_shared_chat_or_dummy(chat_id: str, directus_service: DirectusService) -> tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+    if not chat or chat.get("is_private", False):
+        dummy_data = generate_dummy_encrypted_data(chat_id)
+        dummy_data.pop("is_dummy", None)
+        return None, dummy_data
+    return chat, None
+
+def sanitize_shared_pii(messages: List[Any], share_pii: bool) -> List[Any]:
+    if share_pii or not messages:
+        return messages
+    import json
+    sanitized_messages = []
+    for message in messages:
+        if isinstance(message, str):
+            try:
+                parsed_message = json.loads(message)
+                if isinstance(parsed_message, dict):
+                    parsed_message.pop("encrypted_pii_mappings", None)
+                    sanitized_messages.append(json.dumps(parsed_message))
+                else:
+                    sanitized_messages.append(message)
+            except Exception:
+                sanitized_messages.append(message)
+            continue
+        sanitized = dict(message)
+        sanitized.pop("encrypted_pii_mappings", None)
+        sanitized_messages.append(sanitized)
+    return sanitized_messages
+
+async def get_shared_chat_auxiliary_payload(
+    chat_id: str,
+    chat: Dict[str, Any],
+    directus_service: DirectusService,
+) -> Dict[str, Any]:
+    import hashlib
+    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+    share_highlights = chat.get("share_highlights", True)
+    if share_highlights is None:
+        share_highlights = True
+
+    embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
+    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
+    message_highlights = []
+    if share_highlights:
+        message_highlights = await directus_service.get_items(
+            "message_highlights",
+            params={
+                "filter[chat_id][_eq]": chat_id,
+                "fields": "id,chat_id,message_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
+                "sort": "created_at",
+                "limit": -1,
+            },
+            admin_required=True,
+        ) or []
+    code_run_outputs = await directus_service.get_items(
+        "code_run_outputs",
+        params={
+            "filter[chat_id][_eq]": chat_id,
+            "fields": "id,chat_id,embed_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
+            "sort": "-updated_at",
+            "limit": -1,
+        },
+        admin_required=True,
+    ) or []
+    sub_chats = await directus_service.get_items(
+        "chats",
+        params={
+            "filter[parent_id][_eq]": chat_id,
+            "fields": "id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_icon,encrypted_category,parent_id,is_sub_chat,budget_limit,budget_spent",
+            "sort": "created_at",
+            "limit": -1,
+        },
+        admin_required=True,
+    ) or []
+    return {
+        "embeds": embeds or [],
+        "embed_keys": embed_keys or [],
+        "sub_chats": sub_chats,
+        "code_run_outputs": code_run_outputs,
+        "message_highlights": message_highlights,
+        "share_highlights": bool(share_highlights),
+    }
+
+def shared_chat_metadata_payload(chat_id: str, chat: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "chat_id": chat_id,
+        "encrypted_title": chat.get("encrypted_title"),
+        "encrypted_chat_summary": chat.get("encrypted_chat_summary"),
+        "encrypted_follow_up_request_suggestions": chat.get("encrypted_follow_up_request_suggestions"),
+        "encrypted_icon": chat.get("encrypted_icon"),
+        "encrypted_category": chat.get("encrypted_category"),
+        "share_pii": bool(chat.get("share_pii", False)),
+        "is_dummy": False,
     }
 
 # --- Endpoints ---
@@ -253,6 +356,90 @@ async def get_shared_chat(
         dummy_data.pop("is_dummy", None)
         return dummy_data
 
+@router.get("/chat/{chat_id}/manifest")
+@limiter.limit("30/minute")
+async def get_shared_chat_manifest(
+    request: Request,
+    chat_id: str,
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """Get shared-chat metadata and auxiliary encrypted records without messages."""
+    try:
+        chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+        if dummy is not None or chat is None:
+            return dummy or generate_dummy_encrypted_data(chat_id)
+        payload = shared_chat_metadata_payload(chat_id, chat)
+        payload.update(await get_shared_chat_auxiliary_payload(chat_id, chat, directus_service))
+        payload["messages"] = []
+        return payload
+    except Exception as e:
+        logger.error(f"Error fetching shared chat manifest {chat_id}: {e}", exc_info=True)
+        dummy_data = generate_dummy_encrypted_data(chat_id)
+        dummy_data.pop("is_dummy", None)
+        return dummy_data
+
+@router.get("/chat/{chat_id}/messages")
+@limiter.limit("60/minute")
+async def get_shared_chat_message_window(
+    request: Request,
+    chat_id: str,
+    before_timestamp: int = Query(default=2147483647),
+    before_message_id: Optional[str] = Query(default=None),
+    target_message_id: Optional[str] = Query(default=None),
+    limit: int = Query(default=40, ge=1, le=100),
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """Get a bounded encrypted shared-chat message window."""
+    try:
+        if not isinstance(before_message_id, str):
+            before_message_id = None
+        if not isinstance(target_message_id, str):
+            target_message_id = None
+        chat, dummy = await get_shared_chat_or_dummy(chat_id, directus_service)
+        if dummy is not None or chat is None:
+            return {"chat_id": chat_id, "messages": (dummy or {}).get("messages", []), "has_more": False, "next_before_timestamp": None}
+        if target_message_id:
+            target_message = await directus_service.chat.get_message_for_chat_by_client_id(
+                chat_id=chat_id,
+                message_id=target_message_id,
+            )
+            if target_message:
+                before_timestamp = min(int(before_timestamp), int(target_message.get("created_at") or before_timestamp))
+        messages = await directus_service.chat.get_messages_for_chat_before_timestamp(
+            chat_id=chat_id,
+            before_timestamp=before_timestamp,
+            before_message_id=before_message_id,
+            limit=limit + 1,
+        )
+        has_more = len(messages) > limit
+        if has_more:
+            messages = messages[1:]
+        messages = sanitize_shared_pii(messages, bool(chat.get("share_pii", False)))
+        next_before_timestamp = None
+        next_before_message_id = None
+        if has_more and messages:
+            import json
+            try:
+                first_message = json.loads(messages[0])
+                next_before_timestamp = int(first_message.get("created_at"))
+                next_before_message_id = first_message.get("message_id") or first_message.get("client_message_id") or first_message.get("id")
+            except Exception:
+                next_before_timestamp = None
+                next_before_message_id = None
+        return {
+            "chat_id": chat_id,
+            "messages": messages,
+            "has_more": has_more,
+            "next_before_timestamp": next_before_timestamp,
+            "next_before_message_id": next_before_message_id,
+            "target_message_id": target_message_id,
+        }
+    except Exception as e:
+        logger.error(f"Error fetching shared chat messages {chat_id}: {e}", exc_info=True)
+        dummy_data = generate_dummy_encrypted_data(chat_id)
+        dummy_data.pop("is_dummy", None)
+        return {"chat_id": chat_id, "messages": dummy_data.get("messages", []), "has_more": False, "next_before_timestamp": None}
+
 @router.get("/chat/{chat_id}/og-metadata")
 @limiter.limit("60/minute")  # Higher limit since this is used for every share page load
 async def get_og_metadata(
@@ -277,101 +464,8 @@ async def get_og_metadata(
     - Returns consistent fallback for non-existent/private chats
     """
     try:
-        # Fetch chat metadata
-        logger.debug(f"Fetching OG metadata for chat {chat_id}")
-        chat = await directus_service.chat.get_chat_metadata(chat_id)
-
-        if not chat:
-            # Chat doesn't exist - return fallback
-            logger.warning(f"Chat {chat_id} not found for OG metadata, returning fallback")
-            return {
-                "title": "Shared Chat - OpenMates",
-                "description": "View this shared conversation on OpenMates",
-                "image": "/og-images/default-chat.png",
-                "category": None
-            }
-
-        # Log what we received from Directus
-        logger.debug(f"Chat {chat_id} metadata retrieved: "
-                    f"is_private={chat.get('is_private')}, is_shared={chat.get('is_shared')}, "
-                    f"has_shared_encrypted_title={bool(chat.get('shared_encrypted_title'))}, "
-                    f"has_shared_encrypted_summary={bool(chat.get('shared_encrypted_summary'))}")
-
-        # Check if chat is private
-        is_private = chat.get("is_private", False)
-        if is_private:
-            # Chat is private - return fallback
-            logger.info(f"Chat {chat_id} is private, returning fallback OG metadata")
-            return {
-                "title": "Shared Chat - OpenMates",
-                "description": "View this shared conversation on OpenMates",
-                "image": "/og-images/default-chat.png",
-                "category": None
-            }
-
-        # Chat exists and is shared - decrypt metadata
-        shared_encrypted_title = chat.get("shared_encrypted_title")
-        shared_encrypted_summary = chat.get("shared_encrypted_summary")
-
-        # Log what we received to help debug OG tag issues
-        logger.debug(
-            f"OG metadata for chat {chat_id}: "
-            f"has_shared_encrypted_title={bool(shared_encrypted_title)}, "
-            f"has_shared_encrypted_summary={bool(shared_encrypted_summary)}, "
-            f"is_private={chat.get('is_private', False)}, "
-            f"is_shared={chat.get('is_shared', False)}"
-        )
-
-        title = "Shared Chat - OpenMates"  # Fallback
-        description = "View this shared conversation on OpenMates"  # Fallback
-
-        # Decrypt title if available
-        if shared_encrypted_title:
-            try:
-                title = await encryption_service.decrypt(
-                    shared_encrypted_title,
-                    key_name="shared-content-metadata"
-                )
-                logger.info(
-                    f"Decrypted title for chat {chat_id} "
-                    f"(length={len(title) if isinstance(title, str) else 0})"
-                )
-            except Exception as e:
-                logger.warning(f"Failed to decrypt shared_encrypted_title for chat {chat_id}: {e}")
-        else:
-            logger.warning(f"No shared_encrypted_title found for chat {chat_id} - using fallback")
-
-        # Decrypt summary if available
-        if shared_encrypted_summary:
-            try:
-                description = await encryption_service.decrypt(
-                    shared_encrypted_summary,
-                    key_name="shared-content-metadata"
-                )
-                logger.info(
-                    f"Decrypted summary for chat {chat_id} "
-                    f"(length={len(description) if isinstance(description, str) else 0})"
-                )
-            except Exception as e:
-                logger.warning(f"Failed to decrypt shared_encrypted_summary for chat {chat_id}: {e}")
-        else:
-            logger.warning(f"No shared_encrypted_summary found for chat {chat_id} - using fallback")
-
-        # Get category for OG image selection
-        # Note: We can't decrypt encrypted_category here because it's encrypted with
-        # the user's chat key, not the shared vault key. For now, we'll use the default image.
-        # In the future, we could add a shared_category field if needed.
-        category = None
-
-        # Determine OG image based on category (fallback to default for now)
-        og_image = "/og-images/default-chat.png"
-
-        return {
-            "title": title,
-            "description": description,
-            "image": og_image,
-            "category": category
-        }
+        logger.debug("Fetching OG metadata for chat %s", chat_id)
+        return await _build_shared_chat_metadata(chat_id, directus_service, encryption_service)
 
     except Exception as e:
         logger.error(f"Error fetching OG metadata for chat {chat_id}: {e}", exc_info=True)
@@ -379,9 +473,29 @@ async def get_og_metadata(
         return {
             "title": "Shared Chat - OpenMates",
             "description": "View this shared conversation on OpenMates",
-            "image": "/og-images/default-chat.png",
-            "category": None
+            "image": _shared_chat_image_path(chat_id),
+            "category": None,
+            "icon": None,
+            "image_bubbles": [],
         }
+
+
+@router.get("/chat/{chat_id}/og-image.png")
+@limiter.limit("60/minute")
+async def get_chat_og_image(
+    request: Request,
+    chat_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> Response:
+    """Generate a PNG social preview image for a direct shared-chat URL."""
+    metadata = await _build_shared_chat_metadata(chat_id, directus_service, encryption_service)
+    png = _render_short_url_og_png(metadata)
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 @router.post("/chat/metadata")
 @limiter.limit("30/minute")  # Prevent abuse of metadata updates
@@ -435,6 +549,13 @@ async def update_share_metadata(
                 key_name=shared_vault_key
             )
             updates["shared_encrypted_summary"] = encrypted_summary
+
+        if payload.share_cta_text is not None:
+            encrypted_share_cta_text, _ = await encryption_service.encrypt(
+                payload.share_cta_text,
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_share_cta_text"] = encrypted_share_cta_text
         
         if payload.category is not None:
             encrypted_category, _ = await encryption_service.encrypt(
@@ -451,12 +572,34 @@ async def update_share_metadata(
             updates["shared_encrypted_icon"] = encrypted_icon
 
         if payload.follow_up_suggestions is not None:
-            import json
             encrypted_follow_ups, _ = await encryption_service.encrypt(
                 json.dumps(payload.follow_up_suggestions),
                 key_name=shared_vault_key
             )
             updates["shared_encrypted_follow_up_suggestions"] = encrypted_follow_ups
+
+        if payload.image_bubbles is not None:
+            sanitized_bubbles = []
+            for bubble in payload.image_bubbles[:2]:
+                image_url = bubble.get("imageUrl") if isinstance(bubble, dict) else None
+                if not isinstance(image_url, str) or not image_url.strip():
+                    continue
+                title = bubble.get("title") if isinstance(bubble, dict) else None
+                sanitized_bubbles.append({
+                    "imageUrl": image_url.strip(),
+                    "title": title.strip() if isinstance(title, str) and title.strip() else None,
+                })
+            encrypted_image_bubbles, _ = await encryption_service.encrypt(
+                json.dumps(sanitized_bubbles),
+                key_name=shared_vault_key,
+            )
+            updates["shared_encrypted_image_bubbles"] = encrypted_image_bubbles
+
+        payload_fields_set = getattr(payload, "model_fields_set", None)
+        if payload_fields_set is None:
+            payload_fields_set = getattr(payload, "__fields_set__", set())
+        if "encrypted_shared_short_url" in payload_fields_set:
+            updates["encrypted_shared_short_url"] = payload.encrypted_shared_short_url
         
         # Update sharing status: set is_shared=true and is_private=false when sharing
         if payload.is_shared is not None:
@@ -481,12 +624,13 @@ async def update_share_metadata(
             logger.info(f"Updating chat {chat_id} with fields: {list(updates.keys())}")
             logger.debug(f"Update values: is_shared={updates.get('is_shared')}, is_private={updates.get('is_private')}, "
                         f"has_title={bool(updates.get('shared_encrypted_title'))}, "
-                        f"has_summary={bool(updates.get('shared_encrypted_summary'))}")
+                        f"has_summary={bool(updates.get('shared_encrypted_summary'))}, "
+                        f"has_share_cta_text={bool(updates.get('shared_encrypted_share_cta_text'))}")
             
             # Request the updated fields in the response to verify they were saved
             # Directus will return the updated item with these fields if the update succeeds
             params = {
-                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,is_shared,is_private,share_pii,share_highlights'
+                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_follow_up_suggestions,shared_encrypted_image_bubbles,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights'
             }
             updated_item = await directus_service.update_item(
                 "chats",
@@ -619,7 +763,7 @@ async def unshare_chat(
     """
     Unshare a chat by setting is_private = true.
 
-    This also clears shared_encrypted_title and shared_encrypted_summary
+    This also clears shared_encrypted_title, shared_encrypted_summary, and share CTA metadata
     to remove OG metadata.
 
     Requires authentication - user must own the chat.
@@ -645,10 +789,41 @@ async def unshare_chat(
             "is_shared": False,
             "share_with_community": False,
             "shared_encrypted_title": None,
-            "shared_encrypted_summary": None
+            "shared_encrypted_summary": None,
+            "shared_encrypted_share_cta_text": None,
+            "shared_encrypted_category": None,
+            "shared_encrypted_icon": None,
+            "shared_encrypted_follow_up_suggestions": None,
+            "shared_encrypted_image_bubbles": None,
+            "encrypted_shared_short_url": None,
         }
         
         await directus_service.update_item("chats", chat_id, updates)
+        try:
+            now = int(time.time())
+            short_links = await directus_service.get_items(
+                SHORT_URL_COLLECTION,
+                params={
+                    "filter[content_type][_eq]": "chat",
+                    "filter[content_id][_eq]": chat_id,
+                    "filter[revoked_at][_null]": True,
+                    "fields": "id",
+                    "limit": -1,
+                },
+                admin_required=True,
+            )
+            for short_link in short_links or []:
+                short_link_id = short_link.get("id")
+                if short_link_id:
+                    await directus_service.update_item(
+                        SHORT_URL_COLLECTION,
+                        short_link_id,
+                        {"revoked_at": now, "updated_at": now},
+                        admin_required=True,
+                    )
+        except Exception as exc:
+            logger.error("Failed to revoke short links for unshared chat %s: %s", chat_id, exc, exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to revoke short links")
         logger.info(f"Unshared chat {chat_id}")
         
         return {"success": True, "chat_id": chat_id}
@@ -733,10 +908,9 @@ async def get_shared_embed(
             dummy_data.pop("is_dummy", None)
             return {"embed": dummy_data, "child_embeds": [], "embed_keys": [], "code_run_outputs": []}
 
-        # Check if embed is private (not shared)
-        # Use is_private field (mirrors chat sharing structure)
-        # Default to False (shareable) if field doesn't exist (for backward compatibility)
-        is_private = embed.get("is_private", False)
+        # Missing legacy privacy flags fail closed: embeds are shareable only
+        # after an owner explicitly sets is_private=false while sharing.
+        is_private = embed.get("is_private", True)
         if is_private:
             # Embed is private (unshared) - return dummy data
             logger.debug(f"Embed {embed_id} is private (unshared), returning dummy data")
@@ -837,10 +1011,9 @@ async def get_embed_og_metadata(
                 "type": "embed"
             }
 
-        # Check if embed is private (not shared)
-        # Use is_private field (mirrors chat sharing structure)
-        # Default to False (shareable) if field doesn't exist (for backward compatibility)
-        is_private = embed.get("is_private", False)
+        # Missing legacy privacy flags fail closed: embeds are shareable only
+        # after an owner explicitly sets is_private=false while sharing.
+        is_private = embed.get("is_private", True)
         if is_private:
             logger.debug(f"Embed {embed_id} is private (unshared), using fallback metadata")
             return {
@@ -988,37 +1161,658 @@ async def update_embed_share_metadata(
 
 
 # --- Short URL Sharing Endpoints ---
-# These enable ephemeral short URLs for the "hand someone a link across the room" use case.
-# The server stores only opaque encrypted blobs — zero-knowledge is preserved because the
-# decryption key lives only in the URL fragment (#token-shortKey), never sent to the server.
+# Durable short URLs use /s/{token}#shortKey. The server receives only the token
+# and stores only an opaque encrypted URL blob; the decryption key remains in the
+# URL fragment and is never sent over HTTP.
 
 # Validation: token must be 6-12 alphanumeric chars (base62)
 SHORT_URL_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9]{6,12}$")
 # Max size for encrypted URL blob (base64-encoded AES-GCM ciphertext)
 SHORT_URL_MAX_BLOB_SIZE = 4096
+SHORT_URL_MAX_TTL_SECONDS = 7_776_000  # 90 days, matching the share-key max
+SHORT_URL_COLLECTION = "share_short_links"
+
+SHORT_URL_FIELDS = (
+    "id,token,encrypted_url,content_type,content_id,hashed_user_id,"
+    "password_protected,expires_at,revoked_at,created_at,updated_at"
+)
+
+PROTECTED_CHAT_TITLE = "Password protected chat"
+PROTECTED_CHAT_DESCRIPTION = "Open this password-protected chat on OpenMates."
+PROTECTED_CHAT_OG_IMAGE_PATH = "/images/password-protected-chat-og.png"
+DEFAULT_CHAT_TITLE = "Shared Chat - OpenMates"
+DEFAULT_CHAT_DESCRIPTION = "View this shared conversation on OpenMates"
+DEFAULT_EMBED_TITLE = "Shared Embed - OpenMates"
+DEFAULT_EMBED_DESCRIPTION = "View this shared content on OpenMates"
+
+OG_IMAGE_WIDTH = 1200
+OG_IMAGE_HEIGHT = 630
+OG_SAFE_IMAGE_HOSTS = {"preview.openmates.org"}
+OPENMATES_LOGO_RELATIVE_PATH = os.path.join("frontend", "apps", "web_app", "static", "favicon.png")
+
+OG_CATEGORY_GRADIENTS: Dict[str, tuple[str, str]] = {
+    "software_development": ("#155D91", "#42ABF4"),
+    "business_development": ("#004040", "#008080"),
+    "medical_health": ("#FD50A0", "#F42C2D"),
+    "legal_law": ("#239CFF", "#005BA5"),
+    "openmates_official": ("#6366f1", "#4f46e5"),
+    "maker_prototyping": ("#EA7600", "#FBAB59"),
+    "marketing_sales": ("#FF8C00", "#F4B400"),
+    "finance": ("#119106", "#15780D"),
+    "design": ("#101010", "#2E2E2E"),
+    "electrical_engineering": ("#233888", "#2E4EC8"),
+    "movies_tv": ("#00C2C5", "#3170DC"),
+    "history": ("#4989F2", "#2F44BF"),
+    "science": ("#CE5B06", "#8F220E"),
+    "life_coach_psychology": ("#FDB250", "#F42C2D"),
+    "cooking_food": ("#FD8450", "#F42C2D"),
+    "activism": ("#F53D00", "#F56200"),
+    "general_knowledge": ("#DE1E66", "#FF763B"),
+    "onboarding_support": ("#6364FF", "#9B6DFF"),
+}
 
 
 class CreateShortUrlRequest(BaseModel):
     """Request model for creating a short URL."""
     token: str = Field(..., description="Lookup token (6-12 base62 chars, generated client-side)")
     encrypted_url: str = Field(..., description="AES-GCM encrypted share URL blob (opaque to server)")
-    ttl_seconds: int = Field(
-        default=300,
-        description="Time-to-live in seconds (60-3600, default 300)",
+    content_type: Literal["chat", "embed"] = Field(..., description="Shared content type")
+    content_id: str = Field(..., description="Chat ID or embed ID associated with the share")
+    password_protected: bool = Field(default=False, description="Whether crawler metadata must hide content metadata")
+    ttl_seconds: Optional[int] = Field(
+        default=None,
+        description="Optional time-to-live in seconds. Null means no expiration.",
         ge=60,
-        le=3600,
+        le=SHORT_URL_MAX_TTL_SECONDS,
     )
 
 
 class CreateShortUrlResponse(BaseModel):
     """Response model for short URL creation."""
     success: bool = Field(..., description="Whether the short URL was created successfully")
-    expires_at: int = Field(..., description="Unix timestamp when the short URL expires")
+    expires_at: Optional[int] = Field(default=None, description="Unix timestamp when the short URL expires, or null")
 
 
 class ResolveShortUrlResponse(BaseModel):
     """Response model for short URL resolution."""
     encrypted_url: str = Field(..., description="The encrypted share URL blob")
+
+
+class ShortUrlStorageUnavailable(Exception):
+    """Raised when durable short-link storage is temporarily unavailable."""
+
+
+def _short_url_image_path(token: str) -> str:
+    return f"/v1/share/short-url/{token}/og-image.png"
+
+
+def _shared_chat_image_path(chat_id: str) -> str:
+    return f"/v1/share/chat/{chat_id}/og-image.png"
+
+
+async def _get_short_link_record(token: str, directus_service: DirectusService) -> Optional[Dict[str, Any]]:
+    items = await directus_service.get_items(
+        SHORT_URL_COLLECTION,
+        params={
+            "filter[token][_eq]": token,
+            "fields": SHORT_URL_FIELDS,
+            "limit": 1,
+        },
+        admin_required=True,
+    )
+    if not items:
+        return None
+    return items[0]
+
+
+def _short_link_is_expired_or_revoked(record: Dict[str, Any]) -> bool:
+    if record.get("revoked_at"):
+        return True
+    expires_at = record.get("expires_at")
+    return bool(expires_at and int(expires_at) <= int(time.time()))
+
+
+async def _verify_short_link_target(
+    payload: CreateShortUrlRequest,
+    current_user: User,
+    directus_service: DirectusService,
+) -> str:
+    current_user_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+    if payload.content_type == "chat":
+        chat = await directus_service.chat.get_chat_metadata(payload.content_id, admin_required=True)
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        if chat.get("hashed_user_id") != current_user_hash:
+            raise HTTPException(status_code=403, detail="You do not have permission to share this chat")
+        return current_user_hash
+
+    embed = await directus_service.embed.get_embed_by_id(payload.content_id)
+    if not embed:
+        raise HTTPException(status_code=404, detail="Embed not found")
+    if embed.get("hashed_user_id") != current_user_hash:
+        raise HTTPException(status_code=403, detail="You do not have permission to share this embed")
+    return current_user_hash
+
+
+async def _create_directus_item(directus_service: DirectusService, collection: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    created = await directus_service.create_item(collection, payload, admin_required=True)
+    if isinstance(created, tuple):
+        success, item = created
+        if not success:
+            raise ShortUrlStorageUnavailable(str(item))
+        return item or payload
+    if isinstance(created, dict):
+        return created
+    raise ShortUrlStorageUnavailable(f"Unexpected Directus create_item result: {type(created).__name__}")
+
+
+async def _store_short_url_cache_fallback(
+    payload: CreateShortUrlRequest,
+    cache_service: CacheService,
+    now: int,
+) -> Optional[int]:
+    """Store a non-durable short link when the durable CMS collection is unavailable."""
+    ttl_seconds = payload.ttl_seconds or cache_config.SHORT_URL_MAX_TTL
+    stored = await cache_service.store_short_url(payload.token, payload.encrypted_url, ttl_seconds)
+    if not stored:
+        raise HTTPException(status_code=500, detail="Failed to store short URL")
+    return now + ttl_seconds
+
+
+async def _decrypt_shared_metadata(
+    encrypted_value: Optional[str],
+    fallback: str,
+    encryption_service: EncryptionService,
+) -> str:
+    if not encrypted_value:
+        return fallback
+    try:
+        value = await encryption_service.decrypt(encrypted_value, key_name="shared-content-metadata")
+        return value if isinstance(value, str) and value.strip() else fallback
+    except Exception as exc:
+        logger.warning("Failed to decrypt shared metadata for short URL preview: %s", exc)
+        return fallback
+
+
+async def _decrypt_shared_json_metadata(
+    encrypted_value: Optional[str],
+    encryption_service: EncryptionService,
+) -> Any:
+    if not encrypted_value:
+        return None
+    try:
+        value = await encryption_service.decrypt(encrypted_value, key_name="shared-content-metadata")
+        if not isinstance(value, str) or not value.strip():
+            return None
+        return json.loads(value)
+    except Exception as exc:
+        logger.warning("Failed to decrypt shared JSON metadata for short URL preview: %s", exc)
+        return None
+
+
+async def _build_shared_chat_metadata(
+    chat_id: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    image_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    fallback = {
+        "title": DEFAULT_CHAT_TITLE,
+        "description": DEFAULT_CHAT_DESCRIPTION,
+        "image_text": DEFAULT_CHAT_DESCRIPTION,
+        "image": image_path or _shared_chat_image_path(chat_id),
+        "content_type": "chat",
+        "password_protected": False,
+        "category": None,
+        "icon": None,
+        "image_bubbles": [],
+    }
+    chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+    if not chat or chat.get("is_private", False):
+        return fallback
+
+    title = await _decrypt_shared_metadata(chat.get("shared_encrypted_title"), DEFAULT_CHAT_TITLE, encryption_service)
+    summary = await _decrypt_shared_metadata(chat.get("shared_encrypted_summary"), DEFAULT_CHAT_DESCRIPTION, encryption_service)
+    share_cta_text = await _decrypt_shared_metadata(chat.get("shared_encrypted_share_cta_text"), summary, encryption_service)
+    category = await _decrypt_shared_metadata(chat.get("shared_encrypted_category"), "general_knowledge", encryption_service)
+    icon = await _decrypt_shared_metadata(chat.get("shared_encrypted_icon"), "chat", encryption_service)
+    image_bubbles = await _decrypt_shared_json_metadata(chat.get("shared_encrypted_image_bubbles"), encryption_service)
+    if not isinstance(image_bubbles, list):
+        image_bubbles = []
+
+    return {
+        "title": title,
+        "description": summary,
+        "image_text": share_cta_text,
+        "image": image_path or _shared_chat_image_path(chat_id),
+        "content_type": "chat",
+        "password_protected": False,
+        "category": category,
+        "icon": icon,
+        "image_bubbles": image_bubbles[:2],
+    }
+
+
+async def _build_short_url_metadata(
+    token: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+) -> Dict[str, Any]:
+    fallback = {
+        "title": DEFAULT_CHAT_TITLE,
+        "description": DEFAULT_CHAT_DESCRIPTION,
+        "image_text": DEFAULT_CHAT_DESCRIPTION,
+        "image": _short_url_image_path(token),
+        "content_type": "chat",
+        "password_protected": False,
+        "category": None,
+        "icon": None,
+        "image_bubbles": [],
+    }
+    if not SHORT_URL_TOKEN_PATTERN.match(token):
+        return fallback
+
+    record = await _get_short_link_record(token, directus_service)
+    if not record or _short_link_is_expired_or_revoked(record):
+        return fallback
+
+    content_type = record.get("content_type") or "chat"
+    password_protected = bool(record.get("password_protected"))
+    if content_type == "chat" and password_protected:
+        return {
+            "title": PROTECTED_CHAT_TITLE,
+            "description": PROTECTED_CHAT_DESCRIPTION,
+            "image_text": PROTECTED_CHAT_DESCRIPTION,
+            "image": PROTECTED_CHAT_OG_IMAGE_PATH,
+            "content_type": "chat",
+            "password_protected": True,
+            "category": "openmates_official",
+            "icon": "lock",
+            "image_bubbles": [],
+        }
+
+    if content_type == "embed":
+        return {
+            "title": DEFAULT_EMBED_TITLE,
+            "description": DEFAULT_EMBED_DESCRIPTION,
+            "image_text": DEFAULT_EMBED_DESCRIPTION,
+            "image": "/images/og-image.jpg",
+            "content_type": "embed",
+            "password_protected": password_protected,
+            "category": None,
+            "icon": None,
+            "image_bubbles": [],
+        }
+
+    return await _build_shared_chat_metadata(
+        record.get("content_id"),
+        directus_service,
+        encryption_service,
+        image_path=_short_url_image_path(token),
+    )
+
+
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    color = hex_color.lstrip("#")
+    return tuple(int(color[index:index + 2], 16) for index in (0, 2, 4))
+
+
+def _wrap_text(draw: Any, text: str, font: Any, max_width: int, max_lines: int) -> List[str]:
+    words = (text or "").split()
+    lines: List[str] = []
+    current = ""
+    consumed_words = 0
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        bbox = draw.textbbox((0, 0), candidate, font=font)
+        if bbox[2] - bbox[0] <= max_width:
+            current = candidate
+            continue
+        if current:
+            lines.append(current)
+            consumed_words += len(current.split())
+        current = word
+        if len(lines) >= max_lines:
+            break
+    if current and len(lines) < max_lines:
+        lines.append(current)
+        consumed_words += len(current.split())
+    if words and len(lines) == max_lines and consumed_words < len(words):
+        lines[-1] = lines[-1].rstrip(" .") + "..."
+    return lines or [""]
+
+
+def _load_og_font(size: int, bold: bool = False) -> Any:
+    from PIL import ImageFont
+
+    font_name = "LexendDeca-Bold.ttf" if bold else "LexendDeca-Regular.ttf"
+    fonts_dir = os.path.join(os.path.dirname(__file__), "..", "services", "fonts")
+    for path in (os.path.abspath(os.path.join(fonts_dir, font_name)),):
+        try:
+            return ImageFont.truetype(path, size=size)
+        except Exception as exc:
+            logger.warning("Failed to load Lexend Deca OG font %s: %s", path, exc)
+    raise RuntimeError(f"Lexend Deca OG font is unavailable: {font_name}")
+
+
+def _draw_lock_icon(draw: Any, center_x: int, center_y: int, size: int, color: tuple[int, ...]) -> None:
+    shackle_width = int(size * 0.56)
+    shackle_height = int(size * 0.44)
+    body_width = int(size * 0.68)
+    body_height = int(size * 0.50)
+    shackle_left = center_x - shackle_width // 2
+    shackle_top = center_y - int(size * 0.45)
+    shackle_right = center_x + shackle_width // 2
+    shackle_bottom = shackle_top + shackle_height
+    body_left = center_x - body_width // 2
+    body_top = center_y - int(size * 0.05)
+    body_right = center_x + body_width // 2
+    body_bottom = body_top + body_height
+    stroke = max(5, size // 14)
+    draw.arc((shackle_left, shackle_top, shackle_right, shackle_bottom + shackle_height), 180, 360, fill=color, width=stroke)
+    draw.line((shackle_left, center_y - int(size * 0.05), shackle_left, body_top + 4), fill=color, width=stroke)
+    draw.line((shackle_right, center_y - int(size * 0.05), shackle_right, body_top + 4), fill=color, width=stroke)
+    draw.rounded_rectangle((body_left, body_top, body_right, body_bottom), radius=size // 12, fill=color)
+
+
+def _draw_chat_icon(draw: Any, center_x: int, center_y: int, size: int, color: tuple[int, ...]) -> None:
+    bubble_width = int(size * 0.92)
+    bubble_height = int(size * 0.66)
+    left = center_x - bubble_width // 2
+    top = center_y - bubble_height // 2
+    right = center_x + bubble_width // 2
+    bottom = center_y + bubble_height // 2
+    radius = max(10, size // 7)
+    stroke = max(5, size // 15)
+    draw.rounded_rectangle((left, top, right, bottom), radius=radius, outline=color, width=stroke)
+    tail = [
+        (right - int(size * 0.22), bottom - stroke),
+        (right - int(size * 0.08), bottom + int(size * 0.18)),
+        (right - int(size * 0.36), bottom - stroke),
+    ]
+    draw.line(tail, fill=color, width=stroke, joint="curve")
+
+
+def _draw_film_icon(draw: Any, center_x: int, center_y: int, size: int, color: tuple[int, ...]) -> None:
+    width = int(size * 0.82)
+    height = int(size * 0.96)
+    left = center_x - width // 2
+    top = center_y - height // 2
+    right = center_x + width // 2
+    bottom = center_y + height // 2
+    radius = max(7, size // 11)
+    stroke = max(5, size // 13)
+    draw.rounded_rectangle((left, top, right, bottom), radius=radius, outline=color, width=stroke)
+
+    perforation_width = max(7, size // 9)
+    perforation_height = max(8, size // 8)
+    gap = max(7, size // 12)
+    y = top + stroke + gap // 2
+    while y + perforation_height <= bottom - stroke:
+        draw.rounded_rectangle(
+            (left + stroke, y, left + stroke + perforation_width, y + perforation_height),
+            radius=2,
+            fill=color,
+        )
+        draw.rounded_rectangle(
+            (right - stroke - perforation_width, y, right - stroke, y + perforation_height),
+            radius=2,
+            fill=color,
+        )
+        y += perforation_height + gap
+
+    mid_y = center_y
+    draw.line((left + int(size * 0.23), mid_y, right - int(size * 0.23), mid_y), fill=color, width=stroke)
+
+
+def _draw_lucide_polyline(draw: Any, points: List[tuple[float, float]], color: tuple[int, ...], stroke: int) -> None:
+    draw.line(points, fill=color, width=stroke, joint="curve")
+
+
+def _draw_lucide_icon(draw: Any, center_x: int, center_y: int, size: int, icon: str, color: tuple[int, ...]) -> bool:
+    normalized_icon = icon.strip().lower().replace("_", "-")
+    left = center_x - size / 2
+    top = center_y - size / 2
+    scale = size / 24
+    stroke = max(5, int(size * 0.075))
+
+    def p(x: float, y: float) -> tuple[float, float]:
+        return (left + x * scale, top + y * scale)
+
+    if normalized_icon in {"message-square", "message-circle", "chat"}:
+        draw.rounded_rectangle((*p(3, 4), *p(21, 18)), radius=int(3 * scale), outline=color, width=stroke)
+        _draw_lucide_polyline(draw, [p(8, 18), p(8, 22), p(13, 18)], color, stroke)
+        return True
+
+    if normalized_icon in {"shield", "shield-check"}:
+        shield_points = [p(12, 2.5), p(20, 6), p(20, 12), p(18, 17), p(12, 21.5), p(6, 17), p(4, 12), p(4, 6), p(12, 2.5)]
+        _draw_lucide_polyline(draw, shield_points, color, stroke)
+        if normalized_icon == "shield-check":
+            _draw_lucide_polyline(draw, [p(8.8, 12.2), p(11.2, 14.6), p(15.7, 9.7)], color, stroke)
+        return True
+
+    if normalized_icon == "map":
+        _draw_lucide_polyline(draw, [p(3, 6), p(9, 3), p(15, 6), p(21, 3), p(21, 18), p(15, 21), p(9, 18), p(3, 21), p(3, 6)], color, stroke)
+        _draw_lucide_polyline(draw, [p(9, 3), p(9, 18)], color, stroke)
+        _draw_lucide_polyline(draw, [p(15, 6), p(15, 21)], color, stroke)
+        return True
+
+    if normalized_icon in {"help-circle", "circle-help"}:
+        draw.ellipse((*p(3, 3), *p(21, 21)), outline=color, width=stroke)
+        _draw_lucide_polyline(draw, [p(9.1, 9), p(9.1, 8.2), p(10, 7.2), p(12, 7.2), p(14, 7.2), p(15, 8.4), p(15, 10), p(15, 11.6), p(13.8, 12.5), p(12, 13.2), p(12, 15)], color, stroke)
+        draw.ellipse((*p(11.5, 17.5), *p(12.5, 18.5)), fill=color)
+        return True
+
+    if normalized_icon == "lock":
+        _draw_lock_icon(draw, center_x, center_y, size, color)
+        return True
+
+    if normalized_icon in {"film", "clapperboard", "movie", "movies", "tv"}:
+        _draw_film_icon(draw, center_x, center_y, size, color)
+        return True
+
+    return False
+
+
+def _draw_og_icon(draw: Any, center_x: int, center_y: int, size: int, metadata: Dict[str, Any], color: tuple[int, ...]) -> None:
+    if metadata.get("password_protected"):
+        _draw_lock_icon(draw, center_x, center_y, size, color)
+        return
+    icon = str(metadata.get("icon") or "").strip().lower()
+    if _draw_lucide_icon(draw, center_x, center_y, size, icon, color):
+        return
+    _draw_chat_icon(draw, center_x, center_y, size, color)
+
+
+def _draw_openmates_logo(canvas: Any, left: int, top: int, size: int) -> None:
+    from PIL import Image, ImageDraw
+
+    route_dir = os.path.dirname(__file__)
+    logo_candidates = (
+        os.path.abspath(os.path.join(route_dir, "..", "..", "..", "..", "..", OPENMATES_LOGO_RELATIVE_PATH)),
+        os.path.abspath(os.path.join("/app", OPENMATES_LOGO_RELATIVE_PATH)),
+    )
+    for path in logo_candidates:
+        try:
+            logo_image = Image.open(path).convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
+            canvas.alpha_composite(logo_image, (left, top))
+            return
+        except Exception:
+            continue
+
+    logo = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    pixels = logo.load()
+    start = (70, 102, 255)
+    end = (179, 112, 255)
+    for x in range(size):
+        ratio = x / max(1, size - 1)
+        color = tuple(int(start[channel] * (1 - ratio) + end[channel] * ratio) for channel in range(3))
+        for y in range(size):
+            pixels[x, y] = (*color, 255)
+
+    draw = ImageDraw.Draw(logo)
+    white = (255, 255, 255, 255)
+    # Simplified favicon mark: mate silhouette plus AI sparkles.
+    draw.ellipse((size * 0.35, size * 0.17, size * 0.65, size * 0.47), fill=white)
+    draw.rounded_rectangle((size * 0.20, size * 0.52, size * 0.80, size * 0.86), radius=size // 9, fill=white)
+    draw.polygon(
+        [
+            (size * 0.58, size * 0.65),
+            (size * 0.66, size * 0.68),
+            (size * 0.58, size * 0.71),
+            (size * 0.55, size * 0.79),
+            (size * 0.52, size * 0.71),
+            (size * 0.44, size * 0.68),
+            (size * 0.52, size * 0.65),
+            (size * 0.55, size * 0.57),
+        ],
+        fill=(86, 118, 255, 255),
+    )
+    draw.polygon(
+        [
+            (size * 0.43, size * 0.66),
+            (size * 0.47, size * 0.68),
+            (size * 0.43, size * 0.70),
+            (size * 0.41, size * 0.74),
+            (size * 0.39, size * 0.70),
+            (size * 0.35, size * 0.68),
+            (size * 0.39, size * 0.66),
+            (size * 0.41, size * 0.62),
+        ],
+        fill=(86, 118, 255, 255),
+    )
+    canvas.alpha_composite(logo, (left, top))
+
+
+def _is_safe_og_bubble_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return parsed.scheme == "https" and parsed.netloc in OG_SAFE_IMAGE_HOSTS and parsed.path == "/api/v1/image"
+
+
+def _load_safe_og_bubble_image(url: str) -> Optional[Any]:
+    if not _is_safe_og_bubble_url(url):
+        return None
+    try:
+        import io
+        from PIL import Image
+
+        request = UrlRequest(url, headers={"User-Agent": "OpenMates-OG-Image/1.0"})
+        with urlopen(request, timeout=2) as response:
+            content_type = response.headers.get("content-type", "")
+            if not content_type.startswith("image/"):
+                return None
+            data = response.read(2_000_000)
+        image = Image.open(io.BytesIO(data)).convert("RGBA")
+        image.thumbnail((420, 420))
+        return image
+    except Exception as exc:
+        logger.info("Skipping OG image bubble fetch for safe URL after fetch/decode failure: %s", exc)
+        return None
+
+
+def _draw_image_bubble(canvas: Any, bubble_image: Any, center_x: int, center_y: int, size: int, rotation_degrees: float = 0) -> None:
+    from PIL import Image, ImageDraw, ImageOps
+
+    bubble = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    cover = ImageOps.fit(bubble_image, (size, size), method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+    mask = Image.new("L", (size, size), 0)
+    mask_draw = ImageDraw.Draw(mask)
+    mask_draw.ellipse((0, 0, size - 1, size - 1), fill=255)
+    bubble.alpha_composite(cover)
+    bubble.putalpha(mask)
+
+    bubble_overlay = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    bubble_overlay_draw = ImageDraw.Draw(bubble_overlay)
+    bubble_overlay_draw.ellipse((4, 4, size - 5, size - 5), outline=(255, 255, 255, 110), width=5)
+    bubble_overlay_draw.ellipse((18, 14, size // 2, size // 3), fill=(255, 255, 255, 38))
+    bubble_overlay_draw.ellipse((0, 0, size - 1, size - 1), outline=(255, 255, 255, 65), width=2)
+    bubble.alpha_composite(bubble_overlay)
+    bubble.putalpha(mask)
+
+    if rotation_degrees:
+        bubble = bubble.rotate(rotation_degrees, expand=True, resample=Image.Resampling.BICUBIC)
+    canvas.alpha_composite(bubble, (center_x - bubble.width // 2, center_y - bubble.height // 2))
+
+
+def _draw_og_image_bubbles(canvas: Any, metadata: Dict[str, Any]) -> int:
+    image_bubbles = metadata.get("image_bubbles")
+    if not isinstance(image_bubbles, list):
+        return 0
+
+    loaded_bubbles = []
+    for bubble in image_bubbles[:2]:
+        if not isinstance(bubble, dict):
+            continue
+        image_url = bubble.get("imageUrl")
+        if not isinstance(image_url, str) or not image_url.strip():
+            continue
+        bubble_image = _load_safe_og_bubble_image(image_url)
+        if bubble_image is not None:
+            loaded_bubbles.append(bubble_image)
+
+    if not loaded_bubbles:
+        return 0
+
+    # Match ChatHeader.svelte: large circular, glassy image bubbles rotated at
+    # the lower left/right edges without letting arbitrary remote URLs through.
+    if len(loaded_bubbles) == 1:
+        _draw_image_bubble(canvas, loaded_bubbles[0], 1020, 460, 210, 15)
+        return 1
+
+    _draw_image_bubble(canvas, loaded_bubbles[0], 180, 460, 210, -15)
+    _draw_image_bubble(canvas, loaded_bubbles[1], 1020, 460, 210, 15)
+    return 2
+
+
+def _render_short_url_og_png(metadata: Dict[str, Any]) -> bytes:
+    import io
+    from PIL import Image, ImageDraw
+
+    category = str(metadata.get("category") or "openmates_official")
+    start_hex, end_hex = OG_CATEGORY_GRADIENTS.get(category, OG_CATEGORY_GRADIENTS["openmates_official"])
+    start = _hex_to_rgb(start_hex)
+    end = _hex_to_rgb(end_hex)
+    image = Image.new("RGB", (OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT), start)
+    pixels = image.load()
+    for x in range(OG_IMAGE_WIDTH):
+        ratio = x / max(1, OG_IMAGE_WIDTH - 1)
+        color = tuple(int(start[channel] * (1 - ratio) + end[channel] * ratio) for channel in range(3))
+        for y in range(OG_IMAGE_HEIGHT):
+            vertical = 0.92 + 0.08 * (1 - y / OG_IMAGE_HEIGHT)
+            pixels[x, y] = tuple(max(0, min(255, int(component * vertical))) for component in color)
+
+    image = image.convert("RGBA")
+    overlay = Image.new("RGBA", (OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    white = (255, 255, 255, 255)
+    soft_white = (255, 255, 255, 238)
+    summary_font = _load_og_font(48, bold=True)
+
+    icon_center_x = OG_IMAGE_WIDTH // 2
+    icon_center_y = 122
+
+    _draw_openmates_logo(overlay, 62, 52, 70)
+    _draw_og_icon(draw, icon_center_x, icon_center_y, 112, metadata, white)
+    bubble_count = _draw_og_image_bubbles(overlay, metadata)
+
+    text_width = 760 if bubble_count else 940
+    summary_lines = _wrap_text(
+        draw,
+        str(metadata.get("image_text") or metadata.get("description") or DEFAULT_CHAT_DESCRIPTION),
+        summary_font,
+        text_width,
+        4,
+    )
+    y = 220
+    for line in summary_lines:
+        bbox = draw.textbbox((0, 0), line, font=summary_font)
+        draw.text(((OG_IMAGE_WIDTH - (bbox[2] - bbox[0])) / 2, y), line, fill=soft_white, font=summary_font)
+        y += 62
+
+    image = Image.alpha_composite(image, overlay)
+    buffer = io.BytesIO()
+    image.convert("RGB").save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 @router.post("/short-url", response_model=CreateShortUrlResponse)
@@ -1027,14 +1821,15 @@ async def create_short_url(
     request: Request,
     payload: CreateShortUrlRequest,
     current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
     """
-    Create an ephemeral short URL entry.
+    Create a durable short URL entry.
 
     The client generates a token and shortKey, encrypts the full share URL with
     a key derived from shortKey via PBKDF2, and sends only the token + encrypted
-    blob to this endpoint. The server stores the opaque blob in Redis with a TTL.
+    blob to this endpoint. The server stores the opaque blob in Directus.
 
     Requires authentication to prevent abuse.
 
@@ -1042,7 +1837,7 @@ async def create_short_url(
     - Rate limited to 10/hour per user
     - Token validated as 6-12 alphanumeric chars
     - Encrypted URL blob max 4KB
-    - TTL clamped to 60s-3600s
+    - Optional TTL up to the share-key maximum; null means no expiration
     """
     try:
         # Validate token format
@@ -1059,26 +1854,48 @@ async def create_short_url(
                 detail=f"Encrypted URL too large: max {SHORT_URL_MAX_BLOB_SIZE} characters",
             )
 
-        # Check if token already exists (prevent collisions)
-        existing = await cache_service.resolve_short_url(payload.token)
+        existing = await _get_short_link_record(payload.token, directus_service)
         if existing is not None:
             raise HTTPException(
                 status_code=409,
                 detail="Token already in use. Please generate a new one.",
             )
 
-        # Store in Redis
-        stored = await cache_service.store_short_url(
-            token=payload.token,
-            encrypted_url=payload.encrypted_url,
-            ttl_seconds=payload.ttl_seconds,
+        hashed_user_id = await _verify_short_link_target(payload, current_user, directus_service)
+        now = int(time.time())
+        expires_at = now + payload.ttl_seconds if payload.ttl_seconds else None
+        try:
+            await _create_directus_item(
+                directus_service,
+                SHORT_URL_COLLECTION,
+                {
+                    "token": payload.token,
+                    "encrypted_url": payload.encrypted_url,
+                    "content_type": payload.content_type,
+                    "content_id": payload.content_id,
+                    "hashed_user_id": hashed_user_id,
+                    "password_protected": payload.password_protected,
+                    "expires_at": expires_at,
+                    "revoked_at": None,
+                    "created_at": now,
+                    "updated_at": now,
+                },
+            )
+        except ShortUrlStorageUnavailable as exc:
+            logger.warning(
+                "Durable short URL storage unavailable; using cache fallback for token=%s: %s",
+                payload.token,
+                exc,
+            )
+            expires_at = await _store_short_url_cache_fallback(payload, cache_service, now)
+        logger.info(
+            "Short URL created: token=%s, content_type=%s, content_id=%s, expires_at=%s, user=%s",
+            payload.token,
+            payload.content_type,
+            payload.content_id,
+            expires_at,
+            current_user.id,
         )
-
-        if not stored:
-            raise HTTPException(status_code=500, detail="Failed to store short URL")
-
-        expires_at = int(time.time()) + payload.ttl_seconds
-        logger.info(f"Short URL created: token={payload.token}, ttl={payload.ttl_seconds}s, user={current_user.id}")
 
         return {"success": True, "expires_at": expires_at}
 
@@ -1094,10 +1911,11 @@ async def create_short_url(
 async def resolve_short_url(
     request: Request,
     token: str,
+    directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
     """
-    Resolve an ephemeral short URL.
+    Resolve a durable short URL.
 
     Returns the encrypted blob for a given token. The client decrypts it using
     the shortKey from the URL fragment (never sent to server).
@@ -1106,7 +1924,6 @@ async def resolve_short_url(
 
     Security:
     - Rate limited to 30/minute per IP
-    - Max 10 resolves per token lifetime (prevents brute-force)
     - Token validated as 6-12 alphanumeric chars
     """
     try:
@@ -1114,29 +1931,56 @@ async def resolve_short_url(
         if not SHORT_URL_TOKEN_PATTERN.match(token):
             raise HTTPException(status_code=404, detail="Not found")
 
-        # Check resolve count BEFORE returning the blob
-        from backend.core.api.app.services import cache_config
-        current_count = await cache_service.get_resolve_count(token)
-        if current_count >= cache_config.MAX_SHORT_URL_RESOLVES:
-            logger.warning(f"Short URL token={token} exceeded max resolves ({current_count})")
-            raise HTTPException(
-                status_code=429,
-                detail="This short link has been used too many times and is now disabled.",
-            )
+        record = await _get_short_link_record(token, directus_service)
+        if record and not _short_link_is_expired_or_revoked(record):
+            return {"encrypted_url": record["encrypted_url"]}
 
-        # Resolve the encrypted blob
-        encrypted_url = await cache_service.resolve_short_url(token)
-        if encrypted_url is None:
-            raise HTTPException(status_code=404, detail="Short link expired or not found")
+        # Legacy fallback for old Redis-backed /s/#token-shortKey links created
+        # before durable short links moved the token into the path.
+        if cache_service and hasattr(cache_service, "resolve_short_url"):
+            from backend.core.api.app.services import cache_config
+            current_count = await cache_service.get_resolve_count(token)
+            if current_count >= cache_config.MAX_SHORT_URL_RESOLVES:
+                raise HTTPException(status_code=429, detail="This short link has been used too many times and is now disabled.")
+            encrypted_url = await cache_service.resolve_short_url(token)
+            if encrypted_url is not None:
+                await cache_service.increment_resolve_count(token)
+                return {"encrypted_url": encrypted_url}
 
-        # Increment resolve counter
-        new_count = await cache_service.increment_resolve_count(token)
-        logger.debug(f"Short URL resolved: token={token}, resolve_count={new_count}")
-
-        return {"encrypted_url": encrypted_url}
+        raise HTTPException(status_code=404, detail="Short link expired or not found")
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error resolving short URL token={token}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal error")
+
+
+@router.get("/short-url/{token}/metadata")
+@limiter.limit("60/minute")
+async def get_short_url_metadata(
+    request: Request,
+    token: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> Dict[str, Any]:
+    """Return crawler-safe metadata for a durable short link."""
+    return await _build_short_url_metadata(token, directus_service, encryption_service)
+
+
+@router.get("/short-url/{token}/og-image.png")
+@limiter.limit("60/minute")
+async def get_short_url_og_image(
+    request: Request,
+    token: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+) -> Response:
+    """Generate a PNG social preview image for a durable short-link token."""
+    metadata = await _build_short_url_metadata(token, directus_service, encryption_service)
+    png = _render_short_url_og_png(metadata)
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )

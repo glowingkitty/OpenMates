@@ -81,7 +81,7 @@
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   let localQuery = $state('');
-  let localProvider = $state('REWE');
+  let localProvider = $state('Edamam');
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let localResults = $state<unknown[]>([]);
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
@@ -91,7 +91,7 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
-      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'REWE';
+      localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Edamam';
       localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
@@ -104,7 +104,9 @@
   let legacyResults = $derived(localResults);
 
   function asString(value: unknown): string | undefined {
-    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed.length > 0 && trimmed.toLowerCase() !== 'null' ? trimmed : undefined;
   }
 
   function asNumber(value: unknown): number | undefined {
@@ -112,6 +114,11 @@
     if (typeof value === 'string') {
       const parsed = Number(value);
       if (Number.isFinite(parsed)) return parsed;
+      const leadingNumber = value.match(/-?\d+(?:[.,]\d+)?/);
+      if (leadingNumber) {
+        const parsedLeading = Number(leadingNumber[0].replace(',', '.'));
+        if (Number.isFinite(parsedLeading)) return parsedLeading;
+      }
     }
     return undefined;
   }
@@ -120,15 +127,24 @@
     const raw = content.nutrition;
     const n = raw && typeof raw === 'object' ? raw as Record<string, unknown> : content;
     return {
-      calories_kcal: asNumber(n.calories_kcal ?? n.nutrition_calories_kcal),
-      protein_g: asNumber(n.protein_g ?? n.nutrition_protein_g),
-      fat_g: asNumber(n.fat_g ?? n.nutrition_fat_g),
-      carbs_g: asNumber(n.carbs_g ?? n.nutrition_carbs_g)
+      calories_kcal: asNumber(n.calories_kcal ?? n.nutrition_calories_kcal ?? n.nutrition_energy),
+      protein_g: asNumber(n.protein_g ?? n.nutrition_protein_g ?? n.nutrition_protein),
+      fat_g: asNumber(n.fat_g ?? n.nutrition_fat_g ?? n.nutrition_fat),
+      carbs_g: asNumber(n.carbs_g ?? n.nutrition_carbs_g ?? n.nutrition_carbohydrates)
     };
+  }
+
+  function parseDelimitedList(value: unknown): string[] {
+    if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
+    const raw = asString(value);
+    return raw ? raw.split('|').map((item) => item.trim()).filter(Boolean) : [];
   }
 
   function parseIngredients(content: Record<string, unknown>): RecipeResult['ingredients'] {
     const raw = content.ingredients;
+    if (typeof raw === 'string') {
+      return parseDelimitedList(raw).map((name) => ({ name }));
+    }
     if (!Array.isArray(raw)) return [];
     return raw
       .filter((item): item is Record<string, unknown> => item != null && typeof item === 'object')
@@ -141,6 +157,9 @@
 
   function parseInstructions(content: Record<string, unknown>): RecipeResult['instructions'] {
     const raw = content.instructions;
+    if (typeof raw === 'string') {
+      return parseDelimitedList(raw).map((text, index) => ({ step: index + 1, text }));
+    }
     if (!Array.isArray(raw)) return [];
     return raw
       .filter((item): item is Record<string, unknown> => item != null && typeof item === 'object')
@@ -165,12 +184,8 @@
       rating: asNumber(content.rating) ?? null,
       rating_count: asNumber(content.rating_count) ?? null,
       ernaehrwert_score: asNumber(content.ernaehrwert_score) ?? null,
-      dietary_tags: Array.isArray(content.dietary_tags)
-        ? content.dietary_tags.filter((t): t is string => typeof t === 'string')
-        : [],
-      categories: Array.isArray(content.categories)
-        ? content.categories.filter((c): c is string => typeof c === 'string')
-        : [],
+      dietary_tags: parseDelimitedList(content.dietary_tags),
+      categories: parseDelimitedList(content.categories),
       ingredients: parseIngredients(content),
       instructions: parseInstructions(content),
       nutrition: parseNutrition(content)

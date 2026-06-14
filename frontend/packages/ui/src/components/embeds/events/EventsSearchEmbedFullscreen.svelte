@@ -135,6 +135,8 @@
   let localQuery    = $state('');
   let localProvider = $state('');
   let localProviders = $state<string[]>([]);
+  let localStartDate = $state('');
+  let localEndDate = $state('');
   let localStatus   = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');
   let embedIdsOverride = $state<string | string[] | undefined>(undefined);
   let embedIdsValue    = $derived(embedIdsOverride ?? embedIds);
@@ -147,12 +149,41 @@
     localProviders = Array.isArray(data.decodedContent?.providers)
       ? data.decodedContent.providers as string[]
       : Array.isArray(data.embedData?.providers) ? data.embedData.providers as string[] : [];
+    localStartDate = typeof data.decodedContent?.start_date === 'string'
+      ? data.decodedContent.start_date
+      : typeof data.embedData?.start_date === 'string' ? data.embedData.start_date : '';
+    localEndDate = typeof data.decodedContent?.end_date === 'string'
+      ? data.decodedContent.end_date
+      : typeof data.embedData?.end_date === 'string' ? data.embedData.end_date : '';
     localStatus   = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
   });
 
   let query    = $derived(localQuery);
   let provider = $derived(localProvider);
   let providers = $derived(localProviders);
+  let startDate = $derived(localStartDate);
+  let endDate = $derived(localEndDate);
+
+  function formatSearchDate(value: string): string {
+    const dateParts = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const date = dateParts
+      ? new Date(Date.UTC(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3])))
+      : new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(date);
+  }
+
+  let searchRange = $derived.by(() => {
+    if (startDate && endDate) return `${formatSearchDate(startDate)} - ${formatSearchDate(endDate)}`;
+    if (startDate) return formatSearchDate(startDate);
+    if (endDate) return formatSearchDate(endDate);
+    return '';
+  });
   let viaProvider = $derived.by(() => {
     const via = $text('embeds.via');
     if (providers.length > 0) {
@@ -165,6 +196,7 @@
     }
     return '';
   });
+  let headerSubtitle = $derived.by(() => [viaProvider, searchRange].filter(Boolean).join(' · '));
   let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
 
   /**
@@ -271,6 +303,8 @@
     if (typeof c.query    === 'string') localQuery    = c.query;
     if (typeof c.provider === 'string') localProvider = c.provider;
     if (Array.isArray(c.providers)) localProviders = c.providers as string[];
+    if (typeof c.start_date === 'string') localStartDate = c.start_date;
+    if (typeof c.end_date === 'string') localEndDate = c.end_date;
     if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
   }
 </script>
@@ -279,7 +313,7 @@
   appId="events"
   skillId="search"
   embedHeaderTitle={query}
-  embedHeaderSubtitle={viaProvider}
+  embedHeaderSubtitle={headerSubtitle}
   skillIconName="search"
   showSkillIcon={true}
   {onClose}

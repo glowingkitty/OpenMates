@@ -1,6 +1,15 @@
 ---
 status: active
-last_verified: 2026-03-24
+doc_type: guide
+audience:
+  - users
+last_verified: 2026-06-11
+claims:
+  - id: user-guide-incognito-mode-source
+    type: unit
+    claim: Incognito mode behavior is grounded in incognito chat and billing usage sources.
+    file: scripts/tests/test_user_guide_product_docs_claims.py
+    assertion: user-guide-incognito-mode-source
 ---
 
 # Incognito Mode

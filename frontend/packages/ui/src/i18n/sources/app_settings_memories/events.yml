@@ -2,6 +2,25 @@ saved_events:
   context: Settings/memory name for saved events
   en: Saved events
   de: Gespeicherte Events
+  zh: 已保存的活动
+  fr: Événements enregistrés
+  pt: Eventos salvos
+  ru: Сохраненные мероприятия
+  ja: 保存済みのイベント
+  ko: 저장된 이벤트
+  it: Eventi salvati
+  tr: Kaydedilen etkinlikler
+  vi: Sự kiện đã lưu
+  id: Acara tersimpan
+  pl: Zapisane wydarzenia
+  nl: Opgeslagen evenementen
+  ar: الفعاليات المحفوظة
+  hi: सेव किए गए इवेंट
+  th: กิจกรรมที่บันทึกไว้
+  es: Eventos guardados
+  cs: Uložené události
+  sv: Sparade evenemang
+  he: אירועים שמורים
   verified_by_human:
     - en
     - de
@@ -9,6 +28,25 @@ saved_events.description:
   context: Description for saved events settings/memory
   en: Events you saved from search results.
   de: Events, die du aus Suchergebnissen gespeichert hast.
+  zh: 你从搜索结果中保存的活动。
+  fr: Événements que tu as enregistrés à partir des résultats de recherche.
+  pt: Eventos que salvaste dos resultados de pesquisa.
+  ru: Мероприятия, которые ты сохранил из результатов поиска.
+  ja: 検索結果から保存したイベント。
+  ko: 검색 결과에서 저장한 이벤트입니다.
+  it: Eventi che hai salvato dai risultati di ricerca.
+  tr: Arama sonuçlarından kaydettiğin etkinlikler.
+  vi: Các sự kiện bạn đã lưu từ kết quả tìm kiếm.
+  id: Acara yang kamu simpan dari hasil pencarian.
+  pl: Wydarzenia zapisane z wyników wyszukiwania.
+  nl: Evenementen die je hebt opgeslagen uit de zoekresultaten.
+  ar: الفعاليات التي حفظتها من نتائج البحث.
+  hi: सर्च रिज़ल्ट से आपके द्वारा सेव किए गए इवेंट।
+  th: กิจกรรมที่คุณบันทึกไว้จากผลการค้นหา
+  es: Eventos que guardaste de los resultados de búsqueda.
+  cs: Události, které sis uložil z výsledků vyhledávání.
+  sv: Evenemang som du har sparat från sökresultat.
+  he: אירועים ששמרת מתוצאות החיפוש.
   verified_by_human:
     - en
     - de

@@ -1,0 +1,723 @@
+id: docs-claims-enforcement-cleanup
+title: Documentation Claims Enforcement And Cleanup
+status: verified
+
+goal: >
+  Create one durable documentation system where every kept active doc is useful,
+  discoverable, linked, and backed by deterministic assertions whenever feasible.
+  Non-blocking hooks should keep agents aware of connected docs/tests during edits,
+  while regular static tests and deploy checks prevent broken Markdown links,
+  invalid claim wiring, and stale low-quality docs from silently accumulating.
+
+scope:
+  in:
+    - A unified claim schema for all active docs under docs/.
+    - Deterministic Markdown link validation for all kept docs.
+    - Non-blocking hook reminders when docs, specs, Playwright specs, unit tests, or backend tests change.
+    - Static inventory and graph reporting for doc counts, statuses, claims, broken links, orphan docs, and folder health.
+    - A docs cleanup workflow that uses deterministic reports plus an agent/skill for context-heavy link replacement, folding, and deletion decisions.
+    - A target docs folder structure that prioritizes implemented behavior and contributor onboarding quality over quantity.
+    - Exclusion of docs/specs/ from public /docs web app navigation and generated docs pages while keeping specs versioned in git.
+    - Reorganization of user-facing billing docs into docs/user-guide/billing/.
+    - Enforcement that planned, idea, todo, in-progress, and partial doc statuses are invalid outside docs/specs/.
+    - A post-build cleanup campaign that uses the new system to update, fold, or delete existing docs until active docs are clean.
+  out:
+    - Running Playwright for Markdown link validation.
+    - Blocking every edit through hooks; hooks inject context and reminders by default.
+    - Keeping a long-lived archive or research docs folder.
+    - Publishing executable specs as normal public /docs web app pages.
+    - Preserving planned architecture docs as docs instead of moving worthwhile planned work to GitHub issues.
+    - Rewriting the docs web app UI design beyond navigation/exclusion changes needed for the new structure.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP search failed with 401 Bad credentials for docs assertions/stale documentation query."
+    - "Local backlog retained: tasks-backlog.json entry 'Audit architecture docs for stale implementation claims'."
+  docs:
+    - docs/contributing/guides/docs-writing-guidelines.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/code-mapping.yml
+    - docs/architecture/payments/payment-processing.md
+    - docs/architecture/payments/auto-topup.md
+    - docs/user-guide/pricing.md
+    - docs/user-guide/usage-and-billing.md
+    - docs/user-guide/gift-cards.md
+    - docs/user-guide/cli/settings.md
+    - docs/self-hosting/setup.md
+    - scripts/.tmp/docs-claims-implementation-plan.md
+  code_patterns:
+    - scripts/docs_claims_verify.py
+    - scripts/docs_claims_review.py
+    - scripts/docs_guide_verify.py
+    - scripts/docs_guide_review.py
+    - scripts/sessions.py
+    - .claude/hooks/
+    - .codex/hooks/claude-hook-bridge.sh
+    - .opencode/plugins/openmates-hooks.js
+    - frontend/apps/web_app/scripts/process-docs.js
+    - docs/.docsignore
+    - frontend/apps/web_app/src/routes/docs/[...slug]/+page.ts
+    - frontend/apps/web_app/src/routes/docs/+page.ts
+  tests:
+    - backend/tests/conftest.py doc_assert fixture
+    - frontend/apps/web_app/tests/helpers/doc-checkpoint.ts docAssert helper
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/apps/web_app/tests/import-chats.spec.ts
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_phased_sync_handler.py
+    - backend/tests/test_privacy_promises.py
+  current_inventory:
+    - "202 Markdown docs total."
+    - "137 active docs."
+    - "36 docs missing frontmatter/status."
+    - "128 active docs without claim coverage."
+    - "57 active architecture docs, 4 claim-backed."
+    - "47 active architecture docs mapped in code-mapping.yml."
+    - "23 stale architecture docs by current code mtime heuristic."
+    - "50 non-README docs with zero inbound links."
+    - "73 docs with zero outbound links."
+    - "20 broken Markdown links."
+
+clarification:
+  rounds:
+    - question: Should enforcement hard-block edits immediately or inject soft reminders so agents can keep working?
+      answer: >
+        Use soft reminders/injected context during editing. Hard blocking would prevent agents from continuing work.
+    - question: Should docs cleanup use active/archive/delete-candidate statuses?
+      answer: >
+        No archive status. A doc is either worth keeping or should be deleted/folded. Quality and onboarding matter more than quantity.
+    - question: Should broken Markdown links be deterministic tests or context-heavy agent work?
+      answer: >
+        Broken links must be detected deterministically with regular tests. Deciding whether to replace, update, remove, fold, or delete is agent/skill work because it requires context.
+    - question: Should one spec cover both enforcement and cleanup?
+      answer: >
+        Yes. Use one spec for both enforcement infrastructure and the cleanup/reorganization architecture.
+    - question: What should happen to planned/research docs and specs in the docs tree?
+      answer: >
+        Docs should describe implemented behavior only. Planned work belongs in GitHub issues; approved executable contracts belong in docs/specs/. No research folder. Invalid planned/idea/todo/in-progress/partial statuses outside docs/specs/.
+    - question: How should platform and billing documentation be organized?
+      answer: >
+        Add architecture/platforms/ for web app, CLI, and implemented Apple app architecture. Apps docs should be about OpenMates apps, skills, focus modes, memories, and how those work. Keep cloud-only payment architecture docs, add user-guide/billing/ subfolder, and keep self-hosting docs free of cloud payment details.
+  vision_summary: >
+    Documentation should become a curated product and contributor knowledge base, not a dumping ground. Kept docs describe implemented behavior, are connected through indexes and related links, and have claims backed by real tests wherever possible. Deterministic scripts find objective problems, hooks remind agents during edits, and a docs cleanup skill/agent performs context-heavy pruning and link repair with minimal human input.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Edited doc receives connected claim and link context
+    given:
+      - An agent edits docs/user-guide/billing/pricing.md.
+      - The doc has claims linked to tests and related docs.
+    when:
+      - The PostToolUse hook runs after the edit.
+    then:
+      - The hook does not block the edit.
+      - It reports linked claim IDs and assertion files.
+      - It reports broken Markdown links in the changed doc, if any.
+      - It reports whether the doc is missing required metadata, claims, or related links.
+      - It suggests focused verification commands.
+
+  - id: S-2
+    title: Edited test receives connected documentation context
+    given:
+      - An agent edits frontend/apps/web_app/tests/share-chat-flow.spec.ts.
+      - One or more docs claim assertions point at that spec file.
+    when:
+      - The PostToolUse hook runs after the edit.
+    then:
+      - The hook does not block the edit.
+      - It lists affected docs and claim IDs.
+      - It reports changed or missing assertion markers.
+      - It reminds the agent to update docs if user-visible or implementation contract behavior changed.
+
+  - id: S-3
+    title: Markdown link validator catches broken links across docs
+    given:
+      - A doc contains a relative Markdown link to docs/architecture/core/zero-knowledge-storage.md.
+      - That target file does not exist.
+    when:
+      - The docs link validation test runs.
+    then:
+      - The test fails with the source doc and missing target.
+      - The failure explains that context determines whether to replace, update, remove, fold, or delete.
+      - The check runs without Playwright or a browser.
+
+  - id: S-4
+    title: Claims verifier enforces one canonical claim model
+    given:
+      - An active doc declares a non-manual claim.
+    when:
+      - The docs claims verifier runs.
+    then:
+      - The claim ID is globally unique.
+      - The linked file exists.
+      - The linked file contains a supported docAssert, docAssertStatic, or doc_assert marker.
+      - Manual claims are allowed only with a reason.
+      - Legacy tested_by metadata is not treated as the canonical freshness source.
+
+  - id: S-5
+    title: Docs web app excludes executable specs
+    given:
+      - docs/specs/share-short-links-og-images/spec.yml exists in git.
+      - The docs web manifest is generated.
+    when:
+      - The /docs web app navigation and route manifest are built.
+    then:
+      - docs/specs/ is not included in generated public docs pages or navigation.
+      - Specs remain versioned files in git.
+      - Other public docs continue to render normally.
+
+  - id: S-6
+    title: Invalid doc statuses are eliminated outside specs
+    given:
+      - A Markdown doc outside docs/specs/ has status planned, idea, todo, in-progress, or partial.
+    when:
+      - The docs inventory validation test runs.
+    then:
+      - The test fails or reports a cleanup-required finding according to the rollout phase.
+      - The remediation is delete, fold into an active implemented doc, or create a GitHub issue/spec and remove the planned doc.
+      - Active docs with partial implementation describe only shipped behavior.
+
+  - id: S-7
+    title: Agent cleanup flow fixes context-heavy documentation issues
+    given:
+      - The docs inventory report identifies broken links, orphan docs, duplicate docs, and docs without claims.
+    when:
+      - A docs cleanup skill or agent consumes the report.
+    then:
+      - It makes context-aware decisions about replacing links, removing links, folding docs, or deleting docs.
+      - It updates inbound links in the same change when deleting or moving a doc.
+      - It creates GitHub issues only for planned work worth preserving.
+      - It runs deterministic docs validation after cleanup.
+
+  - id: S-8
+    title: Architecture docs are reorganized for contributor onboarding
+    given:
+      - The current architecture tree contains platform docs under apps, frontend, apple, and android.
+    when:
+      - The cleanup plan is applied.
+    then:
+      - Implemented platform docs live under docs/architecture/platforms/.
+      - Apps docs cover OpenMates apps, app skills, focus modes, memories, and how they work.
+      - Privacy and security docs live under docs/architecture/privacy-security/.
+      - Root-level architecture docs are moved, folded, or deleted.
+      - Every kept architecture folder has a concise README index.
+
+  - id: S-9
+    title: User billing docs are separated from self-hosting
+    given:
+      - Cloud OpenMates has billing, credits, invoices, refunds, gift cards, and usage history.
+      - Self-hosting does not include cloud payment features.
+    when:
+      - Billing docs are reorganized.
+    then:
+      - User-facing billing topics live under docs/user-guide/billing/.
+      - Cloud-only payment implementation remains under docs/architecture/payments/.
+      - Self-hosting docs do not describe cloud payment flows except explicit cloud-only exclusions if needed.
+      - Billing docs have claim-backed tests for implemented user flows wherever feasible.
+
+  - id: S-10
+    title: Cleanup campaign uses the completed system on all existing docs
+    given:
+      - The enforcement scripts, tests, hooks, and cleanup workflow have been implemented.
+    when:
+      - The documentation cleanup campaign runs across docs/.
+    then:
+      - Broken links are fixed.
+      - Planned-only docs are deleted or moved to GitHub issues/specs.
+      - Low-quality orphan docs are deleted or folded.
+      - Active docs have required metadata, useful links, and claims or documented manual exceptions.
+      - The final docs inventory report shows zero broken links and no invalid statuses outside docs/specs/.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Editing a docs file triggers a non-blocking hook message with linked claims, affected tests, broken-link findings for the changed file, metadata gaps, and focused verification commands.
+  - id: AC-2
+    scenario: S-2
+    text: Editing a Playwright spec, unit test, backend test, or static assertion file triggers a non-blocking hook message listing docs and claim IDs connected to that file.
+  - id: AC-3
+    scenario: S-3
+    text: A deterministic pytest/static test validates all relative Markdown links in kept docs and fails with source/target details for broken links.
+  - id: AC-4
+    scenario: S-4
+    text: One canonical claims verifier validates active docs, unique claim IDs, supported assertion markers, manual-claim reasons, and active-doc required metadata.
+  - id: AC-5
+    scenario: S-5
+    text: docs/specs/ remains tracked in git but is excluded from generated public /docs web app navigation, route manifests, and search index.
+  - id: AC-6
+    scenario: S-6
+    text: planned, idea, todo, in-progress, and partial statuses are invalid outside docs/specs/ after the cleanup rollout.
+  - id: AC-7
+    scenario: S-7
+    text: A docs cleanup skill or agent workflow consumes deterministic reports and performs context-heavy link repair, folding, deletion, and GitHub issue creation decisions.
+  - id: AC-8
+    scenario: S-8
+    text: docs/architecture/ is reorganized around implemented domains, including platforms/, apps/, privacy-security/, payments/, and concise README indexes.
+  - id: AC-9
+    scenario: S-9
+    text: User-facing billing docs live under docs/user-guide/billing/ and self-hosting docs do not describe cloud payment flows.
+  - id: AC-10
+    scenario: S-10
+    text: After implementation, the project uses the new system to clean existing docs until active docs have no broken links, no invalid statuses, required metadata, and meaningful claim coverage or explicit manual exceptions.
+  - id: AC-11
+    scenario: S-10
+    text: The docs inventory report exposes folder-level quality metrics including doc count, active count, missing metadata, claim coverage, broken links, inbound/outbound links, orphan candidates, and delete/fold candidates.
+  - id: AC-12
+    scenario: S-10
+    text: Planned work preserved from deleted docs is moved to GitHub issues or executable specs, not kept as planned architecture/user-guide docs.
+
+contracts:
+  docs_schema:
+    statuses_outside_specs:
+      allowed:
+        - active
+      invalid:
+        - planned
+        - idea
+        - todo
+        - in-progress
+        - partial
+        - implemented
+    required_frontmatter_for_active_docs:
+      - status
+      - doc_type
+      - audience
+      - last_verified
+      - claims
+    claim_types:
+      - e2e
+      - unit
+      - backend
+      - integration
+      - static
+      - manual
+    manual_claim_rule: Manual claims require a reason and should be rare.
+    source_of_truth: Claims are canonical; tested_by is legacy screenshot/checkpoint metadata until folded or removed.
+  docs_tree:
+    architecture_target:
+      - docs/architecture/README.md
+      - docs/architecture/platforms/README.md
+      - docs/architecture/platforms/web-app.md
+      - docs/architecture/platforms/cli.md
+      - docs/architecture/platforms/apple.md
+      - docs/architecture/apps/
+      - docs/architecture/ai/
+      - docs/architecture/core/
+      - docs/architecture/messaging/
+      - docs/architecture/infrastructure/
+      - docs/architecture/privacy-security/
+      - docs/architecture/payments/
+      - docs/architecture/integrations/
+    user_guide_target:
+      - docs/user-guide/billing/README.md
+      - docs/user-guide/billing/pricing.md
+      - docs/user-guide/billing/usage.md
+      - docs/user-guide/billing/gift-cards.md
+      - docs/user-guide/billing/invoices-and-refunds.md
+    no_research_folder: true
+    planned_work_destination: GitHub issues or docs/specs/<slug>/spec.yml only.
+  hooks:
+    canonical_location: .claude/hooks/
+    codex_bridge: .codex/hooks/claude-hook-bridge.sh must run the canonical hook.
+    opencode_bridge: .opencode/plugins/openmates-hooks.js must run through the same bridge.
+    event: PostToolUse for apply_patch/Edit/Write.
+    default_strictness: non-blocking reminder.
+    watched_paths:
+      - docs/**/*.md
+      - docs/specs/**/*.yml
+      - frontend/apps/web_app/tests/**/*.spec.ts
+      - frontend/**/*.test.ts
+      - frontend/**/*.spec.ts
+      - backend/tests/**/*.py
+      - scripts/tests/**/*.py
+    output: Inject concise context with affected docs/tests, claim IDs, broken links, and commands.
+  tests_policy:
+    markdown_links: Static pytest/script-backed validation, not Playwright.
+    docs_web_exclusion: Static/unit validation of process-docs.js or generated manifest behavior.
+    cleanup_campaign: Deterministic inventory report plus agent/skill remediation.
+  public_docs_app:
+    include:
+      - docs/user-guide/
+      - docs/user-guide/cli/
+      - docs/self-hosting/
+      - docs/architecture/
+      - docs/design-guide/ if intentionally exposed
+    exclude:
+      - docs/specs/
+      - docs/contributing/ unless intentionally exposed for contributor docs
+      - docs/images/
+      - docs/assets/
+
+tests:
+  - id: T-PY-DOCS-LINKS
+    type: pytest
+    file: scripts/tests/test_docs_markdown_links.py
+    command: python3 -m pytest scripts/tests/test_docs_markdown_links.py
+    covers:
+      - AC-3
+      - AC-11
+    assertions:
+      - every relative Markdown link in kept docs resolves to an existing file or valid in-page anchor target where applicable
+      - docs/specs links are validated as git files even though specs are excluded from public docs navigation
+      - failures list source file, link text/target, and remediation instruction
+      - external links are out of scope unless explicitly added later
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-fixture-missing-markdown-link
+        timestamp: "2026-06-10T20:45:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: python3-scripts-docs-markdown-links
+        timestamp: "2026-06-10T20:45:16Z"
+
+  - id: T-PY-DOCS-CLAIMS
+    type: pytest
+    file: scripts/tests/test_docs_claims_enforcement.py
+    command: python3 -m pytest scripts/tests/test_docs_claims_enforcement.py
+    covers:
+      - AC-4
+      - AC-6
+      - AC-10
+    assertions:
+      - active docs outside docs/specs have required metadata
+      - invalid statuses outside docs/specs fail after rollout
+      - non-manual claims point to existing files with supported assertion markers
+      - manual claims include reasons
+      - legacy tested_by metadata is not sufficient for claim coverage
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-fixture-invalid-status-missing-claims-and-bad-assertion
+        timestamp: "2026-06-10T20:45:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: python3-scripts-docs-claims-verify-json-errors-empty
+        timestamp: "2026-06-10T20:45:16Z"
+
+  - id: T-PY-DOCS-INVENTORY
+    type: pytest
+    file: scripts/tests/test_docs_inventory_report.py
+    command: python3 -m pytest scripts/tests/test_docs_inventory_report.py
+    covers:
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-11
+      - AC-12
+    assertions:
+      - inventory report includes folder counts, statuses, claims, broken links, inbound/outbound links, and delete/fold candidates
+      - architecture folder target structure is represented in the report
+      - user-guide billing folder target structure is represented in the report
+      - self-hosting docs are flagged if they describe cloud payment flows beyond explicit cloud-only exclusions
+      - planned-only docs are reported as delete/fold or GitHub-issue candidates
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-fixture-planned-doc-and-self-hosting-cloud-payment-language
+        timestamp: "2026-06-10T20:45:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: python3-scripts-docs-inventory-broken-links-0-invalid-statuses-0
+        timestamp: "2026-06-10T20:45:16Z"
+
+  - id: T-UNIT-DOCS-WEB-MANIFEST
+    type: unit
+    file: frontend/apps/web_app/scripts/process-docs.js
+    command: cd frontend/apps/web_app && npm run build:docs
+    covers:
+      - AC-5
+    assertions:
+      - generated docs manifest excludes docs/specs paths
+      - generated docs search index excludes docs/specs content
+      - public docs pages still include expected user-guide, cli, self-hosting, and architecture docs
+      - docs/.docsignore or equivalent manifest rules encode the exclusion deterministically
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pre-rollout-manifest-published-specs-before-docsignore-exclusion
+        timestamp: "2026-06-10T20:45:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: npm-run-build-docs-164-files-no-specs-or-old-billing-slugs
+        timestamp: "2026-06-10T20:45:48Z"
+
+  - id: T-PY-DOCS-HOOK
+    type: pytest
+    file: scripts/tests/test_docs_claims_hook.py
+    command: python3 -m pytest scripts/tests/test_docs_claims_hook.py
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - editing a docs path produces non-blocking hook context with linked tests and commands
+      - editing a linked spec/test path produces non-blocking hook context with affected docs and claim IDs
+      - the hook returns success for reminder-only findings
+      - the Codex and OpenCode bridges invoke the same canonical hook script
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: pytest-fixture-hook-finds-affected-docs-tests-and-returns-zero
+        timestamp: "2026-06-10T20:45:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: python3-m-pytest-docs-enforcement-suite-15-passed
+        timestamp: "2026-06-10T20:45:16Z"
+
+  - id: T-LINT-DOCS-SPEC
+    type: lint
+    file: docs/specs/docs-claims-enforcement-cleanup/spec.yml
+    command: python3 scripts/spec_validate.py docs/specs/docs-claims-enforcement-cleanup/spec.yml
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-10
+      - AC-11
+      - AC-12
+    assertions:
+      - executable spec structure is valid
+      - every acceptance criterion is covered by at least one listed verification
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: python3-scripts-spec-validate-docs-claims-enforcement-cleanup
+        timestamp: "2026-06-10T20:45:48Z"
+
+implementation_plan:
+  existing_patterns:
+    - scripts/docs_claims_verify.py validates existing claim metadata and marker wiring.
+    - scripts/docs_claims_review.py maps failed test files/assertion IDs to affected docs.
+    - frontend/apps/web_app/tests/helpers/doc-checkpoint.ts provides docAssert for Playwright.
+    - backend/tests/conftest.py provides doc_assert for pytest.
+    - .codex/hooks/claude-hook-bridge.sh and .opencode/plugins/openmates-hooks.js already bridge to canonical .claude/hooks scripts.
+    - frontend/apps/web_app/scripts/process-docs.js already respects docs/.docsignore.
+  architecture: >
+    Keep deterministic checks as Python scripts with pytest wrappers where possible.
+    Use one canonical docs claim/index model to power link validation, claim validation,
+    hook context, inventory reports, and cleanup prompts. Hooks are reminder-only;
+    explicit tests and deploy checks are the enforcement boundary.
+  data_flow:
+    - A doc or test changes through apply_patch/Edit/Write.
+    - The hook receives the edited path from the existing bridge.
+    - The hook asks the docs impact script for connected docs/tests, claims, broken links, and metadata gaps.
+    - The hook prints concise reminder context and exits zero.
+    - CI or local verification runs pytest/static docs tests for deterministic failures.
+    - A cleanup agent consumes the inventory report to fold/delete/update docs and then reruns deterministic checks.
+  affected_files:
+    - path: scripts/docs_claims_verify.py
+      reason: Extend canonical claims validation and active-doc metadata enforcement.
+    - path: scripts/docs_claims_impact.py
+      reason: New impact engine for hooks and cleanup prompts.
+    - path: scripts/docs_inventory.py
+      reason: New folder/link/status/claim quality report.
+    - path: scripts/docs_markdown_links.py
+      reason: New deterministic Markdown link validator.
+    - path: scripts/tests/test_docs_markdown_links.py
+      reason: Static regression tests for Markdown links.
+    - path: scripts/tests/test_docs_claims_enforcement.py
+      reason: Regression tests for metadata/status/claims policy.
+    - path: scripts/tests/test_docs_inventory_report.py
+      reason: Regression tests for report shape and cleanup signals.
+    - path: scripts/tests/test_docs_claims_hook.py
+      reason: Regression tests for hook behavior and bridge wiring.
+    - path: .claude/hooks/docs-claims-impact.sh
+      reason: Canonical non-blocking docs impact hook.
+    - path: .codex/hooks/claude-hook-bridge.sh
+      reason: Invoke the canonical docs impact hook for Codex.
+    - path: .opencode/plugins/openmates-hooks.js
+      reason: Preserve OpenCode hook bridge behavior.
+    - path: docs/.docsignore
+      reason: Exclude docs/specs from public docs manifest.
+    - path: frontend/apps/web_app/scripts/process-docs.js
+      reason: Ensure docs/specs exclusion is deterministic and testable.
+    - path: docs/contributing/guides/docs-writing-guidelines.md
+      reason: Document the new policy and cleanup workflow.
+    - path: docs/architecture/code-mapping.yml
+      reason: Update or de-emphasize legacy staleness mapping after claims impact exists.
+    - path: docs/architecture/**
+      reason: Reorganize implemented architecture docs, delete/fold planned and stale docs.
+    - path: docs/user-guide/billing/**
+      reason: New user-facing billing topic structure.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/docs-claims-enforcement-cleanup/spec.yml
+    - python3 -m pytest scripts/tests/test_docs_markdown_links.py
+    - python3 -m pytest scripts/tests/test_docs_claims_enforcement.py
+    - python3 -m pytest scripts/tests/test_docs_inventory_report.py
+    - python3 -m pytest scripts/tests/test_docs_claims_hook.py
+    - cd frontend/apps/web_app && npm run build:docs
+
+tasks:
+  - id: TASK-1
+    title: Build deterministic docs validators
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-6
+    expected_files:
+      - scripts/docs_markdown_links.py
+      - scripts/docs_claims_verify.py
+      - scripts/tests/test_docs_markdown_links.py
+      - scripts/tests/test_docs_claims_enforcement.py
+    verification:
+      - T-PY-DOCS-LINKS
+      - T-PY-DOCS-CLAIMS
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Build docs inventory and impact reporting
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-7
+        - AC-11
+    expected_files:
+      - scripts/docs_claims_impact.py
+      - scripts/docs_inventory.py
+      - scripts/tests/test_docs_inventory_report.py
+    verification:
+      - T-PY-DOCS-INVENTORY
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Wire non-blocking docs hooks across Claude Codex and OpenCode
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - .claude/hooks/docs-claims-impact.sh
+      - .codex/hooks/claude-hook-bridge.sh
+      - .opencode/plugins/openmates-hooks.js
+      - scripts/tests/test_docs_claims_hook.py
+    verification:
+      - T-PY-DOCS-HOOK
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Exclude executable specs from public docs web app
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - docs/.docsignore
+      - frontend/apps/web_app/scripts/process-docs.js
+      - scripts/tests/test_docs_inventory_report.py
+    verification:
+      - T-UNIT-DOCS-WEB-MANIFEST
+    independently_deployable: true
+
+  - id: TASK-5
+    title: Reorganize architecture and billing docs structure
+    covers:
+      scenarios:
+        - S-8
+        - S-9
+      acceptance_criteria:
+        - AC-8
+        - AC-9
+    expected_files:
+      - docs/architecture/platforms/README.md
+      - docs/architecture/platforms/web-app.md
+      - docs/architecture/platforms/cli.md
+      - docs/architecture/platforms/apple.md
+      - docs/architecture/privacy-security/**
+      - docs/user-guide/billing/README.md
+      - docs/user-guide/billing/pricing.md
+      - docs/user-guide/billing/usage.md
+      - docs/user-guide/billing/gift-cards.md
+      - docs/user-guide/billing/invoices-and-refunds.md
+    verification:
+      - T-PY-DOCS-LINKS
+      - T-PY-DOCS-INVENTORY
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Run cleanup campaign across existing docs
+    covers:
+      scenarios:
+        - S-7
+        - S-10
+      acceptance_criteria:
+        - AC-7
+        - AC-10
+        - AC-11
+        - AC-12
+    expected_files:
+      - docs/**/*.md
+      - docs/architecture/code-mapping.yml
+      - docs/contributing/guides/docs-writing-guidelines.md
+    verification:
+      - T-PY-DOCS-LINKS
+      - T-PY-DOCS-CLAIMS
+      - T-PY-DOCS-INVENTORY
+    independently_deployable: false
+
+risks:
+  - "Risk: Enforcing claims on all active docs immediately could freeze unrelated work. Mitigation: hooks are reminder-only and hard enforcement rolls out through explicit tests/deploy gates after cleanup."
+  - "Risk: Agent cleanup could delete useful historical context. Mitigation: delete/fold decisions come from deterministic reports plus context-aware agent review, with GitHub issues created for planned work worth preserving."
+  - "Risk: Claim markers can exist without meaningful assertions. Mitigation: add assertion-quality conventions first, then later add AST/body checks for no-op wrappers where feasible."
+  - "Risk: Moving docs breaks source comments and external links. Mitigation: Markdown link validation plus code-link impact reporting must run after each cleanup batch."
+  - "Risk: Public docs app accidentally publishes executable specs. Mitigation: docs/.docsignore plus manifest tests explicitly exclude docs/specs/."
+
+open_questions:
+  - Should docs/contributing/ remain excluded from the public /docs app, or should selected contributor docs be intentionally exposed after cleanup?
+  - What GitHub label should be used when preserving planned work from deleted docs as issues?
+  - Should `manual` claims require a review cadence after the initial rollout?

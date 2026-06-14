@@ -29,6 +29,7 @@ import {
   EMBED_FULLSCREEN_COMPONENTS,
   EMBED_RENDERER_MAP,
   EMBED_METADATA,
+  CONTENT_EMBED_CATALOG,
   EMBED_GROUPABLE_TYPES,
   normalizeEmbedType,
   getChildEmbedType,
@@ -231,6 +232,8 @@ describe("Embed State Machine — backend/frontend parity", () => {
     expect(normalizeEmbedStatus(undefined)).toBe(EmbedStatus.FINISHED);
     // Valid statuses pass through
     expect(normalizeEmbedStatus("processing")).toBe(EmbedStatus.PROCESSING);
+    expect(normalizeEmbedStatus("rendering")).toBe(EmbedStatus.RENDERING);
+    expect(normalizeEmbedStatus("needs_rerender")).toBe(EmbedStatus.NEEDS_RERENDER);
     expect(normalizeEmbedStatus("error")).toBe(EmbedStatus.ERROR);
     expect(normalizeEmbedStatus("cancelled")).toBe(EmbedStatus.CANCELLED);
   });
@@ -240,11 +243,15 @@ describe("Embed State Machine — backend/frontend parity", () => {
     expect(isTerminalStatus("error")).toBe(true);
     expect(isTerminalStatus("cancelled")).toBe(true);
     expect(isTerminalStatus("processing")).toBe(false);
+    expect(isTerminalStatus("rendering")).toBe(false);
+    expect(isTerminalStatus("needs_rerender")).toBe(false);
     expect(isTerminalStatus("unknown")).toBe(false);
   });
 
   it("isValidEmbedStatus rejects unknown values", () => {
     expect(isValidEmbedStatus("processing")).toBe(true);
+    expect(isValidEmbedStatus("rendering")).toBe(true);
+    expect(isValidEmbedStatus("needs_rerender")).toBe(true);
     expect(isValidEmbedStatus("finished")).toBe(true);
     expect(isValidEmbedStatus("completed")).toBe(false); // alias, not a valid status
     expect(isValidEmbedStatus("")).toBe(false);
@@ -422,7 +429,68 @@ describe("Embed Registry — internal consistency", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Section 5: Code Generator Integrity
+// Section 5: Content Catalog Consistency
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("Embed Registry — content catalog", () => {
+  it("contains the expected durable v1 content types", () => {
+    const EXPECTED_CONTENT_IDS = [
+      "audio.recording",
+      "code.application",
+      "code.code",
+      "code.repo",
+      "docs.document",
+      "images.image",
+      "mail.email",
+      "maps.location",
+      "math.plot",
+      "pdf.pdf",
+      "sheets.sheet",
+      "videos.video",
+      "videos.rendered_video",
+      "web.website",
+    ];
+
+    expect(CONTENT_EMBED_CATALOG.map((item) => item.id).sort()).toEqual(
+      EXPECTED_CONTENT_IDS.sort(),
+    );
+  });
+
+  it("has unique content IDs and example keys", () => {
+    const ids = CONTENT_EMBED_CATALOG.map((item) => item.id);
+    const exampleKeys = CONTENT_EMBED_CATALOG.map((item) => item.exampleKey);
+
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(exampleKeys).size).toBe(exampleKeys.length);
+  });
+
+  it("points each content item at registered metadata and components", () => {
+    const missing: string[] = [];
+
+    for (const item of CONTENT_EMBED_CATALOG) {
+      const metadataKey = EMBED_METADATA[item.registryKey]
+        ? item.registryKey
+        : item.source === "child" && item.skillId
+          ? `app:${item.appId}:${item.skillId}`
+          : item.frontendType;
+
+      if (!EMBED_METADATA[metadataKey]) {
+        missing.push(`[${item.id}] missing EMBED_METADATA['${metadataKey}']`);
+      }
+      if (!EMBED_PREVIEW_COMPONENTS[item.registryKey]) {
+        missing.push(`[${item.id}] missing preview for '${item.registryKey}'`);
+      }
+      if (!EMBED_FULLSCREEN_COMPONENTS[item.registryKey]) {
+        missing.push(`[${item.id}] missing fullscreen for '${item.registryKey}'`);
+      }
+    }
+
+    expect(missing, `Invalid content catalog entries:\n${missing.join("\n")}`).toHaveLength(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Section 6: Code Generator Integrity
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe("Embed Registry — code generator", () => {

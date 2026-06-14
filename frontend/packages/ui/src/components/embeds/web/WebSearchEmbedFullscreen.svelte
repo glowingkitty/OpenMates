@@ -23,6 +23,9 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { text } from "@repo/ui";
+  import { embedStore } from '../../../services/embedStore';
+  import { chatSyncService } from '../../../services/chatSyncService';
+  import { buildWebSearchPreviewMetadata } from '../embedPreviewHydration';
 
   // YouTube URL detection pattern — matches youtube.com and youtu.be variants
   const YOUTUBE_URL_RE =
@@ -86,6 +89,37 @@
     onShowChat?: () => void;
   }
 
+  type EmbedIdsValue = string | string[] | undefined;
+
+  function normalizeEmbedIds(value: unknown): EmbedIdsValue {
+    if (Array.isArray(value)) {
+      const ids = value.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+      return ids.length > 0 ? ids : undefined;
+    }
+
+    if (typeof value !== 'string') return undefined;
+
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === '[]' || trimmed === 'null' || trimmed === 'undefined') return undefined;
+
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return normalizeEmbedIds(parsed);
+      } catch {
+        // Fall through to legacy pipe-separated parsing below.
+      }
+    }
+
+    const ids = trimmed.split('|').map((id) => id.trim()).filter(Boolean);
+    return ids.length > 0 ? ids : undefined;
+  }
+
+  function hasExplicitZeroResults(content: Record<string, unknown> | undefined): boolean {
+    if (!content) return false;
+    return typeof content.result_count === 'number' && content.result_count === 0;
+  }
+
   let {
     data,
     onClose,
@@ -101,14 +135,18 @@
 
   // Extract fields from data prop
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
-  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
+  let embedIds = $derived(
+    hasExplicitZeroResults(data.decodedContent)
+      ? undefined
+      : normalizeEmbedIds(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids)
+  );
   let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
 
   // Local reactive state for streaming updates
   let localQuery = $state("");
   let localProvider = $state("Brave Search");
-  let embedIdsOverride = $state<string | string[] | undefined>(undefined);
-  let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
+  let embedIdsOverride = $state<EmbedIdsValue | null>(null);
+  let embedIdsValue = $derived(embedIdsOverride === null ? embedIds : embedIdsOverride);
   let localStatus = $state<"processing" | "finished" | "error" | "cancelled">(
     "finished",
   );
@@ -278,8 +316,29 @@
     const c = data.decodedContent;
     if (typeof c.query === "string") localQuery = c.query;
     if (typeof c.provider === "string") localProvider = c.provider;
-    if (c.embed_ids) embedIdsOverride = c.embed_ids as string | string[];
+    if ('embed_ids' in c || hasExplicitZeroResults(c)) {
+      embedIdsOverride = hasExplicitZeroResults(c) ? undefined : normalizeEmbedIds(c.embed_ids);
+    }
     if (typeof c.error === "string") localErrorMessage = c.error;
+  }
+
+  async function backfillParentPreviewMetadata(results: WebSearchResult[]): Promise<void> {
+    if (!embedId || results.length === 0) return;
+
+    const fields = buildWebSearchPreviewMetadata(results);
+    const result = await embedStore.mergeDecodedContentForPreviewBackfill(`embed:${embedId}`, fields);
+    if (!result.updated) return;
+
+    if (result.storePayload) {
+      await chatSyncService.sendStoreEmbed(result.storePayload);
+    }
+
+    chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', {
+      detail: {
+        embed_id: embedId,
+        status: localStatus,
+      },
+    }));
   }
 </script>
 
@@ -299,6 +358,7 @@
   status={localStatus}
   errorMessage={localErrorMessage}
   {query}
+  onResultsLoaded={(results) => { void backfillParentPreviewMetadata(results as WebSearchResult[]); }}
   onEmbedDataUpdated={handleEmbedDataUpdated}
   {initialChildEmbedId}
   {hasPreviousEmbed}
@@ -357,7 +417,7 @@
       />
     {:else}
       <WebsiteEmbedFullscreen
-        data={{ decodedContent: nav.result }}
+        data={{ decodedContent: nav.result, highlightQuoteText: data.highlightQuoteText }}
         onClose={nav.onClose}
         embedId={nav.result.embed_id}
         hasPreviousEmbed={nav.hasPrevious}

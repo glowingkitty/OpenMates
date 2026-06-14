@@ -36,8 +36,10 @@
 # See docs/apis/luma.md for Luma integration details.
 
 import asyncio
+from datetime import datetime
 import logging
 import os
+import re
 import yaml
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -45,7 +47,7 @@ from celery import Celery  # For type hinting only
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
-from backend.apps.ai.processing.external_result_sanitizer import sanitize_long_text_fields_in_payload
+from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.events.providers import berlin_philharmonic as berlin_philharmonic_provider
 from backend.apps.events.providers import eventbrite as eventbrite_provider
 from backend.apps.events.providers import google_events as google_events_provider
@@ -157,9 +159,11 @@ class SearchRequestItem(BaseModel):
             "Auto-generated as a sequential integer if not provided.",
     )
 
-    query: str = Field(
+    query: Optional[str] = Field(
+        default=None,
         description="Topic or theme of events to search for (e.g. 'AI', 'Python', 'hackathon', "
-        "'startup', 'networking'). Do NOT include platform names like 'meetup', 'luma', or 'eventbrite'."
+        "'startup', 'networking'). Required for city searches; optional when conference is set. "
+        "Do NOT include platform names like 'meetup', 'luma', or 'eventbrite'."
     )
     location: Optional[str] = Field(
         default=None,
@@ -197,6 +201,10 @@ class SearchRequestItem(BaseModel):
     provider: Optional[str] = Field(
         default=None,
         description="Provider to use for this request. Overrides top-level provider if set.",
+    )
+    providers: Optional[List[str]] = Field(
+        default=None,
+        description="Provider list to use for this request. Overrides top-level providers if set.",
     )
     concert_tags: Optional[List[str]] = Field(
         default=None,
@@ -270,8 +278,9 @@ class SearchResponse(BaseModel):
     providers: List[str] = Field(
         default_factory=list,
         description=(
-            "List of provider names that actually contributed results "
-            "(e.g. ['meetup', 'luma', 'eventbrite', 'google_events']). Empty if no results."
+            "List of provider IDs searched for the request "
+            "(e.g. ['meetup', 'luma', 'eventbrite', 'google_events']). "
+            "Providers can be present even when they returned zero results."
         ),
     )
     suggestions_follow_up_requests: Optional[List[str]] = Field(
@@ -390,6 +399,205 @@ class SearchSkill(BaseSkill):
     # Internal helpers
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _normalize_event_type(value: Any) -> Optional[str]:
+        """Normalize provider-specific event type values to the shared contract."""
+        if not value:
+            return None
+        normalized = str(value).strip().lower().replace("-", "_")
+        if normalized in {"online", "virtual", "virtual_event", "remote"}:
+            return "ONLINE"
+        if normalized in {"physical", "offline", "in_person", "in_person_event", "venue"}:
+            return "PHYSICAL"
+        return str(value).strip().upper()
+
+    @staticmethod
+    def _infer_result_event_type(event: Dict[str, Any]) -> Optional[str]:
+        """Infer event type when provider payloads omit the canonical field."""
+        explicit_type = SearchSkill._normalize_event_type(event.get("event_type"))
+        if explicit_type:
+            return explicit_type
+
+        text_parts = [str(event.get("location") or "")]
+        venue = event.get("venue")
+        if isinstance(venue, dict):
+            text_parts.extend(str(value or "") for value in venue.values())
+            has_physical_venue = any(
+                venue.get(key) for key in ("name", "address", "city", "country", "lat", "lon")
+            )
+        else:
+            text_parts.append(str(venue or ""))
+            has_physical_venue = bool(venue)
+
+        text = " ".join(text_parts).lower()
+        if any(term in text for term in ("online", "virtual", "remote", "webinar")):
+            return "ONLINE"
+        if has_physical_venue:
+            return "PHYSICAL"
+        return None
+
+    @staticmethod
+    def _parse_event_datetime(value: Any) -> Optional[datetime]:
+        if not value or not isinstance(value, str):
+            return None
+        try:
+            return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _align_event_datetime(value: datetime, reference: datetime) -> datetime:
+        """Avoid naive/aware comparison errors from provider-local date strings."""
+        if value.tzinfo is None and reference.tzinfo is not None:
+            return value.replace(tzinfo=reference.tzinfo)
+        if value.tzinfo is not None and reference.tzinfo is None:
+            return value.replace(tzinfo=None)
+        return value
+
+    @staticmethod
+    def _parse_money(value: Any) -> Optional[float]:
+        if value in (None, ""):
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        match = re.search(r"\d+(?:[.,]\d+)?", str(value))
+        if not match:
+            return None
+        try:
+            return float(match.group(0).replace(",", "."))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _extract_price_amount(event: Dict[str, Any]) -> Optional[float]:
+        """Extract a comparable event price when provider data exposes one."""
+        for candidate in (event.get("price"), event.get("fee")):
+            if candidate in (None, ""):
+                continue
+            if isinstance(candidate, dict):
+                for key in ("amount", "min", "display"):
+                    amount = SearchSkill._parse_money(candidate.get(key))
+                    if amount is not None:
+                        return amount
+                continue
+            amount = SearchSkill._parse_money(candidate)
+            if amount is not None:
+                return amount
+        if event.get("is_paid") is False:
+            return 0.0
+        return None
+
+    @staticmethod
+    def _has_price_intent(query: Optional[str]) -> bool:
+        if not query:
+            return False
+        lowered = query.lower()
+        return any(term in lowered for term in ("free", "cheap", "budget", "low cost", "low-cost", "affordable"))
+
+    @staticmethod
+    def _has_accessibility_intent(query: Optional[str]) -> bool:
+        if not query:
+            return False
+        lowered = query.lower()
+        return any(term in lowered for term in ("wheelchair", "accessible", "accessibility", "barrier-free", "barrier free"))
+
+    @staticmethod
+    def _accessibility_match(event: Dict[str, Any]) -> str:
+        text_parts = [str(event.get(field) or "") for field in ("title", "description", "location")]
+        venue = event.get("venue")
+        if isinstance(venue, dict):
+            text_parts.extend(str(value or "") for value in venue.values())
+        else:
+            text_parts.append(str(venue or ""))
+        text = " ".join(text_parts).lower()
+        if any(term in text for term in ("wheelchair", "accessible", "barrier-free", "barrier free")):
+            return "mentioned"
+        return "unknown"
+
+    @staticmethod
+    def _apply_quality_filters(
+        events: List[Dict[str, Any]],
+        *,
+        event_type: Optional[str],
+        start_date: Optional[str],
+        end_date: Optional[str],
+        query: Optional[str],
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Apply deterministic post-provider filters and ranking guardrails."""
+        normalized_type = SearchSkill._normalize_event_type(event_type)
+        start_dt = SearchSkill._parse_event_datetime(start_date)
+        end_dt = SearchSkill._parse_event_datetime(end_date)
+        price_intent = SearchSkill._has_price_intent(query)
+        accessibility_intent = SearchSkill._has_accessibility_intent(query)
+        applied_filters: List[str] = []
+        filtered: List[Dict[str, Any]] = []
+        filtered_out_count = 0
+
+        if normalized_type:
+            applied_filters.append("event_type")
+        if start_dt or end_dt:
+            applied_filters.append("date_window")
+
+        for event in events:
+            result = dict(event)
+            result_type = SearchSkill._infer_result_event_type(result)
+            if result_type:
+                result["event_type"] = result_type
+            if normalized_type and result_type and result_type != normalized_type:
+                filtered_out_count += 1
+                continue
+
+            event_start = SearchSkill._parse_event_datetime(result.get("date_start"))
+            if start_dt and event_start and SearchSkill._align_event_datetime(event_start, start_dt) < start_dt:
+                filtered_out_count += 1
+                continue
+            if end_dt and event_start and SearchSkill._align_event_datetime(event_start, end_dt) >= end_dt:
+                filtered_out_count += 1
+                continue
+
+            constraint_matches = dict(result.get("constraint_matches") or {})
+            if price_intent:
+                price = SearchSkill._extract_price_amount(result)
+                if price is None:
+                    constraint_matches["price"] = "unknown"
+                elif price == 0:
+                    constraint_matches["price"] = "free"
+                elif price <= 15:
+                    constraint_matches["price"] = "cheap"
+                else:
+                    constraint_matches["price"] = "paid"
+                result["price_amount"] = price
+            if accessibility_intent:
+                constraint_matches["accessibility"] = SearchSkill._accessibility_match(result)
+            if constraint_matches:
+                result["constraint_matches"] = constraint_matches
+            filtered.append(result)
+
+        if price_intent:
+            def price_rank(event: Dict[str, Any]) -> tuple[int, float]:
+                match = (event.get("constraint_matches") or {}).get("price")
+                rank = {"free": 0, "cheap": 1, "unknown": 2, "paid": 3}.get(match, 4)
+                amount = event.get("price_amount")
+                numeric_amount = float(amount) if isinstance(amount, (int, float)) else float("inf")
+                return rank, numeric_amount
+
+            filtered.sort(key=price_rank)
+
+        metadata: Dict[str, Any] = {
+            "applied_filters": applied_filters,
+            "filtered_out_count": filtered_out_count,
+            "price_intent": "free_or_cheap" if price_intent else None,
+            "accessibility_intent": accessibility_intent,
+            "no_result_reason": "filtered_out" if events and not filtered else None,
+        }
+        if metadata["no_result_reason"]:
+            metadata["suggestions"] = [
+                "Relax one or more filters",
+                "Try a wider date range",
+                "Search another provider or nearby city",
+            ]
+        return filtered, metadata
+
     def _load_config_from_app_yml(self) -> None:
         """Load follow-up suggestions and provider metadata from app.yml."""
         try:
@@ -431,6 +639,52 @@ class SearchSkill(BaseSkill):
                 exc,
                 exc_info=True,
             )
+
+    def _validate_event_requests(
+        self,
+        requests: List[Dict[str, Any]],
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Optional[str]]:
+        """Validate event requests without letting one bad LLM item poison the batch."""
+        if not requests:
+            return [], [], (
+                "No search requests provided. 'requests' array must contain at "
+                "least one request with 'query' and 'location' (or 'lat'/'lon')."
+            )
+
+        valid_requests: List[Dict[str, Any]] = []
+        invalid_results: List[Dict[str, Any]] = []
+        request_ids: set[Any] = set()
+        total_requests = len(requests)
+
+        for i, req in enumerate(requests):
+            request_id, error = self._validate_and_normalize_request_id(
+                req=req,
+                request_index=i,
+                total_requests=total_requests,
+                request_ids=request_ids,
+                logger=logger,
+            )
+            if error:
+                logger.error("Request %d validation failed: %s", i + 1, error)
+                return [], [], error
+
+            if not req.get("query"):
+                error_message = f"Request {i + 1} (id: {request_id}) is missing required 'query' field"
+                logger.warning("[events:search] %s; preserving as per-request error", error_message)
+                invalid_results.append({
+                    "id": request_id,
+                    "results": [],
+                    "error": error_message,
+                    "total_available": 0,
+                })
+                continue
+
+            valid_requests.append(req)
+
+        if not valid_requests:
+            return [], invalid_results, invalid_results[0]["error"] if invalid_results else None
+
+        return valid_requests, invalid_results, None
 
     async def _search_meetup(
         self,
@@ -742,7 +996,7 @@ class SearchSkill(BaseSkill):
         request_id: Any,
         secrets_manager: SecretsManager,  # noqa: ARG002
         proxy_url: Optional[str] = None,
-    ) -> Tuple[Any, List[Dict[str, Any]], Optional[str], int]:
+    ) -> Tuple[Any, List[Dict[str, Any]], Optional[str], int, List[str]]:
         """
         Process a single event search request across the requested provider(s).
 
@@ -758,11 +1012,16 @@ class SearchSkill(BaseSkill):
             proxy_url:       Optional Webshare rotating proxy URL for Meetup requests.
 
         Returns:
-            Tuple (request_id, results_list, error_or_None, total_available).
+            Tuple (request_id, results_list, error_or_None, total_available, searched_provider_ids).
         """
-        query = req.get("query") or req.get("q")
+        provider_hint = req.get("provider") or " ".join(req.get("providers") or [])
+        conference: Optional[str] = req.get("conference") or None
+        if not conference:
+            conference = pretalx_provider.resolve_conference(str(provider_hint))
+
+        query = req.get("query") or req.get("q") or conference
         if not query:
-            return (request_id, [], "Missing 'query' parameter", 0)
+            return (request_id, [], "Missing 'query' parameter", 0, [])
 
         # Strip platform-brand and filler stopwords before passing to providers.
         # e.g. "AI meetup" -> "AI", "tech events" -> "tech". Falls back to the
@@ -796,9 +1055,11 @@ class SearchSkill(BaseSkill):
                     provider_choice,
                     request_id,
                 )
-                return (request_id, [], f"Unknown events provider: {provider_choice}", 0)
+                return (request_id, [], f"Unknown events provider: {provider_choice}", 0, [])
             # Single specific provider → use directly (no registry filtering)
             requested_providers = None if provider_choice == "auto" else None
+
+        searched_provider_ids: List[str] = [] if provider_choice == "auto" else [provider_choice]
 
         # --- Resolve location ---
         lat: Optional[float] = req.get("lat")
@@ -813,7 +1074,7 @@ class SearchSkill(BaseSkill):
                 lat = float(lat)
                 lon = float(lon)
             except (TypeError, ValueError) as exc:
-                return (request_id, [], f"Invalid lat/lon values: {exc}", 0)
+                return (request_id, [], f"Invalid lat/lon values: {exc}", 0, searched_provider_ids)
         else:
             if not location_str:
                 if provider_choice == "pretalx" or pretalx_provider.is_conference_query(query):
@@ -825,6 +1086,7 @@ class SearchSkill(BaseSkill):
                         [],
                         "Missing 'location' parameter. Provide a city name or explicit lat/lon.",
                         0,
+                        searched_provider_ids,
                     )
             if lat is None or lon is None:
                 if not location_str:
@@ -833,6 +1095,7 @@ class SearchSkill(BaseSkill):
                         [],
                         "Missing 'location' parameter. Provide a city name or explicit lat/lon.",
                         0,
+                        searched_provider_ids,
                     )
                 try:
                     lat, lon, city, country = meetup_provider.resolve_location(location_str)
@@ -842,7 +1105,7 @@ class SearchSkill(BaseSkill):
                     if provider_choice in {"luma", "eventbrite", "pretalx"}:
                         lat, lon = 0.0, 0.0
                     else:
-                        return (request_id, [], f"Location resolution failed: {exc}", 0)
+                        return (request_id, [], f"Location resolution failed: {exc}", 0, searched_provider_ids)
 
         # Use provided location string as city for Luma if city wasn't set by geocoder.
         luma_city = city or location_str
@@ -854,10 +1117,6 @@ class SearchSkill(BaseSkill):
         radius_miles: float = float(req.get("radius_miles", 25.0))
         count: int = int(req.get("count", _DEFAULT_COUNT))
         concert_tags: Optional[List[str]] = req.get("concert_tags") or None
-        conference: Optional[str] = req.get("conference") or None
-        if not conference:
-            provider_hint = req.get("provider") or " ".join(req.get("providers") or [])
-            conference = pretalx_provider.resolve_conference(str(provider_hint))
         past_events: bool = bool(req.get("past_events", False))
 
         if event_type and event_type not in ("PHYSICAL", "ONLINE"):
@@ -894,7 +1153,7 @@ class SearchSkill(BaseSkill):
                 proxy_url=proxy_url,
             )
             if meetup_err and not meetup_events:
-                return (request_id, [], f"Meetup search failed: {meetup_err}", 0)
+                return (request_id, [], f"Meetup search failed: {meetup_err}", 0, searched_provider_ids)
             all_events = meetup_events
             total_available = total
 
@@ -907,7 +1166,7 @@ class SearchSkill(BaseSkill):
                 proxy_url=proxy_url,
             )
             if luma_err and not luma_events:
-                return (request_id, [], f"Luma search failed: {luma_err}", 0)
+                return (request_id, [], f"Luma search failed: {luma_err}", 0, searched_provider_ids)
             all_events = luma_events
             total_available = total
 
@@ -923,7 +1182,7 @@ class SearchSkill(BaseSkill):
                 secrets_manager=secrets_manager,
             )
             if ge_err and not ge_events:
-                return (request_id, [], f"Google Events search failed: {ge_err}", 0)
+                return (request_id, [], f"Google Events search failed: {ge_err}", 0, searched_provider_ids)
             all_events = ge_events
             total_available = total
 
@@ -936,7 +1195,7 @@ class SearchSkill(BaseSkill):
                 proxy_url=proxy_url,
             )
             if eb_err and not eb_events:
-                return (request_id, [], f"Eventbrite search failed: {eb_err}", 0)
+                return (request_id, [], f"Eventbrite search failed: {eb_err}", 0, searched_provider_ids)
             all_events = eb_events
             total_available = total
 
@@ -950,7 +1209,7 @@ class SearchSkill(BaseSkill):
                 count=count,
             )
             if ra_err and not ra_events:
-                return (request_id, [], f"Resident Advisor search failed: {ra_err}", 0)
+                return (request_id, [], f"Resident Advisor search failed: {ra_err}", 0, searched_provider_ids)
             all_events = ra_events
             total_available = total
 
@@ -964,7 +1223,7 @@ class SearchSkill(BaseSkill):
                 proxy_url=proxy_url,
             )
             if ss_err and not ss_events:
-                return (request_id, [], f"Siegessäule search failed: {ss_err}", 0)
+                return (request_id, [], f"Siegessäule search failed: {ss_err}", 0, searched_provider_ids)
             all_events = ss_events
             total_available = total
 
@@ -977,7 +1236,7 @@ class SearchSkill(BaseSkill):
                 count=count,
             )
             if bp_err and not bp_events:
-                return (request_id, [], f"Berlin Philharmonic search failed: {bp_err}", 0)
+                return (request_id, [], f"Berlin Philharmonic search failed: {bp_err}", 0, searched_provider_ids)
             all_events = bp_events
             total_available = total
 
@@ -993,7 +1252,7 @@ class SearchSkill(BaseSkill):
                 past_events=past_events,
             )
             if pretalx_err and not pretalx_events:
-                return (request_id, [], f"Conference schedule search failed: {pretalx_err}", 0)
+                return (request_id, [], f"Conference schedule search failed: {pretalx_err}", 0, searched_provider_ids)
             all_events = pretalx_events
             total_available = total
 
@@ -1065,9 +1324,10 @@ class SearchSkill(BaseSkill):
                 for pid in applicable_ids
                 if pid in dispatch
             ]
+            searched_provider_ids = [pid for pid, _ in task_entries]
 
             if not task_entries:
-                return (request_id, [], "No applicable providers for this location", 0)
+                return (request_id, [], "No applicable providers for this location", 0, [])
 
             results_tuples = await asyncio.gather(*[t[1] for t in task_entries])
 
@@ -1096,6 +1356,21 @@ class SearchSkill(BaseSkill):
             )
             results.append(result)
 
+        results, quality_metadata = self._apply_quality_filters(
+            results,
+            event_type=event_type,
+            start_date=start_date,
+            end_date=end_date,
+            query=query,
+        )
+        if quality_metadata.get("filtered_out_count"):
+            logger.info(
+                "Events quality filters removed %d result(s) for request %s: %s",
+                quality_metadata["filtered_out_count"],
+                request_id,
+                quality_metadata.get("applied_filters"),
+            )
+
         try:
             results = await sanitize_long_text_fields_in_payload(
                 payload=results,
@@ -1110,7 +1385,7 @@ class SearchSkill(BaseSkill):
                 sanitize_error,
                 exc_info=True,
             )
-            return (request_id, [], "Content sanitization failed", 0)
+            return (request_id, [], "Content sanitization failed", 0, searched_provider_ids)
 
         logger.info(
             "Events search (id=%s) done: %d results (total=%d) provider=%r query=%r",
@@ -1120,7 +1395,7 @@ class SearchSkill(BaseSkill):
             provider_choice,
             query,
         )
-        return (request_id, results, None, total_available)
+        return (request_id, results, None, total_available, searched_provider_ids)
 
     # ------------------------------------------------------------------
     # Public execute() — called by BaseApp/route handler
@@ -1169,18 +1444,17 @@ class SearchSkill(BaseSkill):
                         req["providers"] = top_level_providers
                     elif top_level_provider:
                         req["provider"] = top_level_provider
-        validated_requests, error = self._validate_requests_array(
-            requests=requests_list,
-            required_field="query",
-            field_display_name="query",
-            empty_error_message=(
-                "No search requests provided. 'requests' array must contain at "
-                "least one request with 'query' and 'location' (or 'lat'/'lon')."
-            ),
-            logger=logger,
-        )
+        for req in requests_list:
+            if req.get("query") or req.get("q"):
+                continue
+            provider_hint = req.get("provider") or " ".join(req.get("providers") or [])
+            conference = req.get("conference") or pretalx_provider.resolve_conference(str(provider_hint))
+            if conference:
+                req["conference"] = conference
+                req["query"] = conference
+        validated_requests, invalid_results, error = self._validate_event_requests(requests_list)
         if error:
-            return SearchResponse(results=[], error=error)
+            return SearchResponse(results=invalid_results, error=error)
 
         # Load Webshare rotating residential proxy credentials from Vault.
         # Used for Meetup requests to avoid server-side IP rate limiting.
@@ -1218,9 +1492,11 @@ class SearchSkill(BaseSkill):
         )
 
         # Group by request ID — handle 4-tuples (request_id, items, error, total_available).
-        grouped_results: List[Dict[str, Any]] = []
+        grouped_results: List[Dict[str, Any]] = [*invalid_results]
         errors: List[str] = []
-        request_order = {req.get("id"): i for i, req in enumerate(validated_requests or [])}
+        request_order = {req.get("id"): i for i, req in enumerate(requests_list or [])}
+        searched_provider_ids: List[str] = []
+        seen_searched_provider_ids: set[str] = set()
 
         for result in results:
             if isinstance(result, Exception):
@@ -1229,7 +1505,16 @@ class SearchSkill(BaseSkill):
                 errors.append(error_msg)
                 continue
 
-            request_id, items, err, total_available = result
+            if len(result) == 5:
+                request_id, items, err, total_available, result_provider_ids = result
+            else:
+                request_id, items, err, total_available = result
+                result_provider_ids = []
+
+            for provider_id in result_provider_ids:
+                if provider_id and provider_id not in seen_searched_provider_ids:
+                    seen_searched_provider_ids.add(provider_id)
+                    searched_provider_ids.append(provider_id)
 
             if err:
                 errors.append(err)
@@ -1255,10 +1540,11 @@ class SearchSkill(BaseSkill):
         }
         provider_label = provider_choices.pop() if len(provider_choices) == 1 else "auto"
 
-        # Collect unique provider names from actual results for frontend display.
-        # Each event dict has a "provider" field set by the provider that returned it.
+        # Prefer providers actually dispatched for this request. Fall back to
+        # result contributors for legacy tests/embeds without request metadata.
         contributing_providers: List[str] = []
-        seen_providers: set = set()
+        seen_providers: set[str] = set(searched_provider_ids)
+        contributing_providers.extend(searched_provider_ids)
         for gr in grouped_results:
             for item in gr.get("results", []):
                 p = item.get("provider")

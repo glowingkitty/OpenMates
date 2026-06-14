@@ -20,7 +20,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getAllExampleChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
+	import { INTRO_CHATS, LEGAL_CHATS, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat, getRecentExampleChats, getExampleSubChats, getActiveNewsletterChatsByKind } from '../../demo_chats'; // For demo/intro chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
@@ -255,6 +255,16 @@ let _chatUpdatedFlushPending = false;
 
 	let visibleOpenMatesEvents = $derived(OPENMATES_EVENTS.filter(event => !hasEventEnded(event)));
 
+	const DEFAULT_EXAMPLE_CHAT_LIMIT = 10;
+	const DEFAULT_ANNOUNCEMENT_CHAT_LIMIT = 3;
+
+	let visibleExampleChatLimit = $state(DEFAULT_EXAMPLE_CHAT_LIMIT);
+	let visibleAnnouncementChatLimit = $state(DEFAULT_ANNOUNCEMENT_CHAT_LIMIT);
+
+	function getHiddenPublicChatIds(): string[] {
+		return $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
+	}
+
 	// Get filtered public chats (intro + example chats + legal) - exclude hidden ones for authenticated users
 	// 
 	// ARCHITECTURE:
@@ -283,7 +293,7 @@ let _chatUpdatedFlushPending = false;
 		// Example chats are static — no store subscription needed
 		
 		// Get hidden IDs for authenticated users (shared between demo and legal chats)
-		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
+		const hiddenIds = getHiddenPublicChatIds();
 		
 		// 1. Static intro chats (bundled with app)
 		let introChats: ChatType[] = [];
@@ -309,18 +319,20 @@ let _chatUpdatedFlushPending = false;
 		
 		// 2. Example chats (hardcoded static data)
 		// These are shown for all users (authenticated and non-authenticated)
-		const exampleChats: ChatType[] = getAllExampleChats()
+		const allVisibleExampleChats = getRecentExampleChats(Number.MAX_SAFE_INTEGER)
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.slice(0, visibleExampleChatLimit);
+		const exampleChats: ChatType[] = allVisibleExampleChats
 			.map(chat => ({
 				...chat,
 				group_key: 'examples' // Example chats go in "Examples" group
 			}));
 		
-		// 3. Announcement chats — the 10 most recent Updates & Announcements
+		// 3. Announcement chats — the most recent Updates & Announcements
 		// newsletter issues, shown under an "Announcements" section so users can
 		// always jump back to the latest product update. Hidden (via
 		// hidden_demo_chats) works the same as for intro/legal chats.
-		const announcementChats: ChatType[] = getActiveNewsletterChatsByKind('announcements')
+		const allVisibleAnnouncementChats = getActiveNewsletterChatsByKind('announcements')
 			.filter(chat => !hiddenIds.includes(chat.chat_id))
 			.slice()
 			.sort((a, b) => {
@@ -328,7 +340,8 @@ let _chatUpdatedFlushPending = false;
 				const bt = Date.parse(b.metadata.publishedAt || b.metadata.lastUpdated || '') || 0;
 				return bt - at;
 			})
-			.slice(0, 10)
+			.slice(0, visibleAnnouncementChatLimit);
+		const announcementChats: ChatType[] = allVisibleAnnouncementChats
 			.map(demo => translateDemoChat(demo))
 			.map(demo => {
 				const chat = convertDemoChatToChat(demo);
@@ -684,6 +697,25 @@ let _chatUpdatedFlushPending = false;
 			: totalUserChats;
 		return Math.max(0, totalKnown - visibleUserChatLimit);
 	})());
+
+	let remainingExampleChatsCount = $derived((() => {
+		const hiddenIds = getHiddenPublicChatIds();
+		const totalExampleChats = getRecentExampleChats(Number.MAX_SAFE_INTEGER)
+			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.length;
+		return Math.max(0, totalExampleChats - visibleExampleChatLimit);
+	})());
+
+	let remainingAnnouncementChatsCount = $derived((() => {
+		const hiddenIds = getHiddenPublicChatIds();
+		const totalAnnouncementChats = getActiveNewsletterChatsByKind('announcements')
+			.filter(chat => !hiddenIds.includes(chat.chat_id))
+			.length;
+		return Math.max(0, totalAnnouncementChats - visibleAnnouncementChatLimit);
+	})());
+
+	let showMoreExampleChatsVisible = $derived(remainingExampleChatsCount > 0);
+	let showMoreAnnouncementChatsVisible = $derived(remainingAnnouncementChatsCount > 0);
 
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
@@ -1270,6 +1302,14 @@ let _chatUpdatedFlushPending = false;
 			}
 		}
 	};
+
+	function handleShowMoreExampleChatsClick() {
+		visibleExampleChatLimit += DEFAULT_EXAMPLE_CHAT_LIMIT;
+	}
+
+	function handleShowMoreAnnouncementChatsClick() {
+		visibleAnnouncementChatLimit += DEFAULT_ANNOUNCEMENT_CHAT_LIMIT;
+	}
 
 	/**
 	 * Handles 'load_more_chats_ready' events from chatSyncService.
@@ -3864,11 +3904,11 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 			<!-- Snippet for rendering a chat group (avoids duplicating the complex chat item template) -->
 			{#snippet chatGroupSnippet(groupKey: string, groupItems: ChatType[])}
 				{#if groupItems.length > 0}
-					<div class="chat-group" data-testid="chat-group">
+					<div class="chat-group" data-testid="chat-group" data-group-key={groupKey}>
 						<!-- Pass the translation function `$_` to the utility -->
 						<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 		{#each groupItems as chat (chat.chat_id)}
-						{@const subChats = allChatsFromDB.filter(c => c.parent_id === chat.chat_id)}
+						{@const subChats = [...getExampleSubChats(chat.chat_id), ...allChatsFromDB.filter(c => c.parent_id === chat.chat_id)]}
 						<div
 							role="button"
 							tabindex="0"
@@ -4009,7 +4049,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 											/>
 										</div>
 										<!-- Nested Grandchild Sub-chats (Tier 2) -->
-										{@const grandChats = allChatsFromDB.filter(c => c.parent_id === subChat.chat_id)}
+										{@const grandChats = [...getExampleSubChats(subChat.chat_id), ...allChatsFromDB.filter(c => c.parent_id === subChat.chat_id)]}
 										{#if grandChats.length > 0}
 											<div class="sub-chats-container grandchild-chats-container" style="padding-left: 16px; margin-left: 12px; border-left: 1.5px solid var(--grey30); display: flex; flex-direction: column; gap: 4px; position: relative;">
 												{#each grandChats as grandChat (grandChat.chat_id)}
@@ -4116,6 +4156,28 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 				<!-- 6. Static chat groups that appear after Events -->
 				{#each orderedStaticChatGroups.filter(([k]) => ['examples', 'announcements', 'tips_and_tricks', 'legal'].includes(k)) as [groupKey, groupItems] (groupKey)}
 					{@render chatGroupSnippet(groupKey, groupItems)}
+					{#if groupKey === 'examples' && showMoreExampleChatsVisible}
+						<div class="load-more-container">
+							<button
+								class="load-more-button"
+								data-testid="show-more-example-chats"
+								onclick={handleShowMoreExampleChatsClick}
+							>
+								{$text('chats.loadMore.button')}{#if remainingExampleChatsCount > 0}&nbsp;({remainingExampleChatsCount}){/if}
+							</button>
+						</div>
+					{/if}
+					{#if groupKey === 'announcements' && showMoreAnnouncementChatsVisible}
+						<div class="load-more-container">
+							<button
+								class="load-more-button"
+								data-testid="show-more-announcements"
+								onclick={handleShowMoreAnnouncementChatsClick}
+							>
+								{$text('chats.loadMore.button')}{#if remainingAnnouncementChatsCount > 0}&nbsp;({remainingAnnouncementChatsCount}){/if}
+							</button>
+						</div>
+					{/if}
 				{/each}
 			</div>
 		{/if}

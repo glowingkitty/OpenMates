@@ -8,6 +8,7 @@
 // Svelte:  frontend/packages/ui/src/components/DemoMessageContent.svelte
 //          frontend/packages/ui/src/components/embeds/ExampleChatsGroup.svelte
 //          frontend/packages/ui/src/components/embeds/ChatEmbedPreview.svelte
+//          frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
 // CSS:     ChatEmbedPreview.svelte <style>
 //          .chat-embed-card { width:300px; height:200px; border-radius:30px;
 //            box-shadow:0 8px 24px rgba(0,0,0,.16),0 2px 6px rgba(0,0,0,.1) }
@@ -66,7 +67,147 @@ enum MarkdownBlock {
     case table(headers: [String], rows: [[String]])
     case demoGroup(DemoGroupKind)
     case embedGroup([MarkdownEmbedReference])
+    case interactiveQuestion(AppleInteractiveQuestionPayload)
+    case interactiveQuestionFallback
+    case hiddenProtocol
 
+}
+
+struct AppleInteractiveQuestionPayload: Decodable, Equatable {
+    struct Option: Decodable, Equatable, Identifiable {
+        let id: String
+        let text: String
+    }
+
+    struct Field: Decodable, Equatable, Identifiable {
+        let id: String
+        let label: String
+        let placeholder: String?
+        let required: Bool?
+    }
+
+    let id: String
+    let type: String
+    let multiple: Bool?
+    let question: String?
+    let options: [Option]?
+    let fields: [Field]?
+    let cards: [Option]?
+    let min: Double?
+    let max: Double?
+    let step: Double?
+    let defaultValue: Double?
+    let labels: [String: String]?
+    let maxStars: Int?
+    let requireComment: Bool?
+    let commentPlaceholder: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case type
+        case multiple
+        case question
+        case options
+        case fields
+        case cards
+        case min
+        case max
+        case step
+        case defaultValue = "default"
+        case labels
+        case maxStars = "max_stars"
+        case requireComment = "require_comment"
+        case commentPlaceholder = "comment_placeholder"
+    }
+
+    var sliderLowerBound: Double { min ?? 0 }
+    var sliderUpperBound: Double { max ?? 10 }
+    var sliderStep: Double { step ?? 1 }
+    var ratingMaximum: Int { Swift.max(1, maxStars ?? 5) }
+
+    @MainActor
+    func responseContent(response: [String: Any]) -> String {
+        let displayText = displayText(for: response)
+        let json = Self.prettyPrintedJSON(response)
+        return "\(displayText)\n\n```interactive_response\n\(json)\n```"
+    }
+
+    @MainActor
+    func displayText(for response: [String: Any]) -> String {
+        switch type {
+        case "choice":
+            let selection = response["selection"] as? [String] ?? []
+            let texts = (options ?? [])
+                .filter { selection.contains($0.id) }
+                .map(\.text)
+            return multiple == true ? texts.joined(separator: "\n") : texts.first ?? ""
+
+        case "input":
+            let inputs = response["inputs"] as? [String: String] ?? [:]
+            return (fields ?? [])
+                .compactMap { inputs[$0.id]?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n")
+
+        case "slider":
+            let value: Double
+            if let doubleValue = response["value"] as? Double {
+                value = doubleValue
+            } else if let intValue = response["value"] as? Int {
+                value = Double(intValue)
+            } else {
+                value = 0
+            }
+            let label = labels?[Self.labelKey(for: value)]
+            let renderedValue = Self.renderedNumber(value)
+            return label.map { "\(renderedValue) (\($0))" } ?? renderedValue
+
+        case "swipe":
+            let swipes = response["swipes"] as? [String: String] ?? [:]
+            return (cards ?? [])
+                .map { card in
+                    let label = swipes[card.id] == "like" ? AppStrings.yes : AppStrings.no
+                    return "\(card.text): \(label)"
+                }
+                .joined(separator: "\n")
+
+        case "rating":
+            var lines = ["\(response["rating"] as? Int ?? 0)/\(ratingMaximum)"]
+            if let comment = response["comment"] as? String,
+               !comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                lines.append(comment.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
+            return lines.joined(separator: "\n")
+
+        default:
+            return ""
+        }
+    }
+
+    private static func prettyPrintedJSON(_ object: [String: Any]) -> String {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
+              let json = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return json
+    }
+
+    private static func labelKey(for value: Double) -> String {
+        let rounded = value.rounded()
+        if abs(value - rounded) < 0.0001 {
+            return String(Int(rounded))
+        }
+        return renderedNumber(value)
+    }
+
+    private static func renderedNumber(_ value: Double) -> String {
+        let rounded = value.rounded()
+        if abs(value - rounded) < 0.0001 {
+            return String(Int(rounded))
+        }
+        return String(value)
+    }
 }
 
 struct MarkdownEmbedReference: Equatable {
@@ -139,7 +280,15 @@ enum MarkdownParser {
                     i += 1
                 }
                 let code = codeLines.joined(separator: "\n")
-                if let embed = parseFencedEmbedReference(language: language, code: code) {
+                if language == "interactive_response" {
+                    blocks.append(.hiddenProtocol)
+                } else if language == "interactive_question" {
+                    if let payload = parseInteractiveQuestionPayload(code) {
+                        blocks.append(.interactiveQuestion(payload))
+                    } else {
+                        blocks.append(.interactiveQuestionFallback)
+                    }
+                } else if let embed = parseFencedEmbedReference(language: language, code: code) {
                     blocks.append(.embedGroup([embed]))
                 } else {
                     blocks.append(.codeBlock(language: language, code: code))
@@ -264,6 +413,16 @@ enum MarkdownParser {
         return nil
     }
 
+    private static func parseInteractiveQuestionPayload(_ code: String) -> AppleInteractiveQuestionPayload? {
+        guard let data = code.data(using: .utf8),
+              let payload = try? JSONDecoder().decode(AppleInteractiveQuestionPayload.self, from: data),
+              !payload.id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              ["choice", "input", "slider", "swipe", "rating"].contains(payload.type) else {
+            return nil
+        }
+        return payload
+    }
+
     private static func parseEmbedPlaceholder(_ line: String) -> MarkdownEmbedReference? {
         guard line.hasSuffix("]]") else { return nil }
         if line.hasPrefix("[[embed:") {
@@ -313,6 +472,7 @@ struct RichMarkdownView: View {
     let allEmbedRecords: [String: EmbedRecord]
     let hiddenEmbedIds: Set<String>
     let onEmbedTap: ((EmbedRecord) -> Void)?
+    let onInteractiveQuestionSubmit: ((String) -> Void)?
     private let blocks: [MarkdownBlock]
 
     init(
@@ -322,7 +482,8 @@ struct RichMarkdownView: View {
         embedLookup: [String: EmbedRecord] = [:],
         allEmbedRecords: [String: EmbedRecord] = [:],
         hiddenEmbedIds: Set<String> = [],
-        onEmbedTap: ((EmbedRecord) -> Void)? = nil
+        onEmbedTap: ((EmbedRecord) -> Void)? = nil,
+        onInteractiveQuestionSubmit: ((String) -> Void)? = nil
     ) {
         self.content = content
         self.isUserMessage = isUserMessage
@@ -331,6 +492,7 @@ struct RichMarkdownView: View {
         self.allEmbedRecords = allEmbedRecords
         self.hiddenEmbedIds = hiddenEmbedIds
         self.onEmbedTap = onEmbedTap
+        self.onInteractiveQuestionSubmit = onInteractiveQuestionSubmit
         self.blocks = MarkdownParser.parse(content)
     }
 
@@ -413,6 +575,21 @@ struct RichMarkdownView: View {
                     }
                 }
             }
+
+        case .interactiveQuestion(let payload):
+            AppleInteractiveQuestionCard(payload: payload, onSubmit: onInteractiveQuestionSubmit)
+
+        case .interactiveQuestionFallback:
+            Text(AppStrings.interactiveQuestionFailed)
+                .font(.omP)
+                .foregroundStyle(Color.fontSecondary)
+                .padding(.spacing4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.grey10)
+                .clipShape(RoundedRectangle(cornerRadius: .radius4))
+
+        case .hiddenProtocol:
+            EmptyView()
         }
     }
 
@@ -423,6 +600,290 @@ struct RichMarkdownView: View {
             }
         }
         return embedLookup[reference.value] ?? allEmbedRecords[reference.value]
+    }
+}
+
+private struct AppleInteractiveQuestionCard: View {
+    let payload: AppleInteractiveQuestionPayload
+    let onSubmit: ((String) -> Void)?
+    @State private var selectedOptionIds: Set<String>
+    @State private var inputValues: [String: String]
+    @State private var sliderValue: Double
+    @State private var swipeValues: [String: String]
+    @State private var rating: Int
+    @State private var comment: String
+
+    init(payload: AppleInteractiveQuestionPayload, onSubmit: ((String) -> Void)? = nil) {
+        self.payload = payload
+        self.onSubmit = onSubmit
+        _selectedOptionIds = State(initialValue: [])
+        _inputValues = State(initialValue: [:])
+        _sliderValue = State(initialValue: payload.defaultValue ?? payload.sliderLowerBound)
+        _swipeValues = State(initialValue: [:])
+        _rating = State(initialValue: 0)
+        _comment = State(initialValue: "")
+    }
+
+    private var title: String {
+        if let question = payload.question, !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return question
+        }
+        if let field = payload.fields?.first {
+            return field.label
+        }
+        return AppStrings.interactiveQuestionFailed
+    }
+
+    private var rows: [String] {
+        switch payload.type {
+        case "choice":
+            return payload.options?.map(\.text) ?? []
+        case "input":
+            return payload.fields?.map(\.label) ?? []
+        case "swipe":
+            return payload.cards?.map(\.text) ?? []
+        default:
+            return []
+        }
+    }
+
+    private var canSubmit: Bool {
+        switch payload.type {
+        case "choice":
+            return !selectedOptionIds.isEmpty
+        case "input":
+            let requiredFields = (payload.fields ?? []).filter { $0.required == true }
+            if requiredFields.isEmpty {
+                return inputValues.values.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            }
+            return requiredFields.allSatisfy { field in
+                !(inputValues[field.id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+        case "slider":
+            return true
+        case "swipe":
+            return Set(swipeValues.keys) == Set((payload.cards ?? []).map(\.id))
+        case "rating":
+            let commentReady = payload.requireComment == true
+                ? !comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                : true
+            return rating > 0 && commentReady
+        default:
+            return false
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            Text(title)
+                .font(.omP)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+
+            if onSubmit != nil {
+                interactiveControls
+                submitButton
+            } else if !rows.isEmpty {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                        HStack(alignment: .top, spacing: .spacing2) {
+                            Circle()
+                                .fill(Color.buttonPrimary)
+                                .frame(width: 6, height: 6)
+                                .padding(.top, 7)
+                            Text(row)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontSecondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.spacing5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey10)
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius4)
+                .stroke(Color.grey20, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("interactive-question-card")
+    }
+
+    @ViewBuilder
+    private var interactiveControls: some View {
+        switch payload.type {
+        case "choice":
+            VStack(alignment: .leading, spacing: .spacing2) {
+                ForEach(payload.options ?? []) { option in
+                    answerButton(
+                        text: option.text,
+                        isSelected: selectedOptionIds.contains(option.id)
+                    ) {
+                        if payload.multiple == true {
+                            if selectedOptionIds.contains(option.id) {
+                                selectedOptionIds.remove(option.id)
+                            } else {
+                                selectedOptionIds.insert(option.id)
+                            }
+                        } else {
+                            selectedOptionIds = [option.id]
+                        }
+                    }
+                }
+            }
+
+        case "input":
+            VStack(alignment: .leading, spacing: .spacing3) {
+                ForEach(payload.fields ?? []) { field in
+                    TextField(field.placeholder ?? field.label, text: binding(for: field.id), axis: .vertical)
+                        .textFieldStyle(OMTextFieldStyle())
+                        .accessibilityIdentifier("interactive-question-input-\(field.id)")
+                }
+            }
+
+        case "slider":
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Slider(
+                    value: $sliderValue,
+                    in: payload.sliderLowerBound...payload.sliderUpperBound,
+                    step: payload.sliderStep
+                )
+                .tint(Color.buttonPrimary)
+                Text(payload.displayText(for: ["value": sliderValue]))
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+
+        case "swipe":
+            VStack(alignment: .leading, spacing: .spacing3) {
+                ForEach(payload.cards ?? []) { card in
+                    VStack(alignment: .leading, spacing: .spacing2) {
+                        Text(card.text)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontPrimary)
+                        HStack(spacing: .spacing3) {
+                            swipeButton(cardId: card.id, value: "like", label: AppStrings.yes)
+                            swipeButton(cardId: card.id, value: "dislike", label: AppStrings.no)
+                        }
+                    }
+                }
+            }
+
+        case "rating":
+            VStack(alignment: .leading, spacing: .spacing3) {
+                HStack(spacing: .spacing2) {
+                    ForEach(1...payload.ratingMaximum, id: \.self) { value in
+                        Button {
+                            rating = value
+                        } label: {
+                            Text(String(value))
+                                .font(.omSmall)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(value <= rating ? Color.fontButton : Color.fontPrimary)
+                                .frame(width: 28, height: 28)
+                                .background(value <= rating ? Color.buttonPrimary : Color.grey0)
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("interactive-question-rating-\(value)")
+                    }
+                }
+                if payload.requireComment == true || payload.commentPlaceholder != nil {
+                    TextField(payload.commentPlaceholder ?? "", text: $comment, axis: .vertical)
+                        .textFieldStyle(OMTextFieldStyle())
+                        .accessibilityIdentifier("interactive-question-rating-comment")
+                }
+            }
+
+        default:
+            EmptyView()
+        }
+    }
+
+    private var submitButton: some View {
+        Button {
+            onSubmit?(payload.responseContent(response: responsePayload()))
+        } label: {
+            Text(AppStrings.sendAction)
+                .font(.omSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontButton)
+                .padding(.horizontal, .spacing6)
+                .padding(.vertical, .spacing3)
+                .background(Color.buttonPrimary)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSubmit)
+        .opacity(canSubmit ? 1 : 0.6)
+        .accessibilityIdentifier("interactive-question-submit")
+    }
+
+    private func answerButton(text: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: .spacing3) {
+                if isSelected {
+                    Icon("select", size: 14)
+                        .foregroundStyle(Color.buttonPrimary)
+                } else {
+                    Circle()
+                        .stroke(Color.grey40, lineWidth: 1.5)
+                        .frame(width: 14, height: 14)
+                }
+                Text(text)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontPrimary)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing3)
+            .background(isSelected ? Color.grey20 : Color.grey0)
+            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("interactive-question-option")
+    }
+
+    private func swipeButton(cardId: String, value: String, label: String) -> some View {
+        answerButton(text: label, isSelected: swipeValues[cardId] == value) {
+            swipeValues[cardId] = value
+        }
+    }
+
+    private func binding(for fieldId: String) -> Binding<String> {
+        Binding(
+            get: { inputValues[fieldId] ?? "" },
+            set: { inputValues[fieldId] = $0 }
+        )
+    }
+
+    private func responsePayload() -> [String: Any] {
+        switch payload.type {
+        case "choice":
+            let orderedSelection = (payload.options ?? [])
+                .map(\.id)
+                .filter { selectedOptionIds.contains($0) }
+            return ["id": payload.id, "selection": orderedSelection]
+        case "input":
+            let inputs = (payload.fields ?? []).reduce(into: [String: String]()) { result, field in
+                let value = (inputValues[field.id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                if !value.isEmpty { result[field.id] = value }
+            }
+            return ["id": payload.id, "inputs": inputs]
+        case "slider":
+            return ["id": payload.id, "value": sliderValue]
+        case "swipe":
+            return ["id": payload.id, "swipes": swipeValues]
+        case "rating":
+            var response: [String: Any] = ["id": payload.id, "rating": rating]
+            let trimmedComment = comment.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedComment.isEmpty { response["comment"] = trimmedComment }
+            return response
+        default:
+            return ["id": payload.id]
+        }
     }
 }
 

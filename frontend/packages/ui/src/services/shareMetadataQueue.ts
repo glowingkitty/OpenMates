@@ -16,6 +16,8 @@ export interface PendingOGMetadataUpdate {
   chat_id: string;
   title: string | null;
   summary: string | null;
+  share_cta_text?: string | null;
+  encrypted_shared_short_url?: string | null;
   share_pii?: boolean;
   share_highlights?: boolean;
   created_at: number; // Unix timestamp
@@ -119,6 +121,8 @@ class ShareMetadataQueueService {
     chatId: string,
     title: string | null,
     summary: string | null,
+    shareCtaText?: string | null,
+    encryptedSharedShortUrl?: string | null,
     sharePii?: boolean,
     shareHighlights?: boolean,
   ): Promise<void> {
@@ -128,6 +132,8 @@ class ShareMetadataQueueService {
         chat_id: chatId,
         title,
         summary,
+        share_cta_text: shareCtaText,
+        encrypted_shared_short_url: encryptedSharedShortUrl,
         share_pii: sharePii,
         share_highlights: shareHighlights,
         created_at: Math.floor(Date.now() / 1000),
@@ -312,6 +318,8 @@ class ShareMetadataQueueService {
             update.chat_id,
             update.title,
             update.summary,
+            update.share_cta_text,
+            update.encrypted_shared_short_url,
             true, // is_shared = true
             update.share_pii,
             update.share_highlights,
@@ -359,11 +367,26 @@ class ShareMetadataQueueService {
     chatId: string,
     title: string | null,
     summary: string | null,
+    shareCtaText: string | null | undefined,
+    encryptedSharedShortUrl: string | null | undefined,
     isShared: boolean = true,
     sharePii?: boolean,
     shareHighlights?: boolean,
   ): Promise<boolean> {
     try {
+      const requestBody: Record<string, unknown> = {
+        chat_id: chatId,
+        title: title || null,
+        summary: summary || null,
+        share_cta_text: shareCtaText || summary || null,
+        is_shared: isShared, // Mark chat as shared on server
+        share_pii: sharePii,
+        share_highlights: shareHighlights,
+      };
+      if (encryptedSharedShortUrl !== undefined) {
+        requestBody.encrypted_shared_short_url = encryptedSharedShortUrl;
+      }
+
       const response = await fetch(getApiEndpoint("/v1/share/chat/metadata"), {
         method: "POST",
         headers: {
@@ -371,14 +394,7 @@ class ShareMetadataQueueService {
           Accept: "application/json",
           Origin: window.location.origin,
         },
-        body: JSON.stringify({
-          chat_id: chatId,
-          title: title || null,
-          summary: summary || null,
-          is_shared: isShared, // Mark chat as shared on server
-          share_pii: sharePii,
-          share_highlights: shareHighlights,
-        }),
+        body: JSON.stringify(requestBody),
         credentials: "include",
       });
 

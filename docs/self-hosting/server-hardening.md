@@ -1,6 +1,20 @@
 ---
 status: active
-last_verified: 2026-04-07
+doc_type: how-to
+audience:
+  - technical-users
+last_verified: 2026-06-11
+claims:
+  - id: self-hosting-server-hardening-covers-six-layers
+    type: unit
+    claim: Server hardening documents the six baseline layers and includes verification commands for each security control family.
+    source:
+      - docs/self-hosting/server-hardening.md
+    test:
+      file: scripts/tests/test_self_hosting_docs_claims.py
+      command: python3 -m pytest scripts/tests/test_self_hosting_docs_claims.py
+      assertion: self-hosting-server-hardening-covers-six-layers
+    verified: '2026-06-11'
 ---
 
 # Server Hardening Guide

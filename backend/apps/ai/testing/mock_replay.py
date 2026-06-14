@@ -74,6 +74,7 @@ SPEED_PROFILES = {
 }
 
 DEFAULT_SPEED_PROFILE = "instant"
+DEFAULT_INITIAL_CHUNK_DELAY_MS = 250
 
 
 def detect_marker(content: str) -> Optional[Tuple[str, str, Optional[str]]]:
@@ -121,6 +122,22 @@ def get_chunk_delay_seconds(speed_profile: Optional[str]) -> float:
     if speed_profile and speed_profile in SPEED_PROFILES:
         return SPEED_PROFILES[speed_profile] / 1000.0
     return SPEED_PROFILES[DEFAULT_SPEED_PROFILE] / 1000.0
+
+
+def get_fixture_chunk_delay_seconds(fixture_data: Dict[str, Any], speed_profile: Optional[str]) -> float:
+    """Return fixture-specific inter-chunk delay, falling back to speed profile."""
+    chunk_delay_ms = fixture_data.get("chunk_delay_ms")
+    if isinstance(chunk_delay_ms, int) and chunk_delay_ms >= 0:
+        return chunk_delay_ms / 1000.0
+    return get_chunk_delay_seconds(speed_profile)
+
+
+def get_fixture_initial_delay_seconds(fixture_data: Dict[str, Any]) -> float:
+    """Return the delay between typing-start and the first mocked stream chunk."""
+    initial_delay_ms = fixture_data.get("initial_delay_ms")
+    if isinstance(initial_delay_ms, int) and initial_delay_ms >= 0:
+        return initial_delay_ms / 1000.0
+    return DEFAULT_INITIAL_CHUNK_DELAY_MS / 1000.0
 
 
 def load_fixture(fixture_id: str) -> Dict[str, Any]:
@@ -301,9 +318,25 @@ async def replay_fixture(
             full_response = verified_response
             fixture_data["response"] = full_response
 
+    # --- 0b. Ensure frontend processes send_embed_data before chunks ---
+    # The fixture may have recreated embeds above. The send_embed_data WebSocket
+    # event for finished embeds must arrive + be stored by the frontend before the
+    # first ai_message_chunk arrives; otherwise the embed node mounts before the
+    # embed data is available in IndexedDB, and the stale memory cache entry (set
+    # by setInMemoryOnly during streaming row events) shadows the finished entry.
+    # A 30-second window is more than sufficient for the frontend to process the
+    # embed, encrypt it, store it in IndexedDB, and dispatch embedUpdated.
+    is_application_preview = "application_preview" in fixture_id
+    if is_application_preview:
+        logger.info(
+            f"[MOCK] Application preview fixture detected — waiting 30s for "
+            f"frontend to process send_embed_data before streaming begins"
+        )
+        await asyncio.sleep(30)
+
     # Determine streaming speed
     speed_profile = speed_override or fixture_data.get("speed_profile", DEFAULT_SPEED_PROFILE)
-    chunk_delay = get_chunk_delay_seconds(speed_profile)
+    chunk_delay = get_fixture_chunk_delay_seconds(fixture_data, speed_profile)
 
     logger.info(
         f"[MOCK] Replaying fixture '{fixture_id}' for task {task_id}, "
@@ -320,6 +353,10 @@ async def replay_fixture(
     await _publish_typing_started(
         fixture_data, task_id, request_data, cache_service, preprocessing_result
     )
+
+    initial_delay = get_fixture_initial_delay_seconds(fixture_data)
+    if initial_delay > 0:
+        await asyncio.sleep(initial_delay)
 
     # --- 3. Build skill event schedule ---
     skill_events_by_fraction = _build_skill_event_schedule(fixture_data)
@@ -626,6 +663,36 @@ async def _recreate_fixture_embeds(
                 logger.info(
                     f"[MOCK] Recreated app_skill_use embed: {old_embed_id} → {placeholder['embed_id']}"
                 )
+            elif embed_type == "application":
+                files = embed_meta.get("files")
+                entrypoints = embed_meta.get("entrypoints")
+                if not isinstance(files, list) or not files:
+                    logger.warning(f"[MOCK] application embed {old_embed_id} has no fixture files — skipping.")
+                    continue
+
+                application_data = await embed_service.create_application_artifact_embed(
+                    name=embed_meta.get("name") or "Generated application",
+                    framework=embed_meta.get("framework") or "web",
+                    runtime=embed_meta.get("runtime") or "node",
+                    files=files,
+                    entrypoints=entrypoints if isinstance(entrypoints, list) else [
+                        {"name": "frontend", "command": "npm run dev", "port": 5173}
+                    ],
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                )
+                if application_data:
+                    new_ref = application_data["embed_reference"]
+                    new_block = f"```json\n{new_ref}\n```"
+                    response = response[:match.start()] + new_block + response[match.end():]
+                    logger.info(
+                        f"[MOCK] Recreated application embed: {old_embed_id} → {application_data['embed_id']}"
+                    )
             else:
                 logger.info(f"[MOCK] Skipping embed recreation for type '{embed_type}' (not yet supported)")
         except Exception as e:

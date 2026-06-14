@@ -1,0 +1,128 @@
+name: Publish Self-Host Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional image tag override, e.g. v0.11.0-alpha.12
+        required: false
+        type: string
+  push:
+    branches: [main, dev]
+    paths:
+      - 'backend/**'
+      - 'frontend/apps/web_app/**'
+      - 'frontend/packages/ui/**'
+      - 'shared/**'
+      - 'backend/core/docker-compose.selfhost.yml'
+      - '.github/workflows/publish-selfhost-images.yml'
+      - 'shared/config/product_version.json'
+      - 'scripts/prepare_cli_publish_version.mjs'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: glowingkitty
+
+jobs:
+  build-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Derive image tag
+        id: version
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            IMAGE_TAG="${{ inputs.image_tag }}"
+          elif [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            VERSION="$(node scripts/prepare_cli_publish_version.mjs --channel=main --dry-run)"
+            IMAGE_TAG="v${VERSION}"
+          else
+            VERSION="$(node scripts/prepare_cli_publish_version.mjs --channel=dev --dry-run)"
+            IMAGE_TAG="v${VERSION}"
+          fi
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/core/api/Dockerfile.selfhost
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ steps.version.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ github.ref_name }}
+          build-args: |
+            BUILD_COMMIT_SHA=${{ github.sha }}
+            BUILD_COMMIT_MESSAGE=${{ github.event.head_commit.message || github.event_name }}
+            BUILD_BRANCH=${{ github.ref_name }}
+            BUILD_TIMESTAMP=${{ steps.version.outputs.build_timestamp }}
+            BUILD_VERSION_TAG=${{ steps.version.outputs.image_tag }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.image_tag }}
+
+      - name: Build and push docs worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/core/api/Dockerfile.docs.selfhost
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ steps.version.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ github.ref_name }}
+          build-args: |
+            OPENMATES_IMAGE_TAG=${{ steps.version.outputs.image_tag }}
+
+      - name: Build and push setup and frontend images
+        run: |
+          images=(
+            "openmates-cms-setup backend/core/directus/Dockerfile.setup.selfhost backend/core/directus"
+            "openmates-vault-setup backend/core/vault/setup/Dockerfile backend/core/vault/setup"
+            "openmates-admin-sidecar backend/admin_sidecar/Dockerfile ."
+            "openmates-webapp frontend/apps/web_app/Dockerfile ."
+          )
+          for item in "${images[@]}"; do
+            set -- $item
+            name="$1"
+            file="$2"
+            context="$3"
+            docker buildx build \
+              --platform linux/amd64,linux/arm64 \
+              --push \
+              --build-arg BUILD_COMMIT_SHA="${GITHUB_SHA}" \
+              --build-arg BUILD_COMMIT_MESSAGE="${{ github.event.head_commit.message || github.event_name }}" \
+              --build-arg BUILD_BRANCH="${GITHUB_REF_NAME}" \
+              --build-arg BUILD_TIMESTAMP="${{ steps.version.outputs.build_timestamp }}" \
+              --build-arg BUILD_VERSION_TAG="${{ steps.version.outputs.image_tag }}" \
+              --build-arg VITE_API_URL="http://localhost:8000" \
+              --build-arg VITE_ENV="self_hosted" \
+              --label org.opencontainers.image.source="https://github.com/glowingkitty/OpenMates" \
+              --label org.opencontainers.image.revision="${GITHUB_SHA}" \
+              --label org.opencontainers.image.version="${{ steps.version.outputs.image_tag }}" \
+              -t "${REGISTRY}/${IMAGE_NAMESPACE}/${name}:${{ steps.version.outputs.image_tag }}" \
+              -t "${REGISTRY}/${IMAGE_NAMESPACE}/${name}:${GITHUB_REF_NAME}" \
+              -f "$file" "$context"
+          done

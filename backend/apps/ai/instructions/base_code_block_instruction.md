@@ -34,3 +34,12 @@ x = 42
 ```
 
 **Remember:** The language on the opening fence line is REQUIRED for syntax highlighting and proper embed rendering. Never put the language on a separate line.
+
+**6. Remotion video-create fences:**
+When creating deterministic videos with exact text, slides, product announcements, diagrams, charts, UI-like motion graphics, or branded layouts, use an explicit Remotion fence:
+
+```remotion:ProductAnnouncement.tsx
+// Remotion TSX source
+```
+
+Do NOT use generic `tsx`, `typescript`, or `javascript` fences for videos. Generic TSX remains a normal code embed. Use `videos.generate`/Veo instead when the user asks for photorealistic or generative footage.

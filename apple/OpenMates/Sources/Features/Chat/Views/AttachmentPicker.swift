@@ -36,6 +36,8 @@ struct AttachmentPicker: View {
                     .frame(width: 25, height: 25)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(AppStrings.attachFiles)
+            .accessibilityIdentifier("attach-files-button")
 
             if isPresented {
                 VStack(alignment: .leading, spacing: .spacing2) {

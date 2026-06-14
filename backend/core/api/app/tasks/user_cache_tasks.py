@@ -12,6 +12,24 @@ from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatList
 logger = logging.getLogger(__name__)
 
 DEFAULT_CHAT_VERSION = 0
+DEFAULT_UNREAD_COUNT = 0
+
+
+def _timestamp_or_zero(value: Optional[int]) -> int:
+    return value or 0
+
+
+def _effective_chat_timestamp(chat_data: Dict[str, Any], draft_updated_at: Optional[int]) -> int:
+    chat_sort_ts = (
+        chat_data.get("last_edited_overall_timestamp")
+        or chat_data.get("updated_at")
+        or 0
+    )
+    return max(
+        _timestamp_or_zero(chat_sort_ts),
+        _timestamp_or_zero(draft_updated_at),
+        _timestamp_or_zero(chat_data.get("created_at")),
+    )
 
 
 def _cached_chat_versions_from_details(
@@ -37,6 +55,27 @@ def _cached_chat_versions_from_details(
         version_values[field] = value
 
     return CachedChatVersions(**version_values)
+
+
+def _cached_unread_count_from_details(
+    chat_data: Dict[str, Any],
+    user_id: str,
+    chat_id: str,
+) -> int:
+    """Build unread count metadata while tolerating old corrupted rows."""
+
+    unread_count = chat_data.get("unread_count")
+    if unread_count is None:
+        logger.warning(
+            "[CACHE_WARMING_DATA_REPAIR] Chat %s for user %s has null unread_count; "
+            "using %s so cache warming can complete.",
+            chat_id,
+            user_id,
+            DEFAULT_UNREAD_COUNT,
+        )
+        return DEFAULT_UNREAD_COUNT
+    return unread_count
+
 
 async def _load_and_cache_embeds_for_chats(
     chat_ids: List[str],
@@ -244,17 +283,19 @@ async def _warm_cache_phase_one(
 
         list_item_data = CachedChatListItemData(
             title=chat_details["encrypted_title"],
-            unread_count=chat_details["unread_count"],
+            unread_count=_cached_unread_count_from_details(chat_details, user_id, target_immediate_chat_id),
             created_at=chat_details['created_at'],
             updated_at=chat_details['updated_at'],
             encrypted_chat_key=chat_details.get("encrypted_chat_key"),
             encrypted_icon=chat_details.get("encrypted_icon"),
             encrypted_category=chat_details.get("encrypted_category"),
             encrypted_chat_summary=chat_details.get("encrypted_chat_summary"),
+            encrypted_share_cta_text=chat_details.get("encrypted_share_cta_text"),
             encrypted_chat_tags=chat_details.get("encrypted_chat_tags"),
             encrypted_follow_up_request_suggestions=chat_details.get("encrypted_follow_up_request_suggestions"),
             encrypted_top_recommended_apps_for_chat=chat_details.get("encrypted_top_recommended_apps_for_chat"),
             encrypted_quick_tip_slugs=chat_details.get("encrypted_quick_tip_slugs"),
+            encrypted_shared_short_url=chat_details.get("encrypted_shared_short_url"),
             encrypted_active_focus_id=chat_details.get("encrypted_active_focus_id"),
             last_message_timestamp=chat_details.get("last_edited_overall_timestamp") or chat_details.get("last_message_timestamp"),
             is_shared=chat_details.get("is_shared"),
@@ -307,9 +348,13 @@ async def _warm_cache_phase_one(
         user_draft = await directus_service.chat.get_user_draft_from_directus(
             hashed_user_id_for_draft_ph1, target_immediate_chat_id
         )
-        draft_updated_at_ts = user_draft.get("updated_at", 0) if user_draft else 0
+        draft_updated_at_ts = user_draft.get("updated_at") if user_draft else None
         
-        effective_timestamp = max(chat_sort_ts, draft_updated_at_ts, chat_details.get("created_at", 0))
+        effective_timestamp = max(
+            _timestamp_or_zero(chat_sort_ts),
+            _timestamp_or_zero(draft_updated_at_ts),
+            _timestamp_or_zero(chat_details.get("created_at")),
+        )
         
         await cache_service.add_chat_to_ids_versions(user_id, target_immediate_chat_id, effective_timestamp)
         
@@ -350,22 +395,24 @@ async def _warm_cache_phase_two_optimized(
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
-            effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
             versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
-                unread_count=chat_data["unread_count"],
+                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),
                 encrypted_icon=chat_data.get("encrypted_icon"),
                 encrypted_category=chat_data.get("encrypted_category"),
                 encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
+                encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
                 encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
+                encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
@@ -399,7 +446,7 @@ async def _warm_cache_phase_two_optimized(
                     chat_data = item["chat_details"]
                     chat_id = chat_data["id"]
 
-                    effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+                    effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
                     await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
                     versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
@@ -408,17 +455,19 @@ async def _warm_cache_phase_two_optimized(
 
                     list_item = CachedChatListItemData(
                         title=chat_data["encrypted_title"],
-                        unread_count=chat_data["unread_count"],
+                        unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                         created_at=chat_data['created_at'],
                         updated_at=chat_data['updated_at'],
                         encrypted_chat_key=chat_data.get("encrypted_chat_key"),
                         encrypted_icon=chat_data.get("encrypted_icon"),
                         encrypted_category=chat_data.get("encrypted_category"),
                         encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
+                        encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
                         encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                         encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
                         encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
+                        encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
                         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
                         last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                         is_shared=chat_data.get("is_shared"),
@@ -481,7 +530,7 @@ async def _warm_cache_phase_two(
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
-            effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
             versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
@@ -490,13 +539,14 @@ async def _warm_cache_phase_two(
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
-                unread_count=chat_data["unread_count"],
+                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),
                 encrypted_icon=chat_data.get("encrypted_icon"),
                 encrypted_category=chat_data.get("encrypted_category"),
                 encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
+                encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 parent_id=chat_data.get("parent_id"),
                 is_sub_chat=chat_data.get("is_sub_chat"),
@@ -539,22 +589,24 @@ async def _warm_cache_phase_three_optimized(
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
-            effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
             versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
-                unread_count=chat_data["unread_count"],
+                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),
                 encrypted_icon=chat_data.get("encrypted_icon"),
                 encrypted_category=chat_data.get("encrypted_category"),
                 encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
+                encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
                 encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
+                encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
@@ -588,7 +640,7 @@ async def _warm_cache_phase_three_optimized(
                     chat_data = item["chat_details"]
                     chat_id = chat_data["id"]
 
-                    effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+                    effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
                     await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
                     versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
@@ -597,17 +649,19 @@ async def _warm_cache_phase_three_optimized(
 
                     list_item = CachedChatListItemData(
                         title=chat_data["encrypted_title"],
-                        unread_count=chat_data["unread_count"],
+                        unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                         created_at=chat_data['created_at'],
                         updated_at=chat_data['updated_at'],
                         encrypted_chat_key=chat_data.get("encrypted_chat_key"),
                         encrypted_icon=chat_data.get("encrypted_icon"),
                         encrypted_category=chat_data.get("encrypted_category"),
                         encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
+                        encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
                         encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                         encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
                         encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
+                        encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
                         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
                         last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                         is_shared=chat_data.get("is_shared"),
@@ -697,7 +751,7 @@ async def _warm_cache_phase_three(
             chat_data = item["chat_details"]
             chat_id = chat_data["id"]
 
-            effective_timestamp = max(chat_data.get("last_edited_overall_timestamp", 0) or chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            effective_timestamp = _effective_chat_timestamp(chat_data, item.get("draft_updated_at"))
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
 
             versions = _cached_chat_versions_from_details(chat_data, user_id, chat_id)
@@ -706,17 +760,19 @@ async def _warm_cache_phase_three(
 
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
-                unread_count=chat_data["unread_count"],
+                unread_count=_cached_unread_count_from_details(chat_data, user_id, chat_id),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),
                 encrypted_icon=chat_data.get("encrypted_icon"),
                 encrypted_category=chat_data.get("encrypted_category"),
                 encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
+                encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
                 encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
                 encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
+                encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),

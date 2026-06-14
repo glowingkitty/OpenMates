@@ -18,6 +18,10 @@ import {
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
   deriveEmailEncryptionKeyB64,
+  createRecoveryKeyMaterial,
+  createSignupCryptoMaterial,
+  hashEmail,
+  hashKey,
   hashItemKey,
 } from "../src/crypto.ts";
 
@@ -57,6 +61,46 @@ describe("deriveEmailEncryptionKeyB64", () => {
       bytesToBase64(salt),
     );
     assert.strictEqual(derived, "iL9MLsZR1cIgat2zQ1t2dfBf0/PdIXlYzN3PK5TxGoE=");
+  });
+});
+
+describe("signup crypto material", () => {
+  it("hashEmail matches SHA-256 base64 contract", async () => {
+    assert.strictEqual(
+      await hashEmail("user@example.com"),
+      "tMmiiTI7IaAcPpQPFQ65uMVCWH8av9jw4cwf/F5HVRQ=",
+    );
+  });
+
+  it("hashKey combines key and salt like the web signup flow", async () => {
+    const salt = new Uint8Array([1, 2, 3, 4]);
+    assert.strictEqual(
+      await hashKey("correct horse", salt),
+      "0hJvnJrn389Ik7M3OR+qOZl6NBsSet72zG2p4yy6GwE=",
+    );
+  });
+
+  it("creates web-compatible password signup payload material", async () => {
+    const material = await createSignupCryptoMaterial("USER@example.com", "correct horse battery staple");
+    const emailSalt = base64ToBytes(material.userEmailSaltB64);
+
+    assert.strictEqual(material.hashedEmail, await hashEmail("user@example.com"));
+    assert.strictEqual(material.emailEncryptionKeyB64, await deriveEmailEncryptionKeyB64("user@example.com", material.userEmailSaltB64));
+    assert.strictEqual(material.lookupHash, await hashKey("correct horse battery staple", emailSalt));
+    assert.strictEqual(base64ToBytes(material.masterKeyB64).length, 32);
+    assert.ok(base64ToBytes(material.encryptedEmail).length > 24);
+    assert.ok(base64ToBytes(material.encryptedMasterKey).length > 32);
+    assert.strictEqual(base64ToBytes(material.keyIv).length, 12);
+  });
+
+  it("creates recovery key material that wraps the existing master key", async () => {
+    const signup = await createSignupCryptoMaterial("user@example.com", "password");
+    const recovery = await createRecoveryKeyMaterial(signup.masterKeyB64, signup.userEmailSaltB64);
+
+    assert.match(recovery.recoveryKey, /^.{24}$/);
+    assert.strictEqual(recovery.lookupHash, await hashKey(recovery.recoveryKey, base64ToBytes(signup.userEmailSaltB64)));
+    assert.ok(base64ToBytes(recovery.wrappedMasterKey).length > 32);
+    assert.strictEqual(base64ToBytes(recovery.keyIv).length, 12);
   });
 });
 

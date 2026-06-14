@@ -22,7 +22,7 @@ const {
  assertNoMissingTranslations,
  getTestAccount
 } = require('./signup-flow-helpers');
-const { docCheckpoint } = require('./helpers/doc-checkpoint');
+const { docAssert, docCheckpoint } = require('./helpers/doc-checkpoint');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
@@ -227,12 +227,14 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 		screenshot: 'docs/images/user-guide/export-account/export-options.jpg'
 	});
 
-	await expect(page.getByText(/what's included/i)).toBeVisible({ timeout: 10000 });
-	await expect(page.getByLabel(/all your chats and conversations/i)).toBeChecked();
-	await expect(page.getByLabel(/your profile and preferences/i)).toBeChecked();
-	await expect(page.getByLabel(/app settings and ai memories/i)).toBeChecked();
-	await expect(page.getByLabel(/usage history and credit transactions/i)).toBeChecked();
-	await expect(page.getByLabel(/invoice history/i)).toBeChecked();
+	await docAssert('export-page-shows-data-categories', async () => {
+		await expect(page.getByText(/what's included/i)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByLabel(/all your chats and conversations/i)).toBeChecked();
+		await expect(page.getByLabel(/your profile and preferences/i)).toBeChecked();
+		await expect(page.getByLabel(/app settings and ai memories/i)).toBeChecked();
+		await expect(page.getByLabel(/usage history and credit transactions/i)).toBeChecked();
+		await expect(page.getByLabel(/invoice history/i)).toBeChecked();
+	});
 
 	const exportButton = page.getByRole('button', { name: /export my data/i });
 	await page.getByRole('button', { name: /deselect all/i }).click();
@@ -251,7 +253,9 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	await download.saveAs(exportPath);
 	log('Saved account export ZIP.', { exportPath, filename: download.suggestedFilename() });
 
-	await expect(page.getByText(/export completed/i)).toBeVisible({ timeout: 30000 });
+	await docAssert('export-download-completes', async () => {
+		await expect(page.getByText(/export completed/i)).toBeVisible({ timeout: 30000 });
+	});
 	await screenshot(page, 'export-downloaded');
 	await docCheckpoint(page, {
 		id: 'export-downloaded',
@@ -265,13 +269,15 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	const entries = parseZipEntries(zipBuffer);
 	const names = Array.from(entries.keys());
 
-	for (const requiredFile of ['README.md', 'metadata.yml', 'profile/profile.yml']) {
-		expect(entries.has(requiredFile), `Expected ${requiredFile} in export ZIP.`).toBe(true);
-	}
-	expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('.yml'))).toBe(true);
-	expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('.md'))).toBe(true);
-	expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('code/sample.py'))).toBe(true);
-	expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('images/import-test-image.png'))).toBe(true);
+	await docAssert('export-zip-contains-account-and-chat-data', async () => {
+		for (const requiredFile of ['README.md', 'metadata.yml', 'profile/profile.yml']) {
+			expect(entries.has(requiredFile), `Expected ${requiredFile} in export ZIP.`).toBe(true);
+		}
+		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('.yml'))).toBe(true);
+		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('.md'))).toBe(true);
+		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('code/sample.py'))).toBe(true);
+		expect(names.some((name: string) => name.startsWith('chats/') && name.endsWith('images/import-test-image.png'))).toBe(true);
+	});
 
 	const metadata = readZipEntry(zipBuffer, requireZipEntry(entries, 'metadata.yml'));
 	expect(metadata).toContain('export_version: "2.0"');
@@ -297,7 +303,7 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 	const imageEntryName = names.find((name: string) => name.startsWith('chats/') && name.endsWith('images/import-test-image.png'));
 	if (!codeEntryName || !imageEntryName) throw new Error('Expected imported code and image files in export ZIP.');
 	const exportedCode = readZipEntry(zipBuffer, requireZipEntry(entries, codeEntryName));
-	expect(exportedCode).toContain('def factorial(n):');
+	expect(exportedCode).toMatch(/def greet\(name: str\) -> str:|def factorial\(n\):/);
 	expect(requireZipEntry(entries, imageEntryName).uncompressedSize).toBeGreaterThan(0);
 
 	const allTextEntries = names

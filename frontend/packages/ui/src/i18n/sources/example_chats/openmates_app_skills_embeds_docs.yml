@@ -1,0 +1,541 @@
+title:
+  context: "Title of example chat: OpenMates App Skills and Embeds Docs"
+  en: "OpenMates App Skills and Embeds Docs"
+  de: "OpenMates App Skills and Embeds Docs"
+  zh: "OpenMates App Skills and Embeds Docs"
+  es: "OpenMates App Skills and Embeds Docs"
+  fr: "OpenMates App Skills and Embeds Docs"
+  pt: "OpenMates App Skills and Embeds Docs"
+  ru: "OpenMates App Skills and Embeds Docs"
+  ja: "OpenMates App Skills and Embeds Docs"
+  ko: "OpenMates App Skills and Embeds Docs"
+  it: "OpenMates App Skills and Embeds Docs"
+  tr: "OpenMates App Skills and Embeds Docs"
+  vi: "OpenMates App Skills and Embeds Docs"
+  id: "OpenMates App Skills and Embeds Docs"
+  pl: "OpenMates App Skills and Embeds Docs"
+  nl: "OpenMates App Skills and Embeds Docs"
+  ar: "OpenMates App Skills and Embeds Docs"
+  hi: "OpenMates App Skills and Embeds Docs"
+  th: "OpenMates App Skills and Embeds Docs"
+  cs: "OpenMates App Skills and Embeds Docs"
+  sv: "OpenMates App Skills and Embeds Docs"
+  he: "OpenMates App Skills and Embeds Docs"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: OpenMates App Skills and Embeds Docs"
+  en: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  de: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  zh: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  es: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  fr: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  pt: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  ru: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  ja: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  ko: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  it: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  tr: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  vi: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  id: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  pl: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  nl: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  ar: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  hi: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  th: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  cs: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  sv: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  he: "A documentation-search example finding OpenMates docs about app skills and embeds."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: OpenMates App Skills and Embeds Docs. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  de: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  zh: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  es: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  fr: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  pt: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  ru: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  ja: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  ko: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  it: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  tr: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  vi: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  id: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  pl: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  nl: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  ar: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  hi: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  th: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  cs: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  sv: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  he: "@skill:openmates:search-docs Search the OpenMates docs for how app skills and embeds work together, then summarize the most relevant docs to read first."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: OpenMates App Skills and Embeds Docs. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "aebc1f2a-968e-40c4-aa74-d5d7c8cb3ca6", "app_id": "openmates", "skill_id": "search-docs", "query": "app skills and embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "00964ec0-0732-4a6c-8770-bb3382a38c4f", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds skills interaction"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "1eafd767-aeae-4e12-895f-2d42700e6234", "app_id": "openmates", "skill_id": "search-docs", "query": "embeds"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "97a515be-eb8d-4632-b135-006af2b43a1a", "app_id": "openmates", "skill_id": "search-docs", "query": "skills"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "92e33af4-939e-4d36-8614-ededfda4e4b8", "app_id": "openmates", "skill_id": "search-docs", "query": "overview"}
+    ```
+    
+    
+  verified_by_human: []
+

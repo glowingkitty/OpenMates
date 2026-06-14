@@ -1,0 +1,792 @@
+title:
+  context: "Title of example chat: RAG Explained for Beginners"
+  en: "RAG Explained for Beginners"
+  de: "RAG Explained for Beginners"
+  zh: "RAG Explained for Beginners"
+  es: "RAG Explained for Beginners"
+  fr: "RAG Explained for Beginners"
+  pt: "RAG Explained for Beginners"
+  ru: "RAG Explained for Beginners"
+  ja: "RAG Explained for Beginners"
+  ko: "RAG Explained for Beginners"
+  it: "RAG Explained for Beginners"
+  tr: "RAG Explained for Beginners"
+  vi: "RAG Explained for Beginners"
+  id: "RAG Explained for Beginners"
+  pl: "RAG Explained for Beginners"
+  nl: "RAG Explained for Beginners"
+  ar: "RAG Explained for Beginners"
+  hi: "RAG Explained for Beginners"
+  th: "RAG Explained for Beginners"
+  cs: "RAG Explained for Beginners"
+  sv: "RAG Explained for Beginners"
+  he: "RAG Explained for Beginners"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: RAG Explained for Beginners"
+  en: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  de: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  zh: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  es: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  fr: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  pt: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  ru: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  ja: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  ko: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  it: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  tr: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  vi: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  id: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  pl: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  nl: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  ar: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  hi: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  th: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  cs: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  sv: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  he: "Find beginner-friendly videos about retrieval augmented generation and choose the best first watch."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: RAG Explained for Beginners. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  de: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  zh: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  es: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  fr: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  pt: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  ru: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  ja: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  ko: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  it: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  tr: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  vi: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  id: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  pl: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  nl: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  ar: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  hi: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  th: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  cs: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  sv: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  he: "Find beginner-friendly videos that explain how retrieval augmented generation works, and tell me which one I should watch first and why."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: RAG Explained for Beginners. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "11ff377e-a0a2-40ed-81c3-9556b68142f3", "app_id": "videos", "skill_id": "search", "query": "retrieval augmented generation explained for beginners", "provider": "Brave"}
+    ```
+
+    I've found some excellent beginner-friendly videos that explain Retrieval-Augmented Generation (RAG). Here is a curated selection to get you started:
+
+    [!](embed:youtube.com-OCK)
+    [!](embed:youtube.com-20R)
+    [!](embed:youtube.com-8SW)
+    [!](embed:youtube.com-Fn4)
+    [!](embed:youtube.com-rgp)
+
+    ### Which one should you watch first?
+
+    I highly recommend starting with **[What is Retrieval-Augmented Generation (RAG)?](embed:youtube.com-OCK)** by **IBM Technology**.
+
+    **Why this one first?**
+    *   **Conciseness:** At just 6 and a half minutes, it provides the most efficient "conceptual hook" without getting bogged down in implementation details.
+    *   **High-Level Clarity:** IBM’s explanations are famous for being professional and easy to follow. They focus on the *why* (fixing LLM hallucinations and outdated data) before diving into the *what*.
+    *   **Authoritative:** It establishes a solid foundation from a reputable industry leader, which helps you better understand the more technical or "hands-on" videos later.
+
+    ### What to watch next?
+
+    Once you have the concept down, here are two paths depending on your interest:
+
+    1.  **For a better intuitive understanding:** Watch **[RAG Explained in 12 Minutes](embed:youtube.com-20R)** by **Aishwarya Srinivasan**. She uses a brilliant "Open-Book Exam" analogy that makes the whole process click instantly for most beginners.
+    2.  **For a technical overview:** If you want to see the "moving parts" (like vector databases and embeddings), check out **[RAG Explained For Beginners](embed:youtube.com-8SW)** by **KodeKloud**. It breaks the process down into a simple 3-step framework: Retrieval, Augmentation, and Generation.
+
+    If you're interested in building a RAG system yourself, I can help you find documentation for popular tools like [LangChain](wiki:LangChain) or LlamaIndex. Would you like to see how a simple RAG implementation looks in code?
+
+    **Further exploration:**
+    *   [Check out more AI tutorials](/#settings/apps/videos)
+    *   [Search for RAG documentation](/#settings/apps/code)
+  verified_by_human: []

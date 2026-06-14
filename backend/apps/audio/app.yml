@@ -17,6 +17,23 @@ embed_types:
     icon: audio
     gradient_var: "--color-app-audio"
     i18n_namespace: embeds.audio.recording
+    content_catalog:
+      enabled: true
+      content_type_id: recording
+      name: Audio recording
+      description: Voice notes and uploaded audio recordings stored as first-class encrypted chat content.
+      icon: audio
+      example_key: audio.recording
+      order: 10
+  - id: transcribe
+    category: app-skill-use
+    skill_id: transcribe
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: audio
+    gradient_var: "--color-app-audio"
+    i18n_namespace: embeds.audio.transcribe
 skills:
   - id: transcribe
     name_translation_key: app_skills.audio.transcribe

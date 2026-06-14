@@ -1,0 +1,273 @@
+id: explain-in-new-chat
+title: Explain Selected Text In New Chat
+status: verified
+
+goal: >
+  Let users select text inside an assistant response and start a background chat
+  that explains the selected term or phrase without adding follow-up messages to
+  the current chat history.
+
+scope:
+  in:
+    - An existing highlight-menu action labeled "Explain in new chat" for authenticated users selecting text in assistant messages.
+    - Creating a new background chat from the current chat context up to the selected assistant message.
+    - Automatically sending an explanation prompt in the new chat using the selected text.
+    - Showing an immediate notification that the background explanation chat started, with an action to open it.
+    - Reusing normal chat completion behavior once the background chat responds.
+  out:
+    - User-created sub-chat creation from selected text.
+    - Backend API routes or Directus schema changes.
+    - Auto-opening the new chat immediately after selection.
+    - Explanation actions for unauthenticated, shared read-only, incognito, or user messages in the first slice.
+    - Custom prompt editing before send.
+
+context_discovery:
+  github_issues:
+    - "No matching public issue found via gh fallback search: explain selected text new chat fork selection toolbar."
+  docs:
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+  code_patterns:
+    - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+    - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/services/forkChatService.ts
+    - frontend/packages/ui/src/components/settings/fork/SettingsFork.svelte
+    - frontend/packages/ui/src/stores/forkProgressStore.ts
+  tests:
+    - frontend/apps/web_app/tests/message-highlights.spec.ts
+    - frontend/apps/web_app/tests/message-highlights-touch.spec.ts
+    - frontend/apps/web_app/tests/fork-conversation.spec.ts
+
+clarification:
+  rounds:
+    - question: Should the action prefill an editable prompt or auto-send the explanation request in the new chat?
+      answer: >
+        Auto-send it. Clicking "Explain in new chat" should open a new chat in
+        the background with an instruction like "Tell me more about: (term)",
+        notify the user that a background chat started, and provide a button to
+        open the chat if desired.
+  vision_summary: >
+    The selected text is treated as a lightweight background follow-up. The
+    current chat remains untouched, the new chat gets the prior context by
+    forking up to the selected assistant message, and the user can either keep
+    reading or jump to the background explanation chat from the notification.
+  approved_by_user: true
+
+scenarios:
+  - id: "S-1"
+    title: Start background explanation from selected assistant text
+    given:
+      - Alice is authenticated and viewing an assistant response in a normal chat.
+      - Alice selects the phrase "vector database" inside that assistant response.
+    when:
+      - Alice clicks "Explain in new chat" in the existing highlight context menu.
+    then:
+      - The current chat stays open and receives no new user message.
+      - A new chat is created in the background from the current chat through the selected assistant response.
+      - "The new chat automatically sends a user message: Tell me more about: vector database."
+      - Alice sees a notification that the background explanation chat started with an action to open it.
+
+  - id: "S-2"
+    title: Open the background explanation chat from notification
+    given:
+      - Alice started an explanation chat from selected assistant text.
+      - The background chat exists locally and is processing its auto-sent prompt.
+    when:
+      - Alice clicks the notification action.
+    then:
+      - The app navigates to the new explanation chat.
+      - The auto-sent explanation prompt is visible in the transcript.
+      - The assistant response streams and completes like any other chat response.
+
+  - id: "S-3"
+    title: Hide explanation action where it is not allowed
+    given:
+      - Bob is unauthenticated, reading a shared read-only chat, using an incognito chat, or selecting text in a user message.
+    when:
+      - Bob selects message text.
+    then:
+      - The highlight menu does not offer "Explain in new chat".
+      - Existing Highlight and Highlight & comment behavior remains unchanged where those actions are allowed.
+
+acceptance_criteria:
+  - id: "AC-1"
+    scenario: "S-1"
+    text: Selecting text in an authenticated non-incognito assistant message exposes an "Explain in new chat" action.
+  - id: "AC-2"
+    scenario: "S-1"
+    text: "Clicking the action creates a forked background chat through the selected assistant message and auto-sends Tell me more about: <selected text> without modifying the current chat transcript."
+  - id: "AC-3"
+    scenario: "S-1"
+    text: The user receives an immediate notification that the background explanation chat started, with an action that opens the new chat.
+  - id: "AC-4"
+    scenario: "S-2"
+    text: Opening the new chat shows the auto-sent prompt and normal assistant response lifecycle.
+  - id: "AC-5"
+    scenario: "S-3"
+    text: The action is hidden for unauthenticated users, shared read-only chats, incognito chats, and user-message selections.
+
+contracts:
+  api:
+    - route: none
+      request: "No new backend route. Reuse existing encrypted chat persistence and normal send-message flow."
+      response: "Normal WebSocket chat events for the auto-sent background message."
+      errors:
+        - Existing fork/send failures surface via notification errors.
+  data:
+    - The explanation chat is a normal chat, not a sub-chat, and must not set parent_id or is_sub_chat.
+    - The explanation chat copies encrypted context using the existing fork pipeline up to the selected assistant message.
+    - The explanation prompt is stored as a normal encrypted user message in the new chat.
+  ui_states:
+    - Existing highlight menu with Highlight, Highlight & comment, and Explain in new chat for allowed assistant selections.
+    - Immediate success notification with open-chat action after background chat start.
+    - Existing fork/progress and normal chat notification behavior remain intact.
+  privacy_security:
+    - The selected text and forked transcript remain client-side plaintext only before normal encryption.
+    - No plaintext selected text is sent outside the normal encrypted chat message flow.
+    - Shared read-only and unauthenticated viewers cannot start explanation chats from protected content.
+
+tests:
+  - id: "T-E2E-EXPLAIN-001"
+    type: playwright
+    file: frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    command: python3 scripts/run_tests.py --spec explain-in-new-chat.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - "AC-1"
+      - "AC-2"
+      - "AC-3"
+      - "AC-4"
+      - "AC-5"
+    assertions:
+      - selecting assistant response text shows the Explain in new chat action in the existing highlight context menu
+      - clicking it leaves the source chat open and does not append the prompt to the source chat
+      - a notification/action opens the new background chat
+      - the new chat contains the auto-sent Tell me more about prompt
+      - user-message selections do not show the Explain in new chat action
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        run_id: "27067343948"
+        timestamp: "2026-06-06T16:15:52Z"
+        note: "Red dispatch failed because the new spec file was not present on deployed dev yet: No tests found. Product-red evidence must be established after the test file is deployed or by the first green rerun failing before any fix."
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27069743270"
+        timestamp: "2026-06-06T18:01:30Z"
+        note: "Passed after deployment. Test-only selector/race fixes were committed after app code; run used OPENMATES_SKIP_VERCEL_WAIT=true because the deployed app commit was already Ready and the final changes only affected the Playwright spec."
+
+  - id: "T-LINT-EXPLAIN-001"
+    type: lint
+    file: frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+    command: bash scripts/lint_changed.sh --path docs/specs/explain-in-new-chat/spec.yml --path frontend/apps/web_app/tests/explain-in-new-chat.spec.ts --path frontend/packages/ui/src/components/MessageSelectionToolbar.svelte --path frontend/packages/ui/src/components/chats/MessageContextMenu.svelte --path frontend/packages/ui/src/components/ChatMessage.svelte --path frontend/packages/ui/src/services/forkChatService.ts --path frontend/packages/ui/src/i18n/sources/chats.yml
+    covers:
+      - "AC-1"
+      - "AC-3"
+      - "AC-5"
+    assertions:
+      - changed TypeScript and Svelte files pass repository lint checks
+      - no generated i18n JSON is edited directly
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "focused-lint-local"
+        timestamp: "2026-06-06T17:10:03Z"
+        note: "Focused lint command passed for the spec, E2E, MessageContextMenu, toolbar, ChatMessage, fork service, and i18n source files. Full changed-file lint also surfaced an unrelated pre-existing Python lint error in backend/admin_sidecar/main.py."
+
+implementation_plan:
+  existing_patterns:
+    - MessageContextMenu already contains the desktop selected-text Highlight and Highlight & comment actions.
+    - MessageSelectionToolbar already captures selected text actions in a touch-safe way.
+    - ChatMessage already owns selection capture, current message identity, and fork context.
+    - forkChatService already creates zero-knowledge background fork chats and notification actions.
+    - MessageInput exposes sendCurrentMessage and setSuggestionText for normal auto-send flows.
+  architecture: >
+    Extend the existing highlight context menu with an optional explain action. Add a
+    focused service or fork-service option that forks the source chat through the
+    selected assistant message, saves the explanation prompt in the new chat, and
+    dispatches the normal send flow in the background without changing the active
+    source chat.
+  data_flow:
+    - User selects text in an assistant response and opens the existing highlight context menu.
+    - ChatMessage captures both the selected text and the assistant message ID.
+    - Explain action calls the fork/background-start flow with source chat ID, fork point message ID, selected text, and generated prompt.
+    - The new chat is created locally and synced through existing encrypted storage.
+    - The prompt is sent through the normal chat send path for the new chat.
+    - Notification action sets activeChatStore to the new chat ID.
+  affected_files:
+    - path: frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+      reason: Keep touch selection behavior aligned with selected-text actions.
+    - path: frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+      reason: Add optional Explain in new chat action beside Highlight and Highlight & comment.
+    - path: frontend/packages/ui/src/components/ChatMessage.svelte
+      reason: Wire selected assistant text to background explanation flow and hide action for disallowed states.
+    - path: frontend/packages/ui/src/services/forkChatService.ts
+      reason: Reuse fork creation for background explanation chat creation.
+    - path: frontend/packages/ui/src/i18n/sources/chats.yml
+      reason: Add user-visible labels and notifications.
+    - path: frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+      reason: Cover the feature end-to-end.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/explain-in-new-chat/spec.yml
+    - python3 scripts/run_tests.py --spec explain-in-new-chat.spec.ts
+    - bash scripts/lint_changed.sh --path docs/specs/explain-in-new-chat/spec.yml --path frontend/apps/web_app/tests/explain-in-new-chat.spec.ts --path frontend/packages/ui/src/components/MessageSelectionToolbar.svelte --path frontend/packages/ui/src/components/chats/MessageContextMenu.svelte --path frontend/packages/ui/src/components/ChatMessage.svelte --path frontend/packages/ui/src/services/forkChatService.ts --path frontend/packages/ui/src/i18n/sources/chats.yml
+
+tasks:
+  - id: "TASK-1"
+    title: Add spec and red E2E coverage
+    covers:
+      scenarios:
+        - "S-1"
+        - "S-2"
+        - "S-3"
+      acceptance_criteria:
+        - "AC-1"
+        - "AC-2"
+        - "AC-3"
+        - "AC-4"
+        - "AC-5"
+    expected_files:
+      - docs/specs/explain-in-new-chat/spec.yml
+      - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    verification:
+      - "T-E2E-EXPLAIN-001"
+    independently_deployable: false
+
+  - id: "TASK-2"
+    title: Implement background explain-in-new-chat action
+    covers:
+      scenarios:
+        - "S-1"
+        - "S-2"
+        - "S-3"
+      acceptance_criteria:
+        - "AC-1"
+        - "AC-2"
+        - "AC-3"
+        - "AC-4"
+        - "AC-5"
+    expected_files:
+      - frontend/packages/ui/src/components/MessageSelectionToolbar.svelte
+      - frontend/packages/ui/src/components/chats/MessageContextMenu.svelte
+      - frontend/packages/ui/src/components/ChatMessage.svelte
+      - frontend/packages/ui/src/services/forkChatService.ts
+      - frontend/packages/ui/src/i18n/sources/chats.yml
+    verification:
+      - "T-E2E-EXPLAIN-001"
+      - "T-LINT-EXPLAIN-001"
+    independently_deployable: true

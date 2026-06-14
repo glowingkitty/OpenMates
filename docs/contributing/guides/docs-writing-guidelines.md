@@ -95,11 +95,30 @@ Only expand to full prose after the draft structure is reviewed. Even the full v
 
 ## Writing for the Right Audience
 
+OpenMates docs are split by audience and purpose:
+
+| Area | Primary audience | Style |
+|------|------------------|-------|
+| `docs/architecture/` | Possible contributors | Technical, decision-oriented, links to implementation and test-backed invariants |
+| `docs/user-guide/` | Everyday non-technical users and technical users | Plain language, summary first, step-by-step, detailed explanation below |
+| `docs/design-guide/` | Possible contributors | Practical visual rules, examples, token/component source links |
+| `docs/self-hosting/` | Technical experienced users | CLI-first setup path, then detailed fallback and reference material |
+
 ### User Guide (non-technical)
 - Plain language, no jargon
 - Use "digital team mates" instead of "AI agents"
 - Avoid terms like "LLM", "API", "WebSocket" — use simpler alternatives
 - Step-by-step instructions with expected outcomes
+- Start active guides with a visually separated `## Summary` section.
+- Add a planned Remotion placeholder comment below the title, but do not create video files until video docs are implemented:
+  ```markdown
+  <!-- remotion-video:
+  slug: sharing
+  status: planned
+  purpose: Show the main user flow this guide explains.
+  duration_target: 45-60s
+  -->
+  ```
 
 ### Architecture & CLI (developers)
 - Technical terms fine but define on first use
@@ -214,7 +233,43 @@ Architecture docs for apps, skills, and embeds must include a **Data Structures*
 
 ## Freshness & Staleness Tracking
 
-Three layers keep docs up to date:
+Documentation freshness is primarily assertion-backed. Natural-language claims
+in active docs should point to deterministic test/spec assertions wherever
+possible. Source files may be listed as review context, but source changes alone
+should not spawn documentation review sessions when linked assertions still pass.
+
+Claim schema:
+
+```yaml
+claims:
+  - id: share-link-has-qr-code
+    type: e2e  # e2e | unit | backend | integration | static | manual
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    assertion: share-link-has-qr-code
+```
+
+Test files hardcode the assertion marker:
+
+```ts
+await docAssert('share-link-has-qr-code', async () => {
+  await expect(page.getByTestId('share-qr-code')).toBeVisible();
+});
+```
+
+Python tests use `doc_assert("claim-id")` or `with doc_assert("claim-id"):`.
+
+Manual claims are allowed only when deterministic checks are not feasible and
+must include a reason.
+
+Automation triggers OpenCode documentation review only when:
+
+- A linked assertion fails in test results.
+- A linked assertion marker is removed or renamed.
+- A linked test/spec assertion block changes.
+- The doc itself changes and claim verification fails.
+- An active doc has missing or weak coverage and is explicitly audited.
+
+Layers that keep docs up to date:
 
 1. **Automated (code-mapping):** `key_files` in frontmatter (and `docs/architecture/code-mapping.yml`) map docs to source code. When mapped code is newer than the doc by >24 hours, the doc is flagged as stale.
 
@@ -227,6 +282,8 @@ Three layers keep docs up to date:
    - Deploy warns about stale docs related to modified files
 
 4. **Test-backed user guides:** user-guide docs can declare `tested_by` entries that link them to Playwright specs and `docCheckpoint()` IDs. Run `python3 scripts/docs_guide_verify.py` to validate guide/spec/checkpoint links. When a linked spec changes, run `python3 scripts/docs_guide_review.py --since <ref>` to prepare a dry-run review package, or add `--execute` in automation to spawn an OpenCode docs-review session.
+
+5. **Assertion-backed claims:** active docs can declare `claims` entries that link them to `docAssert()` / `doc_assert()` markers. Run `python3 scripts/docs_claims_verify.py` to validate claim wiring. Run `python3 scripts/docs_claims_review.py --failures test-results/last-failed-tests.json` to prepare an OpenCode review prompt for failed tests linked to doc claims, or add `--execute` to spawn the review session.
 
 When updating code, check if it appears in `docs/architecture/code-mapping.yml` and update the corresponding doc.
 
@@ -246,7 +303,7 @@ When updating code, check if it appears in `docs/architecture/code-mapping.yml` 
 | `design-guide/` | AI + Developers | UI/UX principles, component guidelines |
 | `user-guide/` | End users | Feature documentation |
 | `user-guide/apps/` | End users | Per-app feature docs |
-| `cli/` | End users | CLI command reference |
+| `user-guide/cli/` | End users | CLI command reference |
 | `self-hosting/` | Self-hosters | Deployment instructions |
 | `images/{mirrors above}/` | All | Screenshots and diagrams |
 

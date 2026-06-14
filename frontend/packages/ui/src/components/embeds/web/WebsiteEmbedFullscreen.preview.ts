@@ -42,6 +42,26 @@ export const variants = {
     ],
   },
 
+  /** Opened from a source quote — quoted text should be highlighted in the source content */
+  withHighlightedQuote: {
+    data: {
+      decodedContent: {
+        url: "https://github.com/sveltejs/svelte",
+        title: "sveltejs/svelte: Cybernetically enhanced web apps",
+        description:
+          "Svelte is a radical new approach to building user interfaces. Write less code, use no virtual DOM, and create truly reactive apps.",
+        favicon: "https://svelte.dev/favicon.png",
+        extra_snippets: [
+          "Svelte shifts work from the browser to a compile step that happens when you build your app.",
+          "Instead of using techniques like virtual DOM diffing, Svelte writes code that updates the DOM when state changes.",
+        ],
+      },
+      embedData: { status: "finished" },
+      attrs: { app_id: "web", skill_id: "website" },
+      highlightQuoteText: "Svelte writes code that updates the DOM when state changes",
+    },
+  },
+
   /** Minimal — just URL, no prefetched metadata */
   minimal: {
     url: "https://svelte.dev/page",

@@ -75,7 +75,11 @@ struct EmbedFullscreenContainer: View {
 
     private var childEmbeds: [EmbedRecord] {
         guard let embed = currentEmbed else { return [] }
-        return embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
+        if !explicit.isEmpty { return explicit }
+        return allEmbedRecords.values
+            .filter { $0.parentEmbedId == embed.id }
+            .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) }
     }
 
     var body: some View {
@@ -170,7 +174,8 @@ struct EmbedFullscreenContainer: View {
            isCodeRunnable,
            let payload = embed.codePayload,
            let chatId,
-           !chatId.isEmpty {
+           !chatId.isEmpty,
+           !codeRunViewModel.isPanelOpen {
             return EmbedHeaderCTA(title: codeRunViewModel.ctaTitle, accessibilityIdentifier: "embed-run-button") {
                 runCode(embed, payload: payload)
             }

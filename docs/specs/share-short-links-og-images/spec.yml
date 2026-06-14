@@ -1,0 +1,536 @@
+id: share-short-links-og-images
+title: Share Short Links And OG Images
+status: approved
+
+goal: >
+  Make shared chat and embed links compact by default without weakening the
+  zero-knowledge share model, and make shared-chat social previews useful while
+  hiding metadata for password-protected shares.
+
+scope:
+  in:
+    - Durable database-backed short links for shared chats and shared embeds.
+    - Public short URL format `/s/<token>#<shortKey>` where the server receives only the token.
+    - Share panel copy and QR code actions use the short URL instead of the long `/share/...#key=...` URL.
+    - Offline share generation falls back to the long encrypted share URL because it can be generated without contacting OpenMates servers.
+    - No-expiration short links by default, unless the user selects a share expiration.
+    - Chat-specific OG title, description, and generated image for non-password-protected shared chats.
+    - Generic password-protected OG title and lock-image preview for password-protected shared chats.
+    - Reopening the share UI for an already-shared owned chat restores the encrypted short URL and QR code directly.
+    - Playwright coverage for shared chat creation and shared embed creation using short links.
+  out:
+    - Custom short domain rollout beyond preserving existing `VITE_SHORT_URL_DOMAIN` support.
+    - Durable short links for projects and workflows in this slice.
+    - Dynamic generated OG images for embeds, projects, or workflows.
+    - Public discovery, community approval, or demo-chat publishing changes.
+    - Changing the underlying chat/embed encryption format or moving decryption server-side.
+
+context_discovery:
+  github_issues:
+    - "none found via `gh issue list --repo glowingkitty/OpenMates --search \"share short link OG image shared chat\" --state all --limit 10`"
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/user-guide/sharing.md
+    - docs/architecture/integrations/media-generation.md
+    - docs/architecture/frontend/chat-header-hero-images.md
+  code_patterns:
+    - backend/core/api/app/routes/share.py
+    - backend/core/api/app/services/cache_short_url_mixin.py
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/schemas/embeds.yml
+    - frontend/packages/ui/src/services/shortUrlEncryption.ts
+    - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+    - frontend/apps/web_app/src/routes/s/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+server.ts
+    - frontend/apps/web_app/src/routes/share/embed/[embedId]/+server.ts
+    - frontend/packages/ui/src/components/ChatHeader.svelte
+  tests:
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    - frontend/apps/web_app/tests/shared-chat-open.spec.ts
+    - frontend/packages/ui/src/services/encryption/__tests__/shareEncryption.test.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This slice changes web share-panel behavior and SvelteKit public share routes only.
+    - Native Apple sharing parity is out of scope for this implementation and should reuse the durable short-link contract later.
+  verification:
+    - Not required for this web-only share route and settings-panel change.
+  intentional_native_differences:
+    - Apple app does not yet expose this short-link share panel flow in this slice.
+
+clarification:
+  rounds:
+    - question: Should no-expiry short links be durable database-backed records or best-effort Redis records?
+      answer: Durable database-backed records.
+    - question: Should durable short-link behavior apply to both shared chats and shared embeds?
+      answer: Both chats and embeds, with projects and workflows planned later.
+    - question: Should the public format keep custom short-domain support and use the existing `/s/` concept?
+      answer: Yes.
+    - question: Since URL fragments are invisible to crawlers, should the token move into the path as `/s/<token>#<shortKey>`?
+      answer: Yes, the token must be visible so crawlers can fetch metadata while the secret remains in the fragment.
+  vision_summary: >
+    Sharing should no longer expose long confusing URLs to users. The copy link
+    and QR code surfaces should use durable short URLs for chats and embeds,
+    while preserving zero-knowledge access by keeping the decryption key in the
+    fragment. Shared-chat OG previews should use title, summary, and a generated
+    chat-header-style image only when password protection is not enabled; a
+    password-protected share must show only a generic protected preview.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Owner shares a chat with the default no-expiration short link
+    given:
+      - Alice is logged in and owns a private encrypted chat titled "Paris travel plan".
+      - Alice leaves password protection disabled and leaves expiration set to no expiration.
+    when:
+      - Alice opens the share panel and clicks Share chat.
+    then:
+      - The generated link shown for copy starts with `/s/` and contains a token in the path.
+      - The decryption secret appears only after `#` in the short URL.
+      - The QR code encodes the same short URL, not the long `/share/chat/...#key=...` URL.
+      - The short-link database record has no expiration timestamp.
+
+  - id: S-7
+    title: Owner shares while offline
+    given:
+      - Alice is logged in and owns an encrypted chat or embed.
+      - Alice's browser cannot reach the OpenMates API when she generates a share link.
+    when:
+      - Alice clicks Share chat or Share embed.
+    then:
+      - The share panel still produces a usable encrypted long share URL.
+      - The copied link and QR code use the long `/share/...#key=...` URL.
+      - The UI indicates that a long offline link was used because short-link creation needs a network connection.
+
+  - id: S-8
+    title: Owner reopens share UI for an already-shared chat
+    given:
+      - Alice previously shared an owned encrypted chat and received `/s/<token>#<shortKey>`.
+      - The full short URL was stored as `encrypted_shared_short_url` encrypted with the chat key.
+    when:
+      - Alice opens the share settings for the same chat again.
+    then:
+      - The share panel opens directly on the generated-link step.
+      - The copy button and QR code use the same stored short URL.
+      - The `#shortKey` fragment is never stored in plaintext server metadata.
+
+  - id: S-2
+    title: Owner shares a chat with explicit expiration
+    given:
+      - Alice is logged in and owns an encrypted chat.
+    when:
+      - Alice selects a one-hour share expiration and clicks Share chat.
+    then:
+      - The copied link and QR code still use `/s/<token>#<shortKey>`.
+      - The durable short-link record expires at the same time as the share-key blob.
+      - Resolving the short link after expiration fails without revealing whether the chat exists.
+
+  - id: S-3
+    title: Social crawler previews a non-password-protected shared chat
+    given:
+      - Alice shared a chat without password protection.
+      - The chat has shared metadata title "Paris travel plan" and summary "A concise itinerary for a weekend in Paris.".
+    when:
+      - A crawler requests `/s/<token>` without the fragment.
+    then:
+      - The HTML contains `og:title` with the shared chat title.
+      - The HTML contains `og:description` with the shared chat summary.
+      - The HTML contains `og:image` pointing to a generated chat OG image route.
+      - The OG image uses an OpenMates logo, category gradient, large centered icon, title, and summary with no side images or decorative side icons.
+
+  - id: S-4
+    title: Social crawler previews a password-protected shared chat
+    given:
+      - Alice shared a chat with password protection enabled.
+    when:
+      - A crawler requests `/s/<token>` without the fragment.
+    then:
+      - The HTML title and OG title are "Password protected chat".
+      - The HTML and OG description do not include the chat summary.
+      - The OG image is a generic OpenMates gradient image with a lock icon.
+      - No chat title, summary, decrypted content, or preview images are exposed.
+
+  - id: S-5
+    title: Recipient opens a short chat link
+    given:
+      - Bob receives `/s/<token>#<shortKey>` for a shared chat.
+    when:
+      - Bob opens the link in a browser.
+    then:
+      - The short-link resolver fetches the encrypted long share URL using only the token.
+      - The browser decrypts the long share URL using the fragment secret.
+      - Bob is redirected to the existing `/share/chat/<chatId>#key=<blob>` flow and can view the chat.
+
+  - id: S-6
+    title: Owner shares an embed with the durable short link
+    given:
+      - Alice is logged in and opens a finished web-search embed fullscreen.
+    when:
+      - Alice clicks Share embed and generates a link.
+    then:
+      - The copied link and QR code use `/s/<token>#<shortKey>`.
+      - The short-link record type is `embed`.
+      - The resolver redirects to the existing `/share/embed/<embedId>#key=<blob>` flow.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Share chat copy and QR outputs use a durable short URL by default, never the long share URL.
+  - id: AC-2
+    scenario: S-2
+    text: Short-link expiration is absent by default and matches the selected share expiration when one is configured.
+  - id: AC-3
+    scenario: S-3
+    text: Non-password-protected shared chats expose only explicitly shared title/summary metadata and a simplified generated OpenMates OG image.
+  - id: AC-4
+    scenario: S-4
+    text: Password-protected shared chats expose only the generic protected OG metadata and image.
+  - id: AC-5
+    scenario: S-5
+    text: Short-link resolution remains zero-knowledge; the server never receives the fragment secret or decrypted long share URL.
+  - id: AC-6
+    scenario: S-6
+    text: Shared embeds also use durable short URLs for copy and QR surfaces.
+  - id: AC-7
+    scenario: S-1
+    text: Existing long share routes continue to work as internal resolver targets and backward-compatible old links.
+  - id: AC-8
+    scenario: S-7
+    text: Offline share generation falls back to the locally generated long URL for copy and QR surfaces.
+  - id: AC-9
+    scenario: S-8
+    text: Already-shared owned chats restore the encrypted stored short URL and show copy/QR immediately on reopening the share UI.
+
+contracts:
+  api:
+    - route: POST /v1/share/short-url
+      request: >
+        { token: string, encrypted_url: string, content_type: "chat" | "embed",
+        content_id: string, password_protected: boolean, ttl_seconds?: number | null }
+      response: "{ success: true, expires_at: number | null }"
+      errors:
+        - 400 for invalid token, invalid content_type, invalid content_id, oversized encrypted_url, or invalid ttl_seconds.
+        - 401 when unauthenticated.
+        - 409 when token already exists.
+    - route: GET /v1/share/short-url/{token}
+      response: "{ encrypted_url: string }"
+      errors:
+        - 404 for missing, revoked, or expired short links.
+        - 429 if abuse limits are exceeded.
+    - route: GET /v1/share/short-url/{token}/metadata
+      response: >
+        { title: string, description: string, image: string, content_type: string,
+        password_protected: boolean }
+      errors:
+        - 404-compatible fallback metadata for unknown, revoked, or expired links.
+    - route: GET /v1/share/short-url/{token}/og-image.png
+      response: PNG image bytes.
+      errors:
+        - 404-compatible generic fallback image for unknown, revoked, expired, or unsafe metadata.
+  data:
+    - Add a durable `share_short_links` collection/table with token, encrypted_url, content_type, content_id, owner hash, password_protected, expires_at, revoked_at, created_at, and updated_at.
+    - Store only opaque encrypted_url; the server must not store the fragment secret or decrypted long URL.
+    - Store the owner-facing full short URL, including `#shortKey`, only as `encrypted_shared_short_url` encrypted with the chat key.
+    - Short-link records for no-expiration shares use null expires_at.
+    - Expired, revoked, unshared, or deleted target content must not reveal private metadata.
+  ui_states:
+    - Share generated success shows/copies the short URL.
+    - Already-shared chats with `encrypted_shared_short_url` skip the configuration step and show copy/QR immediately.
+    - QR code uses the short URL.
+    - If durable short-link creation fails because the browser is offline or the API is unreachable, the UI visibly falls back to the long URL.
+    - If durable short-link creation fails for validation or permission reasons, the UI shows a visible error and does not silently copy the long URL.
+    - The long URL may be kept only in memory as the encrypted resolver target, not displayed as the primary share output.
+  privacy_security:
+    - URL fragment secrets are never sent to backend routes or included in OG HTML.
+    - The owner-facing stored short URL includes a fragment secret and must remain client-encrypted at rest.
+    - Password-protected shares never expose chat title, summary, category, icon, or preview images in crawler-visible metadata.
+    - Non-password OG metadata is limited to title, summary, category, and icon; generated OG images must not fetch or render chat preview side images.
+    - The resolver must not distinguish missing/private/unshared targets in user-facing error copy beyond generic invalid or expired states.
+    - Short-link token entropy must remain high enough for non-enumerability and be rate-limited on create and resolve.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_share_short_links.py
+    command: python3 -m pytest backend/tests/test_share_short_links.py
+    covers:
+      - AC-2
+      - AC-4
+      - AC-5
+      - AC-7
+      - AC-8
+    assertions:
+      - creating a no-expiration short link stores null expires_at
+      - creating an expiring short link stores a finite expires_at
+      - resolving a token returns only encrypted_url
+      - password-protected metadata returns generic protected title and image
+      - non-password chat metadata returns shared title and summary with generated image URL
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 -m pytest backend/tests/test_share_short_links.py"
+        timestamp: "2026-06-10T00:00:00Z"
+        notes: "Failed because current CreateShortUrlRequest rejects null ttl_seconds, resolve_short_url is cache-only, and get_short_url_metadata does not exist."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest backend/tests/test_share_short_links.py"
+        timestamp: "2026-06-10T00:00:00Z"
+
+  - id: T-UNIT-001
+    type: vitest
+    file: frontend/packages/ui/src/services/encryption/__tests__/shortUrlEncryption.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-1
+      - AC-5
+    assertions:
+      - buildShortUrl creates `/s/<token>#<shortKey>` when no custom domain is configured
+      - parseShortUrl supports `/s/<token>#<shortKey>` fragments used by the resolver page
+      - encrypted full share URLs round-trip without exposing plaintext to the API payload
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "GitHub Actions vitest run 27291510012"
+        timestamp: "2026-06-10T16:49:37Z"
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec share-chat-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-9
+    assertions:
+      - generated chat copy link text starts with `/s/` or same-origin `/s/` URL
+      - generated chat copy link does not include `/share/chat/`
+      - QR code is generated from the same short URL
+      - default no-expiration share does not show a short-link countdown step
+      - network-unavailable share creation falls back to a long `/share/chat/` URL
+      - password-protected chat preview metadata uses the generic protected OG title
+      - non-password chat preview metadata uses the chat title and summary
+      - non-password chat preview metadata points to a generated PNG OG image
+      - reopening the share panel for the same chat restores the existing short link and QR code directly
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "GitHub Actions Playwright run 27302334800 via python3 scripts/run_tests.py --spec share-chat-flow.spec.ts"
+        timestamp: "2026-06-10T19:58:04Z"
+
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/application-preview-share.spec.ts
+    command: python3 scripts/run_tests.py --spec application-preview-share.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-6
+      - AC-7
+    assertions:
+      - generated embed copy link starts with `/s/` or same-origin `/s/` URL
+      - generated embed copy link does not include `/share/embed/`
+      - QR code is generated from the same short URL
+      - opening the short URL redirects through the existing embed share page
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - Existing share-key blobs already keep chat/embed encryption keys in URL fragments.
+    - Existing `/s/` resolver already decrypts opaque encrypted_url client-side.
+    - Existing share metadata queue already sends plaintext title/summary/category/icon only after owner action.
+    - Existing backend OG metadata endpoint already decrypts shared vault metadata for crawlers.
+    - Existing `ChatHeader.svelte` category gradients and icon names define the visual source for chat OG images.
+  architecture: >
+    Replace Redis-only ephemeral short links with durable Directus-backed records
+    while preserving the encrypted_url blob pattern. The frontend creates the long
+    share URL in memory, encrypts it with a fragment-only shortKey, stores only the
+    encrypted blob plus safe metadata flags, and displays only `/s/<token>#<shortKey>`.
+    SvelteKit `/s/<token>` serves crawler metadata and client resolver UI; the resolver
+    fetches the encrypted blob and redirects to the existing long share route after
+    client-side decryption.
+  data_flow:
+    - User configures chat or embed sharing.
+    - Client creates the existing long share URL in memory.
+    - Client generates token and shortKey.
+    - Client encrypts the long URL with shortKey-derived AES-GCM key.
+    - Client POSTs token, encrypted_url, content_type, content_id, password_protected, and optional ttl_seconds.
+    - Backend stores a durable short-link record with null expires_at for no-expiration shares.
+    - UI displays and copies only the short URL and builds QR from it.
+    - Crawlers request `/s/<token>` and receive safe OG tags from backend metadata.
+    - Browsers with a fragment resolve and decrypt the encrypted_url, then navigate to `/share/chat/...` or `/share/embed/...`.
+  affected_files:
+    - path: backend/core/api/app/routes/share.py
+      reason: Durable short-link API, metadata API, OG image endpoint.
+    - path: backend/core/api/app/services/directus.py
+      reason: If needed, helper methods for share_short_links collection access.
+    - path: backend/core/directus/schemas/share_short_links.yml
+      reason: Durable short-link schema.
+    - path: frontend/packages/ui/src/services/shortUrlEncryption.ts
+      reason: Build and parse `/s/<token>#<shortKey>` URLs.
+    - path: frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+      reason: Generate durable short links as the primary share output for chat and embed.
+    - path: frontend/apps/web_app/src/routes/s/[token]/+server.ts
+      reason: Serve OG HTML and redirect bootstrap for short-link path tokens.
+    - path: frontend/apps/web_app/src/routes/s/[token]/+page.svelte
+      reason: Client resolver for token path plus fragment secret.
+    - path: frontend/apps/web_app/tests/share-chat-flow.spec.ts
+      reason: Shared-chat spec coverage for short links and OG metadata.
+    - path: frontend/apps/web_app/tests/share-embed-flow.spec.ts
+      reason: Embed spec coverage for short links.
+    - path: backend/tests/test_share_short_links.py
+      reason: Backend contract tests.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/share-short-links-og-images/spec.yml
+    - python3 -m pytest backend/tests/test_share_short_links.py
+    - python3 scripts/run_tests.py --suite vitest
+    - python3 scripts/run_tests.py --spec share-chat-flow.spec.ts
+    - python3 scripts/run_tests.py --spec share-embed-flow.spec.ts
+    - python3 scripts/spec_verify.py docs/specs/share-short-links-og-images/spec.yml
+
+tasks:
+  - id: TASK-1
+    title: Add durable short-link backend contract
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-2
+        - AC-5
+        - AC-6
+        - AC-8
+        - AC-7
+    expected_files:
+      - backend/core/directus/schemas/share_short_links.yml
+      - backend/core/api/app/routes/share.py
+      - backend/tests/test_share_short_links.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Make short URLs the primary frontend share output
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-5
+        - AC-6
+        - AC-8
+    expected_files:
+      - frontend/packages/ui/src/services/shortUrlEncryption.ts
+      - frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
+      - frontend/apps/web_app/src/routes/s/[token]/+page.svelte
+      - frontend/apps/web_app/src/routes/s/[token]/+server.ts
+    verification:
+      - T-UNIT-001
+      - T-E2E-001
+      - T-E2E-002
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add safe shared-chat OG metadata and generated images
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+    expected_files:
+      - backend/core/api/app/routes/share.py
+      - frontend/apps/web_app/src/routes/s/[token]/+server.ts
+      - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    verification:
+      - T-PYTEST-001
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Update sharing docs and test assertions
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-6
+        - AC-8
+    expected_files:
+      - docs/user-guide/sharing.md
+      - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+      - frontend/apps/web_app/tests/share-embed-flow.spec.ts
+    verification:
+      - T-E2E-001
+      - T-E2E-002
+    independently_deployable: false
+
+risks:
+  - Durable short links increase the need for explicit revocation when content is unshared or deleted.
+  - Moving token into the URL path improves OG metadata but makes token enumeration defenses more important.
+  - Generated OG images must not render unescaped user-controlled text directly into SVG/HTML.
+  - Existing social preview caches may keep old metadata after a share changes.
+  - Current `/s/#token-key` links should remain resolvable during a transition window if already generated.
+
+open_questions:
+  - Should a future cleanup job delete expired durable short-link records, or keep them tombstoned for abuse analysis?
+  - Should projects and workflows share the same `share_short_links` collection with content_type expansion, or receive separate typed share tables?

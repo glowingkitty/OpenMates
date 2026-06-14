@@ -10,7 +10,7 @@ const sampleRecipe = {
   title: 'Spaghetti Aglio e Olio',
   description: 'Klassisches italienisches Knoblauch-Pasta-Gericht mit Olivenöl, Knoblauch und Chili. Einfach, schnell und unglaublich lecker.',
   image_url: null,
-  recipe_url: 'https://www.rewe.de/rezepte/spaghetti-aglio-olio/',
+  recipe_url: 'https://www.edamam.com/results/recipes/?search=spaghetti%20aglio%20e%20olio',
   prep_time_minutes: 10,
   cook_time_minutes: 15,
   total_time_minutes: 25,
