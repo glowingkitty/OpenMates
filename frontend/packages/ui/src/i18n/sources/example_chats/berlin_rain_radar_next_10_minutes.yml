@@ -1,0 +1,373 @@
+title:
+  context: "Title of example chat: Berlin Rain Radar for the Next 10 Minutes"
+  en: "Berlin Rain Radar for the Next 10 Minutes"
+  de: Regenradar Berlin für die nächsten 10 Minuten
+  zh: 柏林未来 10 分钟降雨雷达图
+  es: Radar de lluvia de Berlín para los próximos 10 minutos
+  fr: Radar de pluie à Berlin pour les 10 prochaines minutes
+  pt: Radar de chuva de Berlim para os próximos 10 minutos
+  ru: Дождевой радар Берлина на ближайшие 10 минут
+  ja: ベルリンの今後10分間の雨量レーダー
+  ko: 베를린 향후 10분 강수 레이더
+  it: Radar pioggia Berlino per i prossimi 10 minuti
+  tr: Önümüzdeki 10 Dakika İçin Berlin Yağmur Radarı
+  vi: Radar mưa Berlin trong 10 phút tới
+  id: Radar Hujan Berlin untuk 10 Menit ke Depan
+  pl: Radar opadów dla Berlina na najbliższe 10 minut
+  nl: Regenradar Berlijn voor de komende 10 minuten
+  ar: رادار المطر في برلين للعشر دقائق القادمة
+  hi: अगले 10 मिनट के लिए बर्लिन रेन रडार
+  th: เรดาร์ฝนเบอร์ลินในอีก 10 นาทีข้างหน้า
+  cs: Srážkový radar pro Berlín na příštích 10 minut
+  sv: Regnradar för Berlin de närmaste 10 minuterna
+  he: "מכ\"ם גשם בברלין ל-10 הדקות הקרובות"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Berlin Rain Radar for the Next 10 Minutes"
+  en: "A quick weather chat that checks DWD rain radar for Berlin and answers whether rain is expected soon."
+  de: Ein kurzer Wetter-Chat, der das DWD-Regenradar für Berlin prüft und beantwortet, ob bald Regen zu erwarten ist.
+  zh: 一个快速的天气对话，通过查询 DWD 柏林降雨雷达来回答近期是否会有降雨。
+  es: Un chat meteorológico rápido que consulta el radar de lluvia del DWD para Berlín y responde si se espera lluvia pronto.
+  fr: Une discussion météo rapide qui consulte le radar de pluie du DWD pour Berlin et indique si de la pluie est prévue prochainement.
+  pt: Um chat meteorológico rápido que verifica o radar de chuva do DWD para Berlim e responde se há previsão de chuva em breve.
+  ru: Короткий чат о погоде, который проверяет дождевой радар DWD для Берлина и сообщает, ожидается ли дождь в ближайшее время.
+  ja: ベルリンのDWD雨量レーダーを確認し、すぐに雨が降るかどうかを回答するクイックお天気チャット。
+  ko: 베를린의 DWD 강수 레이더를 확인하여 곧 비가 올지 알려주는 간단한 날씨 채팅입니다.
+  it: Una rapida chat meteo che controlla il radar pioggia del DWD per Berlino e risponde se è prevista pioggia a breve.
+  tr: Berlin için DWD yağmur radarını kontrol eden ve yakında yağmur beklenip beklenmediğini yanıtlayan hızlı bir hava durumu sohbeti.
+  vi: Một cuộc trò chuyện nhanh về thời tiết để kiểm tra radar mưa của DWD cho Berlin và trả lời xem liệu sắp có mưa hay không.
+  id: Obrolan cuaca singkat yang memeriksa radar hujan DWD untuk Berlin dan menjawab apakah hujan akan segera turun.
+  pl: Krótki czat pogodowy, który sprawdza radar opadów DWD dla Berlina i odpowiada, czy wkrótce spodziewany jest deszcz.
+  nl: Een korte weerchat die de DWD-regenradar voor Berlijn controleert en antwoordt of er binnenkort regen wordt verwacht.
+  ar: دردشة سريعة حول الطقس تتحقق من رادار المطر التابع لـ DWD في برلين وتجيب عما إذا كان من المتوقع هطول الأمطار قريباً.
+  hi: मौसम के बारे में एक त्वरित चैट जो बर्लिन के लिए DWD रेन रडार की जाँच करती है और बताती है कि क्या जल्द ही बारिश होने की संभावना है।
+  th: แชทพยากรณ์อากาศสั้นๆ ที่ตรวจสอบเรดาร์ฝน DWD สำหรับเบอร์ลิน และตอบว่าจะมีฝนตกเร็วๆ นี้หรือไม่
+  cs: Rychlý chat o počasí, který kontroluje srážkový radar DWD pro Berlín a odpovídá na otázku, zda se brzy očekává déšť.
+  sv: "En snabb väderchatt som kollar DWD:s regnradar för Berlin och svarar på om det förväntas regna snart."
+  he: "צ'אט מזג אוויר מהיר שבודק את מכ\"ם הגשם של ה-DWD עבור ברלין ועונה אם צפוי גשם בקרוב."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Berlin Rain Radar for the Next 10 Minutes. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Will it rain in Berlin in the next 10 minutes? Show me the rain radar."
+  de: "Wird es in Berlin in den nächsten 10 Minuten regnen? Zeig mir das Regenradar."
+  zh: 柏林未来 10 分钟内会下雨吗？给我看下降雨雷达图。
+  es: "¿Va a llover en Berlín en los próximos 10 minutos? Muéstrame el radar de lluvia."
+  fr: "Va-t-il pleuvoir à Berlin dans les 10 prochaines minutes ? Montre-moi le radar de pluie."
+  pt: "Vai chover em Berlim nos próximos 10 minutos? Mostra-me o radar de chuva."
+  ru: "Будет ли дождь в Берлине в ближайшие 10 минут? Покажи мне дождевой радар."
+  ja: ベルリンで今後10分間に雨は降りますか？雨量レーダーを見せてください。
+  ko: "향후 10분 동안 베를린에 비가 올까요? 강수 레이더를 보여주세요."
+  it: "Pioverà a Berlino nei prossimi 10 minuti? Mostrami il radar pioggia."
+  tr: "Önümüzdeki 10 dakika içinde Berlin'de yağmur yağacak mı? Bana yağmur radarını göster."
+  vi: "Liệu Berlin có mưa trong 10 phút tới không? Cho tôi xem radar mưa."
+  id: "Apakah akan hujan di Berlin dalam 10 menit ke depan? Tunjukkan radar hujannya."
+  pl: "Czy w ciągu najbliższych 10 minut będzie padać w Berlinie? Pokaż mi radar opadów."
+  nl: "Gaat het de komende 10 minuten regenen in Berlijn? Laat me de regenradar zien."
+  ar: هل ستمطر في برلين خلال العشر دقائق القادمة؟ أرني رادار المطر.
+  hi: "क्या अगले 10 मिनट में बर्लिन में बारिश होगी? मुझे रेन रडार दिखाओ।"
+  th: "ในอีก 10 นาทีข้างหน้าฝนจะตกในเบอร์ลินไหม? ขอดูเรดาร์ฝนหน่อย"
+  cs: "Bude v Berlíně v příštích 10 minutách pršet? Ukaž mi srážkový radar."
+  sv: "Kommer det att regna i Berlin de närmaste 10 minuterna? Visa mig regnradarn."
+  he: "האם ירד גשם בברלין ב-10 הדקות הקרובות? תראה לי את מכ\"ם הגשם."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Berlin Rain Radar for the Next 10 Minutes. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Based on the current radar data from the [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), it is **not expected to rain** in [Berlin](wiki:Berlin) within the next 10 minutes. In fact, the radar shows no precipitation in the vicinity for at least the next two hours.
+    
+    !
+    
+    The sky appears clear of rain clouds at the moment, so you should be fine for your immediate plans. If you'd like, I can also check the [regular hourly forecast](/#settings/apps/weather) for the rest of the day.
+    
+    **What would you like to do next?**
+    *   [Check the 7-day weather forecast for Berlin](/#settings/apps/weather)
+    *   [Search for indoor activities in Berlin](/#settings/apps/web) if the weather changes later
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Basierend auf den aktuellen Radardaten des [Deutschen Wetterdienstes](wiki:Deutscher_Wetterdienst) ist in [Berlin](wiki:Berlin) innerhalb der nächsten 10 Minuten **kein Regen zu erwarten**. Tatsächlich zeigt das Radar für mindestens die nächsten zwei Stunden keinen Niederschlag in der Umgebung an.
+    
+    !
+    
+    Der Himmel scheint momentan frei von Regenwolken zu sein, also sollte deinen unmittelbaren Plänen nichts im Wege stehen. Wenn du möchtest, kann ich auch die [reguläre stündliche Vorhersage](/#settings/apps/weather) für den Rest des Tages prüfen.
+    
+    **Was möchtest du als Nächstes tun?**
+    *   [Die 7-Tage-Wettervorhersage für Berlin prüfen](/#settings/apps/weather)
+    *   [Nach Indoor-Aktivitäten in Berlin suchen](/#settings/apps/web), falls sich das Wetter später ändert
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    根据 [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) 的最新雷达数据，预计未来 10 分钟内 [柏林](wiki:Berlin) **不会下雨**。事实上，雷达显示在接下来的至少两小时内，附近都没有降水。
+    
+    !
+    
+    目前天空似乎没有雨云，所以你眼下的计划应该没问题。如果你愿意，我还可以为你查询今天剩余时间的[常规每小时预报](/#settings/apps/weather)。
+    
+    **接下来你想做什么？**
+    *   [查看柏林 7 天天气预报](/#settings/apps/weather)
+    *   如果稍后天气变化，[搜索柏林的室内活动](/#settings/apps/web)
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Según los datos actuales del radar del [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), **no se espera que llueva** en [Berlín](wiki:Berlin) en los próximos 10 minutos. De hecho, el radar no muestra precipitaciones en las cercanías durante al menos las próximas dos horas.
+    
+    !
+    
+    El cielo parece estar despejado de nubes de lluvia en este momento, así que no deberías tener problemas con tus planes inmediatos. Si quieres, también puedo consultar el [pronóstico por horas habitual](/#settings/apps/weather) para el resto del día.
+    
+    **¿Qué te gustaría hacer ahora?**
+    *   [Consultar el pronóstico del tiempo para 7 días en Berlín](/#settings/apps/weather)
+    *   [Buscar actividades de interior en Berlín](/#settings/apps/web) por si el tiempo cambia más tarde
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    D'après les données radar actuelles du [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), il n'est **pas prévu qu'il pleuve** à [Berlin](wiki:Berlin) dans les 10 prochaines minutes. En fait, le radar ne montre aucune précipitation à proximité pour au moins les deux prochaines heures.
+    
+    !
+    
+    Le ciel semble dégagé de tout nuage de pluie pour le moment, tu devrais donc être tranquille pour tes projets immédiats. Si tu le souhaites, je peux aussi consulter les [prévisions horaires habituelles](/#settings/apps/weather) pour le reste de la journée.
+    
+    **Que souhaites-tu faire ensuite ?**
+    *   [Consulter les prévisions météo à 7 jours pour Berlin](/#settings/apps/weather)
+    *   [Rechercher des activités en intérieur à Berlin](/#settings/apps/web) si le temps change plus tard
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Com base nos dados atuais do radar do [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), **não se espera que chova** em [Berlim](wiki:Berlin) nos próximos 10 minutos. Na verdade, o radar não mostra precipitação nas proximidades durante, pelo menos, as próximas duas horas.
+    
+    !
+    
+    O céu parece livre de nuvens de chuva no momento, por isso deves estar bem para os teus planos imediatos. Se quiseres, também posso verificar a [previsão horária regular](/#settings/apps/weather) para o resto do dia.
+    
+    **O que gostarias de fazer a seguir?**
+    *   [Verificar a previsão meteorológica para 7 dias em Berlim](/#settings/apps/weather)
+    *   [Procurar atividades em espaços fechados em Berlim](/#settings/apps/web) se o tempo mudar mais tarde
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Согласно текущим данным радара [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), в [Берлине](wiki:Berlin) в ближайшие 10 минут **дождя не ожидается**. На самом деле радар не показывает осадков в окрестностях как минимум в течение следующих двух часов.
+    
+    !
+    
+    На данный момент небо чистое от дождевых облаков, так что твоим ближайшим планам ничего не мешает. Если хочешь, я также могу проверить [обычный почасовой прогноз](/#settings/apps/weather) на остаток дня.
+    
+    **Что ты хочешь сделать дальше?**
+    *   [Посмотреть прогноз погоды в Берлине на 7 дней](/#settings/apps/weather)
+    *   [Найти занятия в помещении в Берлине](/#settings/apps/web), если погода позже изменится
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    [ドイツ気象局](wiki:Deutscher_Wetterdienst)の最新レーダーデータに基づくと、今後10分以内に[ベルリン](wiki:Berlin)で**雨が降る予想はありません**。実際、レーダーでは少なくとも今後2時間は周辺に降水は見られません。
+    
+    !
+    
+    現在、空に雨雲はないようなので、すぐの予定は問題ないでしょう。よろしければ、今日の残りの時間の[通常の1時間ごとの予報](/#settings/apps/weather)を確認することもできます。
+    
+    **次はどうしますか？**
+    *   [ベルリンの7日間天気予報を確認する](/#settings/apps/weather)
+    *   後で天気が変わった場合に備えて[ベルリンの屋内アクティビティを検索する](/#settings/apps/web)
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst)의 현재 레이더 데이터에 따르면, 향후 10분 이내에 [베를린](wiki:Berlin)에 **비가 올 것으로 예상되지 않아요**. 사실, 레이더상으로는 향후 최소 2시간 동안 인근에 강수 현상이 나타나지 않네요.
+    
+    !
+    
+    현재 하늘에 비구름이 없어 보이므로 당장의 계획에는 지장이 없을 거예요. 원하신다면 남은 하루 동안의 [정기 시간별 예보](/#settings/apps/weather)도 확인해 드릴 수 있습니다.
+    
+    **다음으로 무엇을 하고 싶으신가요?**
+    *   [베를린의 7일 일기 예보 확인하기](/#settings/apps/weather)
+    *   나중에 날씨가 변할 경우를 대비해 [베를린의 실내 활동 검색하기](/#settings/apps/web)
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    In base ai dati radar attuali del [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), **non è prevista pioggia** a [Berlino](wiki:Berlin) nei prossimi 10 minuti. Infatti, il radar non mostra precipitazioni nelle vicinanze per almeno le prossime due ore.
+    
+    !
+    
+    Al momento il cielo sembra libero da nuvole di pioggia, quindi non dovresti avere problemi per i tuoi programmi immediati. Se vuoi, posso anche controllare le [previsioni orarie regolari](/#settings/apps/weather) per il resto della giornata.
+    
+    **Cosa vorresti fare dopo?**
+    *   [Controlla le previsioni meteo a 7 giorni per Berlino](/#settings/apps/weather)
+    *   [Cerca attività al chiuso a Berlino](/#settings/apps/web) se il tempo dovesse cambiare più tardi
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) üzerinden alınan güncel radar verilerine göre, önümüzdeki 10 dakika içinde [Berlin](wiki:Berlin)'de **yağmur beklenmiyor**. Hatta radar, en azından önümüzdeki iki saat boyunca civarda herhangi bir yağış göstermiyor.
+    
+    !
+    
+    Şu an gökyüzü yağmur bulutlarından temiz görünüyor, bu nedenle acil planların için bir sorun olmayacaktır. İstersen günün geri kalanı için [normal saatlik tahmini](/#settings/apps/weather) de kontrol edebilirim.
+    
+    **Sırada ne yapmak istersin?**
+    *   [Berlin için 7 günlük hava tahminini kontrol et](/#settings/apps/weather)
+    *   Hava daha sonra değişirse [Berlin'deki kapalı alan aktivitelerini ara](/#settings/apps/web)
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Dựa trên dữ liệu radar hiện tại từ [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), dự kiến sẽ **không có mưa** tại [Berlin](wiki:Berlin) trong vòng 10 phút tới. Thực tế, radar cho thấy không có lượng mưa nào ở khu vực lân cận trong ít nhất hai giờ tới.
+    
+    !
+    
+    Bầu trời hiện tại có vẻ không có mây mưa, vì vậy bạn có thể yên tâm với các kế hoạch trước mắt của mình. Nếu muốn, tôi cũng có thể kiểm tra [dự báo hàng giờ thông thường](/#settings/apps/weather) cho thời gian còn lại trong ngày.
+    
+    **Bạn muốn làm gì tiếp theo?**
+    *   [Kiểm tra dự báo thời tiết 7 ngày cho Berlin](/#settings/apps/weather)
+    *   [Tìm kiếm các hoạt động trong nhà tại Berlin](/#settings/apps/web) nếu thời tiết thay đổi sau đó
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Berdasarkan data radar saat ini dari [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), **tidak diperkirakan akan hujan** di [Berlin](wiki:Berlin) dalam 10 menit ke depan. Bahkan, radar menunjukkan tidak ada presipitasi di sekitarnya setidaknya untuk dua jam ke depan.
+    
+    !
+    
+    Langit tampak bersih dari awan hujan saat ini, jadi rencana segeramu seharusnya aman. Jika mau, aku juga bisa memeriksa [prakiraan per jam reguler](/#settings/apps/weather) untuk sisa hari ini.
+    
+    **Apa yang ingin kamu lakukan selanjutnya?**
+    *   [Periksa prakiraan cuaca 7 hari untuk Berlin](/#settings/apps/weather)
+    *   [Cari aktivitas dalam ruangan di Berlin](/#settings/apps/web) jika cuaca berubah nanti
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Na podstawie aktualnych danych radarowych z [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) w [Berlinie](wiki:Berlin) **nie są spodziewane opady deszczu** w ciągu najbliższych 10 minut. W rzeczywistości radar nie wykazuje żadnych opadów w okolicy przez co najmniej najbliższe dwie godziny.
+    
+    !
+    
+    Niebo wydaje się obecnie wolne od chmur deszczowych, więc Twoje najbliższe plany nie powinny być zagrożone. Jeśli chcesz, mogę również sprawdzić [zwykłą prognozę godzinową](/#settings/apps/weather) na resztę dnia.
+    
+    **Co chcesz teraz zrobić?**
+    *   [Sprawdź 7-dniową prognozę pogody dla Berlina](/#settings/apps/weather)
+    *   [Wyszukaj atrakcje pod dachem w Berlinie](/#settings/apps/web), jeśli pogoda zmieni się później
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Op basis van de huidige radargegevens van de [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) wordt er de komende 10 minuten **geen regen verwacht** in [Berlijn](wiki:Berlin). Sterker nog, de radar toont de komende twee uur geen neerslag in de nabije omgeving.
+    
+    !
+    
+    De lucht lijkt op dit moment vrij van regenwolken, dus je zit goed voor je directe plannen. Als je wilt, kan ik ook de [reguliere weersverwachting per uur](/#settings/apps/weather) voor de rest van de dag bekijken.
+    
+    **Wat wil je nu doen?**
+    *   [Bekijk de 7-daagse weersverwachting voor Berlijn](/#settings/apps/weather)
+    *   [Zoek naar binnenactiviteiten in Berlijn](/#settings/apps/web) voor het geval het weer later omslaat
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    بناءً على بيانات الرادار الحالية من [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst)، **لا يُتوقع هطول أمطار** في [برلين](wiki:Berlin) خلال العشر دقائق القادمة. في الواقع، لا يظهر الرادار أي هطول للأمطار في المنطقة المجاورة للساعتين القادمتين على الأقل.
+    
+    !
+    
+    تبدو السماء صافية من سحب المطر في الوقت الحالي، لذا يجب أن تكون أمورك جيدة لخططك الفورية. إذا أردت، يمكنني أيضاً التحقق من [توقعات الطقس الساعية المعتادة](/#settings/apps/weather) لبقية اليوم.
+    
+    **ماذا تود أن تفعل بعد ذلك؟**
+    *   [التحقق من توقعات الطقس لمدة 7 أيام لبرلين](/#settings/apps/weather)
+    *   [البحث عن أنشطة داخلية في برلين](/#settings/apps/web) في حال تغير الطقس لاحقاً
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) के वर्तमान रडार डेटा के आधार पर, अगले 10 मिनट के भीतर [Berlin](wiki:Berlin) में **बारिश होने की उम्मीद नहीं है**। वास्तव में, रडार कम से कम अगले दो घंटों तक आसपास के क्षेत्र में कोई वर्षा नहीं दिखाता है।
+    
+    !
+    
+    फिलहाल आसमान बारिश के बादलों से साफ दिख रहा है, इसलिए तुम्हारी तत्काल योजनाओं के लिए सब ठीक होना चाहिए। यदि तुम चाहो, तो मैं शेष दिन के लिए [नियमित प्रति घंटा पूर्वानुमान](/#settings/apps/weather) भी देख सकता हूँ।
+    
+    **तुम आगे क्या करना चाहोगे?**
+    *   [बर्लिन के लिए 7-दिवसीय मौसम पूर्वानुमान देखें](/#settings/apps/weather)
+    *   [बर्लिन में इनडोर गतिविधियों की खोज करें](/#settings/apps/web) यदि बाद में मौसम बदलता है
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    จากข้อมูลเรดาร์ปัจจุบันของ [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) คาดว่า**จะไม่มีฝนตก**ใน[เบอร์ลิน](wiki:Berlin)ภายใน 10 นาทีข้างหน้า อันที่จริง เรดาร์ไม่แสดงปริมาณน้ำฝนในบริเวณใกล้เคียงอย่างน้อยในอีกสองชั่วโมงข้างหน้า
+    
+    !
+    
+    ขณะนี้ท้องฟ้าดูปลอดโปร่งไม่มีเมฆฝน ดังนั้นแผนการของคุณในตอนนี้ไม่น่าจะมีปัญหา หากคุณต้องการ ฉันสามารถตรวจสอบ[พยากรณ์อากาศรายชั่วโมงปกติ](/#settings/apps/weather)สำหรับช่วงเวลาที่เหลือของวันได้เช่นกัน
+    
+    **คุณต้องการทำอะไรต่อ?**
+    *   [ตรวจสอบพยากรณ์อากาศ 7 วันสำหรับเบอร์ลิน](/#settings/apps/weather)
+    *   [ค้นหากิจกรรมในร่มในเบอร์ลิน](/#settings/apps/web) หากสภาพอากาศเปลี่ยนแปลงในภายหลัง
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Podle aktuálních radarových dat z [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) se v [Berlíně](wiki:Berlin) v příštích 10 minutách **déšť neočekává**. Radar ve skutečnosti neukazuje žádné srážky v okolí po dobu nejméně příštích dvou hodin.
+    
+    !
+    
+    Obloha se momentálně zdá být bez dešťových mraků, takže pro tvé nejbližší plány by to mělo být v pořádku. Pokud chceš, můžu také zkontrolovat [běžnou hodinovou předpověď](/#settings/apps/weather) na zbytek dne.
+    
+    **Co bys chtěl udělat dál?**
+    *   [Zkontrolovat předpověď počasí pro Berlín na 7 dní](/#settings/apps/weather)
+    *   [Vyhledat vnitřní aktivity v Berlíně](/#settings/apps/web), kdyby se počasí později změnilo
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    Baserat på aktuell radardata från [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) förväntas det **inte regna** i [Berlin](wiki:Berlin) inom de närmaste 10 minuterna. Faktum är att radarn inte visar någon nederbörd i närheten under åtminstone de kommande två timmarna.
+    
+    !
+    
+    Himlen ser ut att vara fri från regnmoln för tillfället, så det bör gå bra med dina omedelbara planer. Om du vill kan jag även kolla den [vanliga timprognosen](/#settings/apps/weather) för resten av dagen.
+    
+    **Vad vill du göra härnäst?**
+    *   [Kolla 7-dagarsprognosen för Berlin](/#settings/apps/weather)
+    *   [Sök efter inomhusaktiviteter i Berlin](/#settings/apps/web) om vädret ändras senare
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "935fef42-7368-4449-9309-f632e8f1343b", "app_id": "weather", "skill_id": "rain_radar", "query": "Berlin rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Berlin"}
+    ```
+    
+    בהתבסס על נתוני המכ"ם הנוכחיים מה-[Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), **לא צפוי לרדת גשם** ב[ברלין](wiki:Berlin) ב-10 הדקות הקרובות. למעשה, המכ"ם לא מראה משקעים בסביבה לפחות בשעתיים הקרובות.
+    
+    !
+    
+    השמיים נראים נקיים מענני גשם כרגע, כך שאתה אמור להיות בסדר עם התוכניות המיידיות שלך. אם תרצה, אוכל לבדוק גם את [התחזית השעתית הרגילה](/#settings/apps/weather) להמשך היום.
+    
+    **מה תרצה לעשות עכשיו?**
+    *   [בדוק את תחזית מזג האוויר ל-7 ימים עבור ברלין](/#settings/apps/weather)
+    *   [חפש פעילויות במקומות סגורים בברלין](/#settings/apps/web) אם מזג האוויר ישתנה מאוחר יותר
+  verified_by_human: []
+
