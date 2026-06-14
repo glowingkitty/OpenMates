@@ -139,7 +139,7 @@
         <!-- Image (right side) -->
         {#if imageUrl && !isMobileLayout}
           <div class="recipe-preview-image">
-            <img src={imageUrl} alt={cardTitle} loading="lazy" />
+            <img data-testid="nutrition-recipe-preview-image" src={imageUrl} alt={cardTitle} loading="lazy" />
           </div>
         {/if}
       </div>
