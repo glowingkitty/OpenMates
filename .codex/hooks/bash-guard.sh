@@ -21,9 +21,13 @@ if echo "$COMMAND" | grep -qE 'openmates-marketing'; then
   exit 0
 fi
 
-# --- Block pnpm / npx commands (crashes the server / exhausts memory) ---
-if echo "$COMMAND" | grep -qE '\b(pnpm|npx)\b'; then
-  echo '{"decision":"block","reason":"BLOCKED: pnpm/npx commands are not allowed — they crash the server. Use sessions.py deploy for builds, and python3 scripts/run_tests.py for tests."}' >&2
+# --- Allow pnpm dependency installs, but block local builds/tests/dev servers ---
+if echo "$COMMAND" | grep -qE '(^|[[:space:];&|])pnpm([[:space:]][^;&|]*)*[[:space:]](add|install|i)([[:space:]]|$)'; then
+  exit 0
+fi
+
+if echo "$COMMAND" | grep -qE '(^|[[:space:];&|])(npx|pnpm)([[:space:]]|$)'; then
+  echo '{"decision":"block","reason":"BLOCKED: pnpm/npx build, dev, run, and test commands are not allowed locally — they crash the server. pnpm add/install is allowed for dependency changes; use sessions.py deploy for builds and python3 scripts/run_tests.py for tests."}' >&2
   exit 2
 fi
 

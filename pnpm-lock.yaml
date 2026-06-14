@@ -262,6 +262,9 @@ importers:
       '@lucide/svelte':
         specifier: ^0.545.0
         version: 0.545.0(svelte@5.56.3(@typescript-eslint/types@8.60.1))
+      '@meteocons/svg':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.9.1
@@ -832,6 +835,9 @@ packages:
 
   '@mermaid-js/parser@1.1.1':
     resolution: {integrity: sha512-VuHdsYMK1bT6X2JbcAaWAhugTRvRBRyuZgd+c22swUeI9g/ntaxF7CY7dYarhZovofCbUNO0G7JesfmNtjYOCw==}
+
+  '@meteocons/svg@0.1.0':
+    resolution: {integrity: sha512-Z/40RR6YzIjdN8qLUzRcZDaEYHfekU5rnHTH45EDVZQF1NyldIRpiFprcUKduIv4VK0kd6Uy+OOya4NWwuc2Bg==}
 
   '@opentelemetry/api-logs@0.218.0':
     resolution: {integrity: sha512-fmEWp5kXlGEc3i/lR698Hz41DfGyN4Tbe4g7L1AxSc7fF8Xeh/FQ9Quqpa9dVA413Q1Ad43QOLzU4JoXgbFPWw==}
@@ -3835,6 +3841,8 @@ snapshots:
   '@mermaid-js/parser@1.1.1':
     dependencies:
       '@chevrotain/types': 11.1.2
+
+  '@meteocons/svg@0.1.0': {}
 
   '@opentelemetry/api-logs@0.218.0':
     dependencies:
