@@ -85,11 +85,6 @@ async function openEmbedFullscreen(page: any, embed: any): Promise<any> {
 	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
 	await embed.scrollIntoViewIfNeeded();
 	await embed.click();
-	if (await fullscreenOverlay.isVisible({ timeout: 5000 }).catch(() => false)) {
-		return fullscreenOverlay;
-	}
-
-	await embed.click();
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 15000 });
 	return fullscreenOverlay;
 }
