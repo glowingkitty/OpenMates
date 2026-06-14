@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { sanitizeEmbedContent } from '../create-example-chat-from-share.mjs';
+import { sanitizeEmbedContent, sanitizeExampleMessageContent } from '../create-example-chat-from-share.mjs';
 
 test('normalizes compact weather rain radar embeds for public example rendering', () => {
   const compactContent = `app_id: weather
@@ -25,7 +25,8 @@ results[1]:
     summary_preview_frame_id: frame-1
     timeline[2]{frame_id,timestamp,kind,label,rain_at_location_mm_5min,max_intensity,rain_area_pct}:
       frame-0,"2026-06-14T19:35:00+02:00",forecast,+1 min,0,none,0
-      frame-1,"2026-06-14T19:40:00+02:00",forecast,+6 min,0,none,0`;
+      frame-1,"2026-06-14T19:40:00+02:00",forecast,+6 min,0,none,0
+status: finished`;
 
   const sanitized = sanitizeEmbedContent(compactContent);
 
@@ -35,6 +36,16 @@ results[1]:
   assert.match(sanitized, /^summary:\n  rain_expected: false/m);
   assert.match(sanitized, /^  in_10_min: No rain visible near Berlin\.$/m);
   assert.match(sanitized, /^timeline\[2\]\{frame_id,timestamp,kind,label,rain_at_location_mm_5min,max_intensity,rain_area_pct\}:$/m);
+});
+
+test('removes standalone app-skill placeholder markers from example messages', () => {
+  const sanitized = sanitizeExampleMessageContent(`Before
+
+!
+
+After!`);
+
+  assert.equal(sanitized, 'Before\n\nAfter!');
 });
 
 test('continues to strip private encrypted storage fields', () => {

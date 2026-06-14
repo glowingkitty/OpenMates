@@ -1,0 +1,289 @@
+title:
+  context: "Title of example chat: Rostock Heavy Rain Radar"
+  en: "Rostock Heavy Rain Radar"
+  de: Starkregen-Radar Rostock
+  zh: 罗斯托克大雨雷达图
+  es: Radar de lluvia intensa de Rostock
+  fr: Radar de fortes pluies à Rostock
+  pt: Radar de Chuva Forte de Rostock
+  ru: Радар сильного дождя в Ростоке
+  ja: ロストック激甚雨レーダー
+  ko: 로스토크 폭우 레이더
+  it: Radar forti piogge Rostock
+  tr: Rostock Şiddetli Yağmur Radarı
+  vi: Radar mưa lớn Rostock
+  id: Radar Hujan Deras Rostock
+  pl: Radar ulewnych deszczy w Rostocku
+  nl: Zware regenradar Rostock
+  ar: رادار الأمطار الغزيرة في روستوك
+  hi: रोस्टॉक भारी बारिश रडार
+  th: เรดาร์ฝนตกหนักรอสต็อก
+  cs: Srážkový radar Rostock
+  sv: Regnradar för Rostock
+  he: "מכ\"ם גשם כבד ברוסטוק"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Rostock Heavy Rain Radar"
+  en: "A live weather chat that checks DWD rain radar for Rostock and shows heavy rain on the radar timeline."
+  de: Ein Live-Wetter-Chat, der das DWD-Regenradar für Rostock prüft und Starkregen auf der Radar-Timeline anzeigt.
+  zh: 一个实时天气聊天，用于检查德国气象局（DWD）针对罗斯托克的降雨雷达，并在雷达时间轴上显示大雨情况。
+  es: Un chat meteorológico en vivo que consulta el radar de lluvia del DWD para Rostock y muestra lluvia intensa en la línea de tiempo del radar.
+  fr: Un chat météo en direct qui consulte le radar de pluie du DWD pour Rostock et affiche les fortes pluies sur la chronologie du radar.
+  pt: Um chat meteorológico em direto que consulta o radar de chuva do DWD para Rostock e mostra chuva forte na linha do tempo do radar.
+  ru: Погодный чат в реальном времени, который проверяет радар осадков DWD для Ростока и показывает сильный дождь на временной шкале радара.
+  ja: ロストックのDWD雨雲レーダーを確認し、レーダーのタイムライン上で激しい雨を表示するライブ気象チャットです。
+  ko: 로스토크의 DWD 강수 레이더를 확인하고 레이더 타임라인에 폭우 상황을 표시해 주는 실시간 날씨 채팅이야.
+  it: Una chat meteo in tempo reale che controlla il radar della pioggia del DWD per Rostock e mostra le forti piogge sulla timeline del radar.
+  tr: Rostock için DWD yağmur radarını kontrol eden ve radar zaman çizelgesinde şiddetli yağmuru gösteren canlı bir hava durumu sohbeti.
+  vi: Một cuộc trò chuyện thời tiết trực tiếp kiểm tra radar mưa DWD cho Rostock và hiển thị mưa lớn trên dòng thời gian radar.
+  id: Obrolan cuaca langsung yang memeriksa radar hujan DWD untuk Rostock dan menunjukkan hujan deras pada linimasa radar.
+  pl: Czat pogodowy na żywo, który sprawdza radar opadów DWD dla Rostocku i pokazuje ulewne deszcze na osi czasu radaru.
+  nl: Een live weer-chat die de DWD-regenradar voor Rostock controleert en zware regenval op de radartijdlijn toont.
+  ar: دردشة طقس مباشرة تتحقق من رادار الأمطار التابع لـ DWD لمدينة روستوك وتعرض الأمطار الغزيرة على الجدول الزمني للرادار.
+  hi: एक लाइव मौसम चैट जो रोस्टॉक के लिए DWD बारिश रडार की जाँच करती है और रडार टाइमलाइन पर भारी बारिश दिखाती है।
+  th: แชทพยากรณ์อากาศสดที่ตรวจสอบเรดาร์ฝน DWD สำหรับเมืองรอสต็อก และแสดงฝนตกหนักบนไทม์ไลน์ของเรดาร์
+  cs: Živý meteorologický chat, který kontroluje srážkový radar DWD pro Rostock a zobrazuje silný déšť na časové ose radaru.
+  sv: "En väderchatt i realtid som kontrollerar DWD:s regnradar för Rostock och visar kraftigt regn på radartidslinjen."
+  he: "צ'אט מזג אוויר חי שבודק את מכ\"ם הגשם של DWD עבור רוסטוק ומציג גשם כבד על ציר הזמן של המכ\"ם."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Rostock Heavy Rain Radar. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Is it raining in Rostock right now? Show me the rain radar."
+  de: "Regnet es gerade in Rostock? Zeig mir das Regenradar."
+  zh: 罗斯托克现在在下雨吗？给我看下雨量雷达图。
+  es: "¿Está lloviendo en Rostock ahora mismo? Muéstrame el radar de lluvia."
+  fr: "Est-ce qu'il pleut à Rostock en ce moment ? Montre-moi le radar de pluie."
+  pt: "Está a chover em Rostock agora? Mostra-me o radar de chuva."
+  ru: "В Ростоке сейчас идет дождь? Покажи мне радар осадков."
+  ja: ロストックで今、雨は降っていますか？雨雲レーダーを見せてください。
+  ko: "지금 로스토크에 비가 오고 있니? 강수 레이더를 보여줘."
+  it: "Sta piovendo a Rostock in questo momento? Mostrami il radar della pioggia."
+  tr: "Şu an Rostock'ta yağmur yağıyor mu? Bana yağmur radarını göster."
+  vi: "Hiện tại ở Rostock có đang mưa không? Cho tôi xem radar mưa."
+  id: "Apakah sedang hujan di Rostock sekarang? Tunjukkan radar hujannya."
+  pl: "Czy w Rostocku teraz pada? Pokaż mi radar opadów."
+  nl: "Regent het momenteel in Rostock? Laat me de regenradar zien."
+  ar: هل تمطر في روستوك الآن؟ أرني رادار الأمطار.
+  hi: "क्या अभी रोस्टॉक में बारिश हो रही है? मुझे बारिश का रडार दिखाओ।"
+  th: "ตอนนี้ที่รอสต็อกฝนตกไหม? ขอดูเรดาร์ฝนหน่อย"
+  cs: "Prší teď v Rostocku? Ukaž mi srážkový radar."
+  sv: "Regnar det i Rostock just nu? Visa mig regnradarn."
+  he: "האם יורד גשם ברוסטוק כרגע? הראה לי את מכ\"ם הגשם."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Rostock Heavy Rain Radar. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Yes, it is currently raining heavily in [Rostock](wiki:Rostock). According to the latest data from the [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), the city is experiencing significant precipitation, which is expected to continue for at least the next two hours.
+    
+    The radar indicates a 100% rain area coverage in your vicinity, with intensities reaching peak levels. You might want to stay indoors for a while!
+    
+    Do you want to see the [detailed hourly forecast](/#settings/apps/weather) for the rest of the night?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Ja, in [Rostock](wiki:Rostock) regnet es derzeit stark. Nach den neuesten Daten des [Deutschen Wetterdienstes](wiki:Deutscher_Wetterdienst) gibt es in der Stadt erhebliche Niederschläge, die voraussichtlich noch mindestens zwei Stunden anhalten werden.
+    
+    Das Radar zeigt eine 100%ige Regenabdeckung in deiner Nähe mit Intensitäten auf Höchstniveau. Vielleicht solltest du erst einmal drinnen bleiben!
+    
+    Möchtest du die [detaillierte stündliche Vorhersage](/#settings/apps/weather) für den Rest der Nacht sehen?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    是的，目前 [罗斯托克](wiki:Rostock) 正在下大雨。根据 [德国气象局](wiki:Deutscher_Wetterdienst) 的最新数据，该市正经历显著降水，预计将持续至少接下来的两个小时。
+    
+    雷达显示你附近区域的降雨覆盖率为 100%，强度已达到峰值。你可能需要待在室内一段时间！
+    
+    你想查看今晚剩余时间的 [详细每小时预报](/#settings/apps/weather) 吗？
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Sí, actualmente está lloviendo intensamente en [Rostock](wiki:Rostock). Según los últimos datos del [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), la ciudad está experimentando precipitaciones significativas, que se espera que continúen durante al menos las próximas dos horas.
+    
+    El radar indica una cobertura de área de lluvia del 100 % en tu zona, con intensidades que alcanzan niveles máximos. ¡Quizás quieras quedarte a cubierto un rato!
+    
+    ¿Quieres ver el [pronóstico por horas detallado](/#settings/apps/weather) para el resto de la noche?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Oui, il pleut actuellement beaucoup à [Rostock](wiki:Rostock). Selon les dernières données du [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), la ville subit des précipitations importantes, qui devraient se poursuivre pendant au moins les deux prochaines heures.
+    
+    Le radar indique une couverture de zone de pluie de 100 % dans ton voisinage, avec des intensités atteignant des niveaux records. Tu devrais peut-être rester à l'intérieur pendant un moment !
+    
+    Veux-tu voir les [prévisions horaires détaillées](/#settings/apps/weather) pour le reste de la nuit ?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Sim, está a chover intensamente em [Rostock](wiki:Rostock) neste momento. De acordo com os dados mais recentes do [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), a cidade está a registar precipitação significativa, que deverá continuar durante, pelo menos, as próximas duas horas.
+    
+    O radar indica uma cobertura de 100% de área de chuva nas tuas proximidades, com intensidades a atingir níveis de pico. Talvez queiras ficar em casa por uns tempos!
+    
+    Queres ver a [previsão horária detalhada](/#settings/apps/weather) para o resto da noite?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Да, в [Ростоке](wiki:Rostock) сейчас идет сильный дождь. Согласно последним данным [Немецкой метеорологической службы](wiki:Deutscher_Wetterdienst), в городе наблюдаются значительные осадки, которые, как ожидается, продлятся еще как минимум два часа.
+    
+    Радар показывает 100% охват зоны дождя в твоем районе, при этом интенсивность достигает пиковых значений. Возможно, стоит на время остаться в помещении!
+    
+    Хочешь посмотреть [подробный почасовой прогноз](/#settings/apps/weather) на остаток ночи?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    はい、現在[ロストック](wiki:Rostock)では激しい雨が降っています。[ドイツ気象局](wiki:Deutscher_Wetterdienst)の最新データによると、市内ではかなりの降水が観測されており、少なくとも今後2時間は続く見込みです。
+    
+    レーダーでは、周辺地域の100%が雨雲に覆われており、強度はピークに達しています。しばらくは屋内にいたほうがいいかもしれません！
+    
+    今夜の残りの時間の[詳細な1時間ごとの予報](/#settings/apps/weather)を確認しますか？
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    응, 현재 [로스토크](wiki:Rostock)에 폭우가 내리고 있어. [독일 기상청](wiki:Deutscher_Wetterdienst)의 최신 데이터에 따르면, 도시에 상당한 강수량이 기록되고 있으며 이는 적어도 향후 2시간 동안 지속될 것으로 예상돼.
+    
+    레이더를 보면 네 주변 지역의 강수 구역 범위가 100%이며, 강도는 최고 수준에 도달했어. 당분간은 실내에 머무는 게 좋겠어!
+    
+    남은 밤 시간 동안의 [상세한 시간별 예보](/#settings/apps/weather)를 확인해 볼래?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Sì, attualmente sta piovendo forte a [Rostock](wiki:Rostock). Secondo gli ultimi dati del [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), la città sta registrando precipitazioni significative, che dovrebbero continuare per almeno le prossime due ore.
+    
+    Il radar indica una copertura dell'area piovosa del 100% nelle tue vicinanze, con intensità che raggiungono livelli di picco. Potrebbe essere meglio restare al chiuso per un po'!
+    
+    Vuoi vedere le [previsioni orarie dettagliate](/#settings/apps/weather) per il resto della notte?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Evet, şu anda [Rostock](wiki:Rostock)'ta şiddetli yağmur yağıyor. [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst)'ten alınan son verilere göre, şehirde en az önümüzdeki iki saat boyunca devam etmesi beklenen önemli miktarda yağış görülüyor.
+    
+    Radar, çevrende %100 yağmur alanı kapsamı ve zirve seviyelere ulaşan yoğunluklar gösteriyor. Bir süre kapalı alanda kalmak isteyebilirsin!
+    
+    Gecenin geri kalanı için [ayrıntılı saatlik tahmini](/#settings/apps/weather) görmek ister misin?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Vâng, hiện tại trời đang mưa lớn ở [Rostock](wiki:Rostock). Theo dữ liệu mới nhất từ [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), thành phố đang có lượng mưa đáng kể, dự kiến sẽ kéo dài trong ít nhất hai giờ tới.
+    
+    Radar cho thấy độ bao phủ vùng mưa là 100% ở khu vực lân cận của bạn, với cường độ đạt mức đỉnh điểm. Bạn có lẽ nên ở trong nhà một lát!
+    
+    Bạn có muốn xem [dự báo chi tiết theo giờ](/#settings/apps/weather) cho thời gian còn lại của đêm nay không?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Ya, saat ini sedang hujan deras di [Rostock](wiki:Rostock). Menurut data terbaru dari [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), kota ini sedang mengalami curah hujan yang signifikan, yang diperkirakan akan berlanjut setidaknya selama dua jam ke depan.
+    
+    Radar menunjukkan cakupan area hujan 100% di sekitarmu, dengan intensitas mencapai level puncak. Kamu mungkin sebaiknya tetap berada di dalam ruangan untuk sementara waktu!
+    
+    Apakah kamu ingin melihat [prakiraan per jam yang mendetail](/#settings/apps/weather) untuk sisa malam ini?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Tak, w [Rostocku](wiki:Rostock) obecnie mocno pada. Według najnowszych danych z [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), w mieście występują znaczne opady, które mają potrzymać się przez co najmniej najbliższe dwie godziny.
+    
+    Radar wskazuje na 100% pokrycia obszaru deszczem w Twojej okolicy, a intensywność osiąga poziomy szczytowe. Może warto zostać przez chwilę w domu!
+    
+    Czy chcesz zobaczyć [szczegółową prognozę godzinową](/#settings/apps/weather) na resztę nocy?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Ja, het regent momenteel hard in [Rostock](wiki:Rostock). Volgens de laatste gegevens van de [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) valt er momenteel aanzienlijke neerslag in de stad, die naar verwachting nog minstens twee uur zal aanhouden.
+    
+    De radar geeft een regendekking van 100% aan in je omgeving, met intensiteiten die piekniveaus bereiken. Misschien kun je beter even binnen blijven!
+    
+    Wil je de [gedetailleerde uurvoorspelling](/#settings/apps/weather) voor de rest van de nacht zien?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    نعم، إنها تمطر بغزارة حالياً في [روستوك](wiki:Rostock). وفقاً لأحدث البيانات من [هيئة الأرصاد الجوية الألمانية](wiki:Deutscher_Wetterdienst)، تشهد المدينة هطول أمطار غزيرة، ومن المتوقع أن تستمر لمدة ساعتين على الأقل.
+    
+    يشير الرادار إلى تغطية منطقة المطر بنسبة 100% في محيطك، مع وصول الكثافة إلى مستويات الذروة. قد ترغب في البقاء في الداخل لفترة من الوقت!
+    
+    هل تريد رؤية [توقعات الطقس التفصيلية لكل ساعة](/#settings/apps/weather) لبقية الليل؟
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    हाँ, अभी [रोस्टॉक](wiki:Rostock) में भारी बारिश हो रही है। [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) के नवीनतम आंकड़ों के अनुसार, शहर में काफी अधिक वर्षा हो रही है, जिसके कम से कम अगले दो घंटों तक जारी रहने की उम्मीद है।
+    
+    रडार तुम्हारे आसपास के क्षेत्र में 100% बारिश क्षेत्र कवरेज का संकेत देता है, और तीव्रता चरम स्तर पर पहुँच रही है। तुम शायद कुछ देर के लिए घर के अंदर ही रहना चाहोगे!
+    
+    क्या तुम रात के बाकी समय के लिए [विस्तृत प्रति घंटा पूर्वानुमान](/#settings/apps/weather) देखना चाहते हो?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    ใช่ ตอนนี้ฝนกำลังตกหนักใน [รอสต็อก](wiki:Rostock) จากข้อมูลล่าสุดของ [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) เมืองนี้กำลังเผชิญกับหยาดน้ำฟ้าปริมาณมาก ซึ่งคาดว่าจะตกต่อเนื่องไปอีกอย่างน้อยสองชั่วโมง
+    
+    เรดาร์แสดงพื้นที่ฝนครอบคลุม 100% ในบริเวณใกล้เคียงของคุณ โดยมีความเข้มข้นถึงระดับสูงสุด คุณอาจจะอยากอยู่ในอาคารสักพัก!
+    
+    คุณต้องการดู [พยากรณ์รายชั่วโมงแบบละเอียด](/#settings/apps/weather) สำหรับช่วงเวลาที่เหลือของคืนนี้ไหม?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Ano, v [Rostocku](wiki:Rostock) momentálně silně prší. Podle nejnovějších údajů od [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) se ve městě vyskytují vydatné srážky, které by měly trvat minimálně další dvě hodiny.
+    
+    Radar ukazuje 100% pokrytí srážkami ve tvém okolí, přičemž intenzita dosahuje vrcholných hodnot. Možná by bylo lepší zůstat chvíli uvnitř!
+    
+    Chceš vidět [podrobnou hodinovou předpověď](/#settings/apps/weather) na zbytek noci?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    Ja, det regnar kraftigt i [Rostock](wiki:Rostock) just nu. Enligt de senaste uppgifterna från [Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst) upplever staden betydande nederbörd, som förväntas fortsätta i minst två timmar till.
+    
+    Radarn visar 100 % regntäckning i din närhet, med intensiteter som når toppnivåer. Du kanske vill stanna inomhus ett tag!
+    
+    Vill du se den [detaljerade timprognosen](/#settings/apps/weather) för resten av natten?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "deb8e4c2-e07c-49c3-ae5c-300a21859563", "app_id": "weather", "skill_id": "rain_radar", "query": "Rostock rain radar", "provider": "Deutscher Wetterdienst (DWD) via Bright Sky", "location": "Rostock"}
+    ```
+    
+    כן, כרגע יורד גשם כבד ב[רוסטוק](wiki:Rostock). על פי הנתונים העדכניים ביותר מה-[Deutscher Wetterdienst](wiki:Deutscher_Wetterdienst), העיר חווה משקעים משמעותיים, שצפויים להימשך לפחות בשעתיים הקרובות.
+    
+    המכ"ם מצביע על כיסוי של 100% של אזור הגשם בסביבתך, עם עוצמות המגיעות לרמות שיא. אולי כדאי לך להישאר בפנים לזמן מה!
+    
+    האם תרצה לראות את [התחזית השעתית המפורטת](/#settings/apps/weather) להמשך הלילה?
+  verified_by_human: []
+

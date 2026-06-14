@@ -387,7 +387,7 @@ function normalizeRainRadarEmbedContent(content) {
   const appId = parseLooseToonScalar(source, 'app_id');
   const skillId = parseLooseToonScalar(source, 'skill_id');
   if (appId !== 'weather' || skillId !== 'rain_radar') return null;
-  if (/^summary:\s*$/m.test(source) || /^status:\s*finished\s*$/m.test(source)) return null;
+  if (/^summary:\s*$/m.test(source)) return null;
 
   const timeline = extractRainRadarTimelineRows(source);
   const lines = [
@@ -648,6 +648,15 @@ function isDirectSystemContent(message) {
   return message.role === 'system' && typeof message.content === 'string' && message.content.trimStart().startsWith('{');
 }
 
+export function sanitizeExampleMessageContent(content) {
+  return String(content || '')
+    .split('\n')
+    .filter((line) => line.trim() !== '!')
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function formatMessages(messages, metadata, keyPrefix) {
   let translatedIndex = 0;
   return messages.map((message, index) => {
@@ -778,7 +787,7 @@ function formatYaml(chat, metadata) {
       yamlEntry(
         `message_${rootMessageIndex}`,
         `${message.role} message ${rootMessageIndex} in example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
-        message.content || '',
+        sanitizeExampleMessageContent(message.content),
       ),
     );
   });
@@ -795,7 +804,7 @@ function formatYaml(chat, metadata) {
         yamlEntry(
           `${keyPrefix}_message_${messageIndex + 1}`,
           `${message.role} message ${messageIndex + 1} in sub-chat ${subChatIndex + 1} of example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
-          message.content || '',
+          sanitizeExampleMessageContent(message.content),
         ),
       );
     });
