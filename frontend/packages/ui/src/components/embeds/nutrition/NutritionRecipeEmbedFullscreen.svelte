@@ -40,6 +40,8 @@
       protein_g?: number;
       fat_g?: number;
       carbs_g?: number;
+      fiber_g?: number;
+      sodium_mg?: number;
     };
   }
 
@@ -130,7 +132,7 @@
       <!-- Hero image -->
       <div class="media-column">
         {#if imageUrl}
-          <img class="recipe-image" src={imageUrl} alt={title} loading="lazy" />
+          <img class="recipe-image" data-testid="nutrition-recipe-image" src={imageUrl} alt={title} loading="lazy" />
         {:else}
           <div class="image-placeholder">🍳</div>
         {/if}
@@ -146,7 +148,7 @@
         {/if}
 
         <!-- Meta row: time, difficulty, servings, rating -->
-        <div class="meta-row">
+        <div class="meta-row" data-testid="nutrition-recipe-details">
           {#if recipe.total_time_minutes}
             <span class="meta-chip">{formatDuration(recipe.total_time_minutes)}</span>
           {/if}
@@ -166,9 +168,17 @@
 
         <!-- Dietary tags -->
         {#if recipe.dietary_tags && recipe.dietary_tags.length > 0}
-          <div class="tags-row">
+          <div class="tags-row" data-testid="nutrition-recipe-tags">
             {#each recipe.dietary_tags as tag}
               <span class="tag">{tag}</span>
+            {/each}
+          </div>
+        {/if}
+
+        {#if recipe.categories && recipe.categories.length > 0}
+          <div class="tags-row categories-row" data-testid="nutrition-recipe-categories">
+            {#each recipe.categories as category}
+              <span class="tag category-tag">{category}</span>
             {/each}
           </div>
         {/if}

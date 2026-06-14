@@ -151,10 +151,10 @@ max_results: 3
 time: 1-35
 health: vegetarian
 provider: Edamam
-preview_results[3]{title,source,provider}:
-  Spinach and Chickpeas,theharvestkitchen.com,Edamam
-  Chickpea Spinach Curry,thestingyvegan.com,Edamam
-  Skillet Chickpeas With Spinach And Tomatoes,Food52,Edamam`,
+preview_results[3]{title,source,provider,image_url,calories_per_serving}:
+  Spinach and Chickpeas,theharvestkitchen.com,Edamam,https://edamam-product-images.s3.amazonaws.com/web-img/a0a/a0a6a1e734b3db0b2c9d9b66915ead7a-l.jpg,217
+  Chickpea and Spinach Curry,hintofhealthy.com,Edamam,https://edamam-product-images.s3.amazonaws.com/web-img/faa/faa98d303d8822dd2af21e9a55732d9f-l.jpg,220
+  Spinach and chickpea curry,damntastyvegan.com,Edamam,https://edamam-product-images.s3.amazonaws.com/web-img/d5d/d5d8ac796cc1b5abbd778b2c22a6d63d-l.jpg,477`,
     parent_embed_id: null,
     embed_ids: [
       "0a4679f4-b2eb-43df-ac66-30e99a98c66b",
@@ -172,10 +172,24 @@ recipe_url: "https://www.theharvestkitchen.com/spinach-and-chickpeas/"
 source: theharvestkitchen.com
 provider: Edamam
 embed_ref: nutrition-spinach-and-chickpeas
+image_url: "https://edamam-product-images.s3.amazonaws.com/web-img/a0a/a0a6a1e734b3db0b2c9d9b66915ead7a-l.jpg"
 total_time_minutes: 20
 servings: 4
-ingredients: chickpeas|spinach|tomatoes|onion|garlic|olive oil
-instructions: Saute onion and garlic in olive oil until fragrant.|Add tomatoes and chickpeas and simmer until warmed through.|Fold in spinach until wilted and season to taste.`,
+calories_total: 869
+calories_per_serving: 217
+diet_labels: Balanced|High-Fiber
+health_labels: Kidney-Friendly|Vegan|Vegetarian|Pescatarian|Mediterranean|DASH|Dairy-Free|Gluten-Free
+cuisine_type: middle eastern
+meal_type: lunch/dinner
+dish_type: main course
+ingredients: 1-1/2 tablespoons extra-virgin olive oil|2/3 cup tomatoes, diced|1/2 large white onion, diced|2 teaspoons garlic, minced|3 cups low-sodium canned garbanzo beans, drained and rinsed|2 cups baby spinach
+instructions: Heat olive oil in pan.|Add onion and saute for 2-3 minutes. Stir in garlic and saute another minute. Pour in tomatoes and cook a minute. Add garbanzo beans and cook for 10 minutes with 3-4 tablespoons water or vegetable broth. Fold in baby spinach and taste to adjust for seasoning.
+nutrition_calories_kcal: 217
+nutrition_protein_g: 8.7
+nutrition_fat_g: 8
+nutrition_carbs_g: 29.5
+nutrition_fiber_g: 7.9
+nutrition_sodium_mg: 248`,
     parent_embed_id: "d7f21a46-8f13-4f14-82c4-d868ba62bb8a",
     embed_ids: null,
   },
@@ -183,16 +197,30 @@ instructions: Saute onion and garlic in olive oil until fragrant.|Add tomatoes a
     embed_id: "67e396cc-2a88-4b9a-abf2-be225cce0f03",
     type: "recipe",
     content: `type: recipe
-uid: recipe_b92fa265ba4149a49e361b2de015d836
-title: Chickpea Spinach Curry
-recipe_url: "https://thestingyvegan.com/chickpea-spinach-curry/"
-source: thestingyvegan.com
+uid: recipe_2442d3551cf54cf1bce405e62819260c
+title: Chickpea and Spinach Curry
+recipe_url: "https://www.hintofhealthy.com/chickpea-and-spinach-curry/"
+source: hintofhealthy.com
 provider: Edamam
 embed_ref: nutrition-chickpea-spinach-curry
-total_time_minutes: 30
+image_url: "https://edamam-product-images.s3.amazonaws.com/web-img/faa/faa98d303d8822dd2af21e9a55732d9f-l.jpg"
+total_time_minutes: 10
 servings: 4
-ingredients: chickpeas|spinach|tomatoes|onion|garlic|ginger|curry spices
-instructions: Cook onion, garlic, and ginger until softened.|Stir in curry spices, tomatoes, and chickpeas.|Simmer until the sauce thickens, then fold in spinach and serve.`,
+calories_total: 879
+calories_per_serving: 220
+diet_labels: High-Fiber
+health_labels: Vegan|Vegetarian|Pescatarian|Dairy-Free|Gluten-Free|Wheat-Free|Egg-Free|Peanut-Free
+cuisine_type: indian
+meal_type: lunch/dinner
+dish_type: main course
+ingredients: 1 (15 oz) can chickpeas, drained and rinsed|1 (15 oz) can diced tomatoes|1 onion|4 garlic cloves|1 red chili pepper|3 tablespoons curry paste|2 tablespoons tomato paste|1 tablespoon diced ginger|3 cups spinach|1 teaspoon vegetable oil
+instructions: Finely dice the onion, garlic, ginger and red chili.|Add the onion, garlic, ginger and chili to a large pot along with the vegetable oil.|Saute for about 1 minute, or until the onion is soft and fragrant.|Add tomato paste and curry paste to the pot, and saute for another minute.|Add canned diced tomatoes, and drained and rinsed canned chickpeas.|Stir to combine all ingredients, and cover the pot with a lid.|Leave the curry to simmer on medium to high heat for about 3-5 minutes.|Add washed spinach to the curry, and stir until the leaves have wilted, about 1-2 minutes.
+nutrition_calories_kcal: 220
+nutrition_protein_g: 10.5
+nutrition_fat_g: 5.3
+nutrition_carbs_g: 36.2
+nutrition_fiber_g: 10.8
+nutrition_sodium_mg: 368`,
     parent_embed_id: "d7f21a46-8f13-4f14-82c4-d868ba62bb8a",
     embed_ids: null,
   },
@@ -200,16 +228,30 @@ instructions: Cook onion, garlic, and ginger until softened.|Stir in curry spice
     embed_id: "ce64916b-7e17-4e01-a972-78231cb11b8c",
     type: "recipe",
     content: `type: recipe
-uid: recipe_2931bf3e3caf4f758b10b72bf6f86175
-title: Skillet Chickpeas With Spinach And Tomatoes
-recipe_url: "https://food52.com/recipes/87169-skillet-chickpeas-with-spinach-and-tomatoes"
-source: Food52
+uid: recipe_db074a7259484379adedc360d8e793b9
+title: Spinach and chickpea curry
+recipe_url: "https://damntastyvegan.com/spinach-chickpea-curry/"
+source: damntastyvegan.com
 provider: Edamam
 embed_ref: nutrition-skillet-chickpeas-spinach-tomatoes
 total_time_minutes: 25
-servings: 2
-ingredients: chickpeas|spinach|tomatoes|onion|garlic|lemon juice|herbs
-instructions: Cook onion and garlic in a skillet until translucent.|Add chickpeas and tomatoes and simmer until the liquid reduces.|Stir in spinach, finish with lemon juice and herbs, and serve warm.`,
+servings: 4
+image_url: "https://edamam-product-images.s3.amazonaws.com/web-img/d5d/d5d8ac796cc1b5abbd778b2c22a6d63d-l.jpg"
+calories_total: 1907
+calories_per_serving: 477
+diet_labels: Balanced|High-Fiber
+health_labels: Vegan|Vegetarian|Pescatarian|Mediterranean|Dairy-Free|Gluten-Free|Wheat-Free|Egg-Free
+cuisine_type: indian
+meal_type: lunch/dinner
+dish_type: main course
+ingredients: 2 tablespoons neutral oil|1 medium onion, diced|4 cloves garlic, minced|1 teaspoon fresh ginger, minced|1 teaspoon cumin powder|2 teaspoons coriander powder|1/2 teaspoon turmeric powder|1 tablespoon curry powder|15 ounce can crushed tomatoes|2 (15 ounce) cans chickpeas
+instructions: Heat up oil in a large pan on medium heat.|Once pan is hot, add the onions and saute until golden brown and translucent.|Add the garlic and ginger and saute for five minutes.|Add all of the spices and saute for 30 seconds. Add the canned tomatoes, chickpeas, water, baking powder and salt.|Cover and bring to a simmer.|Simmer for 10 minutes.|After 10 minutes, add the frozen spinach, cover and simmer for another 5-10 minutes, or until the spinach is warmed through.|Smash a few chickpeas with the back of your spoon to thicken the sauce.|Add the lemon juice, cilantro and optional coconut milk.|Serve over basmati rice or with Indian bread.
+nutrition_calories_kcal: 477
+nutrition_protein_g: 18.5
+nutrition_fat_g: 19.8
+nutrition_carbs_g: 62.5
+nutrition_fiber_g: 17.7
+nutrition_sodium_mg: 1277`,
     parent_embed_id: "d7f21a46-8f13-4f14-82c4-d868ba62bb8a",
     embed_ids: null,
   },

@@ -19,6 +19,7 @@
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { openFullscreen, verifySearchGrid } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -280,6 +281,17 @@ test.describe('Example chats loading for new users', () => {
 				);
 			}, nutritionSearchCardSelector)
 		).toBe(true);
+
+		const fullscreenOverlay = await openFullscreen(page, nutritionSearchCard);
+		const resultCards = await verifySearchGrid(fullscreenOverlay, 3, 30000);
+		await expect(resultCards.first().getByTestId('nutrition-recipe-preview-image')).toBeVisible({ timeout: 15000 });
+
+		await resultCards.first().click();
+		await expect(page.getByTestId('nutrition-recipe-image')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('nutrition-recipe-details')).toContainText('4 servings');
+		await expect(page.getByTestId('nutrition-recipe-tags')).toContainText('Vegetarian');
+		await expect(page.getByTestId('nutrition-recipe-categories')).toContainText('middle eastern');
+		await expect(page.locator('body')).toContainText('8.7g');
 	});
 
 	test('sidebar example chats show newest first and append older results after show more', async ({
