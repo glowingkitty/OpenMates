@@ -83,6 +83,28 @@ async function insertComposerText(
 		.toBeTruthy();
 	await page.keyboard.insertText(text);
 
+	const keyboardInserted = await expect
+		.poll(
+			async () => (await messageEditor.textContent().catch(() => '')) ?? '',
+			{ timeout: 2000 }
+		)
+		.toContain(requiredNeedles[0])
+		.then(() => true)
+		.catch(() => false);
+
+	if (!keyboardInserted) {
+		await messageEditor.evaluate((element: HTMLElement, insertedText: string) => {
+			const editableElement = element.isContentEditable
+				? element
+				: element.querySelector<HTMLElement>('[contenteditable="true"]');
+			if (!editableElement) {
+				throw new Error('Message editor contenteditable target was not found.');
+			}
+			editableElement.focus();
+			document.execCommand('insertText', false, insertedText);
+		}, text);
+	}
+
 	await expect
 		.poll(
 			async () => (await messageEditor.textContent().catch(() => '')) ?? '',
