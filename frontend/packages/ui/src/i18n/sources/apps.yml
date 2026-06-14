@@ -2350,6 +2350,54 @@ weather.forecast.description:
   sv: Få dagliga och timvisa väderprognoser.
   he: קבלת תחזית יומית ושעתית.
   verified_by_human: [en, de]
+weather.rain_radar:
+  context: Skill name for rain radar in Weather app
+  en: Rain radar
+  de: Regenradar
+  zh: Rain radar
+  es: Rain radar
+  fr: Rain radar
+  pt: Rain radar
+  ru: Rain radar
+  ja: Rain radar
+  ko: Rain radar
+  it: Rain radar
+  tr: Rain radar
+  vi: Rain radar
+  id: Rain radar
+  pl: Rain radar
+  nl: Rain radar
+  ar: Rain radar
+  hi: Rain radar
+  th: Rain radar
+  cs: Rain radar
+  sv: Rain radar
+  he: Rain radar
+  verified_by_human: [en, de]
+weather.rain_radar.description:
+  context: Description for rain radar skill in Weather app
+  en: Show nearby rain radar with an interactive timeline.
+  de: Zeigt Regenradar in der Nähe mit interaktiver Zeitleiste.
+  zh: Show nearby rain radar with an interactive timeline.
+  es: Show nearby rain radar with an interactive timeline.
+  fr: Show nearby rain radar with an interactive timeline.
+  pt: Show nearby rain radar with an interactive timeline.
+  ru: Show nearby rain radar with an interactive timeline.
+  ja: Show nearby rain radar with an interactive timeline.
+  ko: Show nearby rain radar with an interactive timeline.
+  it: Show nearby rain radar with an interactive timeline.
+  tr: Show nearby rain radar with an interactive timeline.
+  vi: Show nearby rain radar with an interactive timeline.
+  id: Show nearby rain radar with an interactive timeline.
+  pl: Show nearby rain radar with an interactive timeline.
+  nl: Show nearby rain radar with an interactive timeline.
+  ar: Show nearby rain radar with an interactive timeline.
+  hi: Show nearby rain radar with an interactive timeline.
+  th: Show nearby rain radar with an interactive timeline.
+  cs: Show nearby rain radar with an interactive timeline.
+  sv: Show nearby rain radar with an interactive timeline.
+  he: Show nearby rain radar with an interactive timeline.
+  verified_by_human: [en, de]
 weather.day:
   context: Label for a single Weather day embed
   en: Weather day

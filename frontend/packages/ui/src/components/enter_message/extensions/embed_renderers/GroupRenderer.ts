@@ -56,6 +56,7 @@ import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPr
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
+import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -1861,6 +1862,36 @@ export class GroupRenderer implements EmbedRenderer {
               | "error"
               | "cancelled",
             results,
+            taskId,
+            skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "weather" && skillId === "rain_radar") {
+        const component = mount(WeatherRainRadarEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            locationName:
+              decodedContent?.location?.name || decodedContent?.location_name || "",
+            provider: provider || "Weather",
+            status: status as
+              | "processing"
+              | "finished"
+              | "error"
+              | "cancelled",
+            summary: decodedContent?.summary || {},
+            timeline: decodedContent?.timeline || [],
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
             taskId,
             skillTaskId,
             isMobile: false,

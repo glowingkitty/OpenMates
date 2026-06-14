@@ -69,7 +69,7 @@ import { renderNutritionSearch, renderNutritionRecipe } from '../components/embe
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
-import { renderWeatherDay, renderWeatherForecast } from '../components/embeds/weather/weatherEmbedText';
+import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
 
 // ── Renderer type ────────────────────────────────────────────────────────
 
@@ -152,6 +152,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:social_media:get-posts': renderSocialMediaGetPosts,
 	'app:social_media:search': renderSocialMediaSearch,
 	'app:weather:forecast': renderWeatherForecast,
+	'app:weather:rain_radar': renderWeatherRainRadar,
 
 	// ── Direct embeds ────────────────────────────────────────────────
 	'web-website': renderWebsite,

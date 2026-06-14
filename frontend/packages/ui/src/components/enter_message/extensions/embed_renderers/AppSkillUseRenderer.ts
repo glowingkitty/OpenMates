@@ -60,6 +60,7 @@ import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionReci
 import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
 import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMediaSearchEmbedPreview.svelte";
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
+import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
@@ -513,6 +514,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
       if (appId === "weather" && skillId === "forecast") {
         return this.renderWeatherForecastComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "weather" && skillId === "rain_radar") {
+        return this.renderWeatherRainRadarComponent(
           attrs,
           embedData,
           decodedContent,
@@ -4140,6 +4150,86 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting WeatherForecastEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render weather rain radar parent embed using Svelte component.
+   */
+  private renderWeatherRainRadarComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || embedData?.provider || "Weather";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const summary = decodedContent?.summary || {};
+    const timeline = decodedContent?.timeline || [];
+    const locationName = decodedContent?.location?.name || decodedContent?.location_name || "";
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const aesNonce = decodedContent?.aes_nonce || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(WeatherRainRadarEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          locationName,
+          provider,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          summary,
+          timeline,
+          s3BaseUrl,
+          files,
+          aesKey,
+          aesNonce,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted WeatherRainRadarEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting WeatherRainRadarEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

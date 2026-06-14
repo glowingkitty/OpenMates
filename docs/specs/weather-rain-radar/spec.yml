@@ -1,0 +1,370 @@
+id: weather-rain-radar
+title: Weather Rain Radar
+status: implementing
+
+goal: >
+  Add a Germany-first rain radar skill to the Weather app that gives the LLM a
+  compact deterministic explanation of nearby rain while letting users open an
+  interactive radar timeline backed by durable encrypted radar files.
+
+scope:
+  in:
+    - New Weather app skill `rain_radar` for DWD/Bright Sky radar coverage in Germany.
+    - Location or coordinate input with `radius_km` default 5, minimum 1, maximum 100.
+    - Server-side Bright Sky radar fetch, deterministic summary extraction, preview image generation, and encrypted file metadata.
+    - Rain radar embed preview showing the frame closest to now plus 10 minutes.
+    - Fullscreen embed that loads the radar timeline blob on demand and renders an interactive timeline.
+    - Durable radar files that are deleted when the owning embed is deleted.
+  out:
+    - Global radar coverage outside Germany.
+    - Paid radar providers such as OpenWeather, Tomorrow.io, or meteoblue.
+    - User-editable radar palettes.
+    - Radar alerts or push notifications.
+    - Storing raw radar grids in the LLM-facing embed text.
+
+context_discovery:
+  github_issues:
+    - "none found: gh issue search for weather/rain/precipitation radar returned no matching issues"
+  docs:
+    - docs/architecture/apps/app-skills.md
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - backend/apps/weather/app.yml
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - backend/tests/test_weather_forecast_skill.py
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/images/imageEmbedCrypto.ts
+  tests:
+    - backend/tests/test_weather_forecast_skill.py
+    - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
+  provider_research:
+    - "Bright Sky /radar returns DWD radar rainfall data with 1 km spatial and 5 minute temporal resolution, including a forecast for the next two hours."
+    - "Bright Sky radar records contain timestamp, source, and precipitation_5 encoded pixel grids in 0.01 mm / 5 min units."
+    - "Sample Berlin payload sizes: about 9 KB for 10 km radius, 46 KB for 30 km, 128 KB for 50 km, and 392 KB for 100 km using compressed format with 25 frames."
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - No Apple radar embed counterpart exists yet. This V1 implementation is web embed and backend only.
+  verification:
+    - Apple not affected for this first web/backend slice.
+  intentional_native_differences:
+    - Apple app will not render rain radar until a later native parity task.
+
+clarification:
+  rounds:
+    - question: Should V1 be Germany-only using DWD/Bright Sky radar, or require global radar coverage from the start?
+      answer: Test with Germany first.
+    - question: Should radar blobs be durable with the chat or expire after a retention period?
+      answer: Durable forever unless the embed is deleted; deleting the embed must delete all connected radar blobs.
+    - question: What default and range should radius use?
+      answer: Allow a custom 1-100 km radius and default to 5 km so users can inspect their part of a city.
+    - question: Should preview and fullscreen use image files or non-image radar data?
+      answer: Preview should use a generated image, while fullscreen loads encrypted radar data from S3 on demand and renders on device.
+  vision_summary: >
+    Weather rain radar V1 should make local German rain radar useful in chat without
+    bloating LLM context or embed storage. The LLM gets deterministic summaries and
+    compact frame metadata; the preview gets one generated image; fullscreen gets
+    an encrypted compact radar blob only when opened.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: User asks for local rain radar in Germany
+    given:
+      - The user asks whether rain will reach their Berlin neighborhood soon.
+    when:
+      - The Weather rain radar skill runs with location Berlin and default radius.
+    then:
+      - The result uses Bright Sky/DWD radar.
+      - The skill stores a preview image and radar timeline blob as durable encrypted files.
+      - The LLM receives a compact deterministic summary and frame metadata.
+      - The preview embed displays the frame closest to now plus 10 minutes.
+
+  - id: S-2
+    title: User opens rain radar fullscreen
+    given:
+      - A finished rain radar embed is visible in chat.
+    when:
+      - The user opens the embed fullscreen.
+    then:
+      - The frontend downloads and decrypts the radar blob on demand.
+      - The fullscreen view renders a frame timeline with play, pause, and scrub controls.
+      - The view can still show summary and metadata if the blob download fails.
+
+  - id: S-3
+    title: User requests a custom radius
+    given:
+      - The user asks for rain radar within 50 km of Munich.
+    when:
+      - The Weather rain radar skill runs with radius_km 50.
+    then:
+      - The request accepts the radius because it is inside the 1-100 km range.
+      - The result metadata records radius_km 50 and correct map bounds.
+
+  - id: S-4
+    title: User asks for radar outside Germany
+    given:
+      - The user asks for rain radar in Tokyo.
+    when:
+      - The Weather rain radar skill resolves the location outside Germany.
+    then:
+      - The skill returns a clear unavailable result, not a silent forecast fallback.
+      - The LLM can explain that Germany radar is available in V1 and global radar is not yet supported.
+
+  - id: S-5
+    title: User deletes a rain radar embed
+    given:
+      - A chat contains a rain radar embed with preview and radar blob files.
+    when:
+      - The embed is deleted.
+    then:
+      - All S3 radar files connected to that embed are deleted.
+      - Missing file deletion is logged as visible cleanup failure, not silently ignored.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The Weather app exposes a production `rain_radar` skill for Germany/DWD radar requests.
+  - id: AC-2
+    scenario: S-1
+    text: A default radar request uses radius_km 5 and stores only compact metadata in the embed, plus encrypted external files for preview and radar blob.
+  - id: AC-3
+    scenario: S-1
+    text: The LLM-facing content includes deterministic rain summaries and compact frame statistics, but excludes raw grids, S3 keys, and encryption fields.
+  - id: AC-4
+    scenario: S-2
+    text: The preview renders a still image for the frame closest to now plus 10 minutes.
+  - id: AC-5
+    scenario: S-2
+    text: The fullscreen view loads the radar blob only when opened and provides interactive timeline controls.
+  - id: AC-6
+    scenario: S-3
+    text: Requests validate radius_km from 1 to 100 inclusive.
+  - id: AC-7
+    scenario: S-4
+    text: Locations outside Germany return a finished unavailable radar result with user-facing explanation.
+  - id: AC-8
+    scenario: S-5
+    text: Deleting the embed deletes all connected radar blob and preview files.
+
+contracts:
+  api:
+    - route: app skill weather/rain_radar
+      request: "{ location?: string, latitude?: number, longitude?: number, radius_km?: number, timezone?: string }"
+      response: "{ type: rain_radar, location, provider, coverage, summary, timeline, rendering, files? }"
+      errors:
+        - radius_km below 1 or above 100 returns validation error.
+        - Missing location and coordinates returns validation error.
+        - Non-Germany location returns coverage.status unavailable in a finished result.
+  data:
+    - Radar preview image is stored as an encrypted image file associated with the embed.
+    - Radar blob is stored as an encrypted compressed binary file associated with the embed.
+    - Embed content stores file metadata references but LLM filtering strips infrastructure and crypto fields.
+  ui_states:
+    - Processing preview while skill runs.
+    - Finished preview with still rain image and summary.
+    - Unavailable preview when location is outside Germany or radar data is absent.
+    - Fullscreen loading radar blob.
+    - Fullscreen interactive timeline ready.
+    - Fullscreen blob-load error with summary fallback.
+  privacy_security:
+    - No API key is required for Bright Sky.
+    - Location coordinates and radius are sent to Bright Sky for radar lookup.
+    - Radar files are encrypted before durable storage.
+    - S3 keys and encryption material are not exposed to LLM context.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_weather_rain_radar_skill.py
+    command: python3 -m pytest backend/tests/test_weather_rain_radar_skill.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-6
+      - AC-7
+    assertions:
+      - Bright Sky radar normalization produces compact frame metadata and a compressed blob payload.
+      - rain_radar defaults radius_km to 5 and accepts values from 1 to 100.
+      - locations outside Germany return coverage.status unavailable.
+      - LLM filtered rain radar content excludes files, S3 base URL, AES fields, and raw radar payloads.
+      - encrypted radar asset storage uses nonce-prefixed objects with distinct AES-GCM nonces per file.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "host python3 -m pytest backend/tests/test_weather_rain_radar_skill.py"
+        timestamp: "2026-06-14T13:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_weather_rain_radar_skill.py /app/backend/tests/test_radar_embed_cleanup.py"
+        timestamp: "2026-06-14T15:35:36Z"
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts
+    command: python3 scripts/run_tests.py --spec skill-weather-rain-radar.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-4
+      - AC-5
+    assertions:
+      - app metadata exposes Weather / Rain radar.
+      - preview route renders finished, processing, error, and unavailable states.
+      - fullscreen preview route renders timeline controls and summary fallback.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_radar_embed_cleanup.py
+    command: python3 -m pytest backend/tests/test_radar_embed_cleanup.py
+    covers:
+      - AC-8
+    assertions:
+      - embed cleanup identifies radar preview and radar blob file keys.
+      - cleanup attempts deletion for every radar file associated with the embed.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "host python3 -m pytest backend/tests/test_radar_embed_cleanup.py"
+        timestamp: "2026-06-14T13:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_weather_rain_radar_skill.py /app/backend/tests/test_radar_embed_cleanup.py"
+        timestamp: "2026-06-14T15:35:36Z"
+
+implementation_plan:
+  existing_patterns:
+    - backend/apps/weather/skills/forecast_skill.py
+    - backend/shared/providers/bright_sky/bright_sky.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/core/api/app/services/embed_service.py
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedFullscreen.svelte
+  architecture: >
+    Add a Bright Sky radar provider helper, a Weather rain_radar skill, app metadata,
+    and rain radar embed components. The backend produces deterministic summaries and
+    durable encrypted file metadata; frontend preview uses the still image and fullscreen
+    lazily loads/render the blob.
+  data_flow:
+    - User asks for rain radar near a German location.
+    - Skill resolves location, validates radius, fetches Bright Sky radar with compressed format.
+    - Backend computes frame statistics and summary, generates a preview image, and stores encrypted preview/blob files.
+    - Embed content is client-encrypted for chat storage and contains compact metadata plus file references.
+    - LLM context filters out heavy file and crypto fields.
+    - Preview decrypts the preview image; fullscreen decrypts the radar blob when opened.
+  affected_files:
+    - path: backend/apps/weather/app.yml
+      reason: Register rain_radar skill and embed type.
+    - path: backend/apps/weather/skills/rain_radar_skill.py
+      reason: New weather rain radar skill.
+    - path: backend/shared/providers/bright_sky/bright_sky.py
+      reason: Add Bright Sky radar fetch and normalization helpers.
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Strip radar storage fields from LLM context and cleanup radar files.
+    - path: backend/tests/test_weather_rain_radar_skill.py
+      reason: Backend radar skill/provider coverage.
+    - path: frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
+      reason: Rain radar preview UI.
+    - path: frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.svelte
+      reason: Rain radar fullscreen timeline UI.
+    - path: frontend/packages/ui/src/components/embeds/weather/weatherRainRadarCrypto.ts
+      reason: Client-side encrypted radar blob loader.
+    - path: frontend/packages/ui/src/i18n/sources/embeds.yml
+      reason: Rain radar embed labels.
+    - path: frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts
+      reason: Web app metadata and embed rendering coverage.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/weather-rain-radar/spec.yml
+    - python3 -m pytest backend/tests/test_weather_rain_radar_skill.py
+    - python3 -m pytest backend/tests/test_radar_embed_cleanup.py
+    - npm run build from frontend/apps/web_app
+    - python3 scripts/run_tests.py --spec skill-weather-rain-radar.spec.ts
+    - python3 scripts/spec_verify.py docs/specs/weather-rain-radar/spec.yml
+  verification_order:
+    - Backend pytest first.
+    - Web Playwright second after deploy.
+    - Apple not affected.
+
+tasks:
+  - id: TASK-1
+    title: Add Bright Sky radar provider and rain radar skill
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-6
+        - AC-7
+    expected_files:
+      - backend/shared/providers/bright_sky/bright_sky.py
+      - backend/apps/weather/skills/rain_radar_skill.py
+      - backend/apps/weather/app.yml
+      - backend/tests/test_weather_rain_radar_skill.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add rain radar embed UI
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/weather/WeatherRainRadarEmbedFullscreen.svelte
+      - frontend/apps/web_app/tests/skill-weather-rain-radar.spec.ts
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add radar file cleanup and LLM filtering
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-3
+        - AC-8
+    expected_files:
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_radar_embed_cleanup.py
+    verification:
+      - T-PYTEST-002
+    independently_deployable: false

@@ -1,3 +1,195 @@
+weather.rain_radar.no_rain:
+  context: Rain radar fallback text when no rain is visible
+  en: No rain visible near this location.
+  de: Kein Regen in der Nähe dieses Ortes sichtbar.
+  zh: No rain visible near this location.
+  es: No rain visible near this location.
+  fr: No rain visible near this location.
+  pt: No rain visible near this location.
+  ru: No rain visible near this location.
+  ja: No rain visible near this location.
+  ko: No rain visible near this location.
+  it: No rain visible near this location.
+  tr: No rain visible near this location.
+  vi: No rain visible near this location.
+  id: No rain visible near this location.
+  pl: No rain visible near this location.
+  nl: No rain visible near this location.
+  ar: No rain visible near this location.
+  hi: No rain visible near this location.
+  th: No rain visible near this location.
+  cs: No rain visible near this location.
+  sv: No rain visible near this location.
+  he: No rain visible near this location.
+  verified_by_human: [en, de]
+weather.rain_radar.unavailable:
+  context: Rain radar unavailable state
+  en: Rain radar is unavailable for this location.
+  de: Regenradar ist für diesen Ort nicht verfügbar.
+  zh: Rain radar is unavailable for this location.
+  es: Rain radar is unavailable for this location.
+  fr: Rain radar is unavailable for this location.
+  pt: Rain radar is unavailable for this location.
+  ru: Rain radar is unavailable for this location.
+  ja: Rain radar is unavailable for this location.
+  ko: Rain radar is unavailable for this location.
+  it: Rain radar is unavailable for this location.
+  tr: Rain radar is unavailable for this location.
+  vi: Rain radar is unavailable for this location.
+  id: Rain radar is unavailable for this location.
+  pl: Rain radar is unavailable for this location.
+  nl: Rain radar is unavailable for this location.
+  ar: Rain radar is unavailable for this location.
+  hi: Rain radar is unavailable for this location.
+  th: Rain radar is unavailable for this location.
+  cs: Rain radar is unavailable for this location.
+  sv: Rain radar is unavailable for this location.
+  he: Rain radar is unavailable for this location.
+  verified_by_human: [en, de]
+weather.rain_radar.peak:
+  context: Label for peak radar intensity
+  en: Peak
+  de: Spitze
+  zh: Peak
+  es: Peak
+  fr: Peak
+  pt: Peak
+  ru: Peak
+  ja: Peak
+  ko: Peak
+  it: Peak
+  tr: Peak
+  vi: Peak
+  id: Peak
+  pl: Peak
+  nl: Peak
+  ar: Peak
+  hi: Peak
+  th: Peak
+  cs: Peak
+  sv: Peak
+  he: Peak
+  verified_by_human: [en, de]
+weather.rain_radar.at_location:
+  context: Label for rainfall at selected location
+  en: At location
+  de: Am Ort
+  zh: At location
+  es: At location
+  fr: At location
+  pt: At location
+  ru: At location
+  ja: At location
+  ko: At location
+  it: At location
+  tr: At location
+  vi: At location
+  id: At location
+  pl: At location
+  nl: At location
+  ar: At location
+  hi: At location
+  th: At location
+  cs: At location
+  sv: At location
+  he: At location
+  verified_by_human: [en, de]
+weather.rain_radar.play:
+  context: Button label to play the rain radar timeline animation
+  en: Play
+  de: Abspielen
+  zh: Play
+  es: Play
+  fr: Play
+  pt: Play
+  ru: Play
+  ja: Play
+  ko: Play
+  it: Play
+  tr: Play
+  vi: Play
+  id: Play
+  pl: Play
+  nl: Play
+  ar: Play
+  hi: Play
+  th: Play
+  cs: Play
+  sv: Play
+  he: Play
+  verified_by_human: [en, de]
+weather.rain_radar.pause:
+  context: Button label to pause the rain radar timeline animation
+  en: Pause
+  de: Pause
+  zh: Pause
+  es: Pause
+  fr: Pause
+  pt: Pause
+  ru: Pause
+  ja: Pause
+  ko: Pause
+  it: Pause
+  tr: Pause
+  vi: Pause
+  id: Pause
+  pl: Pause
+  nl: Pause
+  ar: Pause
+  hi: Pause
+  th: Pause
+  cs: Pause
+  sv: Pause
+  he: Pause
+  verified_by_human: [en, de]
+weather.rain_radar.frames:
+  context: Label after the number of frames in the rain radar timeline
+  en: frames
+  de: Bilder
+  zh: frames
+  es: frames
+  fr: frames
+  pt: frames
+  ru: frames
+  ja: frames
+  ko: frames
+  it: frames
+  tr: frames
+  vi: frames
+  id: frames
+  pl: frames
+  nl: frames
+  ar: frames
+  hi: frames
+  th: frames
+  cs: frames
+  sv: frames
+  he: frames
+  verified_by_human: [en, de]
+weather.rain_radar.load_failed:
+  context: Message shown when the encrypted rain radar grid blob cannot be loaded
+  en: Radar data could not be loaded. Showing the summary view instead.
+  de: Radardaten konnten nicht geladen werden. Stattdessen wird die Zusammenfassung angezeigt.
+  zh: Radar data could not be loaded. Showing the summary view instead.
+  es: Radar data could not be loaded. Showing the summary view instead.
+  fr: Radar data could not be loaded. Showing the summary view instead.
+  pt: Radar data could not be loaded. Showing the summary view instead.
+  ru: Radar data could not be loaded. Showing the summary view instead.
+  ja: Radar data could not be loaded. Showing the summary view instead.
+  ko: Radar data could not be loaded. Showing the summary view instead.
+  it: Radar data could not be loaded. Showing the summary view instead.
+  tr: Radar data could not be loaded. Showing the summary view instead.
+  vi: Radar data could not be loaded. Showing the summary view instead.
+  id: Radar data could not be loaded. Showing the summary view instead.
+  pl: Radar data could not be loaded. Showing the summary view instead.
+  nl: Radar data could not be loaded. Showing the summary view instead.
+  ar: Radar data could not be loaded. Showing the summary view instead.
+  hi: Radar data could not be loaded. Showing the summary view instead.
+  th: Radar data could not be loaded. Showing the summary view instead.
+  cs: Radar data could not be loaded. Showing the summary view instead.
+  sv: Radar data could not be loaded. Showing the summary view instead.
+  he: Radar data could not be loaded. Showing the summary view instead.
+  verified_by_human: [en, de]
 search:
   context: Search skill label
   en: Search

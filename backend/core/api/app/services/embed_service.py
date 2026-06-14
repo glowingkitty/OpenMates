@@ -2612,6 +2612,7 @@ class EmbedService:
         "s3_base_url",           # S3 bucket URL — resolved server-side
         "files",                 # Nested s3_key per variant — resolved server-side
         "content_hash",          # Internal dedup hash — not useful for LLM
+        "radar_blob_b64",        # Raw radar grids — too large and not useful for LLM inference
     })
 
     def _filter_toon_for_llm(
@@ -2761,6 +2762,22 @@ class EmbedService:
                     f"(kept: {list(filtered.keys())}, embed_ref={embed_ref!r})"
                 )
                 return filtered_toon, embed_ref
+
+            if embed_type == "rain_radar" or (app_id == "weather" and skill_id == "rain_radar"):
+                # Rain radar embeds store heavy encrypted preview/blob file references for
+                # client rendering. The LLM only needs semantic summaries and compact frame
+                # metadata; raw grids and storage fields would bloat context and leak infra.
+                filtered = {
+                    k: v for k, v in decoded.items()
+                    if k not in self._TOON_LLM_STRIP_FIELDS and k != "embed_id"
+                }
+                filtered_toon = encode(filtered)
+                logger.debug(
+                    f"{log_prefix} Filtered rain-radar embed TOON for LLM: "
+                    f"{len(toon_content)} → {len(filtered_toon)} chars "
+                    f"(kept: {list(filtered.keys())})"
+                )
+                return filtered_toon, None
 
             if app_id != "images" or skill_id != "upload":
                 # For all other embed types (search results, web pages, travel, maps, etc.),
