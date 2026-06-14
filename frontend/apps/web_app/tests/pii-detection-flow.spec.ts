@@ -68,12 +68,15 @@ async function insertComposerText(
 	requiredNeedles: string[]
 ): Promise<void> {
 	await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
-	await messageEditor.focus();
 	await expect
 		.poll(
 			async () => messageEditor.evaluate((element: HTMLElement) => {
 				const activeElement = document.activeElement;
-				return activeElement === element || (activeElement ? element.contains(activeElement) : false);
+				return Boolean(
+					activeElement instanceof HTMLElement &&
+					element.contains(activeElement) &&
+					activeElement.isContentEditable
+				);
 			}),
 			{ timeout: 5000 }
 		)
