@@ -60,10 +60,52 @@ final class EmbedRenderingParityUITests: XCTestCase {
         }
     }
 
+    func testVersionedCodeEmbedFullscreenTimelineRendersAndRestores() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "embeds", "--dev-preview-app", "code"]
+        app.launchEnvironment["DEV_PREVIEW"] = "embeds"
+        app.launchEnvironment["DEV_PREVIEW_APP"] = "code"
+        app.launch()
+
+        let gallery = app.descendants(matching: .any)["dev-embed-preview-gallery"]
+        XCTAssertTrue(gallery.waitForExistence(timeout: 8), "Code embed gallery did not load")
+
+        let timeline = app.descendants(matching: .any)["embed-version-timeline"]
+        scrollUntilVisible(app: app, element: timeline)
+        XCTAssertTrue(timeline.exists, "Versioned code embed timeline did not render")
+        XCTAssertTrue(app.descendants(matching: .any)["embed-version-dot-1"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["embed-version-dot-3"].exists)
+
+        app.descendants(matching: .any)["embed-version-dot-1"].tap()
+
+        let historicalStatus = app.staticTexts
+            .containing(NSPredicate(format: "label CONTAINS %@", "Viewing historical version v1"))
+            .firstMatch
+        XCTAssertTrue(historicalStatus.waitForExistence(timeout: 3))
+
+        let restoreButton = app.descendants(matching: .any)["embed-version-restore-button"]
+        XCTAssertTrue(restoreButton.exists)
+        restoreButton.tap()
+
+        let confirmRestore = app.buttons
+            .containing(NSPredicate(format: "label CONTAINS %@", "Confirm restore v1"))
+            .firstMatch
+        XCTAssertTrue(confirmRestore.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.tables.firstMatch.exists, "Embed timeline must not render default List/table chrome")
+
+        attachScreenshot(name: "Versioned code embed timeline")
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func scrollUntilVisible(app: XCUIApplication, element: XCUIElement) {
+        for _ in 0..<8 where !element.exists {
+            app.swipeUp()
+        }
     }
 }

@@ -173,6 +173,12 @@ enum DevEmbedPreviewFixtures {
                   }
                 </style>
                 """
+            ],
+            versionNumber: 3,
+            versionHistory: [
+                EmbedVersionMetadata(versionNumber: 1, createdAt: 1760000000, hasSnapshot: true, hasPatch: false, contentHash: "preview-code-v1"),
+                EmbedVersionMetadata(versionNumber: 2, createdAt: 1760000100, hasSnapshot: false, hasPatch: true, contentHash: "preview-code-v2"),
+                EmbedVersionMetadata(versionNumber: 3, createdAt: 1760000200, hasSnapshot: false, hasPatch: true, contentHash: "preview-code-v3")
             ]
         )
         return skill(id: "code-code", label: "Code", primary: embed)
@@ -740,7 +746,10 @@ enum DevEmbedPreviewFixtures {
         skillId: String? = nil,
         data: [String: Any],
         parentEmbedId: String? = nil,
-        embedIds: String? = nil
+        embedIds: String? = nil,
+        versionNumber: Int? = nil,
+        versionHistory: [EmbedVersionMetadata] = [],
+        versionHistoryReadonly: Bool = false
     ) -> EmbedRecord {
         EmbedRecord(
             id: id,
@@ -751,6 +760,9 @@ enum DevEmbedPreviewFixtures {
             appId: appId,
             skillId: skillId,
             embedIds: embedIds,
+            versionNumber: versionNumber,
+            versionHistory: versionHistory,
+            versionHistoryReadonly: versionHistoryReadonly,
             createdAt: "2026-03-15T08:30:00Z"
         )
     }
