@@ -161,7 +161,12 @@ function actionsForCapabilities(capabilities: string[]): string[] {
 }
 
 function runtimeModesForCapabilities(capabilities: string[]): Record<string, string> {
-	return Object.fromEntries(actionsForCapabilities(capabilities).map((action) => [action, 'ask_each_time']));
+	return Object.fromEntries(
+		actionsForCapabilities(capabilities).map((action) => [
+			action,
+			action === 'read' ? 'allow_automatically' : 'always_ask'
+		])
+	);
 }
 
 function appIdForProvider(providerId: string): string {

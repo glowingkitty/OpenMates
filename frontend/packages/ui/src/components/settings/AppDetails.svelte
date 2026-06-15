@@ -56,6 +56,7 @@
     let connectedAccountAction = $state<'idle' | 'connecting' | 'finalizing'>('idle');
     let connectedAccountError = $state('');
     let connectedAccountSuccess = $state('');
+    let finalizedOAuthHandoffId = $state('');
 
     function hasGuestExamples(category: MemoryFieldMetadata): boolean {
         return (category.example_entries?.length ?? 0) > 0 || (category.example_translation_keys?.length ?? 0) > 0;
@@ -191,6 +192,16 @@
         void initializeCalendarConnectedAccounts();
     });
 
+    $effect(() => {
+        if (appId !== 'calendar' || !isAuthenticated) return;
+        const handoffId = getOAuthHandoffId();
+        const userId = $userProfile.user_id;
+        if (!handoffId || !userId || finalizedOAuthHandoffId === handoffId || connectedAccountAction === 'finalizing') {
+            return;
+        }
+        void initializeCalendarConnectedAccounts();
+    });
+
     async function initializeCalendarConnectedAccounts() {
         await finalizeOAuthHandoffFromUrl();
         await loadConnectedCalendarAccounts(false);
@@ -215,15 +226,17 @@
     }
 
     async function finalizeOAuthHandoffFromUrl() {
-        if (typeof window === 'undefined') return;
-        const params = new URLSearchParams(window.location.search);
-        const handoffId = params.get('oauth_handoff_id');
+        const handoffId = getOAuthHandoffId();
         if (!handoffId) return;
+        if (finalizedOAuthHandoffId === handoffId) return;
         const userId = $userProfile.user_id;
         if (!userId) {
-            connectedAccountError = $text('settings.app_store.connected_accounts.sign_in_required');
+            if (!isAuthenticated) {
+                connectedAccountError = $text('settings.app_store.connected_accounts.sign_in_required');
+            }
             return;
         }
+        finalizedOAuthHandoffId = handoffId;
         connectedAccountAction = 'finalizing';
         connectedAccountError = '';
         try {
@@ -237,6 +250,11 @@
         } finally {
             connectedAccountAction = 'idle';
         }
+    }
+
+    function getOAuthHandoffId(): string | null {
+        if (typeof window === 'undefined') return null;
+        return new URLSearchParams(window.location.search).get('oauth_handoff_id');
     }
 
     function removeOAuthHandoffQueryParam() {

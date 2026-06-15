@@ -87,7 +87,7 @@ describe('connectedAccountOAuthService', () => {
 			}
 		});
 
-	expect(row).toMatchObject({
+		expect(row).toMatchObject({
 			id: 'acct-1',
 			provider_type_hash: 'hash:google_calendar'
 		});
@@ -97,7 +97,10 @@ describe('connectedAccountOAuthService', () => {
 			expect.stringContaining('"allowed_actions":["read","write","update"]')
 		);
 		expect(vi.mocked(encryptWithMasterKey)).toHaveBeenCalledWith(
-			expect.stringContaining('"update":"ask_each_time"')
+			expect.stringContaining('"read":"allow_automatically"')
+		);
+		expect(vi.mocked(encryptWithMasterKey)).toHaveBeenCalledWith(
+			expect.stringContaining('"update":"always_ask"')
 		);
 		expect(JSON.stringify(row)).not.toContain('"refresh_token"');
 		expect(JSON.stringify(row)).not.toContain('secret-refresh');

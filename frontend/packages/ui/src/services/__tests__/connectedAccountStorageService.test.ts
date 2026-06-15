@@ -116,7 +116,7 @@ describe('connectedAccountStorageService', () => {
 						'enc:{"app_id":"calendar","allowed_actions":["read"],"action_scope":{"calendar_id":"primary"}}',
 					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}',
 					encrypted_account_directory_hint:
-						'enc:{"account_ref":"calendar-work","label":"Work","capabilities":["read"],"runtime_modes":{"read":"ask_each_time"}}'
+						'enc:{"account_ref":"calendar-work","label":"Work","capabilities":["read"],"runtime_modes":{"read":"allow_automatically"}}'
 				}
 			]
 		});
@@ -128,7 +128,7 @@ describe('connectedAccountStorageService', () => {
 				account_ref: 'calendar-work',
 				label: 'Work',
 				capabilities: ['read'],
-				runtime_modes: { read: 'ask_each_time' }
+				runtime_modes: { read: 'allow_automatically' }
 			}
 		]);
 		expect(JSON.stringify(context?.directory)).not.toContain('secret-refresh');
