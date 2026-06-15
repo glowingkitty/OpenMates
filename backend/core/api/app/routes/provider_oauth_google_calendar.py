@@ -13,7 +13,7 @@ import os
 import secrets
 import time
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -89,6 +89,15 @@ def _sanitize_return_path(return_path: str | None) -> str:
     if "\n" in return_path or "\r" in return_path:
         return "/#settings/app_store/calendar"
     return return_path
+
+
+def _append_handoff_query(base_url: str, return_path: str, handoff_id: str) -> str:
+    target = base_url + return_path
+    parsed = urlsplit(target)
+    query = urlencode({"oauth_handoff_id": handoff_id})
+    if parsed.query:
+        query = f"{parsed.query}&{query}"
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, parsed.fragment))
 
 
 def google_calendar_scopes_for_capabilities(capabilities: list[str]) -> list[str]:
@@ -210,10 +219,12 @@ async def google_calendar_oauth_callback(
         },
     )
 
-    redirect_target = _webapp_url() + str(state_payload.get("return_path") or "/#settings/app_store/calendar")
-    separator = "&" if "?" in redirect_target else "?"
     return RedirectResponse(
-        url=f"{redirect_target}{separator}oauth_handoff_id={handoff.handoff_id}",
+        url=_append_handoff_query(
+            _webapp_url(),
+            str(state_payload.get("return_path") or "/#settings/app_store/calendar"),
+            handoff.handoff_id,
+        ),
         status_code=303,
     )
 

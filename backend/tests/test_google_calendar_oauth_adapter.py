@@ -157,7 +157,8 @@ async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(
 
     assert response.status_code == 303
     location = response.headers["location"]
-    assert location.startswith("https://app.dev.openmates.org/#settings/app_store/calendar?oauth_handoff_id=oauth_handoff_")
+    assert location.startswith("https://app.dev.openmates.org/?oauth_handoff_id=oauth_handoff_")
+    assert location.endswith("#settings/app_store/calendar")
     assert "secret-refresh-token" not in location
     assert route._state_key("state-123") not in cache.values
 
