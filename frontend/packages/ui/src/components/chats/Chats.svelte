@@ -666,7 +666,21 @@ let _chatUpdatedFlushPending = false;
 				userChats.push(chat);
 			}
 		}
-		return [...userChats.slice(0, visibleUserChatLimit), ...staticChats];
+
+		const visibleUserChats = userChats.slice(0, visibleUserChatLimit);
+		if (selectedChatId && !visibleUserChats.some(chat => chat.chat_id === selectedChatId)) {
+			const activeUserChat = userChats.find(chat => chat.chat_id === selectedChatId);
+			if (activeUserChat) {
+				// Keep the active row mounted even when it is outside the initial recent-chat window.
+				if (visibleUserChats.length >= visibleUserChatLimit && visibleUserChats.length > 0) {
+					visibleUserChats[visibleUserChats.length - 1] = activeUserChat;
+				} else {
+					visibleUserChats.push(activeUserChat);
+				}
+			}
+		}
+
+		return [...visibleUserChats, ...staticChats];
 	})());
 
 	// Determine if "Show more" button should be visible.
