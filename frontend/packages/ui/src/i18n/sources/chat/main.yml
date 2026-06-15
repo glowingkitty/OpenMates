@@ -385,6 +385,18 @@ connected_account_receipts.undone:
   context: System receipt shown after a connected-account action was undone.
   en: Action undone.
   verified_by_human: [en]
+connected_account_receipts.rejected:
+  context: System receipt shown after the user rejects a connected-account action. The action replacement is a localized action label.
+  en: "{action} rejected."
+  verified_by_human: [en]
+connected_account_receipts.cancelled:
+  context: System receipt shown after the user cancels a connected-account action. The action replacement is a localized action label.
+  en: "{action} cancelled."
+  verified_by_human: [en]
+connected_account_receipts.failed:
+  context: System receipt shown after a connected-account action fails or is technically blocked. The action replacement is a localized action label.
+  en: "{action} could not be completed."
+  verified_by_human: [en]
 connected_account_receipts.undo:
   context: Button label that undoes a connected-account action when undo is available.
   en: Undo

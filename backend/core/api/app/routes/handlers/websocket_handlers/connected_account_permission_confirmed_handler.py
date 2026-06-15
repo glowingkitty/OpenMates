@@ -16,6 +16,7 @@ from typing import Any, Dict, List
 
 import yaml
 
+from backend.apps.ai.processing.connected_account_receipts import publish_connected_account_action_receipt
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,13 @@ async def handle_connected_account_permission_confirmed(
         if pending_context.get("user_id") != user_id or pending_context.get("chat_id") != chat_id:
             logger.warning("Connected-account permission request %s owner/chat mismatch", request_id)
             return
+
+        if not approved:
+            await _publish_rejection_receipt(
+                cache_service=cache_service,
+                user_id=user_id,
+                pending_context=pending_context,
+            )
 
         await _trigger_connected_account_continuation(
             cache_service=cache_service,
@@ -166,6 +174,35 @@ async def _trigger_connected_account_continuation(
         task.id,
         pending_context.get("request_id"),
         approved,
+    )
+
+
+async def _publish_rejection_receipt(
+    *,
+    cache_service: Any,
+    user_id: str,
+    pending_context: dict[str, Any],
+) -> None:
+    request_id = str(pending_context.get("request_id") or "")
+    chat_id = str(pending_context.get("chat_id") or "")
+    message_id = str(pending_context.get("message_id") or "")
+    if not request_id or not chat_id or not message_id:
+        return
+    await publish_connected_account_action_receipt(
+        cache_service=cache_service,
+        user_id=user_id,
+        payload={
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "action_id": request_id,
+            "receipt": {
+                "app_id": pending_context.get("app_id"),
+                "skill_id": pending_context.get("skill_id"),
+                "action": pending_context.get("action"),
+                "decision": "explicit_rejection",
+                "undo_available": False,
+            },
+        },
     )
 
 

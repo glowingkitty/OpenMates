@@ -956,6 +956,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     if (receipt.receipt?.decision === 'undo_success') {
       return $text('chat.connected_account_receipts.undone');
     }
+    if (receipt.receipt?.decision === 'explicit_rejection') {
+      return $text('chat.connected_account_receipts.rejected', { values: { action } });
+    }
+    if (receipt.receipt?.decision === 'user_cancelled') {
+      return $text('chat.connected_account_receipts.cancelled', { values: { action } });
+    }
+    if (receipt.receipt?.decision === 'undo_failed' || receipt.receipt?.decision === 'technical_block' || receipt.receipt?.decision === 'failed') {
+      return $text('chat.connected_account_receipts.failed', { values: { action } });
+    }
     const base = $text('chat.connected_account_receipts.completed', { values: { action } });
     return receipt.receipt?.undo_available
       ? `${base} ${$text('chat.connected_account_receipts.undo_available')}`

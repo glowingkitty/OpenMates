@@ -136,6 +136,55 @@ async def test_connected_account_permission_confirmation_dispatches_continuation
 
 
 @pytest.mark.asyncio
+async def test_connected_account_permission_rejection_publishes_receipt(monkeypatch) -> None:
+    module = import_handler_module()
+    captured: dict = {}
+    receipts: list[dict] = []
+
+    class FakeTask:
+        @staticmethod
+        def apply_async(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(id="task-rejected")
+
+    async def fake_publish_receipt(**kwargs):
+        receipts.append(kwargs)
+        return True
+
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.apps.ai.tasks.ask_skill_task",
+        SimpleNamespace(process_ai_skill_ask_task=FakeTask),
+    )
+    monkeypatch.setattr(module, "_load_ask_skill_config_from_app_yml", lambda: {"default_llms": {}})
+    monkeypatch.setattr(module, "publish_connected_account_action_receipt", fake_publish_receipt)
+
+    cache = FakeCache()
+    await module.handle_connected_account_permission_confirmed(
+        websocket=None,
+        manager=FakeManager(),
+        cache_service=cache,
+        directus_service=FakeDirectus(),
+        encryption_service=FakeEncryption(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={
+            "request_id": "cap-1",
+            "chat_id": "chat-1",
+            "approved": False,
+            "connected_account_token_refs": [],
+        },
+    )
+
+    request_data = captured["kwargs"]["request_data_dict"]
+    assert request_data["connected_account_token_refs"] == []
+    assert request_data["connected_account_permission_state"]["approved"] is False
+    assert receipts[0]["payload"]["action_id"] == "cap-1"
+    assert receipts[0]["payload"]["receipt"]["decision"] == "explicit_rejection"
+    assert cache.deleted == ["cap-1"]
+
+
+@pytest.mark.asyncio
 async def test_connected_account_permission_confirmation_rejects_secret_fields() -> None:
     module = import_handler_module()
 
