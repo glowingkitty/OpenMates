@@ -362,6 +362,16 @@ explain_project.description:
   verified_by_human:
     - en
     - de
+project_planner:
+  context: Focus mode name for project planner
+  en: Project planner
+  verified_by_human:
+    - en
+project_planner.description:
+  context: Description for project planner focus mode
+  en: Turn coding ideas into scoped plans, tasks, acceptance criteria, and verification steps.
+  verified_by_human:
+    - en
 research_solutions:
   context: Focus mode name for research solutions
   en: Research solutions
@@ -390,7 +400,7 @@ research_solutions:
     - de
 research_solutions.description:
   context: Description for research solutions focus mode
-  en: Research what tech fits your requirements.
+  en: Compare technical options and choose the best fit for your requirements.
   de: Recherchiere, welche Technologie zu dir passt.
   zh: 研究哪种技术适合你的需求。
   es: Investiga qué tecnología se ajusta a ti.
@@ -518,6 +528,16 @@ setup_infrastructure.description:
   verified_by_human:
     - en
     - de
+learn_by_building:
+  context: Focus mode name for learn by building
+  en: Learn by building
+  verified_by_human:
+    - en
+learn_by_building.description:
+  context: Description for learn by building focus mode
+  en: Learn a programming topic through a small real project with guided checkpoints.
+  verified_by_human:
+    - en
 refactor_code:
   context: Focus mode name for refactor code
   en: Refactor code
