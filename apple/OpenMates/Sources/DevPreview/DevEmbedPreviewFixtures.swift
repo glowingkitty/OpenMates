@@ -179,7 +179,8 @@ enum DevEmbedPreviewFixtures {
                 EmbedVersionMetadata(versionNumber: 1, createdAt: 1760000000, hasSnapshot: true, hasPatch: false, contentHash: "preview-code-v1"),
                 EmbedVersionMetadata(versionNumber: 2, createdAt: 1760000100, hasSnapshot: false, hasPatch: true, contentHash: "preview-code-v2"),
                 EmbedVersionMetadata(versionNumber: 3, createdAt: 1760000200, hasSnapshot: false, hasPatch: true, contentHash: "preview-code-v3")
-            ]
+            ],
+            versionHistoryReadonly: false
         )
         return skill(id: "code-code", label: "Code", primary: embed)
     }

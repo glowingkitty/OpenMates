@@ -333,7 +333,7 @@ struct EmbedFullscreenContainer: View {
                 .padding(.vertical, .spacing2)
             }
 
-            HStack(alignment: .center, spacing: .spacing3) {
+            VStack(alignment: .leading, spacing: .spacing3) {
                 Text(versionTimelineStatusText(selectedVersion: selectedVersion, currentVersion: currentVersion))
                     .font(.omXs)
                     .foregroundStyle(Color.fontSecondary)
