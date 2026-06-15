@@ -23,6 +23,7 @@ const CLI_AUTH_ERROR_PATTERNS = [
   /Not logged in\. Run [`']openmates login[`']\./i,
   /Ensure you are logged in \(run [`']openmates login[`']\)\./i,
   /Email encryption key is missing\. Run [`']openmates login[`'] again/i,
+  /Requires login \(run [`']openmates login[`'] first\)\./i,
 ];
 
 function normalizeToolName(tool) {
@@ -54,12 +55,14 @@ function bashCommand(args) {
 function commandRunsOpenMatesCli(command) {
   return (
     /(^|\s)(npx\s+)?openmates(\s|$)/.test(command) ||
-    /frontend\/packages\/openmates-cli\/(dist\/)?cli\.js/.test(command)
+    /frontend\/packages\/openmates-cli\/(dist\/)?cli\.js/.test(command) ||
+    /(^|\s)node\s+(\.\/)?(dist\/)?cli\.js(\s|$)/.test(command)
   );
 }
 
 function isCliAuthFailure(command, outputText) {
-  if (!commandRunsOpenMatesCli(command)) return false;
+  const outputMentionsOpenMatesCli = /OpenMates CLI/i.test(outputText) || /openmates login/i.test(outputText);
+  if (!commandRunsOpenMatesCli(command) && !outputMentionsOpenMatesCli) return false;
   return CLI_AUTH_ERROR_PATTERNS.some((pattern) => pattern.test(outputText));
 }
 
