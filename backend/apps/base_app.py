@@ -377,6 +377,7 @@ class BaseApp:
             # resolve human-readable filenames (embed_ref) to internal embed UUIDs.
             # e.g. images-view uses this to look up the embed in Redis by file_path (original filename)
             file_path_index = request_body.get("_file_path_index")
+            connected_account_access_tokens = request_body.get("_connected_account_access_tokens")
 
             # Initialize skill instance. Server-side AI processing may inject a
             # validated model override for user-configurable app skill defaults.
@@ -437,6 +438,7 @@ class BaseApp:
                 # file_path_index maps embed_ref filenames → embed UUID for skills like images-view
                 # that resolve the human-readable filename passed by the LLM to the internal embed ID
                 "file_path_index": file_path_index,
+                "connected_account_access_tokens": connected_account_access_tokens,
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}

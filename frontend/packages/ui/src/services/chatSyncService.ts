@@ -62,6 +62,8 @@ import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
 import * as senders from "./chatSyncServiceSenders";
 import { flushPendingEmbedOperations } from "./embedSenders";
 import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
+import type { ConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
+import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
@@ -1699,11 +1701,18 @@ export class ChatSynchronizationService extends EventTarget {
   public async sendNewMessage(
     message: Message,
     encryptedSuggestionToDelete?: string | null,
+    connectedAccountContext?: ConnectedAccountSendContext,
   ): Promise<void> {
+    const preparedConnectedAccountContext = await prepareConnectedAccountSendContext({
+      chatId: message.chat_id,
+      messageId: message.message_id,
+      context: connectedAccountContext,
+    });
     await senders.sendNewMessageImpl(
       this,
       message,
       encryptedSuggestionToDelete,
+      preparedConnectedAccountContext,
     );
   }
   public async sendCompletedAIResponse(aiMessage: Message): Promise<void> {

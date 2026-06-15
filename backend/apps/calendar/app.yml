@@ -1,0 +1,167 @@
+name_translation_key: calendar
+description_translation_key: calendar.description
+icon_image: |
+  calendar.svg
+category: work
+stage: development
+settings_and_memories: []
+embed_types:
+  - id: events
+    category: app-skill-use
+    skill_id: get-events
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    preview_component: calendar/CalendarEventsEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarEventsEmbedFullscreen.svelte
+    icon: calendar
+    gradient_var: "--color-app-calendar"
+    i18n_namespace: embeds.calendar.events
+  - id: event-create
+    category: app-skill-use
+    skill_id: create-event
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    preview_component: calendar/CalendarEventCreateEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarEventCreateEmbedFullscreen.svelte
+    icon: calendar
+    gradient_var: "--color-app-calendar"
+    i18n_namespace: embeds.calendar.event_create
+  - id: event-update
+    category: app-skill-use
+    skill_id: update-event
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    preview_component: calendar/CalendarEventUpdateEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarEventUpdateEmbedFullscreen.svelte
+    icon: calendar
+    gradient_var: "--color-app-calendar"
+    i18n_namespace: embeds.calendar.event_update
+  - id: event-delete
+    category: app-skill-use
+    skill_id: delete-event
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: true
+    preview_component: calendar/CalendarEventDeleteEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarEventDeleteEmbedFullscreen.svelte
+    icon: calendar
+    gradient_var: "--color-app-calendar"
+    i18n_namespace: embeds.calendar.event_delete
+skills:
+  - id: get-events
+    name_translation_key: app_skills.calendar.get_events
+    description_translation_key: app_skills.calendar.get_events.description
+    icon_image: calendar.svg
+    stage: development
+    class_path: backend.apps.calendar.skills.get_events_skill.GetEventsSkill
+    providers:
+      - name: Google Calendar
+        no_api_key: true
+    preprocessor_hint: >
+      Read a user's connected Google Calendar events, agenda, availability, or event details after connected-account permission checks.
+    api_config:
+      expose_post: false
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            type: object
+            properties:
+              calendar_id:
+                type: string
+                default: primary
+              time_min:
+                type: string
+              time_max:
+                type: string
+          minItems: 1
+      required: [requests]
+  - id: create-event
+    name_translation_key: app_skills.calendar.create_event
+    description_translation_key: app_skills.calendar.create_event.description
+    icon_image: calendar.svg
+    stage: development
+    class_path: backend.apps.calendar.skills.create_event_skill.CreateEventSkill
+    providers:
+      - name: Google Calendar
+        no_api_key: true
+    preprocessor_hint: >
+      Create a Calendar event only after connected-account write permission has been approved or auto-authorized.
+    api_config:
+      expose_post: false
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            type: object
+            properties:
+              calendar_id: {type: string, default: primary}
+              title: {type: string}
+              start: {type: string}
+              end: {type: string}
+          minItems: 1
+      required: [requests]
+  - id: update-event
+    name_translation_key: app_skills.calendar.update_event
+    description_translation_key: app_skills.calendar.update_event.description
+    icon_image: calendar.svg
+    stage: development
+    class_path: backend.apps.calendar.skills.update_event_skill.UpdateEventSkill
+    providers:
+      - name: Google Calendar
+        no_api_key: true
+    preprocessor_hint: >
+      Update an existing Calendar event only after connected-account write permission has been approved or auto-authorized.
+    api_config:
+      expose_post: false
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            type: object
+            properties:
+              calendar_id: {type: string, default: primary}
+              event_id: {type: string}
+              title: {type: string}
+              start: {type: string}
+              end: {type: string}
+          minItems: 1
+      required: [requests]
+  - id: delete-event
+    name_translation_key: app_skills.calendar.delete_event
+    description_translation_key: app_skills.calendar.delete_event.description
+    icon_image: calendar.svg
+    stage: development
+    class_path: backend.apps.calendar.skills.delete_event_skill.DeleteEventSkill
+    providers:
+      - name: Google Calendar
+        no_api_key: true
+    preprocessor_hint: >
+      Delete Calendar events only after connected-account delete permission has been approved or auto-authorized.
+    api_config:
+      expose_post: false
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            type: object
+            properties:
+              calendar_id: {type: string, default: primary}
+              event_id: {type: string}
+          minItems: 1
+      required: [requests]

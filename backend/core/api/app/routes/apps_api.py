@@ -27,6 +27,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.provider_health import map_provider_name_to_id
+from backend.core.api.app.services.rest_skill_execution_policy import assert_rest_skill_execution_allowed
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
 # Import comprehensive ASCII smuggling sanitization
@@ -739,6 +740,9 @@ async def call_app_skill(
     """
     from backend.core.api.app.services.skill_registry import get_global_registry
 
+    registry = get_global_registry()
+    assert_rest_skill_execution_allowed(registry, app_id, skill_id)
+
     # SECURITY: Sanitize all text in input_data to prevent ASCII smuggling attacks
     user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
     log_prefix = f"[API {app_id}/{skill_id}][User {user_id_short}...] "
@@ -755,7 +759,6 @@ async def call_app_skill(
     request_payload['_device_hash'] = user_info.get('device_hash')
     request_payload['_external_request'] = True
 
-    registry = get_global_registry()
     try:
         return await registry.dispatch_skill(app_id, skill_id, request_payload)
     except HTTPException:

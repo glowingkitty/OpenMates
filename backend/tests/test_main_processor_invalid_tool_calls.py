@@ -75,6 +75,7 @@ secrets_stub.SecretsManager = object
 sys.modules.setdefault("backend.core.api.app.utils.secrets_manager", secrets_stub)
 
 config_stub = types.ModuleType("backend.core.api.app.utils.config_manager")
+config_stub.ConfigManager = object
 config_stub.config_manager = SimpleNamespace(get_model_pricing=lambda *_args, **_kwargs: None)
 sys.modules.setdefault("backend.core.api.app.utils.config_manager", config_stub)
 

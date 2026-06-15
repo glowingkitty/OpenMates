@@ -34,6 +34,8 @@ import { promptChatErrorReportConsent } from "./chatErrorReportConsent";
 import type { Chat, Message } from "../types/chat";
 import { get } from "svelte/store";
 import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
+import type { PreparedConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
+import { assertNoConnectedAccountSecretLeak } from "./connectedAccountTokenBrokerService";
 
 async function abortUnsafeKeyMismatch(
 	chatId: string,
@@ -53,7 +55,8 @@ async function abortUnsafeKeyMismatch(
 export async function sendNewMessageImpl(
 	serviceInstance: ChatSynchronizationService,
 	message: Message,
-	encryptedSuggestionToDelete?: string | null
+	encryptedSuggestionToDelete?: string | null,
+	connectedAccountContext?: PreparedConnectedAccountSendContext
 ): Promise<void> {
 	// Check WebSocket connection status using public getter
 	const isConnected = serviceInstance.webSocketConnected_FOR_SENDERS_ONLY;
@@ -714,6 +717,8 @@ export async function sendNewMessageImpl(
 		message_history?: Message[];
 		encrypted_suggestion_to_delete?: string | null;
 		app_settings_memories_metadata?: string[]; // Format: ["code-preferred_technologies", "travel-trips", ...]
+		connected_account_directory?: PreparedConnectedAccountSendContext["directory"];
+		connected_account_token_refs?: PreparedConnectedAccountSendContext["tokenRefs"];
 		mentioned_settings_memories_cleartext?: Record<string, unknown[]>; // Cleartext for @memory/@memory-entry mentions so backend does not re-request
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
 	}
@@ -745,6 +750,14 @@ export async function sendNewMessageImpl(
 			"[ChatSyncService:Senders] Including app settings/memories metadata:",
 			appSettingsMemoriesMetadataKeys
 		);
+	}
+	if (connectedAccountContext?.directory?.length) {
+		assertNoConnectedAccountSecretLeak(connectedAccountContext.directory);
+		payload.connected_account_directory = connectedAccountContext.directory;
+	}
+	if (connectedAccountContext?.tokenRefs?.length) {
+		assertNoConnectedAccountSecretLeak(connectedAccountContext.tokenRefs);
+		payload.connected_account_token_refs = connectedAccountContext.tokenRefs;
 	}
 
 	// When user mentioned @memory or @memory-entry in the message, send cleartext so the backend

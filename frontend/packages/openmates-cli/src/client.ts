@@ -110,6 +110,32 @@ export interface SubChatApprovalRequest {
   remainingSubChats: number | null;
 }
 
+export interface ConnectedAccountDirectoryEntry {
+  connected_account_id: string;
+  app_id: string;
+  account_ref: string;
+  label: string;
+  capabilities: string[];
+  runtime_modes?: Record<string, string>;
+}
+
+export interface ConnectedAccountTurnTokenRefInput {
+  connected_account_id: string;
+  app_id: string;
+  allowed_actions: string[];
+  refresh_token_envelope: Record<string, unknown>;
+  action_scope?: Record<string, unknown>;
+}
+
+export interface ConnectedAccountTurnTokenRef {
+  connected_account_id: string;
+  app_id: string;
+  turn_token_ref: string;
+  allowed_actions: string[];
+  action_scope?: Record<string, unknown>;
+  expires_at: number;
+}
+
 export interface AppSettingsMemorySystemMessage {
   message_id: string;
   role: "system";
@@ -140,6 +166,46 @@ export function buildSubChatConfirmationPayload(params: {
     task_id: params.taskId,
     action: params.approved ? "approve" : "cancel",
     approve_count: params.approved ? params.approveCount ?? null : null,
+  };
+}
+
+export function assertNoConnectedAccountSecretLeak(value: unknown): void {
+  const serialized = JSON.stringify(value ?? {});
+  const forbidden = [
+    "refresh_token",
+    "access_token",
+    "provider_email",
+    "account_email",
+    "provider_account_id",
+  ];
+  for (const key of forbidden) {
+    if (serialized.includes(`"${key}"`)) {
+      throw new Error(`Connected account payload contains forbidden field: ${key}`);
+    }
+  }
+}
+
+export function buildConnectedAccountDirectoryPayload(
+  entries: ConnectedAccountDirectoryEntry[] | undefined,
+): ConnectedAccountDirectoryEntry[] | undefined {
+  if (!entries || entries.length === 0) return undefined;
+  assertNoConnectedAccountSecretLeak(entries);
+  return entries.map((entry) => ({ ...entry, capabilities: [...entry.capabilities] }));
+}
+
+export function buildTurnTokenRefsRequestPayload(params: {
+  chatId: string;
+  messageId: string;
+  refs: ConnectedAccountTurnTokenRefInput[];
+}): {
+  chat_id: string;
+  message_id: string;
+  refs: ConnectedAccountTurnTokenRefInput[];
+} {
+  return {
+    chat_id: params.chatId,
+    message_id: params.messageId,
+    refs: params.refs.map((ref) => ({ ...ref })),
   };
 }
 
@@ -1017,6 +1083,42 @@ export class OpenMatesClient {
 
   hasSession(): boolean {
     return this.session !== null;
+  }
+
+  async createTurnTokenRefs(params: {
+    chatId: string;
+    messageId: string;
+    refs: ConnectedAccountTurnTokenRefInput[];
+  }): Promise<ConnectedAccountTurnTokenRef[]> {
+    if (params.refs.length === 0) return [];
+    const response = await this.http.post<{
+      refs?: Array<{
+        connected_account_id: string;
+        app_id: string;
+        turn_token_ref: string;
+        expires_at: number;
+      }>;
+    }>(
+      "/v1/token-broker/turn-token-refs",
+      buildTurnTokenRefsRequestPayload(params),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.refs)) {
+      throw new Error(`Failed to create connected-account token refs (HTTP ${response.status})`);
+    }
+    return response.data.refs.map((ref) => {
+      const input = params.refs.find(
+        (item) => item.connected_account_id === ref.connected_account_id && item.app_id === ref.app_id,
+      );
+      return {
+        connected_account_id: ref.connected_account_id,
+        app_id: ref.app_id,
+        turn_token_ref: ref.turn_token_ref,
+        expires_at: ref.expires_at,
+        allowed_actions: input?.allowed_actions ?? [],
+        action_scope: input?.action_scope,
+      };
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -2021,6 +2123,10 @@ export class OpenMatesClient {
     encryptedEmbeds?: EncryptedEmbed[];
     /** Prepared embeds to encrypt after the real chat/message IDs are known. */
     preparedEmbeds?: PreparedEmbed[];
+    /** Redacted connected-account directory for AI-visible account selection. */
+    connectedAccountDirectory?: ConnectedAccountDirectoryEntry[];
+    /** Refresh-token envelopes to convert into short-lived token refs before send. */
+    connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
   }): Promise<{
     status: "completed" | "waiting_for_user";
     chatId: string;
@@ -2088,6 +2194,18 @@ export class OpenMatesClient {
     // rather than sending a single background-completion event.
     ws.send("set_active_chat", { chat_id: chatId });
 
+    const connectedAccountDirectory = buildConnectedAccountDirectoryPayload(
+      params.connectedAccountDirectory,
+    );
+    const connectedAccountTokenRefs = params.connectedAccountTokenRefInputs?.length
+      ? await this.createTurnTokenRefs({
+          chatId,
+          messageId,
+          refs: params.connectedAccountTokenRefInputs,
+        })
+      : [];
+    assertNoConnectedAccountSecretLeak(connectedAccountTokenRefs);
+
     // ── Phase 1: Plaintext message for AI processing ──
     // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
     const messagePayload: Record<string, unknown> = {
@@ -2107,6 +2225,12 @@ export class OpenMatesClient {
 
     if (memoryMetadataKeys.length > 0) {
       messagePayload.app_settings_memories_metadata = memoryMetadataKeys;
+    }
+    if (connectedAccountDirectory) {
+      messagePayload.connected_account_directory = connectedAccountDirectory;
+    }
+    if (connectedAccountTokenRefs.length > 0) {
+      messagePayload.connected_account_token_refs = connectedAccountTokenRefs;
     }
 
     // For non-incognito chats, resolve or generate the chat key and include
@@ -2193,7 +2317,16 @@ export class OpenMatesClient {
       messagePayload.encrypted_embeds = encryptedEmbeds;
     }
 
-    ws.send("chat_message_added", messagePayload);
+    const confirmed = ws.waitForMessage(
+      "chat_message_confirmed",
+      (payload) => {
+        const eventPayload = payload as Record<string, unknown>;
+        return eventPayload.chat_id === chatId && eventPayload.message_id === messageId;
+      },
+      20_000,
+    );
+    await ws.sendAsync("chat_message_added", messagePayload);
+    await confirmed;
 
     // ── Phase 2: Encrypted metadata for Directus persistence + cross-device sync ──
     // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage()

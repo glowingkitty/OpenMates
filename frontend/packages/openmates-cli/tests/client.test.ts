@@ -58,8 +58,10 @@ const {
   MEMORY_TYPE_REGISTRY,
   buildAppSettingsMemoryRequestSystemMessage,
   buildAppSettingsMemoryResponseSystemMessage,
+  buildConnectedAccountDirectoryPayload,
   buildSubChatConfirmationPayload,
   buildSubChatEncryptedMetadataPayloads,
+  buildTurnTokenRefsRequestPayload,
   getClientMessagesVersionForSync,
 } = await import("../src/client.ts");
 const { decryptWithAesGcmCombined } = await import("../src/crypto.ts");
@@ -177,6 +179,52 @@ describe("memory type registry", () => {
       "web/bookmarks",
       "web/read_later",
     ]);
+  });
+});
+
+describe("connected account payload builders", () => {
+  it("rejects token or plaintext identity fields in the chat-visible directory", () => {
+    assert.throws(
+      () => buildConnectedAccountDirectoryPayload([
+        {
+          connected_account_id: "acct-1",
+          app_id: "calendar",
+          account_ref: "work",
+          label: "Work",
+          capabilities: ["read"],
+          provider_email: "person@example.com",
+        } as never,
+      ]),
+      /forbidden field: provider_email/,
+    );
+  });
+
+  it("builds token-broker requests without putting refresh tokens in chat payloads", () => {
+    const request = buildTurnTokenRefsRequestPayload({
+      chatId: "chat-1",
+      messageId: "msg-1",
+      refs: [
+        {
+          connected_account_id: "acct-1",
+          app_id: "calendar",
+          allowed_actions: ["read"],
+          refresh_token_envelope: { refresh_token: "refresh-secret" },
+          action_scope: { calendar_id: "primary" },
+        },
+      ],
+    });
+    const directory = buildConnectedAccountDirectoryPayload([
+      {
+        connected_account_id: "acct-1",
+        app_id: "calendar",
+        account_ref: "work",
+        label: "Work",
+        capabilities: ["read"],
+      },
+    ]);
+
+    assert.equal(request.refs[0]?.refresh_token_envelope.refresh_token, "refresh-secret");
+    assert.equal(JSON.stringify(directory).includes("refresh-secret"), false);
   });
 });
 

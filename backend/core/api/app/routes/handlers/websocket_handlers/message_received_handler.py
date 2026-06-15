@@ -38,6 +38,57 @@ AI_USER_PREFERENCE_FIELDS = [
     "quick_tips_enabled",
 ]
 
+CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = {
+    "refresh_token",
+    "access_token",
+    "provider_email",
+    "email",
+    "account_email",
+    "provider_account_id",
+    "provider_account_email",
+    "oauth_scopes",
+    "scopes",
+}
+
+
+def _sanitize_connected_account_directory(value: Any) -> list[dict[str, Any]] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise ValueError("connected_account_directory must be a list")
+    sanitized: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError("connected_account_directory entries must be objects")
+        _reject_connected_account_secret_fields(item)
+        sanitized.append(dict(item))
+    return sanitized
+
+
+def _sanitize_connected_account_token_refs(value: Any) -> list[dict[str, Any]] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise ValueError("connected_account_token_refs must be a list")
+    sanitized: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError("connected_account_token_refs entries must be objects")
+        _reject_connected_account_secret_fields(item)
+        if not item.get("turn_token_ref"):
+            raise ValueError("connected_account_token_refs entries require turn_token_ref")
+        sanitized.append(dict(item))
+    return sanitized
+
+
+def _reject_connected_account_secret_fields(item: dict[str, Any]) -> None:
+    forbidden = sorted(key for key in item if key in CONNECTED_ACCOUNT_FORBIDDEN_FIELDS)
+    if forbidden:
+        raise ValueError(
+            "connected account payload contains forbidden plaintext/token fields: "
+            + ", ".join(forbidden)
+        )
+
 
 async def handle_message_received( # Renamed from handle_new_message, logic moved here
     websocket: WebSocket,
@@ -758,7 +809,15 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     logger.error(f"Error storing client-encrypted embed {encrypted_embed.get('embed_id')}: {e_store}", exc_info=True)
                     # Non-critical error - continue with other embeds
 
-        # Send confirmation to the originating client device
+        connected_account_directory = _sanitize_connected_account_directory(
+            payload.get("connected_account_directory")
+        )
+        connected_account_token_refs = _sanitize_connected_account_token_refs(
+            payload.get("connected_account_token_refs")
+        )
+
+        # Send confirmation to the originating client device only after the
+        # message plus optional connected-account directory/token refs are accepted.
         confirmation_payload = {
             "type": "chat_message_confirmed", # Client expects this for their sent message
             "payload": {
@@ -1507,6 +1566,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             active_focus_id=active_focus_id_for_ai,
             user_preferences=user_preferences_dict,
             app_settings_memories_metadata=app_settings_memories_metadata_from_client,  # Client-provided metadata (source of truth)
+            connected_account_directory=connected_account_directory,
+            connected_account_token_refs=connected_account_token_refs,
             mentioned_settings_memories_cleartext=mentioned_settings_memories_cleartext,  # Cleartext for @memory mentions so backend does not re-request
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
             parent_id=db_parent_id,

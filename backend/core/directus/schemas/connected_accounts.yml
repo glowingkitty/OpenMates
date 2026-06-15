@@ -1,0 +1,87 @@
+# backend/core/directus/schemas/connected_accounts.yml
+#
+# Encrypted connected-account metadata for provider-backed app skills.
+# Plaintext provider identity, account email, OAuth scopes, and token material are
+# intentionally excluded; only hashes and vault-encrypted blobs may be stored.
+#
+# Spec: docs/specs/calendar-permission-management/spec.yml
+
+connected_accounts:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      note: "Connected account UUID"
+
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+      note: "[Indexed] SHA256 hash of user_id for privacy-preserving owner lookups"
+
+    provider_type_hash:
+      type: string
+      length: 64
+      required: true
+      note: "[Indexed] HMAC/SHA hash of provider type for filtering without exposing the provider"
+
+    provider_account_id_hash:
+      type: string
+      length: 64
+      note: "[Optional indexed] Hash of provider account ID for duplicate detection without plaintext identity"
+
+    encrypted_provider_type:
+      type: text
+      required: true
+      note: "[Vault-encrypted] Provider type such as google"
+
+    encrypted_provider_account_display:
+      type: text
+      note: "[Vault-encrypted] User-visible provider account display label"
+
+    encrypted_account_label:
+      type: text
+      required: true
+      note: "[Vault-encrypted] User-assigned account label"
+
+    encrypted_account_directory_hint:
+      type: text
+      note: "[Vault-encrypted] Directory metadata needed by clients to build account pickers"
+
+    encrypted_refresh_token_bundle:
+      type: text
+      required: true
+      note: "[Vault-encrypted] Refresh-token bundle; never exposed to LLMs, skill args, logs, or receipts"
+
+    encrypted_capabilities:
+      type: text
+      required: true
+      note: "[Vault-encrypted] User-selected capability set for this connected account"
+
+    encrypted_app_permissions:
+      type: text
+      required: true
+      note: "[Vault-encrypted] Per-app action permission modes and remembered decisions"
+
+    server_access_enabled:
+      type: boolean
+      note: "False by default. True only for a future explicit offline automation grant"
+
+    encrypted_server_access_ref:
+      type: text
+      note: "[Vault-encrypted optional] Future offline automation grant reference when server_access_enabled=true"
+
+    created_at:
+      type: integer
+      required: true
+      note: "Unix timestamp when the connected account was created"
+
+    updated_at:
+      type: integer
+      required: true
+      note: "Unix timestamp when encrypted metadata last changed"
+
+    revoked_at:
+      type: integer
+      note: "Unix timestamp when the connected account was disconnected or revoked"

@@ -1,0 +1,76 @@
+# backend/core/directus/schemas/connected_account_operation_journal.yml
+#
+# Privacy-preserving journal for connected-account provider actions.
+# Stores hashes, categories, and encrypted receipt payloads only; refresh tokens,
+# access tokens, event titles, account emails, and provider identifiers stay out.
+#
+# Spec: docs/specs/calendar-permission-management/spec.yml
+
+connected_account_operation_journal:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      note: "Operation journal UUID"
+
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+      note: "[Indexed] SHA256 hash of user_id for owner-scoped audit lookups"
+
+    connected_account_id_hash:
+      type: string
+      length: 64
+      required: true
+      note: "[Indexed] Hash of connected account UUID; avoids exposing account linkage"
+
+    chat_id_hash:
+      type: string
+      length: 64
+      note: "[Optional indexed] Hash of chat ID where the action was requested"
+
+    message_id_hash:
+      type: string
+      length: 64
+      note: "[Optional indexed] Hash of message ID where the action was requested"
+
+    app_id_hash:
+      type: string
+      length: 64
+      required: true
+      note: "[Indexed] Hash of app ID such as calendar"
+
+    action:
+      type: string
+      length: 32
+      required: true
+      note: "Non-identifying action category: read, write, update, delete, send"
+
+    decision:
+      type: string
+      length: 32
+      required: true
+      note: "Permission decision: allow_without_prompt, ask_user, technical_block, completed, failed, cancelled"
+
+    encrypted_action_scope:
+      type: text
+      note: "[Vault-encrypted] Exact provider object/date/scope details for user receipt and undo flows"
+
+    encrypted_receipt:
+      type: text
+      note: "[Vault-encrypted] User-visible operation receipt, excluding token material"
+
+    encrypted_undo_payload:
+      type: text
+      note: "[Vault-encrypted optional] Provider data needed for a bounded undo/cancel action"
+
+    created_at:
+      type: integer
+      required: true
+      note: "Unix timestamp when the journal entry was created"
+
+    expires_at:
+      type: integer
+      note: "Optional Unix timestamp for retention cleanup of reversible action metadata"

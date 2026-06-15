@@ -4284,21 +4284,71 @@ async def handle_main_processing(
                             f"{app_id}.{skill_id}: {model_override}"
                         )
 
+                    connected_account_token_artifacts: list[dict[str, str]] = []
+                    if app_id == "calendar" and skill_id in {"get-events", "create-event", "update-event", "delete-event"}:
+                        from backend.apps.ai.processing.connected_account_execution import (
+                            cleanup_connected_account_token_artifacts,
+                            prepare_connected_account_skill_execution,
+                        )
+
+                        try:
+                            connected_context = await prepare_connected_account_skill_execution(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                skill_arguments=skill_arguments,
+                                connected_account_token_refs=getattr(request_data, "connected_account_token_refs", None),
+                                user_id=request_data.user_id,
+                                user_vault_key_id=user_vault_key_id,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                cache_service=cache_service,
+                                encryption_service=encryption_service,
+                            )
+                            skill_arguments = connected_context.skill_arguments
+                            connected_account_token_artifacts = connected_context.token_artifacts
+                        except PermissionError as permission_error:
+                            logger.info(
+                                f"{log_prefix} Connected-account permission required for "
+                                f"{app_id}.{skill_id}: {permission_error}"
+                            )
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps({
+                                    "status": "permission_required",
+                                    "reason": str(permission_error),
+                                    "app_id": app_id,
+                                    "skill_id": skill_id,
+                                }),
+                            })
+                            continue
+
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
-                    results = await execute_skill_with_multiple_requests(
-                        app_id=app_id,
-                        skill_id=skill_id,
-                        arguments=skill_arguments,
-                        timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
-                        chat_id=request_data.chat_id,
-                        message_id=request_data.message_id,
-                        user_id=request_data.user_id,
-                        skill_task_id=skill_task_id,
-                        cache_service=cache_service
-                        # max_retries uses default (1 retry = 2 total attempts)
-                    )
+                    try:
+                        results = await execute_skill_with_multiple_requests(
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            arguments=skill_arguments,
+                            timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
+                            chat_id=request_data.chat_id,
+                            message_id=request_data.message_id,
+                            user_id=request_data.user_id,
+                            skill_task_id=skill_task_id,
+                            cache_service=cache_service
+                            # max_retries uses default (1 retry = 2 total attempts)
+                        )
+                    finally:
+                        if connected_account_token_artifacts:
+                            from backend.apps.ai.processing.connected_account_execution import cleanup_connected_account_token_artifacts
+
+                            await cleanup_connected_account_token_artifacts(
+                                token_artifacts=connected_account_token_artifacts,
+                                cache_service=cache_service,
+                                encryption_service=encryption_service,
+                            )
                     
                     # === RECORD SUCCESSFUL SKILL EXECUTION FOR DEDUPLICATION ===
                     # Store this successful call so subsequent iterations won't re-execute it.
