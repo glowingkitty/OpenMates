@@ -14,6 +14,7 @@ import pytest
 from backend.apps.ai.tasks.stream_consumer import (
     _select_cached_code_full_replacement_target,
     _select_full_replacement_target,
+    _select_history_code_full_replacement_target,
 )
 
 
@@ -73,6 +74,31 @@ def test_does_not_reuse_embed_for_new_code_request() -> None:
     )
 
     assert _select_full_replacement_target(request, None) is None
+
+
+def test_selects_prior_assistant_code_embed_when_ref_index_is_missing() -> None:
+    request = SimpleNamespace(
+        embed_file_path_index={},
+        message_history=[
+            _message("user", "Create a Python function."),
+            _message("assistant", "```json\n{\"type\": \"code\", \"embed_id\": \"embed-1\"}\n```"),
+            _message("user", "Edit the existing code artifact and preserve the same embed."),
+        ],
+    )
+
+    assert _select_history_code_full_replacement_target(request) == ("history:embed-1", "embed-1")
+
+
+def test_does_not_select_history_code_embed_for_new_code_request() -> None:
+    request = SimpleNamespace(
+        embed_file_path_index={},
+        message_history=[
+            _message("assistant", "```json\n{\"type\": \"code\", \"embed_id\": \"embed-1\"}\n```"),
+            _message("user", "Create a new Python helper for parsing CSV files."),
+        ],
+    )
+
+    assert _select_history_code_full_replacement_target(request) is None
 
 
 class _FakeCacheService:

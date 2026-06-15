@@ -2602,6 +2602,37 @@ def _select_full_replacement_target(
     return None
 
 
+def _select_history_code_full_replacement_target(
+    request_data: AskSkillRequest,
+    reused_refs: Optional[set[str]] = None,
+) -> Optional[tuple[str, str]]:
+    """Return the latest prior code embed ID mentioned in assistant history."""
+    reused_refs = reused_refs or set()
+    if reused_refs or not _is_edit_existing_artifact_request(request_data):
+        return None
+
+    for message in reversed(request_data.message_history or []):
+        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
+        if role == "user":
+            continue
+        content = message.content if hasattr(message, "content") else message.get("content") if isinstance(message, dict) else ""
+        if not isinstance(content, str):
+            continue
+        matches = list(re.finditer(r"```json(?:_embed)?\s*\n(.*?)\n\s*```", content, flags=re.DOTALL))
+        for match in reversed(matches):
+            try:
+                payload = json.loads(match.group(1))
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(payload, dict) or payload.get("type") != "code":
+                continue
+            embed_id = payload.get("embed_id")
+            history_ref = f"history:{embed_id}"
+            if isinstance(embed_id, str) and embed_id and embed_id not in reused_refs and history_ref not in reused_refs:
+                return history_ref, embed_id
+    return None
+
+
 async def _select_cached_code_full_replacement_target(
     request_data: AskSkillRequest,
     cache_service: Any,
@@ -4366,6 +4397,11 @@ async def _consume_main_processing_stream(
                                                 current_code_filename,
                                                 full_replacement_reused_refs,
                                             )
+                                            if not replacement_target:
+                                                replacement_target = _select_history_code_full_replacement_target(
+                                                    request_data,
+                                                    full_replacement_reused_refs,
+                                                )
                                             if not replacement_target:
                                                 replacement_target = await _select_cached_code_full_replacement_target(
                                                     request_data,
