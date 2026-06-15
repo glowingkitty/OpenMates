@@ -8,6 +8,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
@@ -67,6 +68,14 @@
 
   let dc = $derived(data.decodedContent);
   let includedOriginalFields = $state<Record<string, string> | null>(null);
+  let latestMailContent = $derived([
+    `To: ${coerceString(dc.receiver)}`,
+    `Subject: ${coerceString(dc.subject)}`,
+    '',
+    coerceString(dc.content),
+    coerceString(dc.footer),
+  ].join('\n').trim());
+  let versionNumber = $derived(typeof dc.version_number === 'number' ? dc.version_number : data.embedData?.version_number ?? 1);
   let receiver = $derived(includedOriginalFields?.receiver ?? coerceString(dc.receiver));
   let subject = $derived(includedOriginalFields?.subject ?? coerceString(dc.subject));
   let content = $derived(includedOriginalFields?.content ?? coerceString(dc.content));
@@ -168,6 +177,32 @@
     window.location.href = mailtoUrl;
   }
 
+  function applyVersionContent(versionContent: string) {
+    includedOriginalFields = parseVersionContent(versionContent);
+  }
+
+  function parseVersionContent(versionContent: string): Record<string, string> {
+    const lines = versionContent.split('\n');
+    let nextReceiver = '';
+    let nextSubject = '';
+    const bodyLines: string[] = [];
+    for (const line of lines) {
+      if (line.toLowerCase().startsWith('to:')) {
+        nextReceiver = line.slice(3).trim();
+      } else if (line.toLowerCase().startsWith('subject:')) {
+        nextSubject = line.slice(8).trim();
+      } else {
+        bodyLines.push(line);
+      }
+    }
+    return {
+      receiver: nextReceiver,
+      subject: nextSubject,
+      content: bodyLines.join('\n').trim(),
+      footer: '',
+    };
+  }
+
   $effect(() => {
     void safeContentHtml;
     void safeFooterHtml;
@@ -243,6 +278,22 @@
             {/if}
           </div>
         </section>
+      {/if}
+      {#if embedId && versionNumber > 1}
+        <EmbedVersionTimeline
+          {embedId}
+          currentVersion={versionNumber}
+          currentContent={latestMailContent}
+          buildRestoredContent={(versionContent, newVersion) => ({
+            ...dc,
+            ...parseVersionContent(versionContent),
+            version_number: newVersion,
+          })}
+          onVersionSelect={(version, content) => {
+            if (content !== null) applyVersionContent(content);
+            console.log('[MailEmbedFullscreen] Version selected:', version);
+          }}
+        />
       {/if}
     </div>
   {/snippet}

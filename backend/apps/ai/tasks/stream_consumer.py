@@ -2,6 +2,7 @@
 # Handles the consumption of the main processing stream for AI tasks.
 
 import logging
+import hashlib
 import re
 import time
 import json
@@ -3860,7 +3861,7 @@ async def _consume_main_processing_stream(
                                     # ─── DIFF BLOCK: Apply unified diff to existing embed ───
                                     import json
                                     from backend.core.api.app.services.embed_diff_service import (
-                                        parse_unified_diff, apply_patch, EmbedDiffService
+                                        parse_unified_diff, apply_patch
                                     )
                                     from toon_format import decode
 
@@ -3885,10 +3886,12 @@ async def _consume_main_processing_stream(
                                         )
                                         # Fall through to normal code block handling below
                                     else:
-                                        # Fetch current content from cache
+                                        # Fetch current content from cache, then fall back to Directus metadata.
                                         cached_embed = await cache_service.get_embed_from_cache(
                                             target_embed_id, request_data.user_id
                                         )
+                                        if not cached_embed:
+                                            cached_embed = await directus_service.embed.get_embed_by_id(target_embed_id)
                                         current_content = None
                                         if cached_embed:
                                             encrypted_content = cached_embed.get("encrypted_content")
@@ -3935,30 +3938,26 @@ async def _consume_main_processing_stream(
                                             if patch_result.success:
                                                 current_version = cached_embed.get("version_number") or 1
 
-                                                # Store v1 snapshot on first diff
-                                                diff_service = EmbedDiffService(
-                                                    cache_service, directus_service, encryption_service
-                                                )
+                                                version_history_rows = []
                                                 if current_version == 1:
-                                                    await diff_service.store_initial_snapshot(
-                                                        embed_id=target_embed_id,
-                                                        content=current_content,
-                                                        user_vault_key_id=user_vault_key_id,
-                                                        hashed_user_id=request_data.user_id_hash,
-                                                        log_prefix=log_prefix
-                                                    )
+                                                    version_history_rows.append({
+                                                        "embed_id": target_embed_id,
+                                                        "version_number": 1,
+                                                        "snapshot": current_content,
+                                                        "created_at": int(time.time()),
+                                                    })
 
                                                 new_version = current_version + 1
+                                                new_content_hash = hashlib.sha256(
+                                                    patch_result.new_content.encode("utf-8")
+                                                ).hexdigest()
 
-                                                # Store the diff
-                                                await diff_service.store_diff_version(
-                                                    embed_id=target_embed_id,
-                                                    version_number=new_version,
-                                                    patch_text=diff_content,
-                                                    user_vault_key_id=user_vault_key_id,
-                                                    hashed_user_id=request_data.user_id_hash,
-                                                    log_prefix=log_prefix
-                                                )
+                                                version_history_rows.append({
+                                                    "embed_id": target_embed_id,
+                                                    "version_number": new_version,
+                                                    "patch": diff_content,
+                                                    "created_at": int(time.time()),
+                                                })
 
                                                 # Determine embed type and update via existing service methods
                                                 embed_type = cached_embed.get("type") or "code"
@@ -3971,6 +3970,9 @@ async def _consume_main_processing_stream(
                                                         user_id_hash=request_data.user_id_hash,
                                                         user_vault_key_id=user_vault_key_id,
                                                         status="finished",
+                                                        version_number=new_version,
+                                                        content_hash=new_content_hash,
+                                                        version_history_rows=version_history_rows,
                                                         log_prefix=log_prefix
                                                     )
                                                 elif embed_type == "document":
@@ -3986,6 +3988,9 @@ async def _consume_main_processing_stream(
                                                         title=doc_title,
                                                         filename=doc_filename,
                                                         docx_model=docx_model,
+                                                        version_number=new_version,
+                                                        content_hash=new_content_hash,
+                                                        version_history_rows=version_history_rows,
                                                         log_prefix=log_prefix
                                                     )
                                                     celery_config.app.send_task(
@@ -4013,6 +4018,9 @@ async def _consume_main_processing_stream(
                                                         user_id_hash=request_data.user_id_hash,
                                                         user_vault_key_id=user_vault_key_id,
                                                         status="finished",
+                                                        version_number=new_version,
+                                                        content_hash=new_content_hash,
+                                                        version_history_rows=version_history_rows,
                                                         log_prefix=log_prefix
                                                     )
                                                 elif embed_type == "mail":
@@ -4029,6 +4037,9 @@ async def _consume_main_processing_stream(
                                                         user_id_hash=request_data.user_id_hash,
                                                         user_vault_key_id=user_vault_key_id,
                                                         status="finished",
+                                                        version_number=new_version,
+                                                        content_hash=new_content_hash,
+                                                        version_history_rows=version_history_rows,
                                                         log_prefix=log_prefix
                                                     )
 

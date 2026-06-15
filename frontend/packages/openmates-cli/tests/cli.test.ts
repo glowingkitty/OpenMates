@@ -87,6 +87,11 @@ function writeJson(response: ServerResponse, value: unknown): void {
   response.end(JSON.stringify(value));
 }
 
+function writeJsonStatus(response: ServerResponse, status: number, value: unknown): void {
+  response.writeHead(status, { "Content-Type": "application/json" });
+  response.end(JSON.stringify(value));
+}
+
 async function withCodeRunMockApi<T>(
   run: (params: { apiUrl: string; requests: Record<string, unknown>[]; getHeaders: () => Record<string, string | string[] | undefined> }) => T | Promise<T>,
 ): Promise<T> {
@@ -140,6 +145,63 @@ async function withCodeRunMockApi<T>(
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+async function withEmbedVersionsMockApi<T>(
+  run: (params: { apiUrl: string; requests: string[] }) => T | Promise<T>,
+): Promise<T> {
+  const requests: string[] = [];
+  const embedId = "12345678-1234-1234-1234-123456789abc";
+  const server = createServer(async (request, response) => {
+    requests.push(`${request.method} ${request.url}`);
+    if (request.method === "GET" && request.url === `/v1/embeds/${embedId}/versions`) {
+      writeJson(response, {
+        embed_id: embedId,
+        current_version: 3,
+        readonly: false,
+        versions: [
+          { version_number: 1, created_at: 1760000000, has_snapshot: true, has_patch: false },
+          { version_number: 2, created_at: 1760000100, has_snapshot: false, has_patch: true },
+          { version_number: 3, created_at: 1760000200, has_snapshot: false, has_patch: true },
+        ],
+      });
+      return;
+    }
+    if (request.method === "GET" && request.url === `/v1/embeds/${embedId}/versions/1`) {
+      writeJson(response, {
+        embed_id: embedId,
+        version_number: 1,
+        current_version: 3,
+        readonly: false,
+        content: "def calculate_average(values):\n    return sum(values) / len(values)",
+      });
+      return;
+    }
+    if (request.method === "POST" && request.url === `/v1/embeds/${embedId}/versions/1/restore`) {
+      writeJson(response, {
+        embed_id: embedId,
+        restored_from_version: 1,
+        version_number: 4,
+        content_hash: "hash-4",
+        content: "def calculate_average(values):\n    return sum(values) / len(values)",
+      });
+      return;
+    }
+    if (request.method === "POST" && request.url === `/v1/embeds/${embedId}/versions/2/restore`) {
+      writeJsonStatus(response, 403, { detail: "Read-only shared history cannot be restored." });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests });
+  } finally {
+    server.close();
   }
 }
 
@@ -672,6 +734,76 @@ describe("apps code run command variants", () => {
         "--code", "print('hello')\n",
       ], { HOME: tempHome });
       assert.deepEqual(getStats(), { rejected: 1, accepted: 1 });
+    });
+  });
+});
+
+describe("embed version commands", () => {
+  const embedId = "12345678-1234-1234-1234-123456789abc";
+
+  it("lists embed versions without encrypted blobs", async () => {
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync(["embeds", "versions", "list", embedId], { OPENMATES_API_URL: apiUrl });
+      assert.match(output, /Embed versions/);
+      assert.match(output, /v1/);
+      assert.match(output, /v3 \(current\)/);
+      assert.doesNotMatch(output, /encrypted_/);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions`]);
+    });
+  });
+
+  it("shows a reconstructed historical version", async () => {
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync(["embeds", "versions", "show", embedId, "--version", "1"], { OPENMATES_API_URL: apiUrl });
+      assert.match(output, /def calculate_average/);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1`]);
+    });
+  });
+
+  it("writes a reconstructed historical version to a file", async () => {
+    const tempFile = join(tmpdir(), `openmates-embed-version-${Date.now()}.py`);
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync(["embeds", "versions", "show", embedId, "--version", "1", "--output", tempFile], { OPENMATES_API_URL: apiUrl });
+      assert.match(output, /Wrote .* v1/);
+      assert.match(readFileSync(tempFile, "utf-8"), /def calculate_average/);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1`]);
+    });
+    rmSync(tempFile, { force: true });
+  });
+
+  it("requires login for encrypted client-side restore before any server restore endpoint", async () => {
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      try {
+        await execFileAsync("node", ["dist/cli.js", "embeds", "versions", "restore", embedId, "--version", "1", "--yes"], {
+          cwd: PACKAGE_ROOT,
+          encoding: "utf-8",
+          env: { ...process.env, TERM: "dumb", OPENMATES_API_URL: apiUrl },
+          timeout: 15_000,
+        });
+        assert.fail("restore should require a logged-in WebSocket session");
+      } catch (error) {
+        const stderr = (error as { stderr?: string }).stderr ?? String(error);
+        assert.match(stderr, /Not logged in/);
+      }
+      assert.deepEqual(requests, []);
+    });
+  });
+
+  it("does not attempt plaintext server restore for any version", async () => {
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      try {
+        await execFileAsync("node", ["dist/cli.js", "embeds", "versions", "restore", embedId, "--version", "2", "--yes"], {
+          cwd: PACKAGE_ROOT,
+          encoding: "utf-8",
+          env: { ...process.env, TERM: "dumb", OPENMATES_API_URL: apiUrl },
+          timeout: 15_000,
+        });
+        assert.fail("restore should require a logged-in WebSocket session");
+      } catch (error) {
+        const stderr = (error as { stderr?: string }).stderr ?? String(error);
+        assert.match(stderr, /Not logged in/);
+      }
+      assert.deepEqual(requests, []);
     });
   });
 });

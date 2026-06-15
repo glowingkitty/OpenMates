@@ -9,19 +9,37 @@
   Architecture: docs/architecture/messaging/embed-diff-editing.md
 -->
 <script lang="ts">
-	import { getEmbedDiffs, type EmbedDiffRow } from '../../../services/embedDiffStore';
+	import {
+		fetchEmbedVersionContent,
+		fetchEmbedVersions,
+		getEmbedDiffs,
+		restoreEmbedVersion,
+		type EmbedVersionMeta
+	} from '../../../services/embedDiffStore';
 
 	interface Props {
 		embedId: string;
 		currentVersion: number;
+		currentContent: string;
+		buildRestoredContent?: (restoredContent: string, newVersion: number) => Record<string, unknown>;
 		onVersionSelect: (version: number, content: string | null) => void;
 	}
 
-	let { embedId, currentVersion, onVersionSelect }: Props = $props();
+	let { embedId, currentVersion, currentContent, buildRestoredContent, onVersionSelect }: Props = $props();
 
-	let versions: EmbedDiffRow[] = $state([]);
+	let versions: EmbedVersionMeta[] = $state([]);
 	let selectedVersion: number = $state(0);
+	let activeCurrentVersion: number = $state(0);
 	let loading: boolean = $state(true);
+	let loadingContent: boolean = $state(false);
+	let restoring: boolean = $state(false);
+	let readonly: boolean = $state(false);
+	let errorMessage: string = $state('');
+	let showChanges: boolean = $state(false);
+	let selectedContent: string | null = $state(null);
+	let restoreConfirmVersion: number | null = $state(null);
+	let selectedMeta = $derived(versions.find((version) => version.version_number === selectedVersion));
+	let changeLines = $derived.by(() => buildLineDiff(selectedContent, currentContent));
 
 	// Load version history on mount
 	$effect(() => {
@@ -30,24 +48,77 @@
 
 	$effect(() => {
 		selectedVersion = currentVersion;
+		activeCurrentVersion = currentVersion;
 	});
 
 	async function loadVersions() {
 		loading = true;
+		errorMessage = '';
 		try {
-			versions = await getEmbedDiffs(embedId);
+			const response = await fetchEmbedVersions(embedId);
+			versions = response.versions;
+			readonly = response.readonly;
+			activeCurrentVersion = response.current_version;
 		} catch (e) {
-			console.error('[EmbedVersionTimeline] Failed to load versions:', e);
-			versions = [];
+			console.warn('[EmbedVersionTimeline] Falling back to local versions:', e);
+			const localVersions = await getEmbedDiffs(embedId);
+			versions = localVersions.map((version) => ({
+				version_number: version.version_number,
+				created_at: version.created_at,
+				has_snapshot: version.encrypted_snapshot !== undefined && version.encrypted_snapshot !== null,
+				has_patch: version.encrypted_patch !== undefined && version.encrypted_patch !== null
+			}));
+			readonly = false;
+			if (versions.length === 0) {
+				errorMessage = e instanceof Error ? e.message : 'Failed to load versions';
+			}
 		}
 		loading = false;
 	}
 
-	function selectVersion(version: number) {
+	async function selectVersion(version: number) {
 		selectedVersion = version;
-		// For now, pass null — the parent component handles reconstruction
-		// via the WebSocket request_embed_version event
-		onVersionSelect(version, null);
+		restoreConfirmVersion = null;
+		loadingContent = true;
+		errorMessage = '';
+		try {
+			const response = await fetchEmbedVersionContent(embedId, version);
+			selectedContent = response.content;
+			onVersionSelect(version, response.content);
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Failed to load version content';
+			selectedContent = null;
+			onVersionSelect(version, null);
+		} finally {
+			loadingContent = false;
+		}
+	}
+
+	async function restoreSelectedVersion() {
+		if (selectedVersion === activeCurrentVersion || readonly || !buildRestoredContent) return;
+		if (restoreConfirmVersion !== selectedVersion) {
+			restoreConfirmVersion = selectedVersion;
+			return;
+		}
+		restoring = true;
+		errorMessage = '';
+		try {
+			const response = await restoreEmbedVersion(embedId, selectedVersion, {
+				currentVersion: activeCurrentVersion,
+				currentContent,
+				buildRestoredContent
+			});
+			activeCurrentVersion = response.version_number;
+			selectedVersion = response.version_number;
+			selectedContent = response.content;
+			restoreConfirmVersion = null;
+			onVersionSelect(response.version_number, response.content);
+			await loadVersions();
+		} catch (e) {
+			errorMessage = e instanceof Error ? e.message : 'Failed to restore version';
+		} finally {
+			restoring = false;
+		}
 	}
 
 	function formatTimestamp(ts: number): string {
@@ -61,9 +132,34 @@
 		if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`;
 		return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 	}
+
+	function buildLineDiff(previous: string | null, current: string): Array<{ type: 'same' | 'added' | 'removed'; text: string }> {
+		if (previous === null || selectedVersion === activeCurrentVersion) return [];
+		const previousLines = previous.split('\n');
+		const currentLines = current.split('\n');
+		const rows: Array<{ type: 'same' | 'added' | 'removed'; text: string }> = [];
+		const max = Math.max(previousLines.length, currentLines.length);
+		for (let index = 0; index < max; index += 1) {
+			const previousLine = previousLines[index];
+			const currentLine = currentLines[index];
+			if (previousLine === currentLine) {
+				if (previousLine !== undefined) rows.push({ type: 'same', text: previousLine });
+				continue;
+			}
+			if (previousLine !== undefined) rows.push({ type: 'removed', text: previousLine });
+			if (currentLine !== undefined) rows.push({ type: 'added', text: currentLine });
+		}
+		return rows;
+	}
 </script>
 
-{#if !loading && versions.length > 1}
+{#if loading}
+	<div class="version-timeline" data-testid="embed-version-timeline-loading">Loading version history...</div>
+{:else if versions.length <= 1}
+	<div class="version-timeline" data-testid="embed-version-timeline-empty">
+		{errorMessage || 'No version history available yet.'}
+	</div>
+{:else}
 	<div class="version-timeline" data-testid="embed-version-timeline">
 		<div class="timeline-header">
 			<span class="timeline-label">Version history</span>
@@ -73,7 +169,7 @@
 		<div class="timeline-track">
 			{#each versions as version, idx}
 				{@const isSelected = version.version_number === selectedVersion}
-				{@const isCurrent = version.version_number === currentVersion}
+				{@const isCurrent = version.version_number === activeCurrentVersion}
 				<button
 					class="version-dot"
 					class:selected={isSelected}
@@ -95,20 +191,48 @@
 
 		<div class="timeline-footer">
 			<span class="timestamp">
-				{#if versions[selectedVersion - 1]}
-					{formatTimestamp(versions[selectedVersion - 1].created_at)}
+				{#if selectedMeta}
+					{formatTimestamp(selectedMeta.created_at)}
+				{/if}
+				{#if loadingContent}
+					 · Loading content...
 				{/if}
 			</span>
-			{#if selectedVersion !== currentVersion}
+			{#if selectedVersion !== activeCurrentVersion && selectedContent !== null}
+				<button
+					class="changes-btn"
+					data-testid="embed-version-changes-toggle"
+					onclick={() => (showChanges = !showChanges)}
+				>
+					{showChanges ? 'Hide changes' : 'Show changes'}
+				</button>
+			{/if}
+			{#if selectedVersion !== activeCurrentVersion && !readonly && buildRestoredContent}
 				<button
 					class="restore-btn"
 					data-testid="restore-version-btn"
-					onclick={() => onVersionSelect(selectedVersion, null)}
+					disabled={restoring}
+					onclick={restoreSelectedVersion}
 				>
-					Restore v{selectedVersion}
+					{restoring
+						? 'Restoring...'
+						: restoreConfirmVersion === selectedVersion
+							? `Confirm restore v${selectedVersion}`
+							: `Restore v${selectedVersion}`}
 				</button>
 			{/if}
 		</div>
+
+		{#if showChanges && changeLines.length > 0}
+			<pre class="changes-view" data-testid="embed-version-changes-view">{#each changeLines as line}<span class:added={line.type === 'added'} class:removed={line.type === 'removed'}>{line.type === 'added' ? '+ ' : line.type === 'removed' ? '- ' : '  '}{line.text}</span>{/each}</pre>
+		{/if}
+
+		{#if readonly}
+			<div class="timeline-note" data-testid="embed-version-readonly">Read-only shared history</div>
+		{/if}
+		{#if errorMessage}
+			<div class="timeline-error" data-testid="embed-version-error">{errorMessage}</div>
+		{/if}
 	</div>
 {/if}
 
@@ -209,7 +333,8 @@
 		color: var(--color-font-tertiary, #888);
 	}
 
-	.restore-btn {
+	.restore-btn,
+	.changes-btn {
 		font-size: 11px;
 		font-weight: 500;
 		padding: 4px 10px;
@@ -221,8 +346,53 @@
 		transition: all 0.15s ease;
 	}
 
-	.restore-btn:hover {
+	.restore-btn:hover,
+	.changes-btn:hover {
 		background: var(--color-button-primary, #6366f1);
 		color: white;
+	}
+
+	.changes-view {
+		margin-top: 8px;
+		padding: 8px;
+		max-height: 180px;
+		overflow: auto;
+		border-radius: 6px;
+		background: var(--color-grey-0, #fff);
+		border: 1px solid var(--color-grey-20, #e8e8e8);
+		font-size: 11px;
+		line-height: 1.45;
+		white-space: pre-wrap;
+	}
+
+	.changes-view span {
+		display: block;
+	}
+
+	.changes-view .added {
+		color: var(--color-success, #10b981);
+	}
+
+	.changes-view .removed {
+		color: var(--color-error, #dc2626);
+	}
+
+	.restore-btn:disabled {
+		opacity: 0.6;
+		cursor: progress;
+	}
+
+	.timeline-note,
+	.timeline-error {
+		margin-top: 6px;
+		font-size: 11px;
+	}
+
+	.timeline-note {
+		color: var(--color-font-tertiary, #888);
+	}
+
+	.timeline-error {
+		color: var(--color-error, #dc2626);
 	}
 </style>

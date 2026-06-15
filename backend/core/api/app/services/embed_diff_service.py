@@ -1,21 +1,18 @@
 """
-Embed Diff Service — applies unified diffs to embed content, manages version history.
+Embed Diff Service — applies unified diffs to embed content.
 
 Handles:
 - Parsing unified diff format from LLM output
 - 3-tier patch application (exact → fuzzy → visual fallback)
-- Version tracking in embed_diffs collection
-- Snapshot storage for v1 (original) and latest in encrypted_content
+- Runtime diff application only. Clients encrypt and store embed_diffs rows.
 
 Architecture: docs/architecture/messaging/embed-diff-editing.md
 """
 
-import hashlib
 import logging
 import re
-import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -275,15 +272,38 @@ def is_diff_fence_open(line: str) -> Optional[str]:
 # ─── Version Management ──────────────────────────────────────────────
 
 class EmbedDiffService:
-    """
-    Manages embed version history — stores snapshots and diffs,
-    reconstructs historical versions on demand.
-    """
+    """Runtime diff helper. Version rows are encrypted/stored client-side."""
 
     def __init__(self, cache_service, directus_service, encryption_service):
         self.cache_service = cache_service
         self.directus_service = directus_service
         self.encryption_service = encryption_service
+
+    async def _read_version_rows(
+        self,
+        embed_id: str,
+        hashed_user_id: str,
+        max_version: Optional[int] = None,
+        fields: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Read version rows using the Directus service shape available in runtime/tests."""
+        filters: Dict[str, Any] = {
+            "embed_id": {"_eq": embed_id},
+            "hashed_user_id": {"_eq": hashed_user_id},
+        }
+        if max_version is not None:
+            filters["version_number"] = {"_lte": max_version}
+
+        params: Dict[str, Any] = {"filter": filters, "sort": ["version_number"]}
+        if fields is not None:
+            params["fields"] = fields
+
+        if hasattr(self.directus_service, "read_items"):
+            items = await self.directus_service.read_items("embed_diffs", params=params)
+        else:
+            items = await self.directus_service.get_items("embed_diffs", params=params)
+
+        return list(items or [])
 
     async def store_initial_snapshot(
         self,
@@ -293,32 +313,9 @@ class EmbedDiffService:
         hashed_user_id: str,
         log_prefix: str = ""
     ) -> bool:
-        """
-        Store the original content as v1 snapshot in embed_diffs.
-        Called the first time a diff is applied to an embed.
-
-        Returns True if stored successfully.
-        """
-        try:
-            encrypted_snapshot, _ = await self.encryption_service.encrypt_with_user_key(
-                content, user_vault_key_id
-            )
-
-            await self.directus_service.create_item("embed_diffs", {
-                "embed_id": embed_id,
-                "version_number": 1,
-                "encrypted_snapshot": encrypted_snapshot,
-                "encrypted_patch": None,
-                "hashed_user_id": hashed_user_id,
-                "created_at": int(time.time())
-            })
-
-            logger.info(f"{log_prefix} Stored v1 snapshot for embed {embed_id} ({len(content)} chars)")
-            return True
-
-        except Exception as e:
-            logger.error(f"{log_prefix} Failed to store v1 snapshot for embed {embed_id}: {e}")
-            return False
+        """Server-side diff persistence is forbidden; clients encrypt rows."""
+        del embed_id, content, user_vault_key_id, hashed_user_id, log_prefix
+        raise RuntimeError("embed_diffs must be encrypted and stored by the client")
 
     async def store_diff_version(
         self,
@@ -329,35 +326,9 @@ class EmbedDiffService:
         hashed_user_id: str,
         log_prefix: str = ""
     ) -> bool:
-        """
-        Store a diff as a new version in embed_diffs.
-        Called after successfully applying a patch.
-        """
-        try:
-            encrypted_patch, _ = await self.encryption_service.encrypt_with_user_key(
-                patch_text, user_vault_key_id
-            )
-
-            await self.directus_service.create_item("embed_diffs", {
-                "embed_id": embed_id,
-                "version_number": version_number,
-                "encrypted_snapshot": None,
-                "encrypted_patch": encrypted_patch,
-                "hashed_user_id": hashed_user_id,
-                "created_at": int(time.time())
-            })
-
-            logger.info(
-                f"{log_prefix} Stored diff v{version_number} for embed {embed_id} "
-                f"({len(patch_text)} chars)"
-            )
-            return True
-
-        except Exception as e:
-            logger.error(
-                f"{log_prefix} Failed to store diff v{version_number} for embed {embed_id}: {e}"
-            )
-            return False
+        """Server-side diff persistence is forbidden; clients encrypt rows."""
+        del embed_id, version_number, patch_text, user_vault_key_id, hashed_user_id, log_prefix
+        raise RuntimeError("embed_diffs must be encrypted and stored by the client")
 
     async def get_version_history(
         self,
@@ -372,16 +343,10 @@ class EmbedDiffService:
         Does NOT decrypt full content — just metadata for timeline rendering.
         """
         try:
-            items = await self.directus_service.read_items(
-                "embed_diffs",
-                params={
-                    "filter": {
-                        "embed_id": {"_eq": embed_id},
-                        "hashed_user_id": {"_eq": hashed_user_id},
-                    },
-                    "sort": ["version_number"],
-                    "fields": ["version_number", "created_at", "encrypted_snapshot", "encrypted_patch"],
-                }
+            items = await self._read_version_rows(
+                embed_id=embed_id,
+                hashed_user_id=hashed_user_id,
+                fields=["version_number", "created_at", "encrypted_snapshot", "encrypted_patch"],
             )
 
             versions = []
@@ -407,60 +372,19 @@ class EmbedDiffService:
         user_vault_key_id: str,
         log_prefix: str = ""
     ) -> Optional[str]:
-        """
-        Reconstruct content at a specific version by applying patches forward from v1.
+        """Server-side diff reconstruction is forbidden; clients decrypt rows."""
+        del embed_id, target_version, hashed_user_id, user_vault_key_id, log_prefix
+        raise RuntimeError("embed_diffs must be decrypted and reconstructed by the client")
 
-        Returns the content string at the target version, or None on failure.
-        """
-        try:
-            items = await self.directus_service.read_items(
-                "embed_diffs",
-                params={
-                    "filter": {
-                        "embed_id": {"_eq": embed_id},
-                        "hashed_user_id": {"_eq": hashed_user_id},
-                        "version_number": {"_lte": target_version},
-                    },
-                    "sort": ["version_number"],
-                    "fields": ["version_number", "encrypted_snapshot", "encrypted_patch"],
-                }
-            )
-
-            if not items:
-                logger.warning(f"{log_prefix} No versions found for embed {embed_id}")
-                return None
-
-            # First item should be v1 with snapshot
-            v1_item = items[0]
-            if not v1_item.get("encrypted_snapshot"):
-                logger.error(f"{log_prefix} v1 snapshot missing for embed {embed_id}")
-                return None
-
-            # Decrypt v1 snapshot
-            content = await self.encryption_service.decrypt_with_user_key(
-                v1_item["encrypted_snapshot"], user_vault_key_id
-            )
-
-            # Apply patches forward
-            for item in items[1:]:
-                if not item.get("encrypted_patch"):
-                    continue
-                patch_text = await self.encryption_service.decrypt_with_user_key(
-                    item["encrypted_patch"], user_vault_key_id
-                )
-                parsed = parse_unified_diff(patch_text, embed_id)
-                result = apply_patch(content, parsed)
-                if result.success:
-                    content = result.new_content
-                else:
-                    logger.warning(
-                        f"{log_prefix} Failed to apply patch v{item['version_number']} "
-                        f"for embed {embed_id}: {result.error}. Stopping at v{item['version_number'] - 1}."
-                    )
-                    break
-
-            return content
-
-        except Exception as e:
-            logger.error(f"{log_prefix} Failed to reconstruct v{target_version} for embed {embed_id}: {e}")
-            return None
+    async def restore_version(
+        self,
+        embed_id: str,
+        target_version: int,
+        new_version: int,
+        hashed_user_id: str,
+        user_vault_key_id: str,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Server-side restore is forbidden; clients reconstruct and encrypt."""
+        del embed_id, target_version, new_version, hashed_user_id, user_vault_key_id, log_prefix
+        raise RuntimeError("embed_diffs restore must be performed by the client")

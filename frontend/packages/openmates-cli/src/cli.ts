@@ -26,7 +26,7 @@ import {
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
-import { realpathSync } from "node:fs";
+import { realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
 import WebSocket from "ws";
@@ -1728,6 +1728,72 @@ async function handleEmbeds(
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`Share link error: ${msg}`);
       process.exit(1);
+    }
+    return;
+  }
+
+  if (subcommand === "versions") {
+    const action = rest[0];
+    const embedId = rest[1];
+    if (!action || !embedId || !["list", "show", "restore"].includes(action)) {
+      console.error("Usage: openmates embeds versions <list|show|restore> <embed-id> [--version <n>]\n");
+      printEmbedsHelp();
+      process.exit(1);
+    }
+
+    if (action === "list") {
+      const versions = await client.listEmbedVersions(embedId);
+      if (flags.json === true) {
+        printJson(versions);
+      } else {
+        process.stdout.write(`\n\x1b[1mEmbed versions\x1b[0m ${versions.embed_id}\n`);
+        for (const version of versions.versions) {
+          const marker = version.version_number === versions.current_version ? " (current)" : "";
+          const date = new Date(version.created_at * 1000).toISOString();
+          process.stdout.write(`  v${version.version_number}${marker}  ${date}\n`);
+        }
+        if (versions.readonly) process.stdout.write("\x1b[2mRead-only shared history\x1b[0m\n");
+      }
+      return;
+    }
+
+    const version = typeof flags.version === "string" ? parseInt(flags.version, 10) : NaN;
+    if (!Number.isFinite(version) || version <= 0) {
+      console.error("Missing or invalid --version <n>.");
+      process.exit(1);
+    }
+
+    if (action === "show") {
+      const result = await client.getEmbedVersion(embedId, version);
+      if (typeof result.content !== "string") {
+        throw new Error("Embed version content was not available after local reconstruction.");
+      }
+      if (typeof flags.output === "string") {
+        writeFileSync(flags.output, result.content, "utf-8");
+        if (flags.json === true) {
+          printJson({ ...result, output: flags.output });
+        } else {
+          process.stdout.write(`Wrote ${result.embed_id} v${result.version_number} to ${flags.output}\n`);
+        }
+      } else if (flags.json === true) {
+        printJson(result);
+      } else {
+        process.stdout.write(`\n\x1b[1m${result.embed_id} v${result.version_number}\x1b[0m\n`);
+        process.stdout.write(`${result.content}\n`);
+      }
+      return;
+    }
+
+    if (flags.yes !== true) {
+      await confirmOrExit(`Restore embed ${embedId} to version ${version}? This creates a new latest version. [y/N] `);
+    }
+    const restored = await client.restoreEmbedVersion(embedId, version);
+    if (flags.json === true) {
+      printJson(restored);
+    } else {
+      process.stdout.write(
+        `Restored v${restored.restored_from_version} as new v${restored.version_number} for ${restored.embed_id}.\n`,
+      );
     }
     return;
   }
@@ -5633,13 +5699,20 @@ function printEmbedsHelp(): void {
   console.log(`Embeds commands:
   openmates embeds show <embed-id> [--json]
   openmates embeds share <embed-id> [--expires <seconds>] [--password <pwd>] [--json]
+  openmates embeds versions list <embed-id> [--json]
+  openmates embeds versions show <embed-id> --version <n> [--output <path>] [--json]
+  openmates embeds versions restore <embed-id> --version <n> [--yes] [--json]
 
 'show' displays the full decrypted content of an embed.
+The 'versions' commands list, inspect, and non-destructively restore history.
 The embed ID can be the full UUID or just the first 8 characters.
 Embed IDs are shown when viewing chat conversations (openmates chats show).
 
 Examples:
-  openmates embeds show a3f2b1c4`);
+  openmates embeds show a3f2b1c4
+  openmates embeds versions list a3f2b1c4
+  openmates embeds versions show a3f2b1c4 --version 1
+  openmates embeds versions restore a3f2b1c4 --version 1 --yes`);
 }
 
 function printInspirationsHelp(): void {

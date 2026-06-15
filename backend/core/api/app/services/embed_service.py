@@ -749,6 +749,9 @@ class EmbedService:
         user_id_hash: str,
         user_vault_key_id: str,
         status: str = "processing",
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -831,15 +834,19 @@ class EmbedService:
                 **cached_embed,
                 "encrypted_content": encrypted_content,
                 "status": status,
-                "updated_at": int(datetime.now().timestamp())
+                "updated_at": int(datetime.now().timestamp()),
             }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
 
             # CRITICAL: Check if embed is already finalized to prevent duplicate send_embed_data events
             # If the embed is already "finished" and we're trying to send "finished" again, skip it
             # This prevents duplicate events when update_code_embed_content is called multiple times
             current_status = cached_embed.get("status", "processing")
             should_send_event = True
-            if status == "finished" and current_status == "finished":
+            if status == "finished" and current_status == "finished" and version_number is None:
                 # Embed is already finalized - don't send duplicate event
                 should_send_event = False
                 logger.debug(
@@ -869,6 +876,9 @@ class EmbedService:
                     task_id=cached_embed.get("hashed_task_id"),
                     is_private=cached_embed.get("is_private", False),
                     is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
@@ -1435,6 +1445,9 @@ class EmbedService:
         title: Optional[str] = None,
         row_count: int = 0,
         col_count: int = 0,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -1506,13 +1519,17 @@ class EmbedService:
                 **cached_embed,
                 "encrypted_content": encrypted_content,
                 "status": status,
-                "updated_at": int(datetime.now().timestamp())
+                "updated_at": int(datetime.now().timestamp()),
             }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
 
             # Prevent duplicate finalization events
             current_status = cached_embed.get("status", "processing")
             should_send_event = True
-            if status == "finished" and current_status == "finished":
+            if status == "finished" and current_status == "finished" and version_number is None:
                 should_send_event = False
                 logger.debug(
                     f"{log_prefix} [EMBED_EVENT] Skipping duplicate send_embed_data for "
@@ -1534,6 +1551,9 @@ class EmbedService:
                     task_id=cached_embed.get("hashed_task_id"),
                     is_private=cached_embed.get("is_private", False),
                     is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
@@ -1867,6 +1887,9 @@ class EmbedService:
         user_vault_key_id: str,
         status: str = "finished",
         footer: str = "",
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -1914,11 +1937,15 @@ class EmbedService:
                 **cached_embed,
                 "encrypted_content": encrypted_content,
                 "status": status,
-                "updated_at": int(datetime.now().timestamp())
+                "updated_at": int(datetime.now().timestamp()),
             }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
 
             current_status = cached_embed.get("status", "processing")
-            should_send_event = not (status == "finished" and current_status == "finished")
+            should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
 
             await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
@@ -1935,6 +1962,9 @@ class EmbedService:
                     task_id=cached_embed.get("hashed_task_id"),
                     is_private=cached_embed.get("is_private", False),
                     is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
@@ -2101,6 +2131,9 @@ class EmbedService:
         title: Optional[str] = None,
         filename: Optional[str] = None,
         docx_model: Optional[Dict[str, Any]] = None,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -2209,13 +2242,17 @@ class EmbedService:
                 **cached_embed,
                 "encrypted_content": encrypted_content,
                 "status": status,
-                "updated_at": int(datetime.now().timestamp())
+                "updated_at": int(datetime.now().timestamp()),
             }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
 
             # Check if embed is already finalized to prevent duplicate send_embed_data events
             current_status = cached_embed.get("status", "processing")
             should_send_event = True
-            if status == "finished" and current_status == "finished":
+            if status == "finished" and current_status == "finished" and version_number is None:
                 should_send_event = False
                 logger.debug(
                     f"{log_prefix} [EMBED_EVENT] Skipping duplicate send_embed_data for already-finalized document embed {embed_id} "
@@ -2239,6 +2276,9 @@ class EmbedService:
                     task_id=cached_embed.get("hashed_task_id"),
                     is_private=cached_embed.get("is_private", False),
                     is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
@@ -4095,6 +4135,7 @@ class EmbedService:
         version_number: Optional[int] = None,
         file_path: Optional[str] = None,
         content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         text_length_chars: Optional[int] = None,
         is_private: bool = False,
         is_shared: bool = False,
@@ -4214,6 +4255,10 @@ class EmbedService:
                 payload["payload"]["file_path"] = file_path
             if content_hash is not None:
                 payload["payload"]["content_hash"] = content_hash
+            if version_history_rows is not None:
+                # Plaintext only during delivery to the owner device. The client
+                # encrypts these rows with the embed key before store_embed_diff.
+                payload["payload"]["version_history_rows"] = version_history_rows
             if app_id is not None:
                 payload["payload"]["app_id"] = app_id
             if skill_id is not None:

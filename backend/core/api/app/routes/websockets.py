@@ -50,6 +50,7 @@ from .handlers.websocket_handlers.store_app_settings_memories_handler import han
 from .handlers.websocket_handlers.delete_app_settings_memories_handler import handle_delete_app_settings_memories_entry # Handler for deleting app settings/memories entries with cross-device sync
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
+from .handlers.websocket_handlers.store_embed_diff_handler import handle_store_embed_diff # Handler for storing encrypted embed diff rows
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
@@ -2565,6 +2566,18 @@ async def websocket_endpoint(
                 # Handle storing wrapped embed keys in Directus embed_keys collection (zero-knowledge)
                 # This implements the wrapped key architecture for offline sharing and cross-chat access
                 await handle_store_embed_keys(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "store_embed_diff":
+                # Handle storing encrypted embed version rows in Directus (zero-knowledge)
+                await handle_store_embed_diff(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

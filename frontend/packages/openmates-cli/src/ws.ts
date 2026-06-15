@@ -53,6 +53,13 @@ export interface SendEmbedDataFrame {
   is_shared?: boolean;
   createdAt?: number;
   updatedAt?: number;
+  version_history_rows?: Array<{
+    embed_id: string;
+    version_number: number;
+    snapshot?: string;
+    patch?: string;
+    created_at?: number;
+  }>;
 }
 
 export type SubChatEventType =

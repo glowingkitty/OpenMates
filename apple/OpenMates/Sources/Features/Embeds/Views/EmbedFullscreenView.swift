@@ -1,6 +1,12 @@
 // Fullscreen embed overlay — slides up from bottom, shows full embed content.
 // Mirrors UnifiedEmbedFullscreen.svelte with gradient header, scrollable content,
 // child embed carousel for composite types, and action bar.
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+// CSS:     frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift, TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 
@@ -19,6 +25,8 @@ struct EmbedFullscreenView: View {
 
     @State private var selectedChildId: String?
     @State private var showChildFullscreen = false
+    @State private var selectedVersionNumber: Int?
+    @State private var restoreConfirmVersion: Int?
 
     private var embedType: EmbedType? {
         EmbedType(rawValue: embed.type)
@@ -30,6 +38,9 @@ struct EmbedFullscreenView: View {
                 VStack(spacing: 0) {
                     headerBanner
                     contentArea
+                    if shouldShowVersionTimeline {
+                        versionTimeline
+                    }
                     if !childEmbeds.isEmpty {
                         childEmbedsSection
                     }
@@ -213,6 +224,126 @@ struct EmbedFullscreenView: View {
             EmbedContentView(embed: embed, mode: .fullscreen, allEmbedRecords: allEmbedRecords)
         }
         .padding(embedType == .webWebsite ? 0 : .spacing6)
+    }
+
+    private var currentVersionNumber: Int {
+        embed.versionNumber ?? embedRawVersionNumber ?? 1
+    }
+
+    private var embedRawVersionNumber: Int? {
+        guard let data = embed.data, case .raw(let dict) = data else { return nil }
+        if let value = dict["version_number"]?.value as? Int { return value }
+        if let value = dict["current_source_version"]?.value as? Int { return value }
+        return nil
+    }
+
+    private var timelineVersions: [EmbedVersionMetadata] {
+        if !embed.versionHistory.isEmpty { return embed.versionHistory }
+        guard currentVersionNumber > 1 else { return [] }
+        return (1...currentVersionNumber).map {
+            EmbedVersionMetadata(versionNumber: $0, createdAt: 0, hasSnapshot: $0 == 1, hasPatch: $0 > 1, contentHash: nil)
+        }
+    }
+
+    private var selectedVersion: Int {
+        selectedVersionNumber ?? currentVersionNumber
+    }
+
+    private var shouldShowVersionTimeline: Bool {
+        timelineVersions.count > 1
+    }
+
+    private var versionTimeline: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            HStack {
+                Text("Version history")
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                Spacer()
+                Text("\(timelineVersions.count) versions")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: .spacing3) {
+                    ForEach(timelineVersions) { version in
+                        let isSelected = version.versionNumber == selectedVersion
+                        let isCurrent = version.versionNumber == currentVersionNumber
+                        Button {
+                            selectedVersionNumber = version.versionNumber
+                            restoreConfirmVersion = nil
+                        } label: {
+                            VStack(spacing: .spacing2) {
+                                Circle()
+                                    .fill(isCurrent ? Color.buttonPrimary : (isSelected ? Color.buttonPrimary : Color.grey30))
+                                    .frame(width: 10, height: 10)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.buttonPrimary.opacity(isSelected ? 0.25 : 0), lineWidth: 6)
+                                    )
+                                Text("v\(version.versionNumber)")
+                                    .font(.omMicro)
+                                    .foregroundStyle(isSelected ? Color.buttonPrimary : Color.fontSecondary)
+                            }
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, .spacing3)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("embed-version-dot-\(version.versionNumber)")
+                    }
+                }
+                .padding(.vertical, .spacing2)
+            }
+
+            HStack(spacing: .spacing3) {
+                Text(versionTimelineStatusText)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                Spacer()
+                if selectedVersion != currentVersionNumber && !embed.versionHistoryReadonly {
+                    Button {
+                        restoreConfirmVersion = restoreConfirmVersion == selectedVersion ? nil : selectedVersion
+                    } label: {
+                        Text(restoreConfirmVersion == selectedVersion ? "Confirm restore v\(selectedVersion)" : "Restore v\(selectedVersion)")
+                            .font(.omXs)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.buttonPrimary)
+                            .padding(.horizontal, .spacing5)
+                            .padding(.vertical, .spacing3)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: .radius3)
+                                    .stroke(Color.buttonPrimary, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("embed-version-restore-button")
+                }
+            }
+
+            if embed.versionHistoryReadonly {
+                Text("Read-only shared history")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("embed-version-readonly")
+            }
+        }
+        .padding(.spacing5)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius5)
+                .stroke(Color.grey25, lineWidth: 1)
+        )
+        .padding(.horizontal, .spacing6)
+        .padding(.bottom, .spacing5)
+        .accessibilityIdentifier("embed-version-timeline")
+    }
+
+    private var versionTimelineStatusText: String {
+        if selectedVersion == currentVersionNumber { return "Current version v\(currentVersionNumber)" }
+        return "Viewing historical version v\(selectedVersion)"
     }
 
     private var websiteRawData: [String: AnyCodable] {

@@ -12,6 +12,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import VideoTimeline from './VideoTimeline.svelte';
   import { parseRemotionTimeline } from '../../../utils/remotionTimelineParser';
   import { fetchAndDecryptAudio, releaseCachedAudio } from '../audio/audioEmbedCrypto';
@@ -39,7 +40,9 @@
   }: Props = $props();
 
   let dc = $derived(data.decodedContent || {});
+  let selectedSource = $state<string | null>(null);
   let source = $derived(typeof dc.remotion_source === 'string' ? dc.remotion_source : '');
+  let renderSource = $derived(selectedSource ?? source);
   let filename = $derived(typeof dc.filename === 'string' ? dc.filename : 'Composition.tsx');
   let status = $derived(typeof dc.status === 'string' ? dc.status : 'processing');
   let s3BaseUrl = $derived(typeof dc.s3_base_url === 'string' ? dc.s3_base_url : '');
@@ -53,8 +56,8 @@
         ? dc.public_video_url
         : '',
   );
-  let currentSourceVersion = $derived(typeof dc.current_source_version === 'number' ? dc.current_source_version : 1);
-  let manifest = $derived(parseRemotionTimeline(source));
+  let currentSourceVersion = $derived(typeof dc.current_source_version === 'number' ? dc.current_source_version : data.embedData?.version_number ?? 1);
+  let manifest = $derived(parseRemotionTimeline(renderSource));
   let videoUrl = $state<string | undefined>();
   let error = $state<string | undefined>();
   let currentTime = $state(0);
@@ -154,7 +157,7 @@
       </div>
 
       {#if viewMode === 'code'}
-        <pre class="source-code"><code>{source}</code></pre>
+        <pre class="source-code"><code>{renderSource}</code></pre>
       {:else}
         {#if viewMode === 'video'}
           <div class="video-wrapper">
@@ -174,6 +177,18 @@
           </div>
         {/if}
         <VideoTimeline {manifest} {currentTime} onSeek={handleSeek} />
+      {/if}
+      {#if embedId && currentSourceVersion > 1}
+        <EmbedVersionTimeline
+          {embedId}
+          currentVersion={currentSourceVersion}
+          currentContent={source}
+          buildRestoredContent={(content, newVersion) => ({ ...dc, remotion_source: content, current_source_version: newVersion, version_number: newVersion })}
+          onVersionSelect={(version, content) => {
+            if (content !== null) selectedSource = content;
+            console.log('[VideoCreateEmbedFullscreen] Version selected:', version);
+          }}
+        />
       {/if}
     </div>
   {/snippet}

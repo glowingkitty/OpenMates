@@ -112,11 +112,14 @@
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
   let includedOriginalHtmlContent = $state<string | null>(null);
-  let htmlContent = $derived(
-      includedOriginalHtmlContent !== null ? includedOriginalHtmlContent
-      : typeof dc.html === 'string' ? dc.html
+  let latestHtmlContent = $derived(
+      typeof dc.html === 'string' ? dc.html
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
+    );
+  let htmlContent = $derived(
+      includedOriginalHtmlContent !== null ? includedOriginalHtmlContent
+      : latestHtmlContent
     );
   let title = $derived(
       typeof dc.title === 'string' ? dc.title
@@ -864,7 +867,10 @@ ${downloadHtmlContent}
       <EmbedVersionTimeline
         {embedId}
         currentVersion={versionNumber}
-        onVersionSelect={(version, _content) => {
+        currentContent={latestHtmlContent}
+        buildRestoredContent={(content, newVersion) => ({ ...dc, html: content, version_number: newVersion })}
+        onVersionSelect={(version, content) => {
+          if (content !== null) includedOriginalHtmlContent = content;
           console.log('[DocsEmbedFullscreen] Version selected:', version);
         }}
       />

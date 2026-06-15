@@ -662,7 +662,23 @@ export interface SendEmbedDataPayload {
     // need to decode TOON to determine which renderer to use.
     app_id?: string; // Parent app ID (e.g. "images")
     skill_id?: string; // Child type as skill_id (e.g. "image_result") — NOT the parent's skill
+    version_history_rows?: Array<{
+      embed_id: string;
+      version_number: number;
+      snapshot?: string;
+      patch?: string;
+      created_at?: number;
+    }>;
   };
+}
+
+export interface StoreEmbedDiffPayload {
+  embed_id: string;
+  version_number: number;
+  encrypted_snapshot?: string | null;
+  encrypted_patch?: string | null;
+  hashed_user_id: string;
+  created_at: number;
 }
 // --- End AI Task and Stream related event payloads ---
 

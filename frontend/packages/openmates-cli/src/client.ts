@@ -796,6 +796,39 @@ export interface DecryptedEmbed {
   createdAt: number | null;
 }
 
+export interface EmbedVersionMeta {
+  version_number: number;
+  created_at: number;
+  has_snapshot: boolean;
+  has_patch: boolean;
+  encrypted_snapshot?: string | null;
+  encrypted_patch?: string | null;
+}
+
+export interface EmbedVersionsResponse {
+  embed_id: string;
+  current_version: number;
+  versions: EmbedVersionMeta[];
+  readonly: boolean;
+}
+
+export interface EmbedVersionContentResponse {
+  embed_id: string;
+  version_number: number;
+  current_version: number;
+  content?: string;
+  rows?: EmbedVersionMeta[];
+  readonly: boolean;
+}
+
+export interface EmbedVersionRestoreResponse {
+  embed_id: string;
+  restored_from_version: number;
+  version_number: number;
+  content: string;
+  content_hash: string;
+}
+
 /** Video metadata attached to a daily inspiration. */
 export interface DailyInspirationVideo {
   youtube_id: string;
@@ -1051,6 +1084,143 @@ const BLOCKED_SETTINGS_MUTATE_PATHS = new Set<string>([
   "/v1/settings/verify-action-code",
   "/v1/settings/user/disable-2fa",
 ]);
+
+function applyUnifiedDiffForEmbedVersion(content: string, patch: string): string {
+  const contentLines = content.split("\n");
+  const lines = patch.split("\n");
+  const hunks: Array<{ start: number; oldLines: string[]; newLines: string[] }> = [];
+  let current: { start: number; oldLines: string[]; newLines: string[] } | null = null;
+
+  for (const line of lines) {
+    const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+    if (match) {
+      if (current) hunks.push(current);
+      current = { start: Number(match[1]) - 1, oldLines: [], newLines: [] };
+      continue;
+    }
+    if (!current) continue;
+    if (line.startsWith(" ")) {
+      current.oldLines.push(line.slice(1));
+      current.newLines.push(line.slice(1));
+    } else if (line.startsWith("-")) {
+      current.oldLines.push(line.slice(1));
+    } else if (line.startsWith("+")) {
+      current.newLines.push(line.slice(1));
+    }
+  }
+  if (current) hunks.push(current);
+
+  for (const hunk of hunks.sort((a, b) => b.start - a.start)) {
+    const actual = contentLines.slice(hunk.start, hunk.start + hunk.oldLines.length);
+    if (actual.join("\n") !== hunk.oldLines.join("\n")) {
+      throw new Error("Version patch context does not match local content");
+    }
+    contentLines.splice(hunk.start, hunk.oldLines.length, ...hunk.newLines);
+  }
+
+  return contentLines.join("\n");
+}
+
+function buildUnifiedDiffForEmbedRestore(
+  currentContent: string,
+  restoredContent: string,
+  currentVersion: number,
+  newVersion: number,
+): string {
+  const currentLines = currentContent.split("\n");
+  const restoredLines = restoredContent.split("\n");
+  return [
+    `--- v${currentVersion}`,
+    `+++ v${newVersion}`,
+    `@@ -1,${Math.max(1, currentLines.length)} +1,${Math.max(1, restoredLines.length)} @@`,
+    ...currentLines.map((line) => `-${line}`),
+    ...restoredLines.map((line) => `+${line}`),
+  ].join("\n");
+}
+
+function parseEmbedContentObject(rawContent: string): Record<string, unknown> {
+  try {
+    return JSON.parse(rawContent) as Record<string, unknown>;
+  } catch {
+    return parseYamlLikeContent(rawContent);
+  }
+}
+
+async function encodeEmbedContentObject(content: Record<string, unknown>): Promise<string> {
+  try {
+    const { encode } = await import("@toon-format/toon");
+    return encode(content);
+  } catch {
+    return JSON.stringify(content);
+  }
+}
+
+function extractVersionedEmbedContent(content: Record<string, unknown>): string {
+  if (typeof content.receiver === "string" || typeof content.subject === "string") {
+    return [
+      `To: ${typeof content.receiver === "string" ? content.receiver : ""}`,
+      `Subject: ${typeof content.subject === "string" ? content.subject : ""}`,
+      "",
+      typeof content.content === "string" ? content.content : "",
+      typeof content.footer === "string" ? content.footer : "",
+    ].join("\n").trim();
+  }
+  if (typeof content.remotion_source === "string") return content.remotion_source;
+  if (typeof content.code === "string") return content.code;
+  if (typeof content.html === "string") return content.html;
+  if (typeof content.table === "string") return content.table;
+  if (content.docx_model) return JSON.stringify(content.docx_model, null, 2);
+  if (typeof content.content === "string") return content.content;
+  throw new Error("Unsupported embed content shape for version restore.");
+}
+
+function buildRestoredEmbedContentObject(
+  current: Record<string, unknown>,
+  restoredContent: string,
+  newVersion: number,
+): Record<string, unknown> {
+  const restored = { ...current, version_number: newVersion };
+  if (typeof current.receiver === "string" || typeof current.subject === "string") {
+    return { ...restored, ...parseMailVersionContent(restoredContent) };
+  }
+  if (typeof current.remotion_source === "string") {
+    return { ...restored, remotion_source: restoredContent, current_source_version: newVersion };
+  }
+  if (typeof current.code === "string") return { ...restored, code: restoredContent };
+  if (typeof current.html === "string") return { ...restored, html: restoredContent };
+  if (typeof current.table === "string") return { ...restored, table: restoredContent };
+  if (current.docx_model) {
+    try {
+      return { ...restored, docx_model: JSON.parse(restoredContent) };
+    } catch {
+      return { ...restored, content: restoredContent };
+    }
+  }
+  if (typeof current.content === "string") return { ...restored, content: restoredContent };
+  throw new Error("Unsupported embed content shape for version restore.");
+}
+
+function parseMailVersionContent(versionContent: string): Record<string, string> {
+  const lines = versionContent.split("\n");
+  let receiver = "";
+  let subject = "";
+  const bodyLines: string[] = [];
+  for (const line of lines) {
+    if (line.toLowerCase().startsWith("to:")) {
+      receiver = line.slice(3).trim();
+    } else if (line.toLowerCase().startsWith("subject:")) {
+      subject = line.slice(8).trim();
+    } else {
+      bodyLines.push(line);
+    }
+  }
+  return {
+    receiver,
+    subject,
+    content: bodyLines.join("\n").trim(),
+    footer: "",
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Client
@@ -2787,6 +2957,29 @@ export class OpenMatesClient {
         updated_at: updatedAt,
       });
 
+      if (Array.isArray(embed.version_history_rows)) {
+        for (const row of embed.version_history_rows) {
+          if (!row.embed_id || typeof row.version_number !== "number") continue;
+          const encryptedSnapshot =
+            typeof row.snapshot === "string"
+              ? await encryptWithAesGcmCombined(row.snapshot, embedKey)
+              : undefined;
+          const encryptedPatch =
+            typeof row.patch === "string"
+              ? await encryptWithAesGcmCombined(row.patch, embedKey)
+              : undefined;
+          if (!encryptedSnapshot && !encryptedPatch) continue;
+          await params.ws.sendAsync("store_embed_diff", {
+            embed_id: row.embed_id,
+            version_number: row.version_number,
+            encrypted_snapshot: encryptedSnapshot ?? null,
+            encrypted_patch: encryptedPatch ?? null,
+            hashed_user_id: hashedUserId,
+            created_at: normalizeUnixSeconds(row.created_at, now),
+          });
+        }
+      }
+
       if (!isChild) {
         const keys: EmbedKeyWrapper[] = [
           {
@@ -4266,6 +4459,208 @@ export class OpenMatesClient {
     );
     const origin = deriveWebOrigin(session.apiUrl);
     return buildEmbedShareUrl(origin, embedId, blob);
+  }
+
+  async listEmbedVersions(embedIdOrShort: string): Promise<EmbedVersionsResponse> {
+    const embedId = await this.resolveEmbedId(embedIdOrShort);
+    const response = await this.http.get<EmbedVersionsResponse>(
+      `/v1/embeds/${encodeURIComponent(embedId)}/versions`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatEmbedVersionError(response.data, `Failed to list embed versions (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
+  async getEmbedVersion(embedIdOrShort: string, version: number): Promise<EmbedVersionContentResponse> {
+    const embedId = await this.resolveEmbedId(embedIdOrShort);
+    const response = await this.http.get<EmbedVersionContentResponse>(
+      `/v1/embeds/${encodeURIComponent(embedId)}/versions/${version}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatEmbedVersionError(response.data, `Failed to load embed version ${version} (HTTP ${response.status})`));
+    }
+    if (typeof response.data.content === "string" || !Array.isArray(response.data.rows)) {
+      return response.data;
+    }
+    return {
+      ...response.data,
+      content: await this.reconstructEncryptedEmbedVersion(embedId, response.data.rows),
+    };
+  }
+
+  async restoreEmbedVersion(embedIdOrShort: string, version: number): Promise<EmbedVersionRestoreResponse> {
+    const embedId = await this.resolveEmbedId(embedIdOrShort);
+    const cache = await this.ensureSynced();
+    const masterKey = this.getMasterKeyBytes();
+    const embed = cache.embeds.find(
+      (entry) => String(entry.embed_id ?? entry.id ?? "") === embedId,
+    );
+    if (!embed) {
+      throw new Error(`Embed '${embedId}' not found in local cache. Run 'openmates chats list' to sync first.`);
+    }
+
+    const { createHash } = await import("node:crypto");
+    const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+    const embedKey = await this.resolveEmbedKey(
+      cache,
+      masterKey,
+      embed,
+      embedId,
+      hashedEmbedId,
+    );
+    if (!embedKey) {
+      throw new Error("Could not resolve embed encryption key for version restore.");
+    }
+
+    const target = await this.getEmbedVersion(embedId, version);
+    if (typeof target.content !== "string") {
+      throw new Error("Embed version content was not available for restore.");
+    }
+
+    const encryptedCurrentContent = embed.encrypted_content;
+    if (typeof encryptedCurrentContent !== "string") {
+      throw new Error("Current embed content is not available for encrypted restore.");
+    }
+    const currentToon = await decryptWithAesGcmCombined(encryptedCurrentContent, embedKey);
+    if (!currentToon) {
+      throw new Error("Could not decrypt current embed content for restore.");
+    }
+    const currentObject = parseEmbedContentObject(currentToon);
+    const currentVersion =
+      typeof embed.version_number === "number" ? embed.version_number : target.current_version;
+    if (version === currentVersion) {
+      throw new Error("Selected version is already current.");
+    }
+
+    const currentContent = extractVersionedEmbedContent(currentObject);
+    const newVersion = currentVersion + 1;
+    const restoredObject = buildRestoredEmbedContentObject(currentObject, target.content, newVersion);
+    const restoredToon = await encodeEmbedContentObject(restoredObject);
+    const encryptedRestoredContent = await encryptWithAesGcmCombined(restoredToon, embedKey);
+    const restorePatch = buildUnifiedDiffForEmbedRestore(
+      currentContent,
+      target.content,
+      currentVersion,
+      newVersion,
+    );
+    const encryptedPatch = await encryptWithAesGcmCombined(restorePatch, embedKey);
+    const contentHash = computeSHA256(target.content);
+    const now = Math.floor(Date.now() / 1000);
+
+    const { ws } = await this.openWsClient();
+    try {
+      await ws.sendAsync("store_embed", {
+        embed_id: embedId,
+        encrypted_type: embed.encrypted_type,
+        encrypted_content: encryptedRestoredContent,
+        encrypted_text_preview: embed.encrypted_text_preview,
+        status: embed.status || "finished",
+        hashed_chat_id: embed.hashed_chat_id,
+        hashed_message_id: embed.hashed_message_id,
+        hashed_task_id: embed.hashed_task_id,
+        hashed_user_id: embed.hashed_user_id,
+        embed_ids: embed.embed_ids,
+        parent_embed_id: embed.parent_embed_id,
+        version_number: newVersion,
+        file_path: embed.file_path,
+        content_hash: contentHash,
+        text_length_chars: target.content.length,
+        is_private: embed.is_private ?? false,
+        is_shared: embed.is_shared ?? false,
+        created_at: normalizeUnixSeconds(embed.created_at, now),
+        updated_at: now,
+      });
+      await ws.sendAsync("store_embed_diff", {
+        embed_id: embedId,
+        version_number: newVersion,
+        encrypted_snapshot: null,
+        encrypted_patch: encryptedPatch,
+        hashed_user_id: embed.hashed_user_id,
+        created_at: now,
+      });
+    } finally {
+      ws.close();
+    }
+
+    clearSyncCache();
+    return {
+      embed_id: embedId,
+      restored_from_version: version,
+      version_number: newVersion,
+      content: target.content,
+      content_hash: contentHash,
+    };
+  }
+
+  private async reconstructEncryptedEmbedVersion(
+    embedId: string,
+    rows: EmbedVersionMeta[],
+  ): Promise<string> {
+    const cache = await this.ensureSynced();
+    const masterKey = this.getMasterKeyBytes();
+    const embed = cache.embeds.find(
+      (entry) => String(entry.embed_id ?? entry.id ?? "") === embedId,
+    );
+    if (!embed) {
+      throw new Error(`Embed '${embedId}' not found in local cache. Run 'openmates chats list' to sync first.`);
+    }
+
+    const { createHash } = await import("node:crypto");
+    const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+    const embedKey = await this.resolveEmbedKey(
+      cache,
+      masterKey,
+      embed,
+      embedId,
+      hashedEmbedId,
+    );
+    if (!embedKey) {
+      throw new Error("Could not resolve embed encryption key for version history.");
+    }
+
+    const sortedRows = [...rows].sort((a, b) => a.version_number - b.version_number);
+    let content: string | null = null;
+    for (const row of sortedRows) {
+      if (row.encrypted_snapshot) {
+        content = await decryptWithAesGcmCombined(row.encrypted_snapshot, embedKey);
+        continue;
+      }
+      if (row.encrypted_patch && content !== null) {
+        const patch = await decryptWithAesGcmCombined(row.encrypted_patch, embedKey);
+        content = applyUnifiedDiffForEmbedVersion(content, patch ?? "");
+      }
+    }
+    if (content === null) {
+      throw new Error("Version history is missing the initial snapshot");
+    }
+    return content;
+  }
+
+  private formatEmbedVersionError(data: unknown, fallback: string): string {
+    if (data && typeof data === "object") {
+      const detail = (data as { detail?: unknown; message?: unknown }).detail;
+      const message = (data as { detail?: unknown; message?: unknown }).message;
+      if (typeof detail === "string" && detail.trim()) return detail;
+      if (typeof message === "string" && message.trim()) return message;
+    }
+    return fallback;
+  }
+
+  private async resolveEmbedId(embedIdOrShort: string): Promise<string> {
+    if (embedIdOrShort.length >= 32) return embedIdOrShort;
+    const cache = await this.ensureSynced();
+    const embed = cache.embeds.find(
+      (entry) =>
+        String(entry.embed_id ?? "").startsWith(embedIdOrShort) ||
+        String(entry.id ?? "").startsWith(embedIdOrShort),
+    );
+    if (!embed) {
+      throw new Error(`Embed '${embedIdOrShort}' not found in local cache. Run 'openmates chats list' to sync first.`);
+    }
+    return String(embed.embed_id ?? embed.id ?? "");
   }
 
   // ── Mention context builder ─────────────────────────────────────────

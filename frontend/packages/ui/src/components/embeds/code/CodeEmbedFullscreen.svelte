@@ -123,11 +123,14 @@
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
   let includedOriginalCodeContent = $state<string | null>(null);
-  let codeContent = $derived(
-      includedOriginalCodeContent !== null ? includedOriginalCodeContent
-      : typeof dc.code === 'string' ? dc.code
+  let latestCodeContent = $derived(
+      typeof dc.code === 'string' ? dc.code
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
+    );
+  let codeContent = $derived(
+      includedOriginalCodeContent !== null ? includedOriginalCodeContent
+      : latestCodeContent
     );
   let language = $derived(
       typeof dc.language === 'string' ? dc.language
@@ -1531,8 +1534,10 @@
       <EmbedVersionTimeline
         {embedId}
         currentVersion={versionNumber}
-        onVersionSelect={(version, _content) => {
-          // TODO: Request versioned content from server and display
+        currentContent={latestCodeContent}
+        buildRestoredContent={(content, newVersion) => ({ ...dc, code: content, version_number: newVersion })}
+        onVersionSelect={(version, content) => {
+          if (content !== null) includedOriginalCodeContent = content;
           console.log('[CodeEmbedFullscreen] Version selected:', version);
         }}
       />

@@ -3117,6 +3117,68 @@ export async function handleEmbedUpdateImpl(
 // Type alias for the inner embed data structure (used when WebSocket passes payload directly)
 type EmbedDataPayload = SendEmbedDataPayload["payload"];
 
+async function persistClientEncryptedEmbedDiffRows(
+  serviceInstance: ChatSynchronizationService,
+  embedData: EmbedDataPayload,
+  embedKey: Uint8Array,
+  hashedUserId: string,
+): Promise<void> {
+  const rows = embedData.version_history_rows;
+  if (!Array.isArray(rows) || rows.length === 0) return;
+
+  const { storeEmbedDiff } = await import("./embedDiffStore");
+  const sendersModule = await import("./chatSyncServiceSenders");
+  const sendStoreEmbedDiffFunction =
+    sendersModule.sendStoreEmbedDiffImpl ||
+    (
+      sendersModule as {
+        default?: {
+          sendStoreEmbedDiffImpl?: typeof sendersModule.sendStoreEmbedDiffImpl;
+        };
+      }
+    ).default?.sendStoreEmbedDiffImpl;
+
+  if (typeof sendStoreEmbedDiffFunction !== "function") {
+    throw new Error("sendStoreEmbedDiffImpl function not found");
+  }
+
+  for (const row of rows) {
+    if (!row.embed_id || typeof row.version_number !== "number") continue;
+    const encryptedSnapshot =
+      typeof row.snapshot === "string"
+        ? await encryptWithEmbedKey(row.snapshot, embedKey)
+        : undefined;
+    const encryptedPatch =
+      typeof row.patch === "string"
+        ? await encryptWithEmbedKey(row.patch, embedKey)
+        : undefined;
+    if (!encryptedSnapshot && !encryptedPatch) continue;
+
+    const createdAt = normalizeToUnixSeconds(
+      row.created_at,
+      Math.floor(Date.now() / 1000),
+    );
+    const encryptedRow = {
+      id: `${row.embed_id}_v${row.version_number}`,
+      embed_id: row.embed_id,
+      version_number: row.version_number,
+      encrypted_snapshot: encryptedSnapshot,
+      encrypted_patch: encryptedPatch,
+      created_at: createdAt,
+    };
+
+    await storeEmbedDiff(encryptedRow);
+    await sendStoreEmbedDiffFunction(serviceInstance, {
+      embed_id: row.embed_id,
+      version_number: row.version_number,
+      encrypted_snapshot: encryptedSnapshot ?? null,
+      encrypted_patch: encryptedPatch ?? null,
+      hashed_user_id: hashedUserId,
+      created_at: createdAt,
+    });
+  }
+}
+
 /**
  * Handle send_embed_data event from server
  * This receives plaintext TOON content, encrypts it client-side, stores in IndexedDB,
@@ -4161,6 +4223,13 @@ export async function handleSendEmbedDataImpl(
       await sendStoreFunction(serviceInstance, storePayload);
       console.info(
         `[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`,
+      );
+
+      await persistClientEncryptedEmbedDiffRows(
+        serviceInstance,
+        embedData,
+        embedKey,
+        hashedUserId,
       );
 
       // 10. Send key wrappers to server for embed_keys collection (ONLY for parent embeds)

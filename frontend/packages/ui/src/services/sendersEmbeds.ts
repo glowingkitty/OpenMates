@@ -9,7 +9,7 @@
  * See docs/architecture/ for the embed encryption architecture.
  */
 import type { ChatSynchronizationService } from "./chatSyncService";
-import type { StoreEmbedPayload } from "../types/chat";
+import type { StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
 
 /**
  * Send encrypted embed to server for Directus storage
@@ -87,4 +87,15 @@ export async function sendStoreEmbedKeysImpl(
 	const { sendStoreEmbedKeysImpl: embedSendersKeysImpl } =
 		await import("./embedSenders");
 	return embedSendersKeysImpl(serviceInstance, payload);
+}
+
+/**
+ * Send a client-encrypted embed diff row to server for Directus storage.
+ */
+export async function sendStoreEmbedDiffImpl(
+	serviceInstance: ChatSynchronizationService,
+	payload: StoreEmbedDiffPayload
+): Promise<void> {
+	const { sendStoreEmbedDiffImpl: embedSendersDiffImpl } = await import("./embedSenders");
+	return embedSendersDiffImpl(serviceInstance, payload);
 }

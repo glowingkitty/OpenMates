@@ -80,6 +80,11 @@ export interface PreviewBackfillMergeResult {
   storePayload?: StoreEmbedPayload;
 }
 
+export interface VersionRestoreUpdateResult {
+  updated: boolean;
+  storePayload?: StoreEmbedPayload;
+}
+
 export interface UploadedFileSearchResult {
   embedId: string;
   contentRef: string;
@@ -2022,6 +2027,112 @@ export class EmbedStore {
         file_path: rawEntry.file_path,
         content_hash: rawEntry.content_hash,
         text_length_chars: rawEntry.text_length_chars,
+        is_private: rawEntry.is_private ?? false,
+        is_shared: rawEntry.is_shared ?? false,
+        created_at: createdAtSeconds,
+        updated_at: updatedAtSeconds,
+      },
+    };
+  }
+
+  /**
+   * Replace the latest parent embed snapshot with client-encrypted restored
+   * content. This mirrors normal `store_embed` persistence and never sends
+   * plaintext restored content to the backend.
+   */
+  async prepareVersionRestoreUpdate(
+    embedId: string,
+    restoredToonContent: string,
+    versionNumber: number,
+    contentHash: string,
+  ): Promise<VersionRestoreUpdateResult> {
+    const contentRef = `embed:${embedId}`;
+    const existing = await this.get(contentRef);
+    if (!existing || typeof existing !== "object") {
+      return { updated: false };
+    }
+
+    const rawEntry = embedCache.get(contentRef);
+    if (!rawEntry || !canStorePreviewBackfillLocally(rawEntry)) {
+      return { updated: false };
+    }
+
+    const embedKey = await this.getEmbedKey(embedId, rawEntry.hashed_chat_id);
+    if (!embedKey) {
+      return { updated: false };
+    }
+
+    const encryptedContent = await encryptWithEmbedKey(
+      restoredToonContent,
+      embedKey,
+    );
+    if (!encryptedContent) {
+      return { updated: false };
+    }
+
+    const nowMs = Date.now();
+    const updatedAtSeconds = Math.floor(nowMs / 1000);
+    const createdAt = rawEntry.createdAt || nowMs;
+    const createdAtSeconds =
+      createdAt > 10_000_000_000 ? Math.floor(createdAt / 1000) : createdAt;
+
+    const encryptedData = {
+      embed_id: embedId,
+      encrypted_type: rawEntry.encrypted_type,
+      encrypted_content: encryptedContent,
+      encrypted_text_preview: rawEntry.encrypted_text_preview,
+      status: rawEntry.status || "finished",
+      hashed_chat_id: rawEntry.hashed_chat_id,
+      hashed_message_id: rawEntry.hashed_message_id,
+      hashed_task_id: rawEntry.hashed_task_id,
+      hashed_user_id: rawEntry.hashed_user_id,
+      embed_ids: rawEntry.embed_ids,
+      parent_embed_id: rawEntry.parent_embed_id,
+      version_number: versionNumber,
+      file_path: rawEntry.file_path,
+      content_hash: contentHash,
+      text_length_chars: restoredToonContent.length,
+      is_private: rawEntry.is_private ?? false,
+      is_shared: rawEntry.is_shared ?? false,
+      createdAt: rawEntry.createdAt,
+      updatedAt: nowMs,
+    };
+
+    await this.putEncrypted(
+      contentRef,
+      encryptedData,
+      rawEntry.type,
+      restoredToonContent,
+      {
+        app_id: rawEntry.app_id,
+        skill_id: rawEntry.skill_id,
+        encryption_mode: rawEntry.encryption_mode,
+        vault_key_id: rawEntry.vault_key_id,
+      },
+    );
+
+    if (!canPersistPreviewBackfill(rawEntry)) {
+      return { updated: true };
+    }
+
+    return {
+      updated: true,
+      storePayload: {
+        embed_id: embedId,
+        encrypted_type: rawEntry.encrypted_type,
+        encrypted_content: encryptedContent,
+        encrypted_text_preview: rawEntry.encrypted_text_preview,
+        status: rawEntry.status || "finished",
+        hashed_chat_id: rawEntry.hashed_chat_id,
+        hashed_message_id: rawEntry.hashed_message_id,
+        hashed_task_id: rawEntry.hashed_task_id,
+        hashed_user_id: rawEntry.hashed_user_id,
+        embed_ids: rawEntry.embed_ids,
+        parent_embed_id: rawEntry.parent_embed_id,
+        version_number: versionNumber,
+        file_path: rawEntry.file_path,
+        content_hash: contentHash,
+        text_length_chars: restoredToonContent.length,
         is_private: rawEntry.is_private ?? false,
         is_shared: rawEntry.is_shared ?? false,
         created_at: createdAtSeconds,
