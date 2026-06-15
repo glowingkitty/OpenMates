@@ -297,9 +297,13 @@ struct EmbedFullscreenContainer: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(Color.fontPrimary)
                 Spacer()
-                Text("\(versions.count) versions")
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
+                if selectedVersion != currentVersion {
+                    restoreButton(for: embed, selectedVersion: selectedVersion)
+                } else {
+                    Text("\(versions.count) versions")
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+                }
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -337,27 +341,6 @@ struct EmbedFullscreenContainer: View {
                 Text(versionTimelineStatusText(selectedVersion: selectedVersion, currentVersion: currentVersion))
                     .font(.omXs)
                     .foregroundStyle(Color.fontSecondary)
-                if selectedVersion != currentVersion {
-                    Button {
-                        guard !embed.versionHistoryReadonly else { return }
-                        restoreConfirmVersion = restoreConfirmVersion == selectedVersion ? nil : selectedVersion
-                    } label: {
-                        Text(restoreConfirmVersion == selectedVersion ? "Confirm restore v\(selectedVersion)" : "Restore v\(selectedVersion)")
-                            .font(.omXs)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.buttonPrimary)
-                            .padding(.horizontal, .spacing5)
-                            .padding(.vertical, .spacing3)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: .radius3)
-                                    .stroke(Color.buttonPrimary, lineWidth: 1)
-                            )
-                            .accessibilityIdentifier("embed-version-restore-button")
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(embed.versionHistoryReadonly)
-                    .accessibilityIdentifier("embed-version-restore-button")
-                }
             }
 
             if embed.versionHistoryReadonly {
@@ -377,6 +360,27 @@ struct EmbedFullscreenContainer: View {
         .padding(.horizontal, .spacing6)
         .padding(.bottom, .spacing5)
         .accessibilityIdentifier("embed-version-timeline")
+    }
+
+    private func restoreButton(for embed: EmbedRecord, selectedVersion: Int) -> some View {
+        Button {
+            guard !embed.versionHistoryReadonly else { return }
+            restoreConfirmVersion = restoreConfirmVersion == selectedVersion ? nil : selectedVersion
+        } label: {
+            Text(restoreConfirmVersion == selectedVersion ? "Confirm restore v\(selectedVersion)" : "Restore v\(selectedVersion)")
+                .font(.omXs)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.buttonPrimary)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radius3)
+                        .stroke(Color.buttonPrimary, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(embed.versionHistoryReadonly)
+        .accessibilityIdentifier("embed-version-restore-button")
     }
 
     private func versionTimelineStatusText(selectedVersion: Int, currentVersion: Int) -> String {
