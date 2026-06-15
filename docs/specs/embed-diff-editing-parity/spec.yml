@@ -622,9 +622,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: blocked_no_native_e2e_spec
-        run_id: apple-uitests-no-EmbedDiffEditingParityUITests-2026-06-15
-        timestamp: "2026-06-15T18:36:00+00:00"
+        status: passed
+        run_id: remote-macos-peer-apple-ui-2026-06-15-1918
+        timestamp: "2026-06-15T19:18:31+00:00"
 
 implementation_plan:
   existing_patterns:
