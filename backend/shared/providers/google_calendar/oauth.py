@@ -51,3 +51,30 @@ async def exchange_google_refresh_token(
             "scope_context": scope_context,
         }
     return result
+
+
+async def exchange_google_authorization_code(
+    *,
+    code: str,
+    redirect_uri: str,
+) -> dict[str, Any]:
+    """Exchange a Google OAuth authorization code for token response data."""
+
+    client_id = os.getenv("GOOGLE_CALENDAR_CLIENT_ID") or os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CALENDAR_CLIENT_SECRET") or os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        raise RuntimeError("Google OAuth client credentials are not configured")
+
+    async with httpx.AsyncClient(timeout=TOKEN_EXCHANGE_TIMEOUT_SECONDS) as client:
+        response = await client.post(
+            GOOGLE_OAUTH_TOKEN_URL,
+            data={
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": redirect_uri,
+            },
+        )
+        response.raise_for_status()
+        return response.json()
