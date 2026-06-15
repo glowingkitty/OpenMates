@@ -1736,8 +1736,16 @@ export class ChatSynchronizationService extends EventTarget {
 
   private async buildDefaultConnectedAccountSendContext(): Promise<ConnectedAccountSendContext | undefined> {
     if (!get(authStore).isAuthenticated) return undefined;
-    const rows = await listConnectedAccounts();
-    return buildConnectedAccountSendContext({ rows, appId: "calendar" });
+    try {
+      const rows = await listConnectedAccounts();
+      return buildConnectedAccountSendContext({ rows, appId: "calendar" });
+    } catch (error) {
+      console.warn(
+        "[ChatSyncService] Connected account lookup failed; sending without connected account context.",
+        error,
+      );
+      return undefined;
+    }
   }
   public async sendCompletedAIResponse(aiMessage: Message): Promise<void> {
     await senders.sendCompletedAIResponseImpl(this, aiMessage);
