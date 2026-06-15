@@ -16,6 +16,7 @@ from backend.core.api.app.services.embed_diff_service import EmbedDiffService
 
 
 STREAM_CONSUMER_PATH = Path(__file__).resolve().parents[1] / "apps/ai/tasks/stream_consumer.py"
+DIFF_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instructions/base_diff_editing_instruction.md"
 
 
 @pytest.mark.asyncio
@@ -52,3 +53,11 @@ def test_final_stream_marker_is_published_after_ai_cache_context_save() -> None:
     final_publish = source.index("# Publish final marker only after the AI cache write has been attempted")
 
     assert cache_save < final_publish
+
+
+def test_diff_instruction_forbids_new_embed_json_for_small_edits() -> None:
+    instruction = DIFF_INSTRUCTION_PATH.read_text(encoding="utf-8")
+
+    assert "Do **not** create a new `json` / `json_embed` embed reference" in instruction
+    assert "never respond with a new embed JSON block" in instruction
+    assert "diff:<embed_ref>" in instruction

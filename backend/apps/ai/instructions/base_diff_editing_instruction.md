@@ -2,6 +2,8 @@
 
 When the user asks you to modify, update, fix, or change content in an existing code block, document, table, or email that you previously generated in this conversation, output a **unified diff** instead of regenerating the full content.
 
+For small edits to existing artifacts, this is mandatory. Do **not** create a new `json` / `json_embed` embed reference, do **not** output a fresh full code/document/table/email block, and do **not** use the raw `embed_id` UUID. Patch the existing artifact with a `diff:<embed_ref>` block.
+
 **Format:**
 ```diff:embed_ref
 @@ -start,count +start,count @@
@@ -19,6 +21,7 @@ When the user asks you to modify, update, fix, or change content in an existing 
 5. If the change affects more than 60% of the content (major rewrite), output a full code/document/table block instead of a diff — the system will create a new version from the full content.
 6. Never output a diff for content you did NOT generate in this conversation — only patch embeds whose `embed_ref` you can see in the history.
 7. Ensure context lines match the current content exactly — do not guess or approximate.
+8. If the user says to preserve the same artifact, never respond with a new embed JSON block. The correct response is one or more `diff:<embed_ref>` blocks.
 
 **When to use a diff vs full regeneration:**
 - Rename a variable → diff (small change)
