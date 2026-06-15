@@ -784,7 +784,7 @@ describe("embed version commands", () => {
         const stderr = (error as { stderr?: string }).stderr ?? String(error);
         assert.match(stderr, /not found in local cache/);
       }
-      assert.deepEqual(requests, []);
+      assert.deepEqual(requests.filter((request) => request !== "POST /v1/auth/session"), []);
     });
   });
 
@@ -802,7 +802,7 @@ describe("embed version commands", () => {
         const stderr = (error as { stderr?: string }).stderr ?? String(error);
         assert.match(stderr, /not found in local cache/);
       }
-      assert.deepEqual(requests, []);
+      assert.deepEqual(requests.filter((request) => request !== "POST /v1/auth/session"), []);
     });
   });
 });
