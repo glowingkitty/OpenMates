@@ -1141,6 +1141,7 @@ implementation_progress:
       - Authenticated connected-account storage routes now list, create, and patch encrypted/hash-only rows with owner-hash checks and plaintext provider identity/token rejection.
       - Provider-neutral OAuth refresh-token handoff service and claim route now support confidential-provider code exchange adapters without persistent plaintext token storage.
       - Google Calendar OAuth start/callback adapter now maps selected capabilities to minimal Google scopes, stores owner-bound state, exchanges authorization codes server-side, creates generic one-time handoffs, and redirects with only oauth_handoff_id.
+      - Browser OAuth handoff finalization service now claims one-time handoffs, encrypts provider/token/account data locally, and stores only encrypted/hash connected-account rows.
       - Browser connected-account storage service prepares owner hashes locally, calls authenticated encrypted-row routes, and rejects plaintext provider identity/token fields before network calls.
       - Browser connected-account storage service can decrypt encrypted rows into a chat-visible redacted account directory plus broker-only token-ref inputs for selected accounts/actions.
       - Calendar app-skill embeds now use generic Calendar preview/fullscreen wrappers so generated embed registry entries resolve to real Svelte components while the richer approval UI is pending.
@@ -1161,6 +1162,8 @@ implementation_progress:
       - command: python3 -m py_compile backend/core/api/app/services/connected_account_oauth_handoff.py backend/core/api/app/routes/connected_account_oauth.py backend/core/api/main.py
         result: passed
       - command: python3 -m py_compile backend/core/api/app/routes/provider_oauth_google_calendar.py backend/shared/providers/google_calendar/oauth.py backend/core/api/main.py
+        result: passed
+      - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountOAuthService.ts src/services/__tests__/connectedAccountOAuthService.test.ts
         result: passed
       - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountTokenBrokerService.ts src/services/connectedAccountStorageService.ts src/services/__tests__/connectedAccountStorageService.test.ts src/components/embeds/calendar/CalendarActionEmbedPreview.svelte src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte src/data/embedRegistry.generated.ts
         result: passed
