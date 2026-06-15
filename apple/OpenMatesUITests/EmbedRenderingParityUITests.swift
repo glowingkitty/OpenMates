@@ -85,7 +85,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
 
         let restoreButton = app.descendants(matching: .any)["embed-version-restore-button"]
         scrollUntilVisible(app: app, element: restoreButton)
-        XCTAssertTrue(restoreButton.exists)
+        XCTAssertTrue(restoreButton.exists, app.debugDescription)
         restoreButton.tap()
 
         let confirmRestore = app.buttons
