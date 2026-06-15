@@ -102,10 +102,11 @@ Managed in [cryptoKeyStorage.ts](../../frontend/packages/ui/src/services/cryptoK
 | Data type | Key source | Implementation |
 |-----------|-----------|----------------|
 | Chat messages | Per-chat AES key, wrapped with master key | `encryptWithChatKey()` / `decryptWithChatKey()` |
-| Chat titles, drafts | Master key directly | `encryptWithMasterKey()` / `decryptWithMasterKey()` |
+| Chat titles | Per-chat AES key, wrapped with master key | `encryptWithChatKey()` / `decryptWithChatKey()` |
+| Drafts | Master key directly | `encryptWithMasterKey()` / `decryptWithMasterKey()` |
 | Embeds | Per-embed key derived from chat key via HKDF | `deriveEmbedKeyFromChatKey()` |
 | Email address | SHA256(email + salt) for server lookup; master key for client storage | `deriveEmailEncryptionKey()` / `encryptEmail()` |
-| memories | Per-app AES key, wrapped with master key | Same pattern as chat keys |
+| memories | Current clients encrypt item JSON with master key; `encrypted_app_key` is retained for the app-key design | `encryptWithMasterKey()` / `decryptWithMasterKey()` |
 
 Compromise of one data type does not affect others.
 

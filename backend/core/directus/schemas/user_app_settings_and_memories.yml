@@ -4,8 +4,8 @@
 #
 # Scalability Architecture:
 # - Every individual item (movie, restaurant, trip, etc.) is a separate Directus row
-# - Each app/user combination has a unique encryption_key_user_app (shared across all items in that app)
-# - The app encryption key is encrypted with the user's master encryption key for device sync
+# - Current clients encrypt each item with the user's master key before upload
+# - encrypted_app_key is retained for compatibility with the app-key design but is not used by current clients
 # - All items are encrypted client-side before upload
 # - Server stores only encrypted items, never plaintext data
 # - Enables server-side pagination, sorting, and efficient selective sync
@@ -43,7 +43,7 @@ user_app_settings_and_memories:
     encrypted_app_key:
       type: string
       length: 512
-      note: "[Encrypted] App-specific encryption key (unique per app/user combo), encrypted with user's master key for device sync. Same for all items in an app. Client decrypts once and reuses for all items."
+      note: "[Encrypted optional] App-specific encryption key for the app-key design, encrypted with user's master key for device sync. Current clients leave this empty and encrypt items directly with the master key."
 
     encrypted_item_json:
       type: text

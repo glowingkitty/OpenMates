@@ -24,7 +24,7 @@ messages:
 
     encrypted_content:
       type: textfield
-      note: "[Encrypted] The final, complete Tiptap JSON content of the message, encrypted using the chat's key from Vault"
+      note: "[Client-encrypted] Final message content, encrypted with the chat-specific key before permanent storage. Content may be markdown/plain text or serialized JSON depending on the client payload."
 
     role:
       type: string
@@ -44,7 +44,7 @@ messages:
 
     encrypted_thinking_content:
       type: textfield
-      note: "[Encrypted] The thinking content (internal reasoning) of the AI model, encrypted using the chat's key from Vault"
+      note: "[Client-encrypted] The thinking content (internal reasoning) of the AI model, encrypted with the chat-specific key"
 
     encrypted_thinking_signature:
       type: string

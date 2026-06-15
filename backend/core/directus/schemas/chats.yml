@@ -11,7 +11,7 @@ chats:
 
     encrypted_title:
       type: text # Suitable for potentially longer titles
-      note: "[Encrypted] User-defined title of the chat, encrypted using the key from Vault"
+      note: "[Client-encrypted] User-defined title of the chat, encrypted with the chat-specific key"
 
     messages_v:
       type: integer
