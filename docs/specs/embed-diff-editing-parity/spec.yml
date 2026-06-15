@@ -534,9 +534,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: gha-27564408150
+        timestamp: "2026-06-15T17:36:00+00:00"
 
   - id: T-PLAYWRIGHT-WEB-E2E
     type: playwright

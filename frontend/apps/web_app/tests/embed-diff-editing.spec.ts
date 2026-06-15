@@ -44,6 +44,11 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
 
+// All tests in this file use the same long-lived account slot and create new
+// chats with embeds. Running them concurrently races last_opened/chat-key state
+// across browser contexts, leaving first messages stuck in "Sending...".
+test.describe.configure({ mode: 'serial' });
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function setupPageListeners(page: any) {
