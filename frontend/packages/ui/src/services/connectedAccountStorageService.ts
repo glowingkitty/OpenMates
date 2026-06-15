@@ -137,6 +137,7 @@ export async function buildConnectedAccountSendContext(params: {
 	appId: string;
 	accountIds?: string[];
 	defaultAllowedActions?: string[];
+	allowedActionsOverride?: string[];
 }): Promise<ConnectedAccountSendContext | undefined> {
 	const selectedIds = new Set(params.accountIds ?? []);
 	const rows = params.accountIds?.length
@@ -174,7 +175,7 @@ export async function buildConnectedAccountSendContext(params: {
 		const capabilityList = Array.isArray(capabilities)
 			? capabilities
 			: capabilities.capabilities ?? [];
-		const allowedActions = permissions.allowed_actions ?? params.defaultAllowedActions ?? [];
+		const allowedActions = params.allowedActionsOverride ?? permissions.allowed_actions ?? params.defaultAllowedActions ?? [];
 		directory.push({
 			connected_account_id: row.id,
 			app_id: permissions.app_id ?? params.appId,

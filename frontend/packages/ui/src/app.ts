@@ -8,6 +8,7 @@ import { logCollector } from "./services/logCollector";
 import { userActionTracker } from "./services/userActionTracker";
 import { initDebugUtils } from "./services/debugUtils";
 import { initPermissionDialogListener } from "./stores/appSettingsMemoriesPermissionStore";
+import { initConnectedAccountPermissionListener } from "./stores/connectedAccountPermissionStore";
 
 /**
  * Initialize all application services
@@ -55,6 +56,7 @@ export async function initializeApp(
     // Initialize app settings/memories permission dialog listener
     // This listens for "showAppSettingsMemoriesPermissionDialog" events from the WebSocket handler
     initPermissionDialogListener();
+    initConnectedAccountPermissionListener();
 
     // Check authentication only if not skipped
     if (!options.skipAuthInitialization) {

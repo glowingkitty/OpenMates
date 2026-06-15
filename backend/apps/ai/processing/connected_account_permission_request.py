@@ -153,6 +153,7 @@ def _redacted_accounts(
         accounts.append(
             {
                 "connected_account_id": account.get("connected_account_id"),
+                "app_id": app_id,
                 "account_ref": account.get("account_ref") or account.get("connected_account_id"),
                 "label": account.get("label") or "Connected account",
                 "capabilities": capabilities,

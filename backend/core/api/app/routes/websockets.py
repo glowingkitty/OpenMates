@@ -46,6 +46,7 @@ from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
+from .handlers.websocket_handlers.connected_account_permission_confirmed_handler import handle_connected_account_permission_confirmed
 from .handlers.websocket_handlers.store_app_settings_memories_handler import handle_store_app_settings_memories_entry # Handler for storing app settings/memories entries to Directus
 from .handlers.websocket_handlers.delete_app_settings_memories_handler import handle_delete_app_settings_memories_entry # Handler for deleting app settings/memories entries with cross-device sync
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
@@ -2471,6 +2472,19 @@ async def websocket_endpoint(
                 # Handle app settings/memories confirmation from client
                 # Client sends decrypted data when user confirms, server encrypts and caches
                 await handle_app_settings_memories_confirmed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "connected_account_permission_confirmed":
+                await handle_connected_account_permission_confirmed(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

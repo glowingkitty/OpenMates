@@ -49,11 +49,16 @@
   // The permission dialog is rendered as part of the chat history (scrollable with messages)
   // rather than as a fixed overlay, so users can scroll while the dialog is visible
   import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
+  import ConnectedAccountPermissionDialog from './ConnectedAccountPermissionDialog.svelte';
   import { 
     appSettingsMemoriesPermissionStore,
     isPermissionDialogVisible,
     currentPermissionRequest
   } from '../stores/appSettingsMemoriesPermissionStore';
+  import {
+    currentConnectedAccountPermissionRequest,
+    isConnectedAccountPermissionVisible
+  } from '../stores/connectedAccountPermissionStore';
   import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
   import { text } from '@repo/ui'; // Used for compression summary UI labels
@@ -967,6 +972,13 @@
     $currentPermissionRequest?.chatId && 
     currentChatId && 
     $currentPermissionRequest.chatId === currentChatId
+  );
+
+  let shouldShowConnectedAccountPermissionDialog = $derived(
+    $isConnectedAccountPermissionVisible &&
+    $currentConnectedAccountPermissionRequest?.chatId &&
+    currentChatId &&
+    $currentConnectedAccountPermissionRequest.chatId === currentChatId
   );
 
   /**
@@ -2272,6 +2284,12 @@
             {#if shouldShowPermissionDialog}
                 <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
                     <AppSettingsMemoriesPermissionDialog />
+                </div>
+            {/if}
+
+            {#if shouldShowConnectedAccountPermissionDialog}
+                <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
+                    <ConnectedAccountPermissionDialog />
                 </div>
             {/if}
 

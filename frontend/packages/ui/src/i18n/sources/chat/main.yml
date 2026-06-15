@@ -360,6 +360,23 @@ permissions.reject_all:
   sv: Avvisa alla
   he: דחה הכל
   verified_by_human: []
+
+connected_account_permissions.title:
+  context: Header for a connected account approval dialog in chat.
+  en: Connected account approval
+  verified_by_human: [en]
+connected_account_permissions.question:
+  context: Question asking user to allow one connected account action. The action replacement is a short action name such as read, write, update, or delete.
+  en: Allow this chat to use your connected account for this {action} action?
+  verified_by_human: [en]
+connected_account_permissions.approve:
+  context: Button that approves a connected account action request.
+  en: Approve once
+  verified_by_human: [en]
+connected_account_permissions.loading:
+  context: Button/status text while connected account approval is being sent.
+  en: Approving...
+  verified_by_human: [en]
 permissions.entry_singular:
   context: Singular form of entry count (e.g., "1 entry")
   en: entry

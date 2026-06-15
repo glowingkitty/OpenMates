@@ -939,6 +939,14 @@ export class ChatSynchronizationService extends EventTarget {
         ),
       );
     });
+    webSocketService.on("request_connected_account_permission", (payload) => {
+      import("./chatSyncServiceHandlersConnectedAccounts").then((module) =>
+        module.handleRequestConnectedAccountPermissionImpl(
+          this,
+          payload as Parameters<typeof module.handleRequestConnectedAccountPermissionImpl>[1],
+        ),
+      );
+    });
     webSocketService.on("dismiss_app_settings_memories_dialog", (payload) => {
       import("./chatSyncServiceHandlersAppSettings").then((module) =>
         module.handleDismissAppSettingsMemoriesDialogImpl(

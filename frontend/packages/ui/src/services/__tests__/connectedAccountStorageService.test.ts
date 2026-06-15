@@ -140,4 +140,24 @@ describe('connectedAccountStorageService', () => {
 			action_scope: { calendar_id: 'primary' }
 		});
 	});
+
+	it('narrows broker token refs to an approved action override', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			allowedActionsOverride: ['update'],
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:["read","write","update","delete"]',
+					encrypted_app_permissions:
+						'enc:{"app_id":"calendar","allowed_actions":["read","write","update","delete"]}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}'
+				}
+			]
+		});
+
+		expect(context?.tokenRefInputs?.[0].allowed_actions).toEqual(['update']);
+	});
 });

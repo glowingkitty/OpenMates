@@ -4312,6 +4312,20 @@ async def handle_main_processing(
                                 f"{log_prefix} Connected-account permission required for "
                                 f"{app_id}.{skill_id}: {permission_error}"
                             )
+                            if getattr(request_data, "is_connected_account_permission_continuation", False):
+                                current_message_history.append({
+                                    "tool_call_id": tool_call_id,
+                                    "role": "tool",
+                                    "name": tool_name,
+                                    "content": json.dumps({
+                                        "status": "permission_denied",
+                                        "reason": str(permission_error),
+                                        "app_id": app_id,
+                                        "skill_id": skill_id,
+                                    }),
+                                })
+                                continue
+
                             from backend.apps.ai.processing.connected_account_permission_request import (
                                 create_connected_account_permission_request,
                             )
