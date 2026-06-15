@@ -3902,7 +3902,6 @@ async def _consume_main_processing_stream(
                             is_fake_tool_call = True
                             # Try to extract tool name from content
                             try:
-                                import json
                                 parsed = json.loads(code_content)
                                 fake_tool_name = parsed.get('tool', 'unknown')
                             except (json.JSONDecodeError, Exception):
@@ -3930,7 +3929,6 @@ async def _consume_main_processing_stream(
                             # Skip embed references (already handled above)
                             if '"tool"' in code_content and '"input"' in code_content:
                                 try:
-                                    import json
                                     parsed = json.loads(code_content)
                                     if 'tool' in parsed and 'input' in parsed:
                                         is_fake_tool_call = True
@@ -4023,7 +4021,6 @@ async def _consume_main_processing_stream(
 
                                 elif is_diff_block:
                                     # ─── DIFF BLOCK: Apply unified diff to existing embed ───
-                                    import json
                                     from backend.core.api.app.services.embed_diff_service import (
                                         parse_unified_diff, apply_patch
                                     )
@@ -5145,7 +5142,6 @@ async def _consume_main_processing_stream(
                         if current_code_language and current_code_language.lower() == 'json':
                             if '"tool"' in current_code_content and '"input"' in current_code_content:
                                 try:
-                                    import json
                                     parsed = json.loads(current_code_content)
                                     if 'tool' in parsed and 'input' in parsed:
                                         is_json_fake_tool = True
@@ -5160,7 +5156,6 @@ async def _consume_main_processing_stream(
                             elif '"tool":' in current_code_content:
                                 # Try to extract from content
                                 try:
-                                    import json
                                     parsed = json.loads(current_code_content)
                                     fake_tool_name = parsed.get('tool', current_code_language)
                                 except (json.JSONDecodeError, Exception):

@@ -8,6 +8,7 @@ reconstruct, or restore plaintext diff history.
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -68,3 +69,22 @@ def test_stream_consumer_uses_cache_embed_lookup_signature() -> None:
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
 
     assert not re.search(r"get_embed_from_cache\(\s*[^,)]+,", source)
+
+
+def test_stream_consumer_does_not_shadow_json_module() -> None:
+    source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
+    module = ast.parse(source)
+    consumer = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "_consume_main_processing_stream"
+    )
+
+    shadowing_imports = [
+        node
+        for node in ast.walk(consumer)
+        if isinstance(node, ast.Import)
+        and any(alias.name == "json" for alias in node.names)
+    ]
+
+    assert not shadowing_imports
