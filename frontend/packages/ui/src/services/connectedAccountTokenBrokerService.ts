@@ -45,9 +45,21 @@ export interface PreparedConnectedAccountSendContext {
 	tokenRefs?: ConnectedAccountTurnTokenRef[];
 }
 
+const CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = [
+	'refresh_token',
+	'access_token',
+	'provider_email',
+	'email',
+	'account_email',
+	'provider_account_id',
+	'provider_account_email',
+	'oauth_scopes',
+	'scopes'
+];
+
 export function assertNoConnectedAccountSecretLeak(value: unknown): void {
 	const serialized = JSON.stringify(value ?? {});
-	for (const key of ['refresh_token', 'access_token', 'provider_email', 'account_email', 'provider_account_id']) {
+	for (const key of CONNECTED_ACCOUNT_FORBIDDEN_FIELDS) {
 		if (serialized.includes(`"${key}"`)) {
 			throw new Error(`Connected account payload contains forbidden field: ${key}`);
 		}

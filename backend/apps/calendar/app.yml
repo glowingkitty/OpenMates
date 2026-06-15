@@ -13,8 +13,8 @@ embed_types:
     backend_type: app_skill_use
     has_children: false
     groupable: true
-    preview_component: calendar/CalendarEventsEmbedPreview.svelte
-    fullscreen_component: calendar/CalendarEventsEmbedFullscreen.svelte
+    preview_component: calendar/CalendarActionEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarActionEmbedFullscreen.svelte
     icon: calendar
     gradient_var: "--color-app-calendar"
     i18n_namespace: embeds.calendar.events
@@ -25,8 +25,8 @@ embed_types:
     backend_type: app_skill_use
     has_children: false
     groupable: true
-    preview_component: calendar/CalendarEventCreateEmbedPreview.svelte
-    fullscreen_component: calendar/CalendarEventCreateEmbedFullscreen.svelte
+    preview_component: calendar/CalendarActionEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarActionEmbedFullscreen.svelte
     icon: calendar
     gradient_var: "--color-app-calendar"
     i18n_namespace: embeds.calendar.event_create
@@ -37,8 +37,8 @@ embed_types:
     backend_type: app_skill_use
     has_children: false
     groupable: true
-    preview_component: calendar/CalendarEventUpdateEmbedPreview.svelte
-    fullscreen_component: calendar/CalendarEventUpdateEmbedFullscreen.svelte
+    preview_component: calendar/CalendarActionEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarActionEmbedFullscreen.svelte
     icon: calendar
     gradient_var: "--color-app-calendar"
     i18n_namespace: embeds.calendar.event_update
@@ -49,8 +49,8 @@ embed_types:
     backend_type: app_skill_use
     has_children: false
     groupable: true
-    preview_component: calendar/CalendarEventDeleteEmbedPreview.svelte
-    fullscreen_component: calendar/CalendarEventDeleteEmbedFullscreen.svelte
+    preview_component: calendar/CalendarActionEmbedPreview.svelte
+    fullscreen_component: calendar/CalendarActionEmbedFullscreen.svelte
     icon: calendar
     gradient_var: "--color-app-calendar"
     i18n_namespace: embeds.calendar.event_delete
