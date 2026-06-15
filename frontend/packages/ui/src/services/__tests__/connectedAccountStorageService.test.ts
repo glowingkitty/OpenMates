@@ -8,7 +8,12 @@ vi.mock('../../message_parsing/utils', () => ({
 	computeSHA256: vi.fn(async (value: string) => `hash:${value}`)
 }));
 
+vi.mock('../cryptoService', () => ({
+	decryptWithMasterKey: vi.fn(async (value: string) => value.replace(/^enc:/, ''))
+}));
+
 import {
+	buildConnectedAccountSendContext,
 	createConnectedAccount,
 	listConnectedAccounts,
 	updateConnectedAccount
@@ -96,5 +101,43 @@ describe('connectedAccountStorageService', () => {
 			})
 		).rejects.toThrow('refresh_token');
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('builds chat directory and broker-only token ref inputs from encrypted rows', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:["read","write"]',
+					encrypted_app_permissions:
+						'enc:{"app_id":"calendar","allowed_actions":["read"],"action_scope":{"calendar_id":"primary"}}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}',
+					encrypted_account_directory_hint:
+						'enc:{"account_ref":"calendar-work","label":"Work","capabilities":["read"],"runtime_modes":{"read":"ask_each_time"}}'
+				}
+			]
+		});
+
+		expect(context?.directory).toEqual([
+			{
+				connected_account_id: 'acct-1',
+				app_id: 'calendar',
+				account_ref: 'calendar-work',
+				label: 'Work',
+				capabilities: ['read'],
+				runtime_modes: { read: 'ask_each_time' }
+			}
+		]);
+		expect(JSON.stringify(context?.directory)).not.toContain('secret-refresh');
+		expect(context?.tokenRefInputs?.[0]).toMatchObject({
+			connected_account_id: 'acct-1',
+			app_id: 'calendar',
+			allowed_actions: ['read'],
+			refresh_token_envelope: { refresh_token: 'secret-refresh', provider: 'google' },
+			action_scope: { calendar_id: 'primary' }
+		});
 	});
 });

@@ -1122,6 +1122,7 @@ implementation_progress:
       - Backend connected-account validators, token-broker refs, lazy exchange/access-token handle tests, Calendar skill contract tests, REST/API-key exclusion tests, permission broker tests, and operation journal privacy tests passed together.
       - Authenticated connected-account storage routes now list, create, and patch encrypted/hash-only rows with owner-hash checks and plaintext provider identity/token rejection.
       - Browser connected-account storage service prepares owner hashes locally, calls authenticated encrypted-row routes, and rejects plaintext provider identity/token fields before network calls.
+      - Browser connected-account storage service can decrypt encrypted rows into a chat-visible redacted account directory plus broker-only token-ref inputs for selected accounts/actions.
       - Calendar app-skill embeds now use generic Calendar preview/fullscreen wrappers so generated embed registry entries resolve to real Svelte components while the richer approval UI is pending.
       - WebSocket connected-account directory/token-ref sanitizer coverage rejects chat-visible refresh tokens, access tokens, OAuth scopes, and plaintext provider account identity before message confirmation.
       - CLI client connected-account payload builders, token-ref request flow, and Sent gating passed focused build/unit verification.
@@ -1136,6 +1137,10 @@ implementation_progress:
       - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountTokenBrokerService.ts src/services/connectedAccountStorageService.ts src/services/__tests__/connectedAccountStorageService.test.ts src/components/embeds/calendar/CalendarActionEmbedPreview.svelte src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte src/data/embedRegistry.generated.ts
         result: passed
       - command: cd frontend/packages/ui && node scripts/generate-embed-registry.js
+        result: passed
+      - command: python3 scripts/run_tests.py --suite vitest
+        result: 388 passed on GitHub Actions run 27547059503 for commit 2662b0a
+      - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountStorageService.ts src/services/__tests__/connectedAccountStorageService.test.ts
         result: passed
       - command: python3 -m py_compile backend/core/api/app/services/connected_account_operation_journal.py backend/core/api/app/services/token_broker.py backend/apps/ai/processing/connected_account_execution.py
         result: passed
