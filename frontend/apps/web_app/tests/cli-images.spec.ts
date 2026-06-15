@@ -251,10 +251,14 @@ async function downloadFile(url: string, destination: string): Promise<void> {
 	await fs.promises.mkdir(path.dirname(destination), { recursive: true });
 
 	await new Promise<void>((resolve, reject) => {
-		const request = https.get(url, (response: any) => {
+		const request = https.get(url, {
+			headers: {
+				'User-Agent': 'OpenMates-E2E/1.0 (https://openmates.org)'
+			}
+		}, (response: any) => {
 			if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location) {
 				response.resume();
-				downloadFile(response.headers.location, destination).then(resolve, reject);
+				downloadFile(new URL(response.headers.location, url).toString(), destination).then(resolve, reject);
 				return;
 			}
 
