@@ -15,10 +15,13 @@ import {
 	type ConnectedAccountPermissionRequest
 } from '../stores/connectedAccountPermissionStore';
 import { notificationStore } from '../stores/notificationStore';
+import { ensureChatKeySafeForWrite } from './chatKeyWriteGuard';
+import { chatKeyManager } from './encryption/ChatKeyManager';
 import type { ChatSynchronizationService } from './chatSyncService';
 import { listConnectedAccounts, buildConnectedAccountSendContext } from './connectedAccountStorageService';
 import { createConnectedAccountTurnTokenRefs } from './connectedAccountTokenBrokerService';
 import { chatDB } from './db';
+import { encryptWithChatKey } from './encryption/MessageEncryptor';
 import { webSocketService } from './websocketService';
 
 interface RequestConnectedAccountPermissionPayload {
@@ -30,6 +33,20 @@ interface RequestConnectedAccountPermissionPayload {
 	action: string;
 	required_actions?: string[];
 	accounts?: ConnectedAccountPermissionAccount[];
+}
+
+interface ConnectedAccountActionReceiptPayload {
+	chat_id: string;
+	message_id?: string;
+	action_id: string;
+	receipt: {
+		app_id?: string;
+		skill_id?: string;
+		action?: string;
+		decision?: string;
+		result_count?: number;
+		undo_available?: boolean;
+	};
 }
 
 const connectedAccountPermissionNotifications = new Map<string, string>();
@@ -155,6 +172,71 @@ export async function rejectConnectedAccountPermissionRequest(): Promise<void> {
 		connectedAccountPermissionStore.setLoading(false);
 		notificationStore.addNotification('error', 'Could not reject connected account access', 5000);
 	}
+}
+
+export async function handleConnectedAccountActionReceiptImpl(
+	serviceInstance: ChatSynchronizationService,
+	payload: ConnectedAccountActionReceiptPayload
+): Promise<void> {
+	if (!payload.chat_id || !payload.action_id || !payload.receipt) {
+		console.error('[ChatSyncService:ConnectedAccounts] Invalid receipt payload:', payload);
+		return;
+	}
+
+	const chatKey = await chatKeyManager.getKey(payload.chat_id);
+	if (!chatKey) {
+		console.warn('[ChatSyncService:ConnectedAccounts] No chat key for receipt system message');
+		return;
+	}
+	if (!(await ensureChatKeySafeForWrite(payload.chat_id, chatKey, 'connected account receipt'))) {
+		return;
+	}
+
+	const { generateUUID } = await import('../message_parsing/utils');
+	const messageId = `${payload.chat_id.slice(-10)}-${generateUUID()}`;
+	const now = Math.floor(Date.now() / 1000);
+	const content = JSON.stringify({
+		type: 'connected_account_action_receipt',
+		action_id: payload.action_id,
+		user_message_id: payload.message_id,
+		receipt: payload.receipt
+	});
+	const encryptedContent = await encryptWithChatKey(content, chatKey);
+	const systemMessage = {
+		message_id: messageId,
+		chat_id: payload.chat_id,
+		role: 'system' as const,
+		content,
+		created_at: now,
+		status: 'sending' as const,
+		encrypted_content: encryptedContent,
+		user_message_id: payload.message_id
+	};
+
+	await chatDB.saveMessage(systemMessage);
+	await webSocketService.sendMessage('chat_system_message_added', {
+		chat_id: payload.chat_id,
+		message: {
+			message_id: messageId,
+			role: 'system',
+			encrypted_content: encryptedContent,
+			created_at: now,
+			user_message_id: payload.message_id,
+			status: 'synced'
+		}
+	});
+
+	const syncedMessage = { ...systemMessage, status: 'synced' as const };
+	await chatDB.saveMessage(syncedMessage);
+	serviceInstance.dispatchEvent(
+		new CustomEvent('chatUpdated', {
+			detail: {
+				chat_id: payload.chat_id,
+				type: 'system_message_added',
+				newMessage: syncedMessage
+			}
+		})
+	);
 }
 
 function clearConnectedAccountProcessingState(

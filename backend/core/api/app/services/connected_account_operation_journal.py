@@ -102,8 +102,8 @@ class ConnectedAccountOperationJournalService:
             success, payload = result[0], result[1] if len(result) > 1 else None
             if not success:
                 raise RuntimeError("failed to persist connected-account operation journal entry")
-            return payload or entry
-        return result or entry
+            return entry | (payload or {})
+        return entry | (result or {})
 
     async def load_owned_action(
         self,

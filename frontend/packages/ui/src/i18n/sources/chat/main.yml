@@ -377,6 +377,34 @@ connected_account_permissions.loading:
   context: Button/status text while connected account approval is being sent.
   en: Approving...
   verified_by_human: [en]
+connected_account_receipts.completed:
+  context: System receipt shown after a connected-account action completed. The action replacement is a localized action label such as Calendar read or Calendar write.
+  en: "{action} completed."
+  verified_by_human: [en]
+connected_account_receipts.undo_available:
+  context: Short sentence appended to a connected-account receipt when undo is available.
+  en: Undo is available.
+  verified_by_human: [en]
+connected_account_receipts.action_read:
+  context: Action label for a connected account Calendar read receipt.
+  en: Calendar read
+  verified_by_human: [en]
+connected_account_receipts.action_write:
+  context: Action label for a connected account Calendar create/write receipt.
+  en: Calendar write
+  verified_by_human: [en]
+connected_account_receipts.action_update:
+  context: Action label for a connected account Calendar update receipt.
+  en: Calendar update
+  verified_by_human: [en]
+connected_account_receipts.action_delete:
+  context: Action label for a connected account Calendar delete receipt.
+  en: Calendar delete
+  verified_by_human: [en]
+connected_account_receipts.action_unknown:
+  context: Fallback action label for an unknown connected account receipt action.
+  en: Connected account action
+  verified_by_human: [en]
 permissions.entry_singular:
   context: Singular form of entry count (e.g., "1 entry")
   en: entry

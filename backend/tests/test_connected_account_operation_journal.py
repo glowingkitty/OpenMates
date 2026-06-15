@@ -94,4 +94,5 @@ async def test_operation_journal_persists_entry_to_directus() -> None:
     assert directus.collection == "connected_account_operation_journal"
     assert directus.payload is not None
     assert directus.payload["encrypted_receipt"].startswith("vault:vault-key:")
-    assert result == {"id": directus.payload["id"]}
+    assert result["id"] == directus.payload["id"]
+    assert result["action_id"] == directus.payload["action_id"]

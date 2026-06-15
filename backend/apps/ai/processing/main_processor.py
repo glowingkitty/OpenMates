@@ -581,6 +581,7 @@ async def _record_connected_account_operation_journal_entries(
     message_id: str,
     directus_service: DirectusService,
     encryption_service: EncryptionService,
+    cache_service: CacheService,
     log_prefix: str,
 ) -> None:
     if app_id != "calendar" or not user_vault_key_id or not token_artifacts:
@@ -589,6 +590,9 @@ async def _record_connected_account_operation_journal_entries(
     try:
         from backend.core.api.app.services.connected_account_operation_journal import (
             ConnectedAccountOperationJournalService,
+        )
+        from backend.apps.ai.processing.connected_account_receipts import (
+            publish_connected_account_action_receipt,
         )
 
         journal_service = ConnectedAccountOperationJournalService(encryption_service=encryption_service)
@@ -599,7 +603,15 @@ async def _record_connected_account_operation_journal_entries(
             if not connected_account_id or not action:
                 logger.error("%s Connected-account journal artifact missing account/action metadata", log_prefix)
                 continue
-            await journal_service.record_entry(
+            receipt = {
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "action": action,
+                "decision": "completed",
+                "result_count": len(normalized_results),
+                "undo_available": _calendar_undo_available(skill_id),
+            }
+            journal_entry = await journal_service.record_entry(
                 directus_service=directus_service,
                 user_id=user_id,
                 user_vault_key_id=user_vault_key_id,
@@ -608,17 +620,20 @@ async def _record_connected_account_operation_journal_entries(
                 action=action,
                 decision="completed",
                 action_scope=artifact.get("action_scope") if isinstance(artifact.get("action_scope"), dict) else {},
-                receipt={
-                    "app_id": app_id,
-                    "skill_id": skill_id,
-                    "action": action,
-                    "decision": "completed",
-                    "result_count": len(normalized_results),
-                    "undo_available": _calendar_undo_available(skill_id),
-                },
+                receipt=receipt,
                 undo_payload=_calendar_undo_payload(skill_id, normalized_results),
                 chat_id=chat_id,
                 message_id=message_id,
+            )
+            await publish_connected_account_action_receipt(
+                cache_service=cache_service,
+                user_id=user_id,
+                payload={
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "action_id": journal_entry.get("action_id"),
+                    "receipt": receipt,
+                },
             )
     except Exception as journal_error:
         logger.error("%s Failed to persist connected-account operation journal: %s", log_prefix, journal_error, exc_info=True)
@@ -4467,6 +4482,7 @@ async def handle_main_processing(
                                 message_id=request_data.message_id,
                                 directus_service=directus_service,
                                 encryption_service=encryption_service,
+                                cache_service=cache_service,
                                 log_prefix=log_prefix,
                             )
                     finally:

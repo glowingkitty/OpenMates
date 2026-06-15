@@ -117,6 +117,17 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     language?: string;
     lineCount?: number;
   }
+
+  interface ConnectedAccountActionReceiptContent {
+    type: 'connected_account_action_receipt';
+    action_id: string;
+    user_message_id?: string;
+    receipt?: {
+      action?: string;
+      decision?: string;
+      undo_available?: boolean;
+    };
+  }
   
   // Use a discriminated union so that "text" parts only have a string and "app-cards" parts only have AppCardData[]
   type TextMessagePart = {
@@ -917,6 +928,42 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let compressionNeedsExpand = $derived.by(() => {
     if (!compressionSummaryText) return false;
     return compressionSummaryText.split('\n').length > 4;
+  });
+
+  function parseConnectedAccountReceipt(contentValue: unknown): ConnectedAccountActionReceiptContent | null {
+    if (typeof contentValue !== 'string' || !contentValue.trimStart().startsWith('{')) return null;
+    try {
+      const parsed = JSON.parse(contentValue);
+      return parsed?.type === 'connected_account_action_receipt'
+        ? parsed as ConnectedAccountActionReceiptContent
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function connectedAccountActionLabel(action: string | undefined): string {
+    if (action === 'read') return $text('chat.connected_account_receipts.action_read');
+    if (action === 'write') return $text('chat.connected_account_receipts.action_write');
+    if (action === 'update') return $text('chat.connected_account_receipts.action_update');
+    if (action === 'delete') return $text('chat.connected_account_receipts.action_delete');
+    return action || $text('chat.connected_account_receipts.action_unknown');
+  }
+
+  function connectedAccountReceiptText(receipt: ConnectedAccountActionReceiptContent): string {
+    const action = connectedAccountActionLabel(receipt.receipt?.action);
+    const base = $text('chat.connected_account_receipts.completed', { values: { action } });
+    return receipt.receipt?.undo_available
+      ? `${base} ${$text('chat.connected_account_receipts.undo_available')}`
+      : base;
+  }
+
+  let systemMessageText = $derived.by(() => {
+    const rawContent = typeof content === 'string'
+      ? content
+      : (typeof original_message?.content === 'string' ? original_message.content : '');
+    const receipt = parseConnectedAccountReceipt(rawContent);
+    return receipt ? connectedAccountReceiptText(receipt) : rawContent;
   });
 
   // Special handling for openmates_official category
@@ -2867,7 +2914,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         </button>
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
-        <span class="system-message-text" data-testid="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
+        <span class="system-message-text" data-testid="system-message-text">{systemMessageText}</span>
         {#if status === 'waiting_for_user'}
           <!-- Credit rejection: show a button to navigate to billing/buy-credits -->
           <button

@@ -506,6 +506,28 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account permission request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account permission request {request_id}")
+                    elif event_type == "send_connected_account_action_receipt":
+                        chat_id = payload.get("chat_id")
+                        action_id = payload.get("action_id")
+                        if chat_id and action_id:
+                            user_connections = manager.get_connections_for_user(user_id)
+                            if user_connections:
+                                device_ids = list(user_connections.keys())
+                                for device_id in device_ids:
+                                    try:
+                                        await manager.send_personal_message(
+                                            {
+                                                "type": "connected_account_action_receipt",
+                                                "payload": payload,
+                                            },
+                                            user_id,
+                                            device_id,
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Redis Listener: FAILED to send connected-account receipt {action_id} to device {device_id[:12]}...: {e}")
+                                logger.info(f"Redis Listener: Sent connected-account receipt {action_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
+                            else:
+                                logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account receipt {action_id}")
                     elif event_type == "focus_mode_activated":
                         # Focus mode was auto-confirmed after countdown. Push the activation
                         # event to all connected devices so the client can update its local
