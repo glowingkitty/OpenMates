@@ -1,0 +1,583 @@
+title:
+  context: "Title of example chat: Identify a Classic Car from a Photo"
+  en: "Identify a Classic Car from a Photo"
+  de: Einen Oldtimer anhand eines Fotos identifizieren
+  zh: 通过照片识别经典车
+  es: Identificar un coche clásico a partir de una foto
+  fr: "Identifier une voiture de collection à partir d'une photo"
+  pt: Identificar um Carro Clássico a partir de uma Foto
+  ru: Определи классический автомобиль по фото
+  ja: 写真からクラシックカーを特定する
+  ko: 사진으로 클래식 카 식별하기
+  it: "Identifica un'auto d'epoca da una foto"
+  tr: Fotoğraftan Klasik Bir Arabayı Tanımla
+  vi: Nhận diện xe cổ từ ảnh
+  id: Identifikasi Mobil Klasik dari Foto
+  pl: Zidentyfikuj klasyczny samochód na podstawie zdjęcia
+  nl: Identificeer een klassieke auto van een foto
+  ar: التعرف على سيارة كلاسيكية من صورة
+  hi: फोटो से क्लासिक कार की पहचान करें
+  th: ระบุรุ่นรถคลาสสิกจากรูปถ่าย
+  cs: Identifikuj veterána z fotky
+  sv: Identifiera en klassisk bil från ett foto
+  he: זיהוי מכונית קלאסית מתמונה
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Identify a Classic Car from a Photo"
+  en: "Use reverse image search to identify a Mercedes-Benz 300 SL Gullwing from an uploaded photo."
+  de: Nutze die umgekehrte Bildsuche, um einen Mercedes-Benz 300 SL Flügeltürer auf einem hochgeladenen Foto zu identifizieren.
+  zh: 通过以图搜图功能，从上传的照片中识别出梅赛德斯-奔驰 300 SL Gullwing。
+  es: Utiliza la búsqueda inversa de imágenes para identificar un Mercedes-Benz 300 SL Gullwing a partir de una foto subida.
+  fr: "Utilise la recherche d'image inversée pour identifier une Mercedes-Benz 300 SL Gullwing à partir d'une photo téléchargée."
+  pt: Usa a pesquisa inversa de imagens para identificar um Mercedes-Benz 300 SL Gullwing a partir de uma foto carregada.
+  ru: Используй обратный поиск по изображениям, чтобы определить Mercedes-Benz 300 SL Gullwing на загруженном фото.
+  ja: アップロードされた写真から画像検索を使用して、メルセデス・ベンツ 300 SL ガルウィングを特定します。
+  ko: 이미지 역검색을 사용하여 업로드된 사진 속의 메르세데스-벤츠 300 SL 걸윙을 식별해 보세요.
+  it: Usa la ricerca inversa per immagini per identificare una Mercedes-Benz 300 SL Gullwing da una foto caricata.
+  tr: "Yüklenen bir fotoğraftan Mercedes-Benz 300 SL Gullwing'i tanımlamak için tersine görsel aramayı kullan."
+  vi: Sử dụng tính năng tìm kiếm hình ảnh ngược để nhận diện chiếc Mercedes-Benz 300 SL Gullwing từ ảnh đã tải lên.
+  id: Gunakan pencarian gambar terbalik untuk mengidentifikasi Mercedes-Benz 300 SL Gullwing dari foto yang diunggah.
+  pl: Użyj wyszukiwania obrazem, aby zidentyfikować Mercedesa-Benz 300 SL Gullwing na podstawie przesłanego zdjęcia.
+  nl: Gebruik omgekeerd zoeken naar afbeeldingen om een Mercedes-Benz 300 SL Gullwing te identificeren op een geüploade foto.
+  ar: استخدم البحث العكسي عن الصور للتعرف على سيارة مرسيدس-بنز 300 SL Gullwing من صورة مرفوعة.
+  hi: अपलोड की गई फोटो से Mercedes-Benz 300 SL Gullwing की पहचान करने के लिए रिवर्स इमेज सर्च का उपयोग करें।
+  th: ใช้การค้นหาด้วยรูปภาพเพื่อระบุรุ่น Mercedes-Benz 300 SL Gullwing จากรูปถ่ายที่อัปโหลด
+  cs: Použij zpětné vyhledávání obrázků k identifikaci vozu Mercedes-Benz 300 SL Gullwing z nahrané fotografie.
+  sv: Använd omvänd bildsökning för att identifiera en Mercedes-Benz 300 SL Gullwing från ett uppladdat foto.
+  he: שימוש בחיפוש תמונה הפוך כדי לזהות מרצדס-בנץ 300 SL גולווינג מתמונה שהועלתה.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Identify a Classic Car from a Photo. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Use reverse image search on this uploaded classic car photo and identify the exact car model. Reply with the model name and one sentence explaining the visual clues.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  de: |
+    Nutze die umgekehrte Bildsuche für dieses hochgeladene Foto eines Oldtimers und identifiziere das genaue Modell. Antworte mit dem Modellnamen und einem Satz, der die optischen Merkmale erklärt.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  zh: |
+    对这张上传的经典车照片进行以图搜图，并识别出确切的车系型号。请回复型号名称，并用一句话说明视觉识别线索。
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  es: |
+    Utiliza la búsqueda inversa de imágenes en esta foto de un coche clásico e identifica el modelo exacto. Responde con el nombre del modelo y una frase que explique las pistas visuales.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  fr: |
+    Utilise la recherche d'image inversée sur cette photo de voiture de collection téléchargée et identifie le modèle exact. Réponds avec le nom du modèle et une phrase expliquant les indices visuels.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  pt: |
+    Usa a pesquisa inversa de imagens nesta foto de um carro clássico carregada e identifica o modelo exato do carro. Responde com o nome do modelo e uma frase a explicar as pistas visuais.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  ru: |
+    Используй обратный поиск по этому загруженному фото классического автомобиля и определи точную модель. В ответе укажи название модели и одно предложение с описанием визуальных признаков.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  ja: |
+    アップロードされたこのクラシックカーの写真に画像検索を使用し、正確な車種を特定してください。車種名と、視覚的な手がかりを説明する1文で回答してください。
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  ko: |
+    업로드된 이 클래식 카 사진에 이미지 역검색을 사용하여 정확한 자동차 모델을 식별해 줘. 모델 이름과 시각적 단서를 설명하는 한 문장으로 답해 줘.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  it: |
+    Usa la ricerca inversa per immagini su questa foto di un'auto d'epoca caricata e identifica l'esatto modello dell'auto. Rispondi con il nome del modello e una frase che spieghi gli indizi visivi.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  tr: |
+    Yüklenen bu klasik araba fotoğrafında tersine görsel arama yap ve tam araba modelini belirle. Model adıyla ve görsel ipuçlarını açıklayan bir cümleyle yanıt ver.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  vi: |
+    Sử dụng tính năng tìm kiếm hình ảnh ngược trên ảnh xe cổ đã tải lên này và nhận diện chính xác mẫu xe. Trả lời bằng tên mẫu xe và một câu giải thích các manh mối hình ảnh.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  id: |
+    Gunakan pencarian gambar terbalik pada foto mobil klasik yang diunggah ini dan identifikasi model mobil yang tepat. Balas dengan nama model dan satu kalimat yang menjelaskan petunjuk visualnya.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  pl: |
+    Użyj wyszukiwania obrazem dla tego przesłanego zdjęcia klasycznego samochodu i zidentyfikuj dokładny model. Odpowiedz, podając nazwę modelu i jedno zdanie wyjaśniające wskazówki wizualne.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  nl: |
+    Gebruik omgekeerd zoeken naar afbeeldingen op deze geüploade foto van een klassieke auto en identificeer het exacte automodel. Antwoord met de modelnaam en één zin die de visuele aanwijzingen uitlegt.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  ar: |
+    استخدم البحث العكسي عن الصور على صورة السيارة الكلاسيكية المرفوعة هذه وحدد طراز السيارة بدقة. أجب باسم الطراز وجملة واحدة تشرح الأدلة المرئية.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  hi: |
+    इस अपलोड की गई क्लासिक कार की फोटो पर रिवर्स इमेज सर्च का उपयोग करें और कार के सटीक मॉडल की पहचान करें। मॉडल का नाम और विजुअल सुरागों को समझाने वाला एक वाक्य लिखकर उत्तर दें।
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  th: |
+    ใช้การค้นหาด้วยรูปภาพกับรูปถ่ายรถคลาสสิกที่อัปโหลดนี้และระบุรุ่นรถที่ถูกต้อง ตอบกลับด้วยชื่อรุ่นและประโยคหนึ่งประโยคที่อธิบายเบาะแสทางสายตา
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  cs: |
+    Použij zpětné vyhledávání obrázků u této nahrané fotky veterána a identifikuj přesný model auta. Odpověz názvem modelu a jednou větou vysvětlující vizuální znaky.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  sv: |
+    Använd omvänd bildsökning på det här uppladdade fotot av en klassisk bil och identifiera den exakta bilmodellen. Svara med modellnamnet och en mening som förklarar de visuella ledtrådarna.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  he: |
+    השתמש בחיפוש תמונה הפוך על תמונת המכונית הקלאסית שהועלתה וזהה את דגם המכונית המדויק. השב עם שם הדגם ומשפט אחד המסביר את הרמזים הוויזואליים.
+    [!](embed:mercedes-300-sl-gullwing-example-jpg-b41-baf4d7)
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Identify a Classic Car from a Photo. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    The car in the photo is a **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    This legendary model is most easily identified by its signature upward-opening "gullwing" doors, the prominent horizontal chrome bars flanking the large star in the grille, and the distinctive aerodynamic "eyebrows" positioned over the wheel arches.
+    
+    Based on the current date of June 15, 2026, this vehicle remains one of the most coveted and valuable collector cars in history.
+    
+    **Would you like to know more about this car?**
+    - I can look up the current [market value and auction history](/#settings/apps/web) for the 300 SL.
+    - I can find [technical specifications](/#settings/apps/web) or the history of its development as a racing car.
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    Das Auto auf dem Foto ist ein **[Mercedes-Benz 300 SL Flügeltürer](wiki:Mercedes-Benz_300_SL)**.
+    
+    Dieses legendäre Modell lässt sich am einfachsten an seinen charakteristischen, nach oben öffnenden „Flügeltüren“, den markanten horizontalen Chromstreben neben dem großen Stern im Kühlergrill und den markanten aerodynamischen „Augenbrauen“ über den Radläufen erkennen.
+    
+    Basierend auf dem heutigen Datum, dem 15. Juni 2026, bleibt dieses Fahrzeug eines der begehrtesten und wertvollsten Sammlerautos der Geschichte.
+    
+    **Möchtest du mehr über dieses Auto erfahren?**
+    - Ich kann den aktuellen [Marktwert und die Auktionshistorie](/#settings/apps/web) für den 300 SL nachschlagen.
+    - Ich kann [technische Daten](/#settings/apps/web) oder die Entwicklungsgeschichte als Rennwagen heraussuchen.
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    照片中的汽车是 **[梅赛德斯-奔驰 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**。
+    
+    这款传奇车型最容易通过其标志性的向上开启的“鸥翼”门、格栅中大星徽两侧显著的水平镀铬条，以及轮拱上方独特的空气动力学“眉毛”设计来识别。
+    
+    根据当前日期 2026 年 6 月 15 日，该车仍是历史上最令人向往且最有价值的收藏车之一。
+    
+    **你想了解更多关于这辆车的信息吗？**
+    - 我可以查询 300 SL 目前的 [市场价值和拍卖历史](/#settings/apps/web)。
+    - 我可以查找其作为赛车的 [技术规格](/#settings/apps/web) 或研发历史。
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    El coche de la foto es un **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)** (Alas de Gaviota).
+    
+    Este legendario modelo se identifica fácilmente por sus características puertas de apertura hacia arriba tipo "alas de gaviota", las prominentes barras cromadas horizontales que flanquean la gran estrella en la parrilla y las distintivas "cejas" aerodinámicas situadas sobre los pasos de rueda.
+    
+    A fecha de hoy, 15 de junio de 2026, este vehículo sigue siendo uno de los coches de colección más codiciados y valiosos de la historia.
+    
+    **¿Te gustaría saber más sobre este coche?**
+    - Puedo buscar el [valor de mercado actual y el historial de subastas](/#settings/apps/web) del 300 SL.
+    - Puedo encontrar [especificaciones técnicas](/#settings/apps/web) o la historia de su desarrollo como coche de carreras.
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    La voiture sur la photo est une **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Ce modèle légendaire se reconnaît très facilement à ses portes « papillon » emblématiques s'ouvrant vers le haut, aux barres chromées horizontales proéminentes qui encadrent la grande étoile sur la calandre, et aux « sourcils » aérodynamiques distinctifs situés au-dessus des passages de roues.
+    
+    En date du 15 juin 2026, ce véhicule reste l'une des voitures de collection les plus convoitées et les plus précieuses de l'histoire.
+    
+    **Aimerais-tu en savoir plus sur cette voiture ?**
+    - Je peux rechercher la [valeur marchande actuelle et l'historique des enchères](/#settings/apps/web) de la 300 SL.
+    - Je peux trouver les [spécifications techniques](/#settings/apps/web) ou l'histoire de son développement en tant que voiture de course.
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    O carro na foto é um **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Este modelo lendário é facilmente identificado pelas suas emblemáticas portas "asa de gaivota" que abrem para cima, pelas proeminentes barras cromadas horizontais que ladeiam a grande estrela na grelha e pelas distintivas "sobrancelhas" aerodinâmicas posicionadas sobre os arcos das rodas.
+    
+    Com base na data atual de 15 de junho de 2026, este veículo continua a ser um dos carros de coleção mais cobiçados e valiosos da história.
+    
+    **Gostarias de saber mais sobre este carro?**
+    - Posso pesquisar o [valor de mercado atual e o histórico de leilões](/#settings/apps/web) do 300 SL.
+    - Posso encontrar [especificações técnicas](/#settings/apps/web) ou a história do seu desenvolvimento como carro de corrida.
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    Автомобиль на фото — это **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Эту легендарную модель легче всего узнать по характерным дверям типа «крыло чайки», открывающимся вверх, заметным горизонтальным хромированным полосам по бокам от большой звезды на решетке радиатора и отличительным аэродинамическим «бровям» над колесными арками.
+    
+    По состоянию на 15 июня 2026 года этот автомобиль остается одним из самых желанных и ценных коллекционных авто в истории.
+    
+    **Хочешь узнать больше об этом автомобиле?**
+    - Я могу найти текущую [рыночную стоимость и историю аукционов](/#settings/apps/web) для 300 SL.
+    - Я могу найти [технические характеристики](/#settings/apps/web) или историю его создания как гоночного автомобиля.
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    写真の車は**[メルセデス・ベンツ 300 SL ガルウィング](wiki:Mercedes-Benz_300_SL)**です。
+    
+    この伝説的なモデルは、特徴的な上向きに開く「ガルウィング」ドア、フロントグリルの大きなエンブレムを挟む目立つ水平のクロームバー、そしてホイールアーチの上に配置された独特の空気力学的な「アイブロウ」によって、最も容易に識別できます。
+    
+    2026年6月15日現在、この車両は歴史上最も切望され、価値のあるコレクターズカーの1つであり続けています。
+    
+    **この車についてもっと詳しく知りたいですか？**
+    - 300 SLの現在の[市場価値とオークション履歴](/#settings/apps/web)を調べることができます。
+    - [技術仕様](/#settings/apps/web)や、レーシングカーとしての開発の歴史を見つけることができます。
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    사진 속의 자동차는 **[메르세데스-벤츠 300 SL 걸윙(Mercedes-Benz 300 SL Gullwing)](wiki:Mercedes-Benz_300_SL)**이야.
+    
+    이 전설적인 모델은 위쪽으로 열리는 특징적인 "걸윙" 도어, 그릴의 커다란 별 로고 양옆에 있는 눈에 띄는 수평 크롬 바, 그리고 휠 아치 위에 위치한 독특한 공기역학적 "아이브로우"를 통해 가장 쉽게 식별할 수 있어.
+    
+    현재 날짜인 2026년 6월 15일을 기준으로, 이 차량은 역사상 가장 탐나고 가치 있는 수집용 자동차 중 하나로 남아 있어.
+    
+    **이 차에 대해 더 알고 싶니?**
+    - 300 SL의 현재 [시장 가치와 경매 기록](/#settings/apps/web)을 찾아볼 수 있어.
+    - [기술 사양](/#settings/apps/web)이나 경주용 자동차로서의 개발 역사를 찾아줄 수 있어.
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    L'auto nella foto è una **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Questo leggendario modello è facilmente identificabile dalle sue caratteristiche portiere ad "ali di gabbiano" che si aprono verso l'alto, dalle prominenti barre cromate orizzontali ai lati della grande stella nella griglia e dai distintivi "sopracciglia" aerodinamici posizionati sopra i passaruota.
+    
+    In base alla data odierna del 15 giugno 2026, questo veicolo rimane una delle auto da collezione più ambite e preziose della storia.
+    
+    **Ti piacerebbe saperne di più su quest'auto?**
+    - Posso cercare l'attuale [valore di mercato e la cronologia delle aste](/#settings/apps/web) per la 300 SL.
+    - Posso trovare le [specifiche tecniche](/#settings/apps/web) o la storia del suo sviluppo come auto da corsa.
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    Fotoğraftaki araba bir **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Bu efsanevi model, en kolay şekilde yukarı doğru açılan karakteristik "martı kanat" kapıları, ızgaradaki büyük yıldızın yanındaki belirgin yatay krom çubuklar ve tekerlek kemerlerinin üzerindeki kendine özgü aerodinamik "kaşlar" ile tanınır.
+    
+    15 Haziran 2026 tarihi itibarıyla bu araç, tarihin en çok arzulanan ve değerli koleksiyon arabalarından biri olmaya devam ediyor.
+    
+    **Bu araba hakkında daha fazla bilgi edinmek ister misin?**
+    - 300 SL için güncel [piyasa değerine ve açık artırma geçmişine](/#settings/apps/web) bakabilirim.
+    - [Teknik özellikleri](/#settings/apps/web) veya bir yarış arabası olarak gelişim tarihini bulabilirim.
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    Chiếc xe trong ảnh là một chiếc **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Mẫu xe huyền thoại này dễ nhận diện nhất qua thiết kế cửa mở ngược lên trên kiểu "cánh chim" (gullwing) đặc trưng, các thanh crôm nằm ngang nổi bật bên cạnh biểu tượng ngôi sao lớn ở lưới tản nhiệt và các đường gờ khí động học "lông mày" độc đáo phía trên hốc bánh xe.
+    
+    Tính đến ngày hiện tại là 15 tháng 6 năm 2026, chiếc xe này vẫn là một trong những mẫu xe được giới sưu tập săn đón và có giá trị nhất trong lịch sử.
+    
+    **Bạn có muốn biết thêm về chiếc xe này không?**
+    - Tôi có thể tra cứu [giá trị thị trường và lịch sử đấu giá](/#settings/apps/web) hiện tại của dòng 300 SL.
+    - Tôi có thể tìm [thông số kỹ thuật](/#settings/apps/web) hoặc lịch sử phát triển của nó như một chiếc xe đua.
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    Mobil dalam foto tersebut adalah **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Model legendaris ini paling mudah dikenali dari pintu "gullwing" khasnya yang terbuka ke atas, batang krom horizontal yang menonjol di sisi bintang besar pada gril, dan "alis" aerodinamis yang khas di atas lengkungan roda.
+    
+    Berdasarkan tanggal saat ini, 15 Juni 2026, kendaraan ini tetap menjadi salah satu mobil koleksi yang paling diincar dan berharga dalam sejarah.
+    
+    **Apakah kamu ingin tahu lebih banyak tentang mobil ini?**
+    - Aku bisa mencari [nilai pasar dan riwayat lelang](/#settings/apps/web) saat ini untuk 300 SL.
+    - Aku bisa menemukan [spesifikasi teknis](/#settings/apps/web) atau sejarah pengembangannya sebagai mobil balap.
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    Samochód na zdjęciu to **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Ten legendarny model najłatwiej rozpoznać po charakterystycznych, otwieranych do góry drzwiach typu „skrzydła mewy”, wydatnych poziomych chromowanych listwach po bokach dużej gwiazdy na osłonie chłodnicy oraz charakterystycznych aerodynamicznych „brwiach” nad nadkolami.
+    
+    Biorąc pod uwagę dzisiejszą datę, 15 czerwca 2026 r., pojazd ten pozostaje jednym z najbardziej pożądanych i wartościowych samochodów kolekcjonerskich w historii.
+    
+    **Czy chcesz dowiedzieć się więcej o tym samochodzie?**
+    - Mogę sprawdzić aktualną [wartość rynkową i historię aukcji](/#settings/apps/web) modelu 300 SL.
+    - Mogę znaleźć [specyfikacje techniczne](/#settings/apps/web) lub historię jego rozwoju jako samochodu wyścigowego.
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    De auto op de foto is een **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Dit legendarische model is het gemakkelijkst te herkennen aan zijn kenmerkende naar boven openslaande "vleugeldeuren", de prominente horizontale chromen balken naast de grote ster in de grille en de kenmerkende aerodynamische "wenkbrauwen" boven de wielkasten.
+    
+    Op basis van de huidige datum van 15 juni 2026 blijft dit voertuig een van de meest begeerde en waardevolle verzamelaarsauto's in de geschiedenis.
+    
+    **Wil je meer weten over deze auto?**
+    - Ik kan de huidige [marktwaarde en veilinggeschiedenis](/#settings/apps/web) van de 300 SL opzoeken.
+    - Ik kan [technische specificaties](/#settings/apps/web) vinden of de geschiedenis van de ontwikkeling als racewagen.
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    السيارة الموجودة في الصورة هي **[مرسيدس-بنز 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    يمكن التعرف على هذا الطراز الأسطوري بسهولة من خلال أبوابه التي تفتح للأعلى بتصميم "أجنحة النورس" المميز، وقضبان الكروم الأفقية البارزة التي تحيط بالنجمة الكبيرة في الشبكة الأمامية، و"الحواجب" الديناميكية الهوائية المميزة الموجودة فوق أقواس العجلات.
+    
+    بناءً على التاريخ الحالي وهو 15 يونيو 2026، تظل هذه السيارة واحدة من أكثر السيارات المرغوبة والقيمة لهواة جمع السيارات في التاريخ.
+    
+    **هل تود معرفة المزيد عن هذه السيارة؟**
+    - يمكنني البحث عن [القيمة السوقية الحالية وسجل المزادات](/#settings/apps/web) لسيارة 300 SL.
+    - يمكنني العثور على [المواصفات الفنية](/#settings/apps/web) أو تاريخ تطويرها كسيارة سباق.
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    फोटो में दिख रही कार **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)** है।
+    
+    इस प्रसिद्ध मॉडल की पहचान इसके सिग्नेचर ऊपर की ओर खुलने वाले "गलविंग" (gullwing) दरवाजों, ग्रिल में बड़े स्टार के दोनों ओर लगे प्रमुख हॉरिजॉन्टल क्रोम बार और व्हील आर्च के ऊपर स्थित विशिष्ट एरोडायनामिक "आईब्रो" (eyebrows) से आसानी से की जा सकती है।
+    
+    15 जून, 2026 की वर्तमान तारीख के आधार पर, यह वाहन इतिहास की सबसे प्रतिष्ठित और मूल्यवान कलेक्टर कारों में से एक बना हुआ है।
+    
+    **क्या आप इस कार के बारे में और जानना चाहेंगे?**
+    - मैं 300 SL के लिए वर्तमान [बाजार मूल्य और नीलामी का इतिहास](/#settings/apps/web) देख सकता हूँ।
+    - मैं इसके [तकनीकी विनिर्देश](/#settings/apps/web) या रेसिंग कार के रूप में इसके विकास का इतिहास खोज सकता हूँ।
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    รถในรูปถ่ายคือ **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**
+    
+    รถรุ่นในตำนานนี้ระบุได้ง่ายที่สุดจากประตูแบบ "ปีกนก" (gullwing) ที่เปิดขึ้นด้านบนอันเป็นเอกลักษณ์ แถบโครเมียมแนวนอนที่โดดเด่นขนาบข้างตราดาวขนาดใหญ่ในกระจังหน้า และ "คิ้ว" ตามหลักอากาศพลศาสตร์ที่โดดเด่นเหนือซุ้มล้อ
+    
+    จากวันที่ปัจจุบันคือ 15 มิถุนายน 2026 รถคันนี้ยังคงเป็นหนึ่งในรถสะสมที่เป็นที่ต้องการและมีมูลค่ามากที่สุดในประวัติศาสตร์
+    
+    **คุณต้องการทราบข้อมูลเพิ่มเติมเกี่ยวกับรถคันนี้หรือไม่?**
+    - ฉันสามารถค้นหา [มูลค่าตลาดและประวัติการประมูล](/#settings/apps/web) ในปัจจุบันของ 300 SL ได้
+    - ฉันสามารถค้นหา [ข้อมูลทางเทคนิค](/#settings/apps/web) หรือประวัติการพัฒนาในฐานะรถแข่งได้
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    Auto na fotce je **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Tento legendární model lze nejsnáze rozpoznat podle jeho charakteristických vzhůru se otevírajících „racčích“ dveří (gullwing), výrazných vodorovných chromovaných lišt po stranách velké hvězdy v masce chladiče a typických aerodynamických „obočí“ nad podběhy kol.
+    
+    Vzhledem k aktuálnímu datu 15. června 2026 zůstává toto vozidlo jedním z nejvyhledávanějších a nejcennějších sběratelských vozů v historii.
+    
+    **Chceš se o tomto autě dozvědět více?**
+    - Můžu vyhledat aktuální [tržní hodnotu a historii aukcí](/#settings/apps/web) modelu 300 SL.
+    - Můžu najít [technické specifikace](/#settings/apps/web) nebo historii jeho vývoje jako závodního vozu.
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    Bilen på bilden är en **[Mercedes-Benz 300 SL Gullwing](wiki:Mercedes-Benz_300_SL)**.
+    
+    Denna legendariska modell känns lättast igen på sina karakteristiska uppåtgående "måsvingedörrar", de framträdande horisontella kromlisterna på vardera sidan om den stora stjärnan i grillen och de distinkta aerodynamiska "ögonbrynen" ovanför hjulhusen.
+    
+    Baserat på dagens datum den 15 juni 2026 är detta fordon fortfarande en av de mest eftertraktade och värdefulla samlarbilarna i historien.
+    
+    **Vill du veta mer om den här bilen?**
+    - Jag kan slå upp det aktuella [marknadsvärdet och auktionshistoriken](/#settings/apps/web) för 300 SL.
+    - Jag kan hitta [tekniska specifikationer](/#settings/apps/web) eller historien bakom dess utveckling som tävlingsbil.
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "228d2a03-63cb-483a-b495-45489e55bc10", "app_id": "images", "skill_id": "search", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "45e9c346-341e-466e-aed1-67ee1412dce5", "app_id": "web", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing visual identification features", "provider": "Brave"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "d7f2f391-7c8f-44e7-beb4-66bd846dd0ae", "app_id": "images", "skill_id": "search", "query": "Mercedes-Benz 300 SL Gullwing", "provider": "Brave Search"}
+    ```
+    
+    המכונית שבתמונה היא **[מרצדס-בנץ 300 SL גולווינג](wiki:Mercedes-Benz_300_SL)**.
+    
+    דגם אגדי זה מזוהה בקלות רבה ביותר בזכות דלתות ה"גולווינג" (כנפי שחף) הייחודיות הנפתחות כלפי מעלה, פסי הכרום האופקיים הבולטים לצדי הכוכב הגדול בגריל, וה"גבות" האווירודינמיות המובהקות הממוקמות מעל קשתות הגלגלים.
+    
+    בהתבסס על התאריך הנוכחי, 15 ביוני 2026, רכב זה נותר אחת ממכוניות האספנות הנחשקות והיקרות ביותר בהיסטוריה.
+    
+    **האם תרצה לדעת עוד על המכונית הזו?**
+    - אני יכול לחפש את [ערך השוק והיסטוריית המכירות הפומביות](/#settings/apps/web) הנוכחיים של ה-300 SL.
+    - אני יכול למצוא [מפרטים טכניים](/#settings/apps/web) או את היסטוריית הפיתוח שלה כמכונית מרוץ.
+  verified_by_human: []
+
