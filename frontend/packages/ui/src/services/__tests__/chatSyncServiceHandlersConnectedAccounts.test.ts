@@ -75,12 +75,13 @@ import {
 
 describe('chatSyncServiceHandlersConnectedAccounts', () => {
 	beforeEach(() => {
+		vi.restoreAllMocks();
 		vi.clearAllMocks();
 		connectedAccountPermissionStore.clear();
 		mocks.activeChatStore.get.mockReturnValue('chat-1');
 		mocks.listConnectedAccounts.mockResolvedValue([]);
 		mocks.buildConnectedAccountSendContext.mockResolvedValue({ tokenRefInputs: [] });
-		vi.stubGlobal('window', { dispatchEvent: vi.fn() });
+		vi.spyOn(window, 'dispatchEvent').mockReturnValue(true);
 	});
 
 	it('preserves redacted Calendar request summaries for the approval card', async () => {
