@@ -25,6 +25,7 @@ def _message(role: str, content: str) -> SimpleNamespace:
 def _request(last_user_message: str, index: dict[str, str]) -> SimpleNamespace:
     return SimpleNamespace(
         embed_file_path_index=index,
+        current_user_content=None,
         message_history=[
             _message("assistant", "```toon\ntype: code\nembed_ref: main.py-AbC\n```"),
             _message("user", last_user_message),
@@ -132,4 +133,26 @@ async def test_selects_newest_cached_code_embed_when_ref_index_is_missing() -> N
     assert await _select_cached_code_full_replacement_target(request, cache_service) == (
         "cached:embed-new",
         "embed-new",
+    )
+
+
+@pytest.mark.anyio
+async def test_uses_current_user_content_when_history_lacks_current_turn() -> None:
+    request = SimpleNamespace(
+        chat_id="chat-1",
+        user_id="user-1",
+        embed_file_path_index={},
+        current_user_content="Edit the existing code artifact and preserve the same embed.",
+        message_history=[
+            _message("user", "Create a code embed with a Python function."),
+            _message("assistant", "```json\n{\"type\": \"code\", \"embed_id\": \"embed-old\"}\n```"),
+        ],
+    )
+    cache_service = _FakeCacheService({
+        "embed-old": {"embed_id": "embed-old", "type": "code", "status": "finished", "updated_at": 10},
+    })
+
+    assert await _select_cached_code_full_replacement_target(request, cache_service) == (
+        "cached:embed-old",
+        "embed-old",
     )

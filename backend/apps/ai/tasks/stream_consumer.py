@@ -2565,6 +2565,10 @@ _EDIT_EXISTING_ARTIFACT_RE = re.compile(
 
 
 def _is_edit_existing_artifact_request(request_data: AskSkillRequest) -> bool:
+    current_user_content = getattr(request_data, "current_user_content", None)
+    if isinstance(current_user_content, str) and _EDIT_EXISTING_ARTIFACT_RE.search(current_user_content):
+        return True
+
     last_user_content = ""
     for message in reversed(request_data.message_history or []):
         role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
