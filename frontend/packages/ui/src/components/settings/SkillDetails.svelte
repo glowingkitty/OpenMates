@@ -1,13 +1,13 @@
 <!-- frontend/packages/ui/src/components/settings/SkillDetails.svelte
      Component for displaying details of a specific skill, including description, providers, and pricing.
      
-     This component is used for the app_store/{app_id}/skill/{skill_id} nested route.
+     This component is used for the apps/{app_id}/skill/{skill_id} nested route.
      
      **Multi-model skills** (e.g. images.generate, images.generate_draft, audio.transcribe):
      When the modelsMetadata contains models tagged with `for_app_skill === "{appId}.{skillId}"`,
      the Providers and Pricing sections are replaced by a clickable model list — the same UI
      pattern used by the AI Ask skill. Clicking a model navigates to:
-       app_store/{app_id}/skill/{skill_id}/model/{model_id}
+       apps/{app_id}/skill/{skill_id}/model/{model_id}
      which renders AppSkillModelDetails.svelte.
      
      **Single-pricing skills** (no models in modelsMetadata):
@@ -240,7 +240,7 @@
                 skillId,
                 (targetSkillId) => {
                     dispatch('openSettings', {
-                        settingsPath: `app_store/${appId}/skill/${targetSkillId}`,
+                        settingsPath: `apps/${appId}/skill/${targetSkillId}`,
                         direction: 'forward',
                         icon: getIconName(app?.icon_image),
                         title: app?.name_translation_key ? $text(app.name_translation_key) : appId,
@@ -262,7 +262,7 @@
      */
     function goBack() {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}`,
+            settingsPath: `apps/${appId}`,
             direction: 'back',
             icon: getIconName(app?.icon_image),
             title: app?.name_translation_key ? $text(app.name_translation_key) : appId
@@ -275,7 +275,7 @@
      */
     function handleModelClick(model: AIModelMetadata) {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/skill/${skillId}/model/${model.id}`,
+            settingsPath: `apps/${appId}/skill/${skillId}/model/${model.id}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: model.name
@@ -327,7 +327,7 @@
         const providerMeta = findProviderByName(providerName);
         if (!providerMeta) return; // Provider not in metadata — not navigable
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/skill/${skillId}/provider/${providerMeta.id}`,
+            settingsPath: `apps/${appId}/skill/${skillId}/provider/${providerMeta.id}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: providerMeta.name,

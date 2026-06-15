@@ -1,7 +1,7 @@
 /**
  * App-store examples for social_media/get-posts.
  *
- * Uses synthetic but provider-shaped post data so the app store avoids
+ * Uses synthetic but provider-shaped post data so the Apps avoids
  * promoting specific real accounts while still rendering realistic cards.
  */
 

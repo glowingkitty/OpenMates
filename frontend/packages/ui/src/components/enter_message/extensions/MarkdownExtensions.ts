@@ -56,7 +56,7 @@ export const MarkdownHighlight = Highlight.configure({
  * Check if a href is an internal hash-based link
  * Internal links include:
  * - #chat-id= or /#chat-id= - Chat deep links
- * - #settings/ or /#settings/ - Settings deep links (including app store)
+ * - #settings/ or /#settings/ - Settings deep links (including Apps)
  */
 function isInternalHashLink(href: string): boolean {
   if (!href) return false;

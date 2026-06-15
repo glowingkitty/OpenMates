@@ -81,9 +81,11 @@ def _webapp_url() -> str:
 
 def _sanitize_return_path(return_path: str | None) -> str:
     if not return_path or not return_path.startswith("/#settings/"):
-        return "/#settings/app_store/calendar"
+        return "/#settings/apps/calendar"
     if "\n" in return_path or "\r" in return_path:
-        return "/#settings/app_store/calendar"
+        return "/#settings/apps/calendar"
+    if return_path.startswith("/#settings/app_store"):
+        return "/#settings/apps" + return_path.removeprefix("/#settings/app_store")
     return return_path
 
 
@@ -223,7 +225,7 @@ async def google_calendar_oauth_callback(
     return RedirectResponse(
         url=_append_handoff_query(
             _webapp_url(),
-            str(state_payload.get("return_path") or "/#settings/app_store/calendar"),
+            str(state_payload.get("return_path") or "/#settings/apps/calendar"),
             handoff.handoff_id,
         ),
         status_code=303,

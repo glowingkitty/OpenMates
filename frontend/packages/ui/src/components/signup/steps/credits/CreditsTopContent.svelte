@@ -69,7 +69,7 @@ step_9_top_content_svelte:
     let showGiftCardInput = $state(false);
 
     /**
-     * Open the app store in settings using deep linking.
+     * Open Apps in settings using deep linking.
      * Sets both the store and the URL hash for proper deep linking support.
      */
     function openAppSettings() {
@@ -78,8 +78,7 @@ step_9_top_content_svelte:
             window.location.hash = '#settings/apps';
         }
         
-        // Set the deep link path to app_store (not apps)
-        settingsDeepLink.set('app_store');
+        settingsDeepLink.set('apps');
         
         // Then make sure menu is visible using panelState with a slight delay
         setTimeout(() => {
@@ -116,6 +115,7 @@ step_9_top_content_svelte:
     <div class="top-container">
         <div class="header-content">
             <div class="primary-text">
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy injects the inline credit icon span -->
                 {@html $text('signup.pay_per_use').replace('{credits}', '<span class="coin-icon-inline"></span>')}
             </div>
         </div>
@@ -133,23 +133,28 @@ step_9_top_content_svelte:
                     />
                 </div>
             {:else}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
                 <div>{@html $text('signup.only_pay_what_you_use')}</div>
 
                 <div class="benefits-container">
                     <div class="benefit-item">
                         <div class="check-icon"></div>
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
                         <div>{@html $text('signup.no_subscription')}</div>
                     </div>
                     <div class="benefit-item">
                         <div class="check-icon"></div>
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
                         <div>{@html $text('signup.no_expiration_of_credits')}</div>
                     </div>
                     <div class="benefit-item">
                         <div class="check-icon"></div>
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
                         <div>{@html $text('signup.no_selling_of_user_data')}</div>
                     </div>
                     <div class="benefit-item">
                         <div class="check-icon"></div>
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
                         <div>{@html $text('signup.no_ads')}</div>
                     </div>
                 </div>
@@ -157,11 +162,13 @@ step_9_top_content_svelte:
                 <div class="footer-container">
                     <!-- Gift Card Button -->
                     <button id="signup-credits-gift-card" onclick={() => showGiftCardInput = true} class="text-button gift-card-button">
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
                         {@html $text('settings.billing.gift_card.have_code')}
                     </button>
                     
                     <!-- Apps Link -->
                     <button onclick={openAppSettings} class="text-button">
+                        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
                         {@html $text('signup.prices_on_app_store_soon')}
                     </button>
                 </div>

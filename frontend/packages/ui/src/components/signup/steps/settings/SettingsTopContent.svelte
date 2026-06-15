@@ -68,7 +68,7 @@ step_7_top_content_svelte:
             activeSettingsPath = null;
             // Reset the toggle to true when closing
             if (settingsPath === 'privacy') privacyToggleOn = true;
-            if (settingsPath === 'app_store') appsToggleOn = true;
+            if (settingsPath === 'apps') appsToggleOn = true;
             if (settingsPath === 'interface') interfaceToggleOn = true;
             return;
         }
@@ -79,7 +79,7 @@ step_7_top_content_svelte:
         // Update toggle state based on which item was clicked
         // Toggle OFF when opening the settings
         if (settingsPath === 'privacy') privacyToggleOn = false;
-        else if (settingsPath === 'app_store') appsToggleOn = false;
+        else if (settingsPath === 'apps') appsToggleOn = false;
         else if (settingsPath === 'interface') interfaceToggleOn = false;
         
         // First set the deep link path to navigate to specific settings
@@ -116,18 +116,22 @@ step_7_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size settings"></div>
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup heading may include inline emphasis markup -->
         <h2 class="signup-menu-title">{@html $text('common.settings')}</h2>
     </div>
     
     <div class="text-block">
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
         {@html $text('signup.default_settings_balance')}
         <span class="break-line"></span>
         <span class="break-line mobile-hidden"></span>
+        <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
         <mark>{@html $text('signup.click_toggle_to_open_settings')}</mark>
     </div>
     
     <div class="settings-block">
         <div class="settings-header">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized signup copy may include inline emphasis markup -->
             <div class="default-settings-text">{@html $text('signup.default_settings')}</div>
         </div>
 
@@ -142,12 +146,12 @@ step_7_top_content_svelte:
         />
         <SettingsItem 
             type="submenu" 
-            icon="app_store" 
+            icon="app" 
             title={$text('settings.app_store')}
-            onClick={() => handleSettingsClick('app_store')}
+            onClick={() => handleSettingsClick('apps')}
             hasToggle={true}
             checked={appsToggleOn}
-            on:toggleClick={(e) => handleToggleClick('app_store', e.detail)}
+            on:toggleClick={(e) => handleToggleClick('apps', e.detail)}
         />
         <SettingsItem 
             type="submenu" 

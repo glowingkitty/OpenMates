@@ -183,7 +183,7 @@ test.describe('Example chats loading for new users', () => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 1600, height: 900 });
 
-		await page.goto(getE2EDebugUrl('/#settings/app_store/books/settings_memories/currently_reading'), {
+		await page.goto(getE2EDebugUrl('/#settings/apps/books/settings_memories/currently_reading'), {
 			waitUntil: 'domcontentloaded'
 		});
 		await page.waitForLoadState('networkidle');

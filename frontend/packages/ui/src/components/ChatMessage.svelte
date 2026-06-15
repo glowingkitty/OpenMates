@@ -1459,7 +1459,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
 
   /**
-   * Navigate to the AI Ask model details page in the app store settings.
+   * Navigate to the AI Ask model details page in Apps settings.
    * Resolves the model_name (display name or ID) to its model ID for deep linking.
    */
   function handleGeneratedByClick() {
@@ -2145,7 +2145,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         );
       } else if (action === 'details') {
         console.debug('[ChatMessage] Focus mode details requested via context menu:', selectedFocusId);
-        // Navigate to the focus mode details page in settings / app store
+        // Navigate to the focus mode details page in Settings / Apps
         document.dispatchEvent(
           new CustomEvent('focusModeDetailsRequested', {
             bubbles: true,
@@ -3468,7 +3468,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 data-testid="app-settings-memory-category-badge"
                 onclick={() => {
                   // Navigate to app settings/memories category via deep link
-                  const path = `app_store/${cat.appId}/settings_memories/${cat.itemType}`;
+                  const path = `apps/${cat.appId}/settings_memories/${cat.itemType}`;
                   settingsDeepLink.set(path);
                   panelState.openSettings();
                 }}

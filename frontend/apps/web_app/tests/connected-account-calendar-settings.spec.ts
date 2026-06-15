@@ -2,7 +2,7 @@
 /**
  * Google Calendar connected-account settings flow.
  *
- * Verifies the user-facing App Store settings path can start OAuth, finalize an
+ * Verifies the user-facing Apps settings path can start OAuth, finalize an
  * opaque handoff after redirect, and persist only encrypted connected-account
  * fields before showing the account as connected.
  */
@@ -25,7 +25,7 @@ test.describe('Calendar connected-account settings', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	test('connects Google Calendar through settings using encrypted OAuth handoff storage', async ({ page }) => {
+	test('connects Google Calendar through settings using encrypted OAuth handoff storage', async ({ page }: { page: any }) => {
 		const logCheckpoint = createSignupLogger('CONNECTED_ACCOUNT_CALENDAR_SETTINGS');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
 			filenamePrefix: 'connected-account-calendar-settings',
@@ -34,19 +34,19 @@ test.describe('Calendar connected-account settings', () => {
 		let startRequestBody: Record<string, unknown> | null = null;
 
 		await archiveExistingScreenshots(logCheckpoint);
-		await page.route('**/v1/provider-oauth/google/calendar/start', async (route) => {
+		await page.route('**/v1/provider-oauth/google/calendar/start', async (route: any) => {
 			startRequestBody = route.request().postDataJSON();
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
-					authorization_url: getE2EDebugUrl('/?oauth_handoff_id=handoff-test-1#settings/app_store/calendar'),
+					authorization_url: getE2EDebugUrl('/?oauth_handoff_id=handoff-test-1#settings/apps/calendar'),
 					state_expires_at: Math.floor(Date.now() / 1000) + 600,
 					scopes: ['https://www.googleapis.com/auth/calendar.events']
 				})
 			});
 		});
-		await page.route('**/v1/connected-account-oauth/handoffs/handoff-test-1/claim', async (route) => {
+		await page.route('**/v1/connected-account-oauth/handoffs/handoff-test-1/claim', async (route: any) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -68,7 +68,7 @@ test.describe('Calendar connected-account settings', () => {
 				})
 			});
 		});
-		await page.route('**/v1/connected-accounts', async (route) => {
+		await page.route('**/v1/connected-accounts', async (route: any) => {
 			const request = route.request();
 			if (request.method() === 'GET') {
 				await route.fulfill({
@@ -92,8 +92,8 @@ test.describe('Calendar connected-account settings', () => {
 		});
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
-		await page.goto(getE2EDebugUrl('/#settings/app_store/calendar'), { waitUntil: 'domcontentloaded' });
-		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="app_store/calendar"]');
+		await page.goto(getE2EDebugUrl('/#settings/apps/calendar'), { waitUntil: 'domcontentloaded' });
+		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="apps/calendar"]');
 		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
 
 		const accountSection = settingsMenu.getByTestId('calendar-connected-accounts-section');
@@ -111,11 +111,12 @@ test.describe('Calendar connected-account settings', () => {
 
 		expect(startRequestBody).toEqual({
 			capabilities: ['read', 'write', 'delete'],
-			return_path: '/#settings/app_store/calendar'
+			return_path: '/#settings/apps/calendar'
 		});
 		expect(savedConnectedAccountRow).toBeTruthy();
-		expect(savedConnectedAccountRow?.provider_type_hash).toBeTruthy();
-		const savedRowJson = JSON.stringify(savedConnectedAccountRow);
+		const finalConnectedAccountRow: Record<string, unknown> = savedConnectedAccountRow ?? {};
+		expect(finalConnectedAccountRow.provider_type_hash).toBeTruthy();
+		const savedRowJson = JSON.stringify(finalConnectedAccountRow);
 		expect(savedRowJson).not.toContain('secret-refresh-token');
 		expect(savedRowJson).not.toContain('work@example.test');
 		expect(savedRowJson).not.toContain('google_calendar"');

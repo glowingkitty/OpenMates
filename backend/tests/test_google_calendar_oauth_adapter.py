@@ -101,7 +101,7 @@ def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
 
     response = client.post(
         "/v1/provider-oauth/google/calendar/start",
-        json={"capabilities": ["read"], "return_path": "/#settings/app_store/calendar"},
+        json={"capabilities": ["read"], "return_path": "/#settings/apps/calendar"},
     )
 
     assert response.status_code == 200
@@ -205,7 +205,7 @@ async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(
             "capabilities": ["read"],
             "scopes": [route.CALENDAR_READ_SCOPE],
             "redirect_uri": "https://api.dev.openmates.org/oauth/google/calendar/callback",
-            "return_path": "/#settings/app_store/calendar",
+            "return_path": "/#settings/apps/calendar",
             "expires_at": 999,
         },
         ttl=600,
@@ -219,7 +219,7 @@ async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(
     assert response.status_code == 303
     location = response.headers["location"]
     assert location.startswith("https://app.dev.openmates.org/?oauth_handoff_id=oauth_handoff_")
-    assert location.endswith("#settings/app_store/calendar")
+    assert location.endswith("#settings/apps/calendar")
     assert "secret-refresh-token" not in location
     assert route._state_key("state-123") not in cache.values
 

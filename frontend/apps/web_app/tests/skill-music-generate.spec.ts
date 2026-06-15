@@ -42,13 +42,13 @@ test.describe('App: Music / Skill: generate', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
-	test('Phase 0: app store metadata exposes music generate', async ({ request }: { request: any }) => {
+	test('Phase 0: Apps metadata exposes music generate', async ({ request }: { request: any }) => {
 		const response = await request.get(`${apiUrl}/v1/apps/metadata`);
 		expect(response.ok()).toBeTruthy();
 
 		const data = await response.json();
 		const music = data.apps?.music;
-		expect(music, 'music app should appear in app store metadata').toBeTruthy();
+		expect(music, 'music app should appear in Apps metadata').toBeTruthy();
 		expect(music.category).toBe('creative');
 
 		const skillIds = (music.skills || []).map((skill: { id: string }) => skill.id);

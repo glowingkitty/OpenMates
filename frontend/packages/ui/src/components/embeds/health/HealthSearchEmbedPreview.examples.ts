@@ -1,10 +1,10 @@
 /**
  * App-store examples for the health skill.
  *
- * Invented doctors, practices and addresses so the app store never promotes specific real-world medical providers.
+ * Invented doctors, practices and addresses so the Apps never promotes specific real-world medical providers.
  *
  * These are hand-crafted synthetic fixtures. All names, addresses,
- * prices and ratings are invented so that the app store never promotes
+ * prices and ratings are invented so that the Apps never promotes
  * specific real-world businesses, doctors, landlords or venues. The
  * shape matches the real provider response so the preview + fullscreen
  * render identically. A "Sample data" banner is shown at the top of

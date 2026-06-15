@@ -377,7 +377,7 @@ skills:
     name_translation_key: images.view
     description_translation_key: images.view.description
     # Internal: invoked automatically by the backend when the user attaches an image.
-    # Never shown in the app store or settings UI — users don't select this manually.
+    # Never shown in Apps or settings UI — users don't select this manually.
     internal: true
     preprocessor_hint: >
       Load an image into the conversation so the AI can see it. Use this skill

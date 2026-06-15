@@ -3,7 +3,7 @@
 
 The audit checks provider references, provider YAML metadata, and frontend icon
 paths with deterministic file graph rules. It is designed for hooks and skills
-that add APIs, app skills, providers, or app store examples.
+that add APIs, app skills, providers, or Apps examples.
 Architecture context: docs/architecture/apps/app-skills.md
 """
 

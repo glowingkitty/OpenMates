@@ -5,7 +5,7 @@
   Similar to AppSettingsMemoriesEntryDetail — shows reminder fields in view mode
   with an Edit button, and inline form inputs in edit mode.
 
-  Route: app_store/reminder/entry/{reminder_id}[/edit]
+  Route: apps/reminder/entry/{reminder_id}[/edit]
   API: GET /v1/settings/reminders (list, filtered client-side)
        PATCH /v1/settings/reminders/{reminder_id}
        DELETE /v1/settings/reminders/{reminder_id}
@@ -215,9 +215,9 @@
 
 			const data = await response.json();
 			if (data.success) {
-				// Navigate back to the reminder app store page
+				// Navigate back to the reminder Apps page
 				dispatch('openSettings', {
-					settingsPath: 'app_store/reminder',
+					settingsPath: 'apps/reminder',
 					direction: 'back'
 				});
 			} else {

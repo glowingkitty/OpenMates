@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/settings/AppSettingsMemoriesCreateEntry.svelte
      Component for creating a new entry in a specific app settings/memories category.
      
-     This component is used for the app_store/{app_id}/settings_memories/{category_id}/create nested route.
+     This component is used for the apps/{app_id}/settings_memories/{category_id}/create nested route.
      
      **Backend Implementation**:
      - Data source: Static appsMetadata.ts (generated at build time) for category definition
@@ -225,7 +225,7 @@
      */
     function goBack() {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/settings_memories/${categoryId}`,
+            settingsPath: `apps/${appId}/settings_memories/${categoryId}`,
             direction: 'back',
             icon: getIconName(app?.icon_image),
             title: category?.name_translation_key ? $text(category.name_translation_key) : categoryId
@@ -476,17 +476,6 @@
         goBack();
     }
     
-    /**
-     * Check if a field is required.
-     * Note: auto_generated required fields are handled automatically, 
-     * so we only mark user-input fields as required in the UI.
-     */
-    function isFieldRequired(fieldName: string): boolean {
-        // Only mark as required if it's in the required list AND not auto_generated
-        if (!schema?.required?.includes(fieldName)) return false;
-        if (schema?.properties?.[fieldName]?.auto_generated) return false;
-        return true;
-    }
 </script>
 
 <div class="app-settings-memories-create">
@@ -645,16 +634,6 @@
         margin-bottom: 1.5rem;
     }
     
-    
-    .form-group label {
-        display: block;
-        font-weight: 500;
-        color: var(--text-primary);
-    }
-    
-    .required {
-        color: var(--error-color, #dc3545);
-    }
     
     input,
     textarea,

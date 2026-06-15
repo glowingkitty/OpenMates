@@ -361,7 +361,7 @@ async function getUserSettingsMemoriesSearchEntries(
         .toLowerCase();
 
       mapped.push({
-        path: `app_store/${encryptedEntry.app_id}/settings_memories/${encryptedEntry.item_type}/entry/${encryptedEntry.id}`,
+        path: `apps/${encryptedEntry.app_id}/settings_memories/${encryptedEntry.item_type}/entry/${encryptedEntry.id}`,
         label,
         icon: "icon_apps",
         translationKey:
@@ -659,7 +659,6 @@ async function resolveEmbedText(
           ...getEmbedMeta(decoded),
         };
       } catch (parseError) {
-        // eslint-disable-next-line no-console
         console.debug(
           `[SearchService] Could not parse demo embed ${embedId} content:`,
           parseError instanceof Error ? parseError.message : String(parseError),
@@ -787,7 +786,6 @@ async function resolveEmbedText(
     };
   } catch (error) {
     // Non-critical: if embed resolution fails, simply skip this embed
-    // eslint-disable-next-line no-console
     console.debug(
       `[SearchService] Could not resolve embed ${embedId} for indexing:`,
       error instanceof Error ? error.message : String(error),
@@ -857,9 +855,6 @@ let warmUpInProgress = false;
 
 /** Flag to track if metadata warm-up is in progress */
 let metadataWarmUpInProgress = false;
-
-/** Flag to track if warm-up has completed at least once */
-let warmUpCompleted = false;
 
 // --- Index Management ---
 
@@ -981,7 +976,6 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
   if (warmUpInProgress) return;
   warmUpInProgress = true;
 
-  // eslint-disable-next-line no-console
   console.debug(
     `[SearchService] Warming up search index for ${chatIds.length} chats...`,
   );
@@ -1001,7 +995,6 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
     }
 
     const elapsed = performance.now() - startTime;
-    // eslint-disable-next-line no-console
     console.debug(
       `[SearchService] Search index warmed up in ${elapsed.toFixed(0)}ms (${indexedChatIds.size} chats)`,
     );
@@ -1009,7 +1002,6 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
     console.error("[SearchService] Error during search index warm-up:", error);
   } finally {
     warmUpInProgress = false;
-    warmUpCompleted = true;
   }
 }
 
@@ -1061,7 +1053,6 @@ export async function warmUpMetadataSearchIndex(chats: Chat[]): Promise<void> {
     return;
   }
 
-  // eslint-disable-next-line no-console
   console.debug(
     `[SearchService] Warming up metadata index for ${metadataOnlyChats.length} metadata-only chats...`,
   );
@@ -1081,7 +1072,6 @@ export async function warmUpMetadataSearchIndex(chats: Chat[]): Promise<void> {
     }
 
     const elapsed = performance.now() - startTime;
-    // eslint-disable-next-line no-console
     console.debug(
       `[SearchService] Metadata index warmed up in ${elapsed.toFixed(0)}ms (${indexedMetadataChatIds.size} chats)`,
     );
@@ -1230,32 +1220,6 @@ export async function addMessageToIndex(
   }
 
   messageIndex.set(chatId, [...withoutThisMessage, ...newEntries]);
-}
-
-/**
- * Remove a chat from the search index (e.g., when deleted).
- * @param chatId - The chat ID to remove
- */
-function removeChatFromIndex(chatId: string): void {
-  messageIndex.delete(chatId);
-  indexedChatIds.delete(chatId);
-  metadataIndex.delete(chatId);
-  indexedMetadataChatIds.delete(chatId);
-}
-
-/**
- * Clear the entire search index (e.g., on logout).
- */
-function clearSearchIndex(): void {
-  messageIndex.clear();
-  indexedChatIds.clear();
-  metadataIndex.clear();
-  indexedMetadataChatIds.clear();
-  warmUpCompleted = false;
-  warmUpInProgress = false;
-  metadataWarmUpInProgress = false;
-  // eslint-disable-next-line no-console
-  console.debug("[SearchService] Search index cleared");
 }
 
 // --- Search Logic ---
@@ -1692,12 +1656,4 @@ export async function search(
     totalCount,
     isWarmingUp: warmUpInProgress,
   };
-}
-
-/**
- * Check if the search index has been warmed up.
- * Used to show a loading indicator on first search.
- */
-function isSearchIndexReady(): boolean {
-  return warmUpCompleted;
 }

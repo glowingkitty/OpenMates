@@ -3127,7 +3127,7 @@ context_menu.deactivate:
   he: השבתה
   verified_by_human: []
 context_menu.details:
-  context: Context menu action to view focus mode details in app store
+  context: Context menu action to view focus mode details in Apps
   en: Details
   de: Details
   zh: 详情

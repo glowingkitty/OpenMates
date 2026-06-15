@@ -97,7 +97,7 @@ changes to the documentation (to keep the documentation up to date).
 
     const SETTINGS_ROUTE_ICON_OVERRIDES: Record<string, string> = {
         'account/export': 'download',
-        'app_store/all': 'app',
+        'apps/all': 'app',
         'privacy/hide-personal-data': 'anonym',
         'privacy/share-debug-logs': 'privacy',
     };
@@ -164,10 +164,10 @@ changes to the documentation (to keep the documentation up to date).
     /**
      * Dynamically build settingsViews including app detail routes and nested sub-routes.
      * This creates:
-     * - app_store/{app_id} routes for each available app
-     * - app_store/{app_id}/skill/{skill_id} routes for each skill
-     * - app_store/{app_id}/focus/{focus_mode_id} routes for each focus mode
-     * - app_store/{app_id}/settings_memories routes for apps with settings/memories
+     * - apps/{app_id} routes for each available app
+     * - apps/{app_id}/skill/{skill_id} routes for each skill
+     * - apps/{app_id}/focus/{focus_mode_id} routes for each focus mode
+     * - apps/{app_id}/settings_memories routes for apps with settings/memories
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function buildSettingsViews(): Record<string, any> {
@@ -179,18 +179,18 @@ changes to the documentation (to keep the documentation up to date).
             const app = apps[appId];
             
             // Main app details route
-            const appRoute = `app_store/${appId}`;
+            const appRoute = `apps/${appId}`;
             views[appRoute] = AppDetailsWrapper;
 
             // Reminder app: add create route for the reminder creation settings page
             if (appId === 'reminder') {
-                views[`app_store/reminder/create`] = AppDetailsWrapper;
+                views[`apps/reminder/create`] = AppDetailsWrapper;
             }
 
             // Add skill detail routes and their provider sub-routes
             if (app.skills && app.skills.length > 0) {
                 for (const skill of app.skills) {
-                    const skillRoute = `app_store/${appId}/skill/${skill.id}`;
+                    const skillRoute = `apps/${appId}/skill/${skill.id}`;
                     views[skillRoute] = AppDetailsWrapper;
 
                     // Register provider sub-routes for each provider listed on this skill
@@ -199,7 +199,7 @@ changes to the documentation (to keep the documentation up to date).
                         for (const providerName of skill.providers) {
                             const providerMeta = findProviderByName(providerName);
                             if (providerMeta) {
-                                const providerRoute = `app_store/${appId}/skill/${skill.id}/provider/${providerMeta.id}`;
+                                const providerRoute = `apps/${appId}/skill/${skill.id}/provider/${providerMeta.id}`;
                                 views[providerRoute] = AppDetailsWrapper;
                             }
                         }
@@ -209,14 +209,14 @@ changes to the documentation (to keep the documentation up to date).
 
             // Add durable content detail routes generated from embed metadata.
             for (const content of CONTENT_EMBED_CATALOG.filter((item) => item.appId === appId)) {
-                const contentRoute = `app_store/${appId}/content/${content.contentTypeId}`;
+                const contentRoute = `apps/${appId}/content/${content.contentTypeId}`;
                 views[contentRoute] = AppDetailsWrapper;
             }
 
             // Add focus mode detail routes
             if (app.focus_modes && app.focus_modes.length > 0) {
                 for (const focusMode of app.focus_modes) {
-                    const focusRoute = `app_store/${appId}/focus/${focusMode.id}`;
+                    const focusRoute = `apps/${appId}/focus/${focusMode.id}`;
                     views[focusRoute] = AppDetailsWrapper;
                 }
             }
@@ -224,11 +224,11 @@ changes to the documentation (to keep the documentation up to date).
             // Add settings/memories category routes if app has settings_and_memories
             if (app.settings_and_memories && app.settings_and_memories.length > 0) {
                 for (const category of app.settings_and_memories) {
-                    const categoryRoute = `app_store/${appId}/settings_memories/${category.id}`;
+                    const categoryRoute = `apps/${appId}/settings_memories/${category.id}`;
                     views[categoryRoute] = AppDetailsWrapper;
                     
                     // Add create entry route for each category
-                    const createRoute = `app_store/${appId}/settings_memories/${category.id}/create`;
+                    const createRoute = `apps/${appId}/settings_memories/${category.id}/create`;
                     views[createRoute] = AppDetailsWrapper;
                 }
             }
@@ -261,7 +261,7 @@ changes to the documentation (to keep the documentation up to date).
         const views = buildSettingsViews();
         
         // Add any dynamically registered entry detail routes
-        // These are routes like: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
+        // These are routes like: apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}
         // or: ai/model/{model_id} (top-level AI settings model detail)
         for (const route of dynamicEntryRoutes) {
             if (/^ai\/model\//.test(route)) {
@@ -288,7 +288,7 @@ changes to the documentation (to keep the documentation up to date).
     let isSelfHosted = $state(false); // Self-hosted status from request-based validation
     
     // Reactive settingsViews that filters out server options for non-admins and payment routes when payment disabled
-    // For non-authenticated users, show interface settings (and nested language settings), app store, and share chat
+    // For non-authenticated users, show interface settings (and nested language settings), Apps, and share chat
     // This allows them to explore available features like apps and share demo chats
     // Share chat (shared/share) is available for non-authenticated users to share demo chats
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -332,15 +332,15 @@ changes to the documentation (to keep the documentation up to date).
             }
             
             // For non-authenticated users, include interface settings (top-level and nested),
-            // privacy overview, app store (including app details), memories examples, mates (browse only), share chat (for sharing demo chats),
+            // privacy overview, Apps (including app details), memories examples, mates (browse only), share chat (for sharing demo chats),
             // newsletter, support, report issue, and the pricing overview page.
-            // App store and mates are read-only for non-authenticated users (browse only, no modifications)
+            // Apps and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key.startsWith('interface/') ||
                     key === 'privacy' ||
                     key === 'ai' || key.startsWith('ai/') ||
                     key === 'settings_memories' ||
-                    key === 'app_store' || key.startsWith('app_store/') ||
+                    key === 'apps' || key.startsWith('apps/') ||
                     key === 'mates' || key.startsWith('mates/') ||
                     key === 'shared/share' || key === 'newsletter' ||
                     key === 'support' || key.startsWith('support/') ||
@@ -363,7 +363,7 @@ changes to the documentation (to keep the documentation up to date).
 
     // Track navigation path parts for breadcrumb-style navigation
     let navigationPath: string[] = $state([]);
-    // Track the path we navigated from (e.g., 'app_store/all' when opening an app from All Apps).
+    // Track the path we navigated from (e.g., 'apps/all' when opening an app from All Apps).
     // Used to ensure back navigation returns to the correct parent view.
     let cameFromPath = $state<string | null>(null);
     // Optional human-readable title override for the cameFrom path, used in breadcrumb display.
@@ -619,8 +619,8 @@ changes to the documentation (to keep the documentation up to date).
         // Always start with "Settings"
         pathLabels.push($text('common.settings'));
         
-        // Track if we've already added the app name for app_store routes
-        // This prevents duplicate app names when navigating to app_store/{appId}
+        // Track if we've already added the app name for Apps routes
+        // This prevents duplicate app names when navigating to apps/{appId}
         let appNameAdded = false;
         
         // Add each path segment's translated name (except the last one which is current view)
@@ -643,15 +643,15 @@ changes to the documentation (to keep the documentation up to date).
                 continue;
             }
             
-            // Handle app_store routes specially - use actual app/skill names from metadata
-            if (pathString === 'app_store') {
+            // Handle Apps routes specially - use actual app/skill names from metadata
+            if (pathString === 'apps') {
                 // If the user arrived via the Memories hub, replace the full
                 // "Apps / {App Name}" chain with just "Memories"
                 // so the breadcrumb reads: Settings / Memories
                 if (cameFromPath === 'settings_memories') {
                     // Use the title override if provided, otherwise fall back to the standard key
                     pathLabels.push(cameFromTitleOverride ?? $text('settings.settings_memories'));
-                    // Skip all remaining app_store sub-segments — they belong to the old chain
+                    // Skip all remaining Apps sub-segments — they belong to the old chain
                     break;
                 }
                 if (cameFromPath === 'ai') {
@@ -659,16 +659,16 @@ changes to the documentation (to keep the documentation up to date).
                     pathLabels.push(cameFromTitleOverride ?? $text('settings.ai'));
                     break;
                 }
-                // This is the base app_store route - add "Apps" translation
+                // This is the base Apps route - add "Apps" translation
                 const translationKey = 'settings.app_store';
                 pathLabels.push($text(translationKey));
                 // If we navigated here from "All Apps", inject "All Apps" into the breadcrumb
                 // so the trail reads: Settings / Apps / All Apps / {App Name}
-                if (cameFromPath === 'app_store/all') {
+                if (cameFromPath === 'apps/all') {
                     pathLabels.push($text('settings.app_store.show_all_apps'));
                 }
-            } else if (pathString.startsWith('app_store/') && pathString !== 'app_store/all') {
-                const pathParts = pathString.replace('app_store/', '').split('/');
+            } else if (pathString.startsWith('apps/') && pathString !== 'apps/all') {
+                const pathParts = pathString.replace('apps/', '').split('/');
                 const appId = pathParts[0];
                 const app = appSkillsStore.getState().apps[appId];
                 
@@ -817,11 +817,11 @@ changes to the documentation (to keep the documentation up to date).
     // render the standard settings-banner-shell (same gradient header as Privacy,
     // Billing, etc.). Back navigation for those routes is handled in backToMainView.
     let isModelDetailPage = $derived(
-        // app_store model/provider detail pages
-        (activeSettingsView.startsWith('app_store/') &&
+        // Apps model/provider detail pages
+        (activeSettingsView.startsWith('apps/') &&
         (
-            /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView) ||
-            /^app_store\/[^/]+\/skill\/[^/]+\/provider\/[^/]+$/.test(activeSettingsView)
+            /^apps\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/.test(activeSettingsView) ||
+            /^apps\/[^/]+\/skill\/[^/]+\/provider\/[^/]+$/.test(activeSettingsView)
         ))
     );
 
@@ -830,26 +830,26 @@ changes to the documentation (to keep the documentation up to date).
         activeSettingsView.startsWith('mates/') && activeSettingsView !== 'mates'
     );
     
-    // Track if we're in an app store sub-page (not the main app_store or 'all' page)
+    // Track if we're in an Apps sub-page (not the main apps or 'all' page)
     // This is used to render the app icon properly in the header
     let isAppStoreSubPage = $derived(
-        activeSettingsView.startsWith('app_store/') && 
-        activeSettingsView !== 'app_store' && 
-        activeSettingsView !== 'app_store/all'
+        activeSettingsView.startsWith('apps/') && 
+        activeSettingsView !== 'apps' && 
+        activeSettingsView !== 'apps/all'
     );
 
     /**
-     * True when we're on the TOP-LEVEL app details page (app_store/{appId} only,
+     * True when we're on the TOP-LEVEL app details page (apps/{appId} only,
      * NOT deeper sub-pages like skill/focus/settings_memories).
-     * Explicitly excludes 'app_store/all' which is the "Show all apps" list view —
+     * Explicitly excludes 'apps/all' which is the "Show all apps" list view —
      * that page uses the normal submenu-info header, NOT the gradient AppDetailsHeader banner.
      * When true the AppDetailsHeader banner takes over the header area, so:
      *   - The normal settings-header becomes transparent with white text
      *   - The submenu-info block is hidden (the banner shows it instead)
      */
     let isAppTopLevelPage = $derived(
-        activeSettingsView !== 'app_store/all' &&
-        /^app_store\/[^/]+$/.test(activeSettingsView)
+        activeSettingsView !== 'apps/all' &&
+        /^apps\/[^/]+$/.test(activeSettingsView)
     );
 
     /**
@@ -859,9 +859,9 @@ changes to the documentation (to keep the documentation up to date).
      * instead of the top-level app description + capability counts.
      */
     let isAppSubPage = $derived(
-        (/^app_store\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) ||
-         activeSettingsView === 'app_store/reminder/create' ||
-         /^app_store\/reminder\/entry\//.test(activeSettingsView)) &&
+        (/^apps\/[^/]+\/(skill|focus|settings_memories)\//.test(activeSettingsView) ||
+         activeSettingsView === 'apps/reminder/create' ||
+         /^apps\/reminder\/entry\//.test(activeSettingsView)) &&
         !isModelDetailPage &&
         // When arrived from top-level AI settings, use default settings gradient instead of app gradient
         cameFromPath !== 'ai'
@@ -876,7 +876,7 @@ changes to the documentation (to keep the documentation up to date).
     /**
      * True when the user is on a standard settings sub-page (Privacy, Billing, Usage, etc.)
      * that should receive the gradient banner treatment.
-     * Excludes: main view, app store pages (handled by AppDetailsHeader in app mode),
+         * Excludes: main view, Apps pages (handled by AppDetailsHeader in app mode),
      * mate detail pages (have their own header treatment), model detail pages.
      */
     let isStandardSubPage = $derived(
@@ -887,7 +887,7 @@ changes to the documentation (to keep the documentation up to date).
     );
 
     /**
-     * True when ANY gradient banner should be visible (app store OR standard sub-page).
+     * True when ANY gradient banner should be visible (Apps OR standard sub-page).
      * Used to suppress the normal submenu-info block and shrink the settings-header.
      */
     let isAnyBannerPage = $derived(isAnyAppBannerPage || isStandardSubPage);
@@ -911,7 +911,7 @@ changes to the documentation (to keep the documentation up to date).
         'newsletter': 'settings.newsletter.description',
         'server': 'settings.server.description',
         'shared': 'settings.shared.description',
-        'app_store': 'settings.app_store.description',
+        'apps': 'settings.app_store.description',
         'settings_memories': 'settings.settings_memories.description',
     };
 
@@ -934,10 +934,10 @@ changes to the documentation (to keep the documentation up to date).
     /**
      * Aggregate capability stats for the Apps header banner.
      * Shows total apps, skills, focus modes, and settings & memory types across all apps.
-     * Only computed when the app_store page is active to avoid unnecessary work.
+     * Only computed when the Apps page is active to avoid unnecessary work.
      */
     let appStoreHeaderStats = $derived.by(() => {
-        if (activeSettingsView !== 'app_store' && activeSettingsView !== 'app_store/all') return [];
+        if (activeSettingsView !== 'apps' && activeSettingsView !== 'apps/all') return [];
         const allApps = Object.values(appSkillsStore.getState().apps);
         const totalApps = allApps.length;
         const totalSkills = allApps.reduce((sum, app) => sum + (app.skills?.length ?? 0), 0);
@@ -971,7 +971,7 @@ changes to the documentation (to keep the documentation up to date).
         if (!isAppSubPage) return null;
 
         // Special case: reminder/create page — show "Create reminder" with reminder gradient
-        if (activeSettingsView === 'app_store/reminder/create') {
+        if (activeSettingsView === 'apps/reminder/create') {
             const appMeta = appSkillsStore.getState().apps['reminder'];
             if (!appMeta) return null;
             const rawIcon = appMeta.icon_image;
@@ -987,7 +987,7 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         // Reminder entry detail/edit page
-        if (/^app_store\/reminder\/entry\//.test(activeSettingsView)) {
+        if (/^apps\/reminder\/entry\//.test(activeSettingsView)) {
             const appMeta = appSkillsStore.getState().apps['reminder'];
             if (!appMeta) return null;
             const rawIcon = appMeta.icon_image;
@@ -1003,9 +1003,9 @@ changes to the documentation (to keep the documentation up to date).
             };
         }
 
-        // Parse the route: app_store/{appId}/{type}/{itemId}
+        // Parse the route: apps/{appId}/{type}/{itemId}
         const match = activeSettingsView.match(
-            /^app_store\/([^/]+)\/(skill|focus|settings_memories)\/([^/]+)/
+            /^apps\/([^/]+)\/(skill|focus|settings_memories)\/([^/]+)/
         );
         if (!match) return null;
 
@@ -1059,7 +1059,7 @@ changes to the documentation (to keep the documentation up to date).
             
             // Check for deeper sub-routes: create or entry detail
             const subRoute = activeSettingsView.replace(
-                `app_store/${appId}/settings_memories/${itemId}`, ''
+                `apps/${appId}/settings_memories/${itemId}`, ''
             );
             const categoryName = cat.name_translation_key ? $text(cat.name_translation_key) : itemId;
             
@@ -1183,7 +1183,7 @@ changes to the documentation (to keep the documentation up to date).
      * Also used for sub-pages when subPageBannerData is active.
      */
     let currentAppId = $derived(
-        isAppTopLevelPage ? activeSettingsView.replace('app_store/', '') :
+        isAppTopLevelPage ? activeSettingsView.replace('apps/', '') :
         isAppSubPage ? (subPageBannerData?.appId ?? '') :
         ''
     );
@@ -1209,7 +1209,7 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     function handleContentScroll(e: Event) {
-        // Track scroll for all banner pages: app store pages, standard sub-pages, and main
+        // Track scroll for all banner pages: Apps pages, standard sub-pages, and main
         if (isAnyBannerPage || activeSettingsView === 'main') {
             contentScrollTop = (e.target as HTMLElement).scrollTop;
         }
@@ -1241,10 +1241,10 @@ changes to the documentation (to keep the documentation up to date).
         direction = newDirection;
 
         // --- AI app redirect ---
-        // The AI app no longer has its own page in the app store. Intercept any navigation
-        // to app_store/ai (from sub-components like AppSettingsMemoriesCategory.goBack())
+        // The AI app no longer has its own page in Apps. Intercept any navigation
+        // to apps/ai (from sub-components like AppSettingsMemoriesCategory.goBack())
         // and redirect to the top-level AI settings page.
-        if (settingsPath === 'app_store/ai') {
+        if (settingsPath === 'apps/ai') {
             settingsPath = 'ai';
             icon = 'ai';
         }
@@ -1254,13 +1254,13 @@ changes to the documentation (to keep the documentation up to date).
         // --- Scroll position memory (All Apps only) ---
         // Save the scroll offset when leaving "All Apps" going forward, so pressing
         // back restores the position. All other pages always scroll to top on navigation.
-        if (newDirection === 'forward' && activeSettingsView === 'app_store/all' && settingsContentElement) {
+        if (newDirection === 'forward' && activeSettingsView === 'apps/all' && settingsContentElement) {
             allAppsScrollPosition = settingsContentElement.scrollTop;
         }
         
         // Track the originating path so back navigation can return to it.
-        // Only set when explicitly provided (e.g., navigating from 'app_store/all').
-        // When navigating backward through an intermediate app_store page, cameFrom is passed
+        // Only set when explicitly provided (e.g., navigating from 'apps/all').
+        // When navigating backward through an intermediate Apps page, cameFrom is passed
         // explicitly to preserve the chain, so we accept it from both directions.
         if (cameFrom) {
             cameFromPath = cameFrom;
@@ -1269,9 +1269,9 @@ changes to the documentation (to keep the documentation up to date).
             }
         } else if (newDirection === 'backward') {
             // Clear cameFromPath when arriving at the destination that was the cameFrom source,
-            // or when leaving the app_store section entirely (back to app_store root or main).
+            // or when leaving the Apps section entirely (back to Apps root or main).
             const isReturningToSource = settingsPath === cameFromPath;
-            const isLeavingAppStore = settingsPath === 'app_store' || !settingsPath.startsWith('app_store');
+            const isLeavingAppStore = settingsPath === 'apps' || !settingsPath.startsWith('apps');
             if (isReturningToSource || isLeavingAppStore) {
                 cameFromPath = null;
                 cameFromTitleOverride = null;
@@ -1297,8 +1297,8 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         // Check if this is a dynamic entry detail route that needs to be registered
-        // Pattern: app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}[/edit]
-        const entryDetailPattern = /^app_store\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+(\/edit)?$/;
+        // Pattern: apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}[/edit]
+        const entryDetailPattern = /^apps\/[^/]+\/settings_memories\/[^/]+\/entry\/[^/]+(\/edit)?$/;
         if (entryDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             // Add this entry detail route dynamically
             dynamicEntryRoutes.add(settingsPath);
@@ -1308,8 +1308,8 @@ changes to the documentation (to keep the documentation up to date).
         }
         
         // Check if this is a dynamic AI model detail route that needs to be registered
-        // Pattern: app_store/{app_id}/skill/{skill_id}/model/{model_id}
-        const modelDetailPattern = /^app_store\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/;
+        // Pattern: apps/{app_id}/skill/{skill_id}/model/{model_id}
+        const modelDetailPattern = /^apps\/[^/]+\/skill\/[^/]+\/model\/[^/]+$/;
         if (modelDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             // Add this model detail route dynamically
             dynamicEntryRoutes.add(settingsPath);
@@ -1335,8 +1335,8 @@ changes to the documentation (to keep the documentation up to date).
         }
 
         // Check if this is a dynamic reminder entry route that needs to be registered
-        // Pattern: app_store/reminder/entry/{reminder_id}[/edit]
-        const reminderEntryPattern = /^app_store\/reminder\/entry\/[^/]+(\/edit)?$/;
+        // Pattern: apps/reminder/entry/{reminder_id}[/edit]
+        const reminderEntryPattern = /^apps\/reminder\/entry\/[^/]+(\/edit)?$/;
         if (reminderEntryPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
@@ -1353,11 +1353,11 @@ changes to the documentation (to keep the documentation up to date).
         // Set active view for both authenticated and non-authenticated users
         activeSettingsView = settingsPath;
         
-        // Handle app detail pages (app_store/{appId}) specially
+        // Handle app detail pages (apps/{appId}) specially
         // Use the app icon and translated app name from apps.yml
-        if (settingsPath.startsWith('app_store/') && settingsPath !== 'app_store' && settingsPath !== 'app_store/all') {
-            // Extract appId from path (e.g., "app_store/ai/skill/search" -> "ai")
-            const pathParts = settingsPath.replace('app_store/', '').split('/');
+        if (settingsPath.startsWith('apps/') && settingsPath !== 'apps' && settingsPath !== 'apps/all') {
+            // Extract appId from path (e.g., "apps/ai/skill/search" -> "ai")
+            const pathParts = settingsPath.replace('apps/', '').split('/');
             const appId = pathParts[0];
             const app = appSkillsStore.getState().apps[appId];
             
@@ -1386,7 +1386,7 @@ changes to the documentation (to keep the documentation up to date).
                 activeSubMenuProviderIconSvg = '';
                 activeSubMenuTitleRaw = '';
                 
-                // Check if this is a model detail route (app_store/{appId}/skill/{skillId}/model/{modelId})
+                // Check if this is a model detail route (apps/{appId}/skill/{skillId}/model/{modelId})
                 if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'provider') {
                     // Provider detail route — show provider icon and provider name in header
                     const providerId = pathParts[4];
@@ -1402,7 +1402,7 @@ changes to the documentation (to keep the documentation up to date).
                     activeSubMenuTitleKey = ''; // No translation key — use raw title (model name)
                     activeSubMenuTitleRaw = detail.title ?? (modelMeta?.name ?? modelId);
                 } else if (pathParts.length === 3 && pathParts[1] === 'skill') {
-                    // Skill route (app_store/{appId}/skill/{skillId})
+                    // Skill route (apps/{appId}/skill/{skillId})
                     const skillId = pathParts[2];
                     const skill = app.skills?.find(s => s.id === skillId);
                     if (skill && skill.name_translation_key) {
@@ -1566,7 +1566,7 @@ changes to the documentation (to keep the documentation up to date).
         // Wait for the DOM to update with the new page content before scrolling.
         await tick();
         if (settingsContentElement) {
-            if (newDirection === 'backward' && settingsPath === 'app_store/all' && allAppsScrollPosition > 0) {
+            if (newDirection === 'backward' && settingsPath === 'apps/all' && allAppsScrollPosition > 0) {
                 // Restore the All Apps scroll position so the user lands back where they were.
                 // Instant scroll (no animation) feels like returning, not jumping.
                 settingsContentElement.scrollTo({
@@ -1592,8 +1592,8 @@ changes to the documentation (to keep the documentation up to date).
         }
         
         if (navigationPath.length > 1) {
-            // Check if we're on a nested app_store route (skill, focus, settings_memories)
-            // If so, go back to the app details page (app_store/{appId}) instead of just removing the last segment
+            // Check if we're on a nested Apps route (skill, focus, settings_memories)
+            // If so, go back to the app details page (apps/{appId}) instead of just removing the last segment
             const currentPath = navigationPath.join('/');
             
             // Special handling for non-authenticated users on 'shared/share' - go directly to main
@@ -1621,23 +1621,23 @@ changes to the documentation (to keep the documentation up to date).
             let previousPath = '';
             let previousPathSegments = [];
             
-            if (currentPath.startsWith('app_store/') && currentPath !== 'app_store' && currentPath !== 'app_store/all') {
-                const pathParts = currentPath.replace('app_store/', '').split('/');
+            if (currentPath.startsWith('apps/') && currentPath !== 'apps' && currentPath !== 'apps/all') {
+                const pathParts = currentPath.replace('apps/', '').split('/');
                 const appId = pathParts[0];
                 
                 // Check if this is an entry detail route - go back to category page
                 if (pathParts.length === 5 && pathParts[1] === 'settings_memories' && pathParts[3] === 'entry') {
                     // This is the entry detail route - go back to the category page
-                    previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
-                    previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
+                    previousPath = `apps/${appId}/settings_memories/${pathParts[2]}`;
+                    previousPathSegments = ['apps', appId, 'settings_memories', pathParts[2]];
                 } else if (pathParts.length === 5 && pathParts[1] === 'skill' && pathParts[3] === 'model') {
                     // Model detail route - go back to the skill settings page
-                    previousPath = `app_store/${appId}/skill/${pathParts[2]}`;
-                    previousPathSegments = ['app_store', appId, 'skill', pathParts[2]];
+                    previousPath = `apps/${appId}/skill/${pathParts[2]}`;
+                    previousPathSegments = ['apps', appId, 'skill', pathParts[2]];
                 } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
                     // This is the create entry route - go back to the category page
-                    previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
-                    previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
+                    previousPath = `apps/${appId}/settings_memories/${pathParts[2]}`;
+                    previousPathSegments = ['apps', appId, 'settings_memories', pathParts[2]];
                 } else if (pathParts.length >= 3 && (pathParts[1] === 'skill' || pathParts[1] === 'focus' || pathParts[1] === 'settings_memories')) {
                     // This is a nested route (category page, skill, focus).
                     // If the user arrived here from the Memories hub, go back there.
@@ -1646,19 +1646,19 @@ changes to the documentation (to keep the documentation up to date).
                         previousPath = 'settings_memories';
                         previousPathSegments = ['settings_memories'];
                     } else if (cameFromPath === 'ai') {
-                        // Arrived from top-level AI settings — go back there, not to app_store/ai
+                        // Arrived from top-level AI settings — go back there, not to apps/ai
                         previousPath = 'ai';
                         previousPathSegments = ['ai'];
                     } else {
-                        previousPath = `app_store/${appId}`;
-                        previousPathSegments = ['app_store', appId];
+                        previousPath = `apps/${appId}`;
+                        previousPathSegments = ['apps', appId];
                     }
                 } else {
                     // Regular app details page — if we arrived from "All Apps", go back there.
-                    // Otherwise, go back one level normally (to app_store root).
-                    if (cameFromPath === 'app_store/all') {
-                        previousPath = 'app_store/all';
-                        previousPathSegments = ['app_store', 'all'];
+                    // Otherwise, go back one level normally (to Apps root).
+                    if (cameFromPath === 'apps/all') {
+                        previousPath = 'apps/all';
+                        previousPathSegments = ['apps', 'all'];
                     } else {
                         previousPath = navigationPath.slice(0, -1).join('/');
                         previousPathSegments = navigationPath.slice(0, -1);
@@ -1689,7 +1689,7 @@ changes to the documentation (to keep the documentation up to date).
                 }
                 return;
             } else {
-                // For non-app_store routes, go back one level normally
+                // For non-Apps routes, go back one level normally
                 previousPath = navigationPath.slice(0, -1).join('/');
                 previousPathSegments = navigationPath.slice(0, -1);
             }
@@ -1702,9 +1702,9 @@ changes to the documentation (to keep the documentation up to date).
                 : previousPathSegments[0];
             let title = '';
 
-            // Handle app_store routes specially
-            if (previousPath.startsWith('app_store/') && previousPath !== 'app_store' && previousPath !== 'app_store/all') {
-                const pathParts = previousPath.replace('app_store/', '').split('/');
+            // Handle Apps routes specially
+            if (previousPath.startsWith('apps/') && previousPath !== 'apps' && previousPath !== 'apps/all') {
+                const pathParts = previousPath.replace('apps/', '').split('/');
                 const appId = pathParts[0];
                 const app = appSkillsStore.getState().apps[appId];
                 
@@ -1776,9 +1776,9 @@ changes to the documentation (to keep the documentation up to date).
                     icon = 'calendar';
                 } else if (previousPath.startsWith('billing/gift-cards')) {
                     icon = 'icon_gift';
-                } else if (previousPath === 'app_store') {
-                    icon = 'app_store';
-                } else if (previousPath === 'app_store/all') {
+                } else if (previousPath === 'apps') {
+                    icon = 'app';
+                } else if (previousPath === 'apps/all') {
                     // "All Apps" view — use the app icon and the "Show all apps" translation
                     icon = 'app';
                     title = $text('settings.app_store.show_all_apps');
@@ -1803,10 +1803,10 @@ changes to the documentation (to keep the documentation up to date).
                     title: title,
                     // Preserve cameFromPath (and title) when going backward to an intermediate app page
                     // so the breadcrumb and next back step still reference the original source.
-                    cameFrom: (previousPath.startsWith('app_store/') && previousPath !== 'app_store/all' && cameFromPath)
+                    cameFrom: (previousPath.startsWith('apps/') && previousPath !== 'apps/all' && cameFromPath)
                         ? cameFromPath
                         : undefined,
-                    cameFromTitle: (previousPath.startsWith('app_store/') && previousPath !== 'app_store/all' && cameFromTitleOverride)
+                    cameFromTitle: (previousPath.startsWith('apps/') && previousPath !== 'apps/all' && cameFromTitleOverride)
                         ? cameFromTitleOverride
                         : undefined
                 }
@@ -2336,12 +2336,12 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     // Handle deep link requests from other components
-    // NOTE: Non-authenticated users can access app_store and interface settings
+    // NOTE: Non-authenticated users can access Apps and interface settings
     $effect(() => {
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, privacy overview, share settings, newsletter, support, report_issue, account deletion, and mates
+            // For non-authenticated users, only allow Apps, interface, privacy overview, share settings, newsletter, support, report_issue, account deletion, and mates
             // Share settings are allowed so users can share demo chats
             // Newsletter is allowed so anyone can subscribe
             // Support is allowed so anyone can sponsor the project
@@ -2349,9 +2349,9 @@ changes to the documentation (to keep the documentation up to date).
             // Account deletion is allowed for uncompleted accounts via email link
             // Mates is allowed so unauthenticated users (e.g. example/public chat) can open mate settings deep links
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'interface/font', 'privacy', 'settings_memories', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai', 'billing/referral-code'];
+                const allowedPaths = ['apps', 'interface', 'interface/language', 'interface/font', 'privacy', 'settings_memories', 'shared/share', 'newsletter', 'support', 'report_issue', 'account/delete', 'mates', 'ai', 'billing/referral-code'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) ||
-                                      settingsPath.startsWith('app_store/') ||
+                                      settingsPath.startsWith('apps/') ||
                                       settingsPath.startsWith('interface/') ||
                                       settingsPath.startsWith('privacy/') ||
                                       settingsPath.startsWith('shared/share') ||
@@ -2402,14 +2402,14 @@ changes to the documentation (to keep the documentation up to date).
                 // The parameters remain in window.location.hash for sub-components to read.
                 let cleanPath = settingsPath.split('&')[0];
 
-                const allAppsFilterMatch = cleanPath.match(/^(?:app_store|apps)\/all\/(.+)$/);
+                const allAppsFilterMatch = cleanPath.match(/^apps\/all\/(.+)$/);
                 if (allAppsFilterMatch) {
                     const filterValue = allAppsFilterMatch[1].replace(/-/g, '_') as AllAppsFilterType;
                     const validFilters: AllAppsFilterType[] = ['all', 'settings_memories', 'focus_modes', 'skills'];
                     if (validFilters.includes(filterValue)) {
                         allAppsInitialFilter.set(filterValue);
                     }
-                    cleanPath = 'app_store/all';
+                    cleanPath = 'apps/all';
                 }
 
                 // Set window flag for deep-link parameters so sub-components can read them
@@ -2749,7 +2749,7 @@ changes to the documentation (to keep the documentation up to date).
                         <strong class="model-detail-title">{activeSubMenuTitle}</strong>
                     </div>
                 {:else}
-                    <!-- App store sub-pages render icon SVG with app-specific gradient (no bg square) -->
+                    <!-- Apps sub-pages render icon SVG with app-specific gradient (no bg square) -->
                     <!-- Focus mode details pages now use the same icon+title header as skills -->
                     <SettingsItem
                         type="heading"
@@ -2801,8 +2801,8 @@ changes to the documentation (to keep the documentation up to date).
     {/if}
 
     <!-- App details gradient banner — shown on:
-         1. app_store/{appId} top-level pages (full description + capability counts)
-         2. app_store/{appId}/skill|focus|settings_memories/{itemId} sub-pages
+         1. apps/{appId} top-level pages (full description + capability counts)
+         2. apps/{appId}/skill|focus|settings_memories/{itemId} sub-pages
             (same gradient, but shows item name + type label instead of description/counts)
          Placed outside the content-wrapper so it's not clipped by the slider's overflow:hidden.
          sticky positioning works here because this element is a direct flex child of .settings-menu. -->

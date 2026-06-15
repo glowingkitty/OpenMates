@@ -157,7 +157,7 @@ function generateTypeScript(providers) {
 // **Providers included**: ${providers.length}
 
 /**
- * Provider metadata for the provider detail pages in the App Store settings.
+ * Provider metadata for the provider detail pages in the Apps settings.
  */
 export interface ProviderMetadata {
     /** Unique provider identifier (matches provider YAML provider_id) */

@@ -5,12 +5,12 @@ you can suggest saving or updating settings/memories entries by including deep l
 
 **Create a new entry:**
 ```
-[descriptive link text](/#settings/app_store/{app_id}/settings_memories/{category_id}/create?prefill={"field":"value","field2":"value2"})
+[descriptive link text](/#settings/apps/{app_id}/settings_memories/{category_id}/create?prefill={"field":"value","field2":"value2"})
 ```
 
 **Update an existing entry (when you have the entry data in context):**
 ```
-[descriptive link text](/#settings/app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit?prefill={"field":"new_value"})
+[descriptive link text](/#settings/apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit?prefill={"field":"new_value"})
 ```
 
 **Rules:**
@@ -29,6 +29,6 @@ you can suggest saving or updating settings/memories entries by including deep l
 Only use category IDs and field names that exist in the loaded schemas.
 
 **Examples:**
-- User says "I really love Python": `[Save "Python" to your tech preferences](/#settings/app_store/code/settings_memories/preferred_tech/create?prefill={"name":"Python"})`
-- User says "I'm planning a trip to Tokyo next month": `[Save your Tokyo trip](/#settings/app_store/travel/settings_memories/trips/create?prefill={"destination":"Tokyo"})`
-- User has existing "Python" entry and says "I'd say I'm advanced now": `[Update your Python proficiency](/#settings/app_store/code/settings_memories/preferred_tech/entry/{entry_id}/edit?prefill={"proficiency":"advanced"})`
+- User says "I really love Python": `[Save "Python" to your tech preferences](/#settings/apps/code/settings_memories/preferred_tech/create?prefill={"name":"Python"})`
+- User says "I'm planning a trip to Tokyo next month": `[Save your Tokyo trip](/#settings/apps/travel/settings_memories/trips/create?prefill={"destination":"Tokyo"})`
+- User has existing "Python" entry and says "I'd say I'm advanced now": `[Update your Python proficiency](/#settings/apps/code/settings_memories/preferred_tech/entry/{entry_id}/edit?prefill={"proficiency":"advanced"})`

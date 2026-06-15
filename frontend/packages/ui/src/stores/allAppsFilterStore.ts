@@ -2,7 +2,7 @@
  * Store for passing an initial filter to the All Apps page (SettingsAllApps.svelte).
  *
  * Used when navigating from the root Settings menu — e.g. the "Memories"
- * item sets filter to 'settings_memories' before opening app_store/all, so the page
+ * item sets filter to 'settings_memories' before opening apps/all, so the page
  * lands pre-filtered to show only apps that define memories categories.
  *
  * Architecture: See docs/architecture/app-skills.md
@@ -21,7 +21,7 @@ export type AllAppsFilterType = 'all' | 'settings_memories' | 'focus_modes' | 's
 
 /**
  * Writable store holding the initial filter value.
- * Set before navigating to app_store/all; SettingsAllApps reads it on mount
+ * Set before navigating to apps/all; SettingsAllApps reads it on mount
  * then resets it to 'all' so subsequent visits start unfiltered.
  */
 export const allAppsInitialFilter = writable<AllAppsFilterType>('all');

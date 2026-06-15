@@ -390,7 +390,7 @@
     
     /**
      * Navigate to app details page.
-     * This dispatches an event to the parent Settings component to navigate to app_store/{appId}.
+     * This dispatches an event to the parent Settings component to navigate to apps/{appId}.
      */
     function selectApp(appId: string) {
         const app = apps[appId];
@@ -401,7 +401,7 @@
         }
         
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}`,
+            settingsPath: `apps/${appId}`,
             direction: 'forward',
             icon: iconName,
             title: app?.name || appId
@@ -410,11 +410,11 @@
     
     /**
      * Navigate to "Show all apps" submenu.
-     * This dispatches an event to the parent Settings component to navigate to app_store/all.
+     * This dispatches an event to the parent Settings component to navigate to apps/all.
      */
     function showAllApps() {
         dispatch('openSettings', {
-            settingsPath: 'app_store/all',
+            settingsPath: 'apps/all',
             direction: 'forward',
             icon: 'app',
             title: $text('settings.app_store.show_all_apps')

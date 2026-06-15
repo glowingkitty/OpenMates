@@ -4,7 +4,7 @@
   Reminder creation page within the Reminders app settings.
   Uses canonical settings design elements (SettingsSectionHeading + SettingsDropdown).
 
-  Opened via chat top bar reminder button (deep link: app_store/reminder/create).
+  Opened via chat top bar reminder button (deep link: apps/reminder/create).
   Reads chat context from reminderContext store (set by ActiveChat bell button handler)
   and loads decrypted metadata from chatMetadataCache for the preview.
 

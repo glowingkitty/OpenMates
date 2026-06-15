@@ -40,7 +40,7 @@ export async function startGoogleCalendarOAuth(params: {
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			capabilities: params.capabilities,
-			return_path: params.returnPath ?? '/#settings/app_store/calendar'
+			return_path: params.returnPath ?? '/#settings/apps/calendar'
 		})
 	});
 	if (!response.ok) {

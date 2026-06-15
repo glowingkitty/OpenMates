@@ -1,12 +1,12 @@
 <!--
   frontend/packages/ui/src/components/settings/appSettings/ActiveRemindersList.svelte
 
-  Displays active (pending) reminders in the reminder app store page.
+  Displays active (pending) reminders in the reminder Apps page.
   Uses SettingsItem components for consistent layout with Memories entries.
   Each reminder row is clickable (view mode) with an edit pencil button (edit mode).
 
   Data source: GET /v1/settings/reminders
-  Detail page: app_store/reminder/entry/{reminder_id}[/edit]
+  Detail page: apps/reminder/entry/{reminder_id}[/edit]
 -->
 
 <script lang="ts">
@@ -74,7 +74,7 @@
 	/** Navigate to reminder detail page (view mode) */
 	function handleEntryClick(reminderId: string) {
 		dispatch('openSettings', {
-			settingsPath: `app_store/reminder/entry/${reminderId}`,
+            settingsPath: `apps/reminder/entry/${reminderId}`,
 			direction: 'forward'
 		});
 	}
@@ -82,7 +82,7 @@
 	/** Navigate to reminder detail page (edit mode) */
 	function handleEditClick(reminderId: string) {
 		dispatch('openSettings', {
-			settingsPath: `app_store/reminder/entry/${reminderId}/edit`,
+            settingsPath: `apps/reminder/entry/${reminderId}/edit`,
 			direction: 'forward'
 		});
 	}

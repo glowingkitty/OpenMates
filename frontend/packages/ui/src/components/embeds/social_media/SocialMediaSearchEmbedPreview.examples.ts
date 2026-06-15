@@ -1,7 +1,7 @@
 /**
  * App-store examples for social_media/search.
  *
- * Uses synthetic but provider-shaped social post data so the app store does not
+ * Uses synthetic but provider-shaped social post data so the Apps does not
  * promote specific real accounts while still exercising realistic render paths.
  */
 

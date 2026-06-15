@@ -14,8 +14,8 @@
      - App/skill metadata from appsMetadata.ts (for back-navigation)
      
      **Routing**:
-     - app_store/{app_id}/skill/{skill_id}/model/{model_id}
-     - Back navigates to app_store/{app_id}/skill/{skill_id}
+     - apps/{app_id}/skill/{skill_id}/model/{model_id}
+     - Back navigates to apps/{app_id}/skill/{skill_id}
 -->
 
 <script lang="ts">
@@ -167,7 +167,7 @@
      */
     function goBack() {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/skill/${skillId}`,
+            settingsPath: `apps/${appId}/skill/${skillId}`,
             direction: 'back',
             icon: getIconName(app?.icon_image),
             title: skill?.name_translation_key ? $text(skill.name_translation_key) : skillId
@@ -178,7 +178,7 @@
         const provider = providersMetadata[providerId];
         if (!provider) return;
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/skill/${skillId}/provider/${provider.id}`,
+            settingsPath: `apps/${appId}/skill/${skillId}/provider/${provider.id}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: provider.name,

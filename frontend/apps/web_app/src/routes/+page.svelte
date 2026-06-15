@@ -2323,7 +2323,7 @@
 		});
 
 		// Initialize app health status to filter apps based on health (non-blocking)
-		// This ensures only healthy apps are shown in the app store
+		// This ensures only healthy apps are shown in Apps
 		const { initializeAppHealth } = await import('@repo/ui');
 		initializeAppHealth().catch((error) => {
 			console.error('[+page.svelte] Error initializing app health:', error);

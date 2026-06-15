@@ -711,12 +711,12 @@ test.describe('Unauthenticated app load', () => {
 			if (msg.type() === 'error') consoleErrors.push(text);
 		});
 
-		await page.goto(getE2EDebugUrl('/#settings/app_store/images'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#settings/apps/images'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
-		await expect(settingsMenu).toHaveAttribute('data-active-view', 'app_store/images', {
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'apps/images', {
 			timeout: 10000
 		});
 
@@ -783,12 +783,12 @@ test.describe('Unauthenticated app load', () => {
 			if (msg.type() === 'error') consoleErrors.push(text);
 		});
 
-		await page.goto(getE2EDebugUrl('/#settings/app_store/travel'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#settings/apps/travel'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: 10000 });
-		await expect(settingsMenu).toHaveAttribute('data-active-view', 'app_store/travel', {
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'apps/travel', {
 			timeout: 10000
 		});
 
@@ -801,7 +801,7 @@ test.describe('Unauthenticated app load', () => {
 		await memoryCards.getByTestId('app-card-name').filter({ hasText: /^Trips$/i }).click();
 		await expect(settingsMenu).toHaveAttribute(
 			'data-active-view',
-			'app_store/travel/settings_memories/trips',
+			'apps/travel/settings_memories/trips',
 			{ timeout: 10000 }
 		);
 		await expect(settingsMenu.getByText('Examples').first()).toBeVisible({ timeout: 10000 });

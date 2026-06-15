@@ -109,7 +109,7 @@
     
     // Calculate the actual count of menu items for height adjustment using Svelte 5 runes
     $effect(() => {
-        // Count only top-level settings items (exclude nested routes like app_store/web, billing/buy-credits, etc.)
+        // Count only top-level settings items (exclude nested routes like apps/web, billing/buy-credits, etc.)
         // This matches what's actually displayed in the main menu (filtered by isTopLevelView)
         const topLevelSettingsCount = Object.keys(settingsViews).filter(key => isTopLevelView(key)).length;
         // Add 1 for logout button (only shown for authenticated users, but we count it for consistent height)
@@ -237,7 +237,7 @@
      * 
      * **Main menu**: Uses calculated height based on menu items count.
      * **Submenu views**: Uses measured content height to adapt to actual content
-     * (e.g., app store, interface, language settings).
+     * (e.g., Apps, interface, language settings).
      * 
      * **Why measure content height?**
      * Submenu content is absolutely positioned for slide animations, so it doesn't

@@ -5,7 +5,7 @@
 // a TypeScript file with app metadata for the frontend.
 //
 // **Usage**: Run this script during the build process to include app metadata
-// in the frontend bundle. This allows offline browsing of the App Store.
+// in the frontend bundle. This allows offline browsing of the Apps.
 
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "fs";
 import { join, dirname, resolve } from "path";
@@ -510,7 +510,7 @@ function parseAppYaml(appId, filePath) {
 
     // Note: We do NOT check app-level stage. Apps are included if ANY of their
     // skills, settings_and_memories, or focuses have a stage matching the environment.
-    // This allows apps to have mixed-stage content and still appear in the App Store
+    // This allows apps to have mixed-stage content and still appear in the Apps
     // if they have at least one item matching the current environment.
 
     // Extract app metadata
@@ -568,7 +568,7 @@ function parseAppYaml(appId, filePath) {
         }
 
         // Skip internal skills — they are invoked automatically by the backend and
-        // must never appear in the app store or settings UI (e.g., images.view,
+        // must never appear in the Apps or settings UI (e.g., images.view,
         // audio.transcribe). Users don't select these manually.
         if (skill.internal === true) {
           console.log(
@@ -588,7 +588,7 @@ function parseAppYaml(appId, filePath) {
             (skill.description_translation_key || "").trim(),
             "app_skills.",
           ),
-          // Include icon_image if present (used for type-specific icons in App Store cards)
+          // Include icon_image if present (used for type-specific icons in Apps cards)
           icon_image: skill.icon_image
             ? (skill.icon_image || "").trim()
             : undefined,
@@ -711,7 +711,7 @@ function parseAppYaml(appId, filePath) {
 
     // Include provider_display_order if defined in app.yml
     // This allows apps to specify a custom display order for provider icons
-    // in the App Store preview cards. Providers listed here appear first,
+    // in the Apps preview cards. Providers listed here appear first,
     // followed by any remaining providers not in the list.
     if (
       Array.isArray(appData.provider_display_order) &&
@@ -775,7 +775,7 @@ function parseAppYaml(appId, filePath) {
             focus.systemprompt_translation_key.trim();
         }
 
-        // Include icon_image if present (used for type-specific icons in App Store cards)
+        // Include icon_image if present (used for type-specific icons in Apps cards)
         if (
           focus.icon_image &&
           typeof focus.icon_image === "string" &&
@@ -836,7 +836,7 @@ function parseAppYaml(appId, filePath) {
             "app_settings_memories.",
           ),
           type: (item.type || "single").trim(),
-          // Include icon_image if present (used for type-specific icons in App Store cards)
+          // Include icon_image if present (used for type-specific icons in Apps cards)
           icon_image: item.icon_image
             ? (item.icon_image || "").trim()
             : undefined,
@@ -969,7 +969,7 @@ function parseAppYaml(appId, filePath) {
         ? "production or development"
         : "production";
       console.warn(
-        `[generate-apps-metadata] ${appId}: No ${stageType} skills, focus modes, settings_and_memories, or instructions found. Excluding from App Store.`,
+        `[generate-apps-metadata] ${appId}: No ${stageType} skills, focus modes, settings_and_memories, or instructions found. Excluding from Apps.`,
       );
       return null;
     }
@@ -1048,7 +1048,7 @@ function generateTypeScript(appsMetadata) {
         lines.push(`        ],`);
       }
 
-      // Provider display order (if present) - controls icon order in App Store
+      // Provider display order (if present) - controls icon order in Apps
       if (app.provider_display_order && app.provider_display_order.length > 0) {
         lines.push(`        provider_display_order: [`);
         for (const provider of app.provider_display_order) {

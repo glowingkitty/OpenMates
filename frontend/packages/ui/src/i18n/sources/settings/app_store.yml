@@ -550,7 +550,7 @@ skills.section_description:
   he: "פשוט בקש מהחברים שלך לעשות אחד מהדברים האלה:"
   verified_by_human: []
 skills.examples:
-  context: Section title above real embed examples rendered on a skill detail page in the app store. Shown as a horizontal row of live preview cards.
+  context: Section title above real embed examples rendered on a skill detail page in the Apps. Shown as a horizontal row of live preview cards.
   en: Examples
   de: Beispiele
   zh: 示例
@@ -1798,7 +1798,7 @@ app_not_found:
   he: האפליקציה לא נמצאה.
   verified_by_human: []
 back_to_app_store:
-  context: Button text to go back to app store
+  context: Button text to go back to Apps
   en: Back to Apps
   de: Zurück zum Apps
   zh: 返回应用商店
@@ -1813,7 +1813,7 @@ back_to_app_store:
   vi: Quay lại cửa hàng ứng dụng
   id: Kembali ke toko aplikasi
   pl: Powrót do sklepu aplikacji
-  nl: Terug naar app store
+  nl: Terug naar Apps
   ar: العودة إلى متجر التطبيقات
   hi: ऐप स्टोर पर वापस जाएं
   th: กลับไปที่ร้านค้าแอป
@@ -2998,7 +2998,7 @@ settings_memories:
   verified_by_human: []
 
 nav.previous_item:
-  context: Aria-label for the left arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the previous sibling item.
+  context: Aria-label for the left arrow button in the Apps sub-item header (skill/focus mode/settings category). {name} is the display name of the previous sibling item.
   en: "Previous: {name}"
   de: "Vorherige: {name}"
   zh: "上一个：{name}"
@@ -3023,7 +3023,7 @@ nav.previous_item:
   verified_by_human: []
 
 nav.next_item:
-  context: Aria-label for the right arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the next sibling item.
+  context: Aria-label for the right arrow button in the Apps sub-item header (skill/focus mode/settings category). {name} is the display name of the next sibling item.
   en: "Next: {name}"
   de: "Nächste: {name}"
   zh: "下一个：{name}"

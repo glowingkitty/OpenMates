@@ -2,7 +2,7 @@
 //
 // Store for managing app health status from the /v1/health endpoint.
 // Filters apps based on their health status to ensure only healthy apps
-// are shown in the app store.
+// are shown in Apps.
 //
 // **Data Source**: 
 // - API endpoint: /v1/health (public, no auth required)
@@ -94,17 +94,6 @@ const appHealthStore = writable<AppHealthState>(initialState);
 // --- Derived Values ---
 
 /**
- * Get health status for a specific app.
- * Returns null if app health status is not available.
- */
-const getAppHealth = derived(
-    appHealthStore,
-    ($state) => (appId: string): AppHealthStatus | null => {
-        return $state.appHealth[appId] || null;
-    }
-);
-
-/**
  * Check if an app's API is healthy (api.status === "healthy").
  * Returns false if app health status is not available (safe default - hide app if health unknown).
  *
@@ -174,14 +163,6 @@ export const isProviderHealthy = derived(
         }
         return health.status === 'healthy';
     }
-);
-
-/**
- * Whether the app health status has been initialized (fetched at least once).
- */
-const isAppHealthInitialized = derived(
-    appHealthStore,
-    ($state) => $state.initialized
 );
 
 // --- Actions ---
@@ -268,14 +249,6 @@ export async function initializeAppHealth(force: boolean = false): Promise<Healt
         
         return null;
     }
-}
-
-/**
- * Resets the app health store to initial state.
- * Useful for testing or when the user logs out.
- */
-function resetAppHealth(): void {
-    appHealthStore.set(initialState);
 }
 
 // Export the store for direct access if needed

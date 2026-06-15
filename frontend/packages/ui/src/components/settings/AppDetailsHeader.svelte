@@ -3,7 +3,7 @@
 
   Collapsing gradient banner used for two contexts:
 
-  1. TOP-LEVEL app page (app_store/{appId}) — no subItem prop:
+  1. TOP-LEVEL app page (apps/{appId}) — no subItem prop:
   EXPANDED (scrollTop = 0):
   ┌──────────────────────────────────────────────┐  240px (mobile: 190px)
   │  [←] Settings / Apps  (clickable)       │  ← nav row
@@ -60,7 +60,7 @@
 
   /**
    * When settingsPage is provided, this banner is used for a standard settings
-   * sub-page (e.g. Privacy, Billing, Usage) instead of an app store page.
+   * sub-page (e.g. Privacy, Billing, Usage) instead of an Apps page.
    * The gradient defaults to --color-app-openmates and the icon is shown as
    * a white mask icon via the icon_{icon} CSS class system.
    * The `app` prop is not required when settingsPage is set.
@@ -239,7 +239,7 @@
   /**
    * App ID to use for the background gradient CSS variable (--color-app-{appColorId}).
    * - For settingsPage mode: always use 'openmates' (the primary brand gradient).
-   * - For app store mode: use appId directly (keyed by app ID, not icon name).
+   * - For Apps mode: use appId directly (keyed by app ID, not icon name).
    *   Falls back to iconName for apps that don't have an explicit ID.
    */
   let appColorId = $derived(settingsPage ? 'openmates' : (appId || iconName));

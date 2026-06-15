@@ -87,19 +87,19 @@ test.describe('App: Weather / Skill: forecast', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
-	test('Phase 0: app store metadata exposes weather forecast', async ({ request }: { request: any }) => {
+	test('Phase 0: Apps metadata exposes weather forecast', async ({ request }: { request: any }) => {
 		const response = await request.get(`${apiUrl}/v1/apps/metadata`);
 		expect(response.ok()).toBeTruthy();
 
 		const data = await response.json();
 		const nutrition = data.apps?.nutrition;
-		expect(nutrition, 'nutrition app should appear in app store metadata').toBeTruthy();
+		expect(nutrition, 'nutrition app should appear in Apps metadata').toBeTruthy();
 
 		const nutritionSkillIds = (nutrition.skills || []).map((skill: { id: string }) => skill.id);
 		expect(nutritionSkillIds).toContain('search_recipes');
 
 		const weather = data.apps?.weather;
-		expect(weather, 'weather app should appear in app store metadata').toBeTruthy();
+		expect(weather, 'weather app should appear in Apps metadata').toBeTruthy();
 
 		const skillIds = (weather.skills || []).map((skill: { id: string }) => skill.id);
 		expect(skillIds).toContain('forecast');
@@ -121,18 +121,18 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.getByTestId('weather-forecast-preview').first()).toBeVisible();
 	});
 
-	test('Phase 1b: app store weather linked example chat has translations, provider icons, and opens the chat', async ({ page }: { page: any }) => {
+	test('Phase 1b: Apps weather linked example chat has translations, provider icons, and opens the chat', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 1600, height: 900 });
 
-		await page.goto(getE2EDebugUrl('/#settings/app_store/weather/skill/forecast'), {
+		await page.goto(getE2EDebugUrl('/#settings/apps/weather/skill/forecast'), {
 			waitUntil: 'domcontentloaded'
 		});
 		await page.waitForLoadState('networkidle');
 
 		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
-		await expect(settingsMenu).toHaveAttribute('data-active-view', 'app_store/weather/skill/forecast', {
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'apps/weather/skill/forecast', {
 			timeout: 15_000
 		});
 
@@ -159,11 +159,11 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 	});
 
-	test('Phase 1b mobile: app store example chat closes settings on narrow viewports', async ({ page }: { page: any }) => {
+	test('Phase 1b mobile: Apps example chat closes settings on narrow viewports', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.goto(getE2EDebugUrl('/#settings/app_store/weather/skill/forecast'), {
+		await page.goto(getE2EDebugUrl('/#settings/apps/weather/skill/forecast'), {
 			waitUntil: 'domcontentloaded'
 		});
 		await page.waitForLoadState('networkidle');
@@ -180,18 +180,18 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toHaveCount(0, { timeout: 15_000 });
 	});
 
-	test('Phase 1c: app store linked example chat uses the large continue-card preview and opens the chat', async ({ page }: { page: any }) => {
+	test('Phase 1c: Apps linked example chat uses the large continue-card preview and opens the chat', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 		await page.setViewportSize({ width: 1600, height: 900 });
 
-		await page.goto(getE2EDebugUrl('/#settings/app_store/travel/skill/search_connections'), {
+		await page.goto(getE2EDebugUrl('/#settings/apps/travel/skill/search_connections'), {
 			waitUntil: 'domcontentloaded'
 		});
 		await page.waitForLoadState('networkidle');
 
 		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
-		await expect(settingsMenu).toHaveAttribute('data-active-view', 'app_store/travel/skill/search_connections', {
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'apps/travel/skill/search_connections', {
 			timeout: 15_000
 		});
 
@@ -207,12 +207,12 @@ test.describe('App: Weather / Skill: forecast', () => {
 		await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 15_000 });
 	});
 
-	test('Phase 1d: representative app store linked example chats are visible and open', async ({ page }: { page: any }) => {
+	test('Phase 1d: representative Apps linked example chats are visible and open', async ({ page }: { page: any }) => {
 		test.setTimeout(180_000);
 		await page.setViewportSize({ width: 1600, height: 900 });
 
 		for (const example of linkedExampleChatCases) {
-			const settingsPath = `/?example-card=${example.appId}-${example.skillId}#settings/app_store/${example.appId}/skill/${example.skillId}`;
+			const settingsPath = `/?example-card=${example.appId}-${example.skillId}#settings/apps/${example.appId}/skill/${example.skillId}`;
 			await page.goto(getE2EDebugUrl(settingsPath), {
 				waitUntil: 'domcontentloaded'
 			});
@@ -220,7 +220,7 @@ test.describe('App: Weather / Skill: forecast', () => {
 
 			const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 			await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
-			await expect(settingsMenu).toHaveAttribute('data-active-view', `app_store/${example.appId}/skill/${example.skillId}`, {
+			await expect(settingsMenu).toHaveAttribute('data-active-view', `apps/${example.appId}/skill/${example.skillId}`, {
 				timeout: 15_000
 			});
 

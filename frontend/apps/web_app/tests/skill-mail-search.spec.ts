@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * E2E test for mail/search skill provider health gating.
  *
  * Verifies that when the ProtonMail provider is unhealthy, the mail/search
- * skill does NOT appear in the app store metadata. This prevents the AI from
+ * skill does NOT appear in the Apps metadata. This prevents the AI from
  * offering a broken skill and avoids failed embed rendering.
  *
  * Bug history this test suite guards against:
@@ -32,7 +31,7 @@ test.describe('App: Mail / Skill: search — provider health gating', () => {
 	}) => {
 		const log = (msg: string) => console.log(`[mail-health] ${msg}`);
 
-		// Fetch app store metadata (unauthenticated — mail/search should be hidden
+		// Fetch Apps metadata (unauthenticated — mail/search should be hidden
 		// both because the user isn't the allowed ProtonMail user AND because the
 		// provider is unhealthy)
 		log(`Fetching app metadata from ${apiUrl}/v1/apps/metadata`);

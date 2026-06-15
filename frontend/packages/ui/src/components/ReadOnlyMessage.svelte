@@ -489,13 +489,13 @@
 
             if (mentionType === 'skill' && parts.length >= 3) {
                 // parts[0]="skill", parts[1]=appId, parts[2]=skillId
-                deepLinkPath = `app_store/${parts[1]}/skill/${parts[2]}`;
+                deepLinkPath = `apps/${parts[1]}/skill/${parts[2]}`;
             } else if (mentionType === 'focus_mode' && parts.length >= 3) {
                 // parts[0]="focus", parts[1]=appId, parts[2]=focusModeId
-                deepLinkPath = `app_store/${parts[1]}/focus/${parts[2]}`;
+                deepLinkPath = `apps/${parts[1]}/focus/${parts[2]}`;
             } else if ((mentionType === 'settings_memory' || mentionType === 'settings_memory_entry') && parts.length >= 3) {
                 // parts[0]="memory", parts[1]=appId, parts[2]=categoryId
-                deepLinkPath = `app_store/${parts[1]}/settings_memories/${parts[2]}`;
+                deepLinkPath = `apps/${parts[1]}/settings_memories/${parts[2]}`;
             }
         }
 

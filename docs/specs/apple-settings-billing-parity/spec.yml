@@ -5,7 +5,7 @@ status: implementing
 goal: >
   Recreate the web app's full settings and subsettings coverage in Apple so
   users can browse and act on every settings surface with native OpenMates UI,
-  including the Apps/App Store section, app detail pages, app skills, focus
+  including the Apps section, app detail pages, app skills, focus
   modes, examples that open on click, billing, security, account, privacy,
   notifications, shared links, developers, server/admin, support, newsletter,
   report issue, and interface preferences.
@@ -13,7 +13,7 @@ goal: >
 scope:
   in:
     - Full native parity for the settings root menu, authenticated and unauthenticated visibility, banners, back navigation, footer/legal links, loading/empty/error/success states, and no default platform product UI.
-    - Full native parity for Apps/App Store browsing, categorized rows, Show all apps, search/filter/sort, all apps, app details, skill cards, memory cards, focus mode cards, active reminders, app embeds, provider icons, pricing, model lists, default app-skill model selection, and app-store examples.
+    - Full native parity for Apps browsing, categorized rows, Show all apps, search/filter/sort, all apps, app details, skill cards, memory cards, focus mode cards, active reminders, app embeds, provider icons, pricing, model lists, default app-skill model selection, and Apps examples.
     - Full native parity for opening skill and focus-mode examples from settings, including linked example chats and rendered embed examples where web uses preview fixtures.
     - Full native parity for all settings submenus and actions represented by `settingsRoutes.ts`, including account/security, privacy, memories, mates, billing/gift cards, notifications/reminders, shared/share/tip/fork, interface, developers, newsletter, support, report issue, server/admin, and logs.
     - Executable Apple UI tests for sensitive or destructive settings flows using the same reserved account policy as Playwright specs.
@@ -103,7 +103,7 @@ apple_impact:
   parity_expectations:
     - Apple settings UI must use OpenMates primitives (`OMSettingsPage`, `OMSettingsRow`, `OMToggle`, `OMDropdown`, `OMSegmentedControl`, custom dialogs/overlays) and must not use default product `List`, `Form`, native toolbar, native picker/toggle, or app-owned default sheet/alert chrome.
     - Stable Apple `.accessibilityIdentifier(...)` values should match the web `data-testid` concept where the product control is the same.
-    - The Apple Apps section must render the same app metadata source as web, excluding AI from the App Store root because AI has its own top-level settings page.
+    - The Apple Apps section must render the same app metadata source as web, excluding AI from the Apps root because AI has its own top-level settings page.
     - Skill/focus example cards must open the same destination class as web: linked example chat cards open public example chats; synthetic embed examples open an embed fullscreen or native equivalent without leaving raw payloads visible.
     - Sensitive actions must require the same user re-authentication concepts as web and use reserved test accounts only.
   verification:
@@ -126,7 +126,7 @@ clarification:
   vision_summary: >
     Full Apple settings parity means every web settings route has a native Apple
     equivalent or explicit native exception, and the Apps section must match the
-    web App Store experience deeply enough that users can browse all apps,
+    web Apps experience deeply enough that users can browse all apps,
     skills, focus modes, memories, provider/model details, and examples. Tests
     should be executable and use reserved accounts for credential-rotating,
     destructive, billing, and security-sensitive actions.
@@ -144,13 +144,13 @@ scenarios:
       - Banners, icons, descriptions, scroll collapse, back navigation, and footer/legal links match web intent.
       - Product UI uses OpenMates primitives with no default table/list/form chrome.
   - id: S-2
-    title: Apps App Store root and all-apps views match web
+    title: Apps root and all-apps views match web
     given:
       - App metadata is available from the same backend/static contract used by web.
     when:
       - A user opens Apps, Show all apps, search, filters, sorts, and category carousels.
     then:
-      - Apple excludes AI from App Store root, shows the web category groups, supports all-apps filters (`all`, `settings_memories`, `focus_modes`, `skills`), search, and newest/name sorting.
+      - Apple excludes AI from Apps root, shows the web category groups, supports all-apps filters (`all`, `settings_memories`, `focus_modes`, `skills`), search, and newest/name sorting.
       - Horizontal card rows scroll on touch without cancelling gestures.
       - Empty/loading/error states are visible and translated.
   - id: S-3
@@ -158,7 +158,7 @@ scenarios:
     given:
       - An app contains skills, settings/memory categories, focus modes, active reminders, and generated embeds.
     when:
-      - The user opens app detail pages such as `app_store/weather`, `app_store/travel`, `app_store/images`, `app_store/web`, and `app_store/reminder`.
+      - The user opens app detail pages such as `apps/weather`, `apps/travel`, `apps/images`, `apps/web`, and `apps/reminder`.
     then:
       - Skill, memory, and focus cards match web `AppStoreCard` visual language and open their detail pages.
       - Guests only see memory categories with examples; authenticated users see editable saved categories.
@@ -234,7 +234,7 @@ acceptance_criteria:
     text: Apple settings root, subsetting navigation, role visibility, banners, footers, and legal views match web settings routes and use only OpenMates product UI primitives.
   - id: AC-2
     scenario: S-2
-    text: Apple Apps/App Store root and all-apps views match web categories, search, filters, sort, card rendering, horizontal scroll behavior, and loading/empty/error states.
+    text: Apple Apps root and all-apps views match web categories, search, filters, sort, card rendering, horizontal scroll behavior, and loading/empty/error states.
   - id: AC-3
     scenario: S-3
     text: Apple app detail pages render and navigate to all skills, settings/memory categories, focus modes, active reminders, and app embeds with web-equivalent visibility rules.
@@ -263,7 +263,7 @@ acceptance_criteria:
 contracts:
   ui_states:
     - Every web route in `baseSettingsViews` has a native route, native read-only equivalent, or explicit native unsupported/web-only state.
-    - "App Store cards expose stable identifiers: `settings-app-store-page`, `settings-all-apps-page`, `app-store-card`, `app-card-<appId>`, `settings-skill-cards-scroll`, `settings-memory-cards-scroll`, `settings-focus-cards-scroll`, `skill-provider-item`, `settings-provider-logo`, `app-store-example-card`, `app-store-example-chat-card`, `focus-mode-details`, `focus-process-bullet`, `focus-instructions-toggle`, and `focus-instructions-text` where applicable."
+    - "Apps cards expose stable identifiers: `settings-app-store-page`, `settings-all-apps-page`, `app-store-card`, `app-card-<appId>`, `settings-skill-cards-scroll`, `settings-memory-cards-scroll`, `settings-focus-cards-scroll`, `skill-provider-item`, `settings-provider-logo`, `app-store-example-card`, `app-store-example-chat-card`, `focus-mode-details`, `focus-process-bullet`, `focus-instructions-toggle`, and `focus-instructions-text` where applicable."
     - "Sensitive controls expose identifiers matching web concepts: `auth-modal`, `password-input`, `tfa-input`, `auth-btn`, `tfa-backup-codes`, `code-item`, `confirm-checkbox`, `save-container`, `copy-button`, `primary-button`, `session-card`, `session-revoke-btn`, `api-key-row`, and `delete-confirmation` where applicable."
   api:
     - Apple settings requests use the same backend routes or documented native equivalents as web/CLI settings commands.
@@ -294,7 +294,7 @@ tests:
     assertions:
       - Native settings destination inventory covers every web `baseSettingsViews` route or lists an explicit native exception.
       - Native app metadata decoding preserves web fields for apps, skills, focus modes, settings/memories, providers, pricing, and examples.
-      - App Store category, filter, sort, and AI-exclusion logic matches web.
+      - Apps category, filter, sort, and AI-exclusion logic matches web.
       - StoreKit product identifiers match native credit tiers expected by billing entry points.
     red_phase:
       required: true
@@ -541,7 +541,7 @@ implementation_plan:
     - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
       reason: Root navigation, route inventory, banners, role visibility, stable identifiers.
     - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsAppsFull.swift
-      reason: App Store root, all-apps, app details, skill/focus/memory detail navigation.
+      reason: Apps root, all-apps, app details, skill/focus/memory detail navigation.
     - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift
       reason: AI/default model/settings memory parity with web AI settings.
     - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
@@ -596,7 +596,7 @@ tasks:
       - T-UNIT-001
     independently_deployable: true
   - id: TASK-2
-    title: Rebuild Apple Apps/App Store parity
+    title: Rebuild Apple Apps parity
     covers:
       scenarios:
         - S-2
@@ -714,7 +714,7 @@ tasks:
 risks:
   - Full settings parity is large and should be implemented in independently verified slices to avoid long-lived broken Apple builds.
   - Destructive account tests can damage reserved accounts if slots are misconfigured; tests must fail closed when reserved credentials are absent.
-  - App Store examples may expose private data if real user chats are used; only public example chats or synthetic fixtures are allowed.
+  - Apps examples may expose private data if real user chats are used; only public example chats or synthetic fixtures are allowed.
   - StoreKit, passkey, notification, file picker, share sheet, and clipboard flows can vary by simulator state; tests must clean app containers and handle OS prompts explicitly.
   - Existing unrelated dirty worktree changes must not be included in settings parity commits.
 

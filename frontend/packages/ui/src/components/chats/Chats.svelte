@@ -2530,9 +2530,9 @@ let _chatUpdatedFlushPending = false;
 
 	/**
 	 * Handle clicking an app catalog result from search (app, skill, focus mode, or memory).
-	 * Opens the settings panel and navigates to the app store sub-page.
+	 * Opens the settings panel and navigates to the Apps sub-page.
 	 * On small viewports: also closes the Chats panel so the settings panel is visible.
-	 * @param path - The settings path (e.g., "app_store/ai/skill/ask")
+	 * @param path - The settings path (e.g., "apps/ai/skill/ask")
 	 * @param title - The display title for the breadcrumb
 	 *
 	 * IMPORTANT: navigateToSettings() only updates the breadcrumb/path store — it does NOT

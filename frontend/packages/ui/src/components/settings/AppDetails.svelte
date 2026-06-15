@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/settings/AppDetails.svelte
      Component for displaying details of a specific app, including its skills.
      
-     This component is used for the app_store/{app_id} nested route.
+     This component is used for the apps/{app_id} nested route.
      
      **Backend Implementation**:
      - Data source: Static appsMetadata.ts (generated at build time)
@@ -30,7 +30,7 @@
     const dispatch = createEventDispatcher();
     
     // Get app ID from the current path
-    // The path will be like "app_store/ai" or "app_store/web"
+    // The path will be like "apps/ai" or "apps/web"
     // This will be passed as a prop from Settings.svelte
     
     interface Props {
@@ -134,7 +134,7 @@
      */
     function handleSkillSelect(skillId: string) {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/skill/${skillId}`,
+            settingsPath: `apps/${appId}/skill/${skillId}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: $text(skills.find(s => s.id === skillId)?.name_translation_key || skillId)
@@ -144,7 +144,7 @@
     function handleContentSelect(contentTypeId: string) {
         const content = contentTypes.find((item) => item.contentTypeId === contentTypeId);
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/content/${contentTypeId}`,
+            settingsPath: `apps/${appId}/content/${contentTypeId}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: content?.name || contentTypeId
@@ -156,7 +156,7 @@
      */
     function handleFocusModeSelect(focusModeId: string) {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/focus/${focusModeId}`,
+            settingsPath: `apps/${appId}/focus/${focusModeId}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: $text(focusModes.find(f => f.id === focusModeId)?.name_translation_key || focusModeId)
@@ -168,7 +168,7 @@
      */
     function handleSettingsMemoriesCategorySelect(categoryId: string) {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/settings_memories/${categoryId}`,
+            settingsPath: `apps/${appId}/settings_memories/${categoryId}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: $text(visibleMemoryFields.find(c => c.id === categoryId)?.name_translation_key || categoryId)
@@ -176,13 +176,13 @@
     }
     
     /**
-     * Navigate back to app store.
+     * Navigate back to Apps.
      */
     function goBack() {
         dispatch('openSettings', {
-            settingsPath: 'app_store',
+            settingsPath: 'apps',
             direction: 'back',
-            icon: 'app_store',
+            icon: 'app',
             title: 'Apps'
         });
     }
@@ -271,7 +271,7 @@
         try {
             const result = await startGoogleCalendarOAuth({
                 capabilities: ['read', 'write', 'delete'],
-                returnPath: '/#settings/app_store/calendar'
+                returnPath: '/#settings/apps/calendar'
             });
             window.location.assign(result.authorization_url);
         } catch (error) {

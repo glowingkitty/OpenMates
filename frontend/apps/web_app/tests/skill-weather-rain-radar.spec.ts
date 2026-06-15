@@ -20,13 +20,13 @@ test.describe('App: Weather / Skill: rain_radar', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
-	test('Phase 0: app store metadata exposes weather rain radar', async ({ request }: { request: any }) => {
+	test('Phase 0: Apps metadata exposes weather rain radar', async ({ request }: { request: any }) => {
 		const response = await request.get(`${apiUrl}/v1/apps/metadata`);
 		expect(response.ok()).toBeTruthy();
 
 		const data = await response.json();
 		const weather = data.apps?.weather;
-		expect(weather, 'weather app should appear in app store metadata').toBeTruthy();
+		expect(weather, 'weather app should appear in Apps metadata').toBeTruthy();
 
 		const skillIds = (weather.skills || []).map((skill: { id: string }) => skill.id);
 		expect(skillIds).toContain('forecast');

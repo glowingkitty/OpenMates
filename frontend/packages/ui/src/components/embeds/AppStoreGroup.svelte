@@ -137,7 +137,7 @@
     
     // Set the deep link to the app's detail page in the Apps
     // Must be LAST so the Settings menu is already open to receive it
-    settingsDeepLink.set(appId ? `app_store/${appId}` : 'app_store');
+    settingsDeepLink.set(appId ? `apps/${appId}` : 'app_store');
   }
 </script>
 

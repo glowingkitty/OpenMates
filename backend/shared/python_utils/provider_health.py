@@ -1,6 +1,6 @@
 # backend/shared/python_utils/provider_health.py
 # Shared utilities for provider health status and provider name mapping.
-# Used by the app store endpoint and AI preprocessor to gate skill availability
+# Used by the Apps endpoint and AI preprocessor to gate skill availability
 # based on cached health check results from Redis.
 
 import json

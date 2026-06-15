@@ -44,10 +44,10 @@ class ProviderRef(BaseModel):
 
     Use display_name when the internal provider (used for API key lookup) differs
     from the user-facing brand. Example: SerpAPI provides Google Flights data, so
-    name="SerpAPI" (for key lookup) but display_name="Google" (shown in app store).
+    name="SerpAPI" (for key lookup) but display_name="Google" (shown in Apps).
     """
     name: str = Field(description="Internal provider identifier used for API key lookups (e.g., 'serpapi', 'brave').")
-    display_name: Optional[str] = Field(default=None, description="User-facing provider name shown in the app store (e.g., 'Google'). Defaults to name if not set.")
+    display_name: Optional[str] = Field(default=None, description="User-facing provider name shown in Apps (e.g., 'Google'). Defaults to name if not set.")
     no_api_key: bool = Field(default=False, description="If true, this provider does not require an API key (e.g., web scrapers). The skill will be considered available without checking for credentials.")
 
 
@@ -92,10 +92,10 @@ class AppSkillDefinition(BaseModel):
     # REST API configuration — controls how the skill is exposed in the public API docs
     api_config: Optional[AppSkillApiConfig] = Field(default=None, description="REST API configuration for this skill. Controls GET/POST endpoint exposure in /docs.")
     # Internal skills are used by the AI backend only and must NOT be shown to users
-    # in the app store or settings UI. Set internal: true for skills that are invoked
+    # in Apps or settings UI. Set internal: true for skills that are invoked
     # automatically (e.g., images.view for uploaded images, audio.transcribe for
     # voice recordings) — users never discover or invoke these manually.
-    internal: Optional[bool] = Field(default=False, description="If true, this skill is hidden from the app store and settings UI. It is invoked automatically by the backend and is not user-facing.")
+    internal: Optional[bool] = Field(default=False, description="If true, this skill is hidden from Apps and settings UI. It is invoked automatically by the backend and is not user-facing.")
 
 class AppFocusDefinition(BaseModel):
     """

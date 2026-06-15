@@ -2,7 +2,7 @@
  * App-store skill examples resolver.
  *
  * Loads real, curated embed example fixtures (`*Preview.examples.ts`) alongside
- * their preview + fullscreen Svelte components, so the settings app store can
+ * their preview + fullscreen Svelte components, so Apps can
  * render rich "Examples" sections under each skill. The examples themselves are
  * captured from real skill runs (see backend/scripts/run_app_skill_request.py)
  * and live next to the preview components they drive.

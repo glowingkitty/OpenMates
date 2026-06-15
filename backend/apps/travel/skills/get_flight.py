@@ -6,7 +6,7 @@ Flightradar24 for a completed flight, given its IATA flight number and
 departure date. Returns GPS track points (polyline) and enrichment details
 (actual takeoff/landing times, runway, actual distance, diversion indicator).
 
-Architecture: This skill is AI-callable (appears in app store, can be used via
+Architecture: This skill is AI-callable (appears in Apps, can be used via
 the chat API). Credits: 7 per call (covers ~46 FR24 API credits at current pricing).
 See docs/architecture/app-skills.md for the execution model and credit math.
 

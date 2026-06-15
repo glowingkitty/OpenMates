@@ -3,7 +3,7 @@
  * Svelte components. Extracted from Settings.svelte to reduce file size and improve
  * maintainability.
  *
- * These are the "base" (static) routes. Dynamic routes for app store details and
+ * These are the "base" (static) routes. Dynamic routes for app details and
  * entry detail pages are built at runtime in Settings.svelte via buildSettingsViews().
  */
 
@@ -137,8 +137,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // AI (model selection, pricing, providers, memories)
   ai: SettingsAI,
   // Apps
-  app_store: SettingsAppStore,
-  "app_store/all": SettingsAllApps,
+  apps: SettingsAppStore,
+  "apps/all": SettingsAllApps,
   // Memories hub — lists all user-created memories across apps
   settings_memories: SettingsMemoriesHub,
   // Privacy settings — anonymization, device permissions, auto deletion
@@ -245,7 +245,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
 
 /**
  * Re-export AppDetailsWrapper for use in the dynamic route builder
- * (app_store/{app_id} and nested skill/focus/memory routes).
+ * (apps/{app_id} and nested skill/focus/memory routes).
  */
 export { AppDetailsWrapper };
 

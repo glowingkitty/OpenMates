@@ -376,12 +376,12 @@
   }
   
   /**
-   * Navigate to the images app skill settings page in the app store.
+   * Navigate to the images app skill settings page in Apps.
    * Deep links to the skill page for the current skill (generate or generate_draft).
    */
   function handleModelClick() {
     const skillPath = skillIdProp === 'generate_draft' ? 'generate_draft' : 'generate';
-    settingsDeepLink.set(`app_store/images/skill/${skillPath}`);
+    settingsDeepLink.set(`apps/images/skill/${skillPath}`);
     panelState.openSettings();
   }
 

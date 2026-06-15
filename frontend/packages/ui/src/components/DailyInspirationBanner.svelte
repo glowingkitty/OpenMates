@@ -57,9 +57,9 @@
     'incognito-mode',
   ]);
   const GUEST_ALLOWED_FEATURE_PATHS = new Set([
-    'app_store/all/focus_modes',
-    'app_store/events/skill/search',
-    'app_store/all/skills',
+    'apps/all/focus_modes',
+    'apps/events/skill/search',
+    'apps/all/skills',
     'privacy',
     'privacy/hide-personal-data',
     'settings_memories',

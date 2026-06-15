@@ -197,7 +197,7 @@ test('reminder — settings page: create reminder via top-bar button and verify 
 
 	// ── Step 6: Verify inline success message ──
 	// After creation SettingsReminders shows an inline SettingsInfoBox success message.
-	// (commit 90f1e4bd6 removed the old app_store/reminder navigation.)
+	// (commit 90f1e4bd6 removed the old apps/reminder navigation.)
 	const successBox = page.getByTestId('settings-info-box-success');
 	await expect(successBox).toBeVisible({ timeout: 15000 });
 	log('Inline success message visible — reminder created.');
