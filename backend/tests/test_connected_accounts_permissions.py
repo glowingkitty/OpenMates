@@ -151,7 +151,7 @@ def test_connected_account_skill_rest_execution_requires_offline_grant() -> None
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connected_accounts_routes_store_only_owned_encrypted_rows() -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
@@ -239,7 +239,7 @@ async def test_connected_accounts_routes_store_only_owned_encrypted_rows() -> No
     assert plaintext_response.status_code == 400
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_rest_skill_helper_blocks_hidden_connected_account_skill() -> None:
     from fastapi import HTTPException
 
