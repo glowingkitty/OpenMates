@@ -359,11 +359,14 @@
 
     // Add and remove event listeners
     onMount(() => {
-        document.addEventListener('mousedown', handleClickOutside);
-        document.addEventListener('touchstart', handleClickOutside);
+        const outsideListenerTimer = window.setTimeout(() => {
+            document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside);
+        }, 0);
         document.addEventListener('scroll', handleScroll, true);
 
         return () => {
+            clearTimeout(outsideListenerTimer);
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('touchstart', handleClickOutside);
             document.removeEventListener('scroll', handleScroll, true);
