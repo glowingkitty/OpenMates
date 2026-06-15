@@ -1142,6 +1142,8 @@ implementation_progress:
         result: 388 passed on GitHub Actions run 27547059503 for commit 2662b0a
       - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountStorageService.ts src/services/__tests__/connectedAccountStorageService.test.ts
         result: passed
+      - command: python3 scripts/run_tests.py --suite vitest
+        result: 389 passed on GitHub Actions run 27547411577 for commit 161519d
       - command: python3 -m py_compile backend/core/api/app/services/connected_account_operation_journal.py backend/core/api/app/services/token_broker.py backend/apps/ai/processing/connected_account_execution.py
         result: passed
       - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountTokenBrokerService.ts src/services/sendersChatMessages.ts src/services/chatSyncService.ts
