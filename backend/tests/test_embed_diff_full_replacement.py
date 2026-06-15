@@ -35,6 +35,32 @@ def test_selects_single_prior_embed_for_full_replacement_edit() -> None:
     assert _select_full_replacement_target(request, None) == ("main.py-AbC", "embed-1")
 
 
+def test_selects_first_prior_embed_once_for_full_replacement_edit() -> None:
+    request = _request(
+        "Update the existing code artifact and preserve the same embed.",
+        {"main.py-AbC": "embed-1", "helper.py-DeF": "embed-2"},
+    )
+    reused_refs: set[str] = set()
+
+    selected = _select_full_replacement_target(request, None, reused_refs)
+    assert selected == ("main.py-AbC", "embed-1")
+
+    reused_refs.add(selected[0])
+    assert _select_full_replacement_target(request, None, reused_refs) is None
+
+
+def test_selects_matching_filename_even_after_implicit_reuse() -> None:
+    request = _request(
+        "Update the existing code artifact and preserve the same embed.",
+        {"main.py-AbC": "embed-1", "helper.py-DeF": "embed-2"},
+    )
+
+    assert _select_full_replacement_target(request, "helper.py-DeF", {"main.py-AbC"}) == (
+        "helper.py-DeF",
+        "embed-2",
+    )
+
+
 def test_does_not_reuse_embed_for_new_code_request() -> None:
     request = _request(
         "Create a new Python helper for parsing CSV files.",

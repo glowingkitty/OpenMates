@@ -2567,13 +2567,15 @@ _EDIT_EXISTING_ARTIFACT_RE = re.compile(
 def _select_full_replacement_target(
     request_data: AskSkillRequest,
     current_filename: Optional[str],
+    reused_refs: Optional[set[str]] = None,
 ) -> Optional[tuple[str, str]]:
     """Return a prior embed target when a model regenerates during an edit turn."""
     file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
     if not file_path_index:
         return None
+    reused_refs = reused_refs or set()
 
-    if current_filename and current_filename in file_path_index:
+    if current_filename and current_filename in file_path_index and current_filename not in reused_refs:
         return current_filename, file_path_index[current_filename]
 
     last_user_content = ""
@@ -2588,9 +2590,12 @@ def _select_full_replacement_target(
 
     if not _EDIT_EXISTING_ARTIFACT_RE.search(last_user_content):
         return None
-    if len(file_path_index) != 1:
+    if reused_refs:
         return None
-    return next(iter(file_path_index.items()))
+    for embed_ref, embed_id in file_path_index.items():
+        if embed_ref not in reused_refs:
+            return embed_ref, embed_id
+    return None
 
 
 def _normalize_generated_app_file_path(filename: Optional[str]) -> Optional[str]:
@@ -3280,6 +3285,7 @@ async def _consume_main_processing_stream(
     current_code_content = ""
     current_code_embed_id: Optional[str] = None
     generated_code_file_embeds: List[Dict[str, str]] = []
+    full_replacement_reused_refs: set[str] = set()
     application_parent_embed_created = False
     # New state: when LLM streams ``` and language separately, wait for next chunk
     waiting_for_code_language = False
@@ -4319,6 +4325,7 @@ async def _consume_main_processing_stream(
                                             replacement_target = _select_full_replacement_target(
                                                 request_data,
                                                 current_code_filename,
+                                                full_replacement_reused_refs,
                                             )
                                             if replacement_target:
                                                 from toon_format import decode
@@ -4382,6 +4389,7 @@ async def _consume_main_processing_stream(
                                                     })
                                                     chunk = f"```json\n{embed_reference_json}\n```\n\n"
                                                     replacement_applied = True
+                                                    full_replacement_reused_refs.add(replacement_ref)
                                                     logger.info(
                                                         f"{log_prefix} [FULL_REPLACEMENT_EDIT] Reused code embed "
                                                         f"{target_embed_id} via ref {replacement_ref!r} "
