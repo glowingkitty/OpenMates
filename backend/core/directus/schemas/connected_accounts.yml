@@ -1,8 +1,10 @@
 # backend/core/directus/schemas/connected_accounts.yml
 #
-# Encrypted connected-account metadata for provider-backed app skills.
+# Client-encrypted connected-account metadata for provider-backed app skills.
 # Plaintext provider identity, account email, OAuth scopes, and token material are
-# intentionally excluded; only hashes and vault-encrypted blobs may be stored.
+# intentionally excluded from Directus; persistent rows store only hashes and
+# client-encrypted blobs. Active-turn token refs are separately Vault-encrypted
+# in short-lived Redis/memory broker storage, not in this collection.
 #
 # Spec: docs/specs/calendar-permission-management/spec.yml
 
@@ -34,35 +36,35 @@ connected_accounts:
     encrypted_provider_type:
       type: text
       required: true
-      note: "[Vault-encrypted] Provider type such as google"
+      note: "[Client-encrypted] Provider type such as google"
 
     encrypted_provider_account_display:
       type: text
-      note: "[Vault-encrypted] User-visible provider account display label"
+      note: "[Client-encrypted] User-visible provider account display label"
 
     encrypted_account_label:
       type: text
       required: true
-      note: "[Vault-encrypted] User-assigned account label"
+      note: "[Client-encrypted] User-assigned account label"
 
     encrypted_account_directory_hint:
       type: text
-      note: "[Vault-encrypted] Directory metadata needed by clients to build account pickers"
+      note: "[Client-encrypted] Directory metadata needed by clients to build account pickers"
 
     encrypted_refresh_token_bundle:
       type: text
       required: true
-      note: "[Vault-encrypted] Refresh-token bundle; never exposed to LLMs, skill args, logs, or receipts"
+      note: "[Client-encrypted] Refresh-token bundle; never exposed to LLMs, skill args, logs, or receipts"
 
     encrypted_capabilities:
       type: text
       required: true
-      note: "[Vault-encrypted] User-selected capability set for this connected account"
+      note: "[Client-encrypted] User-selected capability set for this connected account"
 
     encrypted_app_permissions:
       type: text
       required: true
-      note: "[Vault-encrypted] Per-app action permission modes and remembered decisions"
+      note: "[Client-encrypted] Per-app action permission modes and remembered decisions"
 
     server_access_enabled:
       type: boolean
@@ -70,7 +72,7 @@ connected_accounts:
 
     encrypted_server_access_ref:
       type: text
-      note: "[Vault-encrypted optional] Future offline automation grant reference when server_access_enabled=true"
+      note: "[Server-encrypted optional] Future offline automation grant reference when server_access_enabled=true; not used for normal client-mediated chat"
 
     created_at:
       type: integer
