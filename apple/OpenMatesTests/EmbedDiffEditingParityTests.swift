@@ -21,7 +21,7 @@ final class EmbedDiffEditingParityTests: XCTestCase {
             { "version_number": 2, "created_at": 1760000100, "has_snapshot": false, "has_patch": true },
             { "version_number": 3, "created_at": 1760000200, "has_snapshot": false, "has_patch": true, "content_hash": "hash-v3" }
           ],
-          "content": "{\"type\":\"code\",\"code\":\"print(1)\"}"
+          "content": "{}"
         }
         """.data(using: .utf8)!
 
