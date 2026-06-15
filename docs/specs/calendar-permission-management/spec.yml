@@ -987,6 +987,34 @@ tests:
         run_id: ""
         timestamp: ""
 
+  - id: T-E2E-004
+    type: playwright
+    file: frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    command: python3 scripts/run_tests.py --spec connected-account-calendar-settings.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+    assertions:
+      - Calendar settings shows the Google Calendar connected-account section to an authenticated user.
+      - Connect Google Calendar starts OAuth with the selected read/write/delete capabilities and a settings return path.
+      - OAuth redirect finalization claims only an opaque handoff id and persists an encrypted connected-account row.
+      - Persisted connected-account payload does not contain plaintext refresh tokens, provider account ids, provider emails, or provider ids.
+      - The connected-account section refreshes after handoff finalization and shows the connected account count.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27561882136"
+        timestamp: "2026-06-15T16:49:42Z"
+
   - id: T-LIVE-001
     type: pytest
     file: backend/tests/live/test_google_calendar_permissions_live.py
