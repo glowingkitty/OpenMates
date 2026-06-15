@@ -63,3 +63,30 @@ async def test_connected_account_receipt_rejects_secret_fields() -> None:
                 "receipt": {"access_token": "secret"},
             },
         )
+
+
+def test_attach_connected_account_action_metadata_marks_nested_results_only() -> None:
+    from backend.apps.ai.processing.connected_account_receipts import (
+        attach_connected_account_action_metadata,
+    )
+
+    payload = [
+        {
+            "results": [
+                {
+                    "calendar_id": "primary",
+                    "event": {"id": "event-1", "summary": "Planning"},
+                }
+            ]
+        }
+    ]
+
+    attach_connected_account_action_metadata(
+        results=payload,
+        journal_entries=[{"action_id": "act_123"}],
+        undo_available=True,
+    )
+
+    result = payload[0]["results"][0]
+    assert result["connected_account_action_id"] == "act_123"
+    assert result["connected_account_undo_available"] is True

@@ -954,7 +954,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   function connectedAccountReceiptText(receipt: ConnectedAccountActionReceiptContent): string {
     const action = connectedAccountActionLabel(receipt.receipt?.action);
     if (receipt.receipt?.decision === 'undo_success') {
-      return $text('chat.connected_account_receipts.undone', { values: { action } });
+      return $text('chat.connected_account_receipts.undone');
     }
     const base = $text('chat.connected_account_receipts.completed', { values: { action } });
     return receipt.receipt?.undo_available
@@ -962,12 +962,49 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       : base;
   }
 
-  let systemMessageText = $derived.by(() => {
-    const rawContent = typeof content === 'string'
+  function systemRawContent(): string {
+    return typeof content === 'string'
       ? content
       : (typeof original_message?.content === 'string' ? original_message.content : '');
-    const receipt = parseConnectedAccountReceipt(rawContent);
-    return receipt ? connectedAccountReceiptText(receipt) : rawContent;
+  }
+
+  let connectedAccountReceipt = $derived.by(() => parseConnectedAccountReceipt(systemRawContent()));
+  let connectedAccountUndoLoading = $state(false);
+  let connectedAccountUndoError = $state('');
+  let canUndoConnectedAccountReceipt = $derived(
+    !!connectedAccountReceipt?.action_id &&
+    connectedAccountReceipt.receipt?.undo_available === true &&
+    connectedAccountReceipt.receipt?.decision !== 'undo_success'
+  );
+
+  async function handleConnectedAccountUndo(): Promise<void> {
+    const receipt = connectedAccountReceipt;
+    const chatId = original_message?.chat_id;
+    const sourceMessageId = receipt?.user_message_id || userMessageId || original_message?.user_message_id || messageId || original_message?.message_id;
+    if (!receipt?.action_id || !chatId || !sourceMessageId || connectedAccountUndoLoading) return;
+
+    connectedAccountUndoLoading = true;
+    connectedAccountUndoError = '';
+    try {
+      const { undoConnectedAccountAction } = await import('../services/connectedAccountActionService');
+      await undoConnectedAccountAction({
+        actionId: receipt.action_id,
+        chatId,
+        messageId: sourceMessageId
+      });
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.success($text('chat.connected_account_receipts.undo_started'));
+    } catch (error) {
+      console.error('[ChatMessage] Connected-account undo failed:', error);
+      connectedAccountUndoError = $text('chat.connected_account_receipts.undo_failed');
+    } finally {
+      connectedAccountUndoLoading = false;
+    }
+  }
+
+  let systemMessageText = $derived.by(() => {
+    const rawContent = systemRawContent();
+    return connectedAccountReceipt ? connectedAccountReceiptText(connectedAccountReceipt) : rawContent;
   });
 
   // Special handling for openmates_official category
@@ -2919,6 +2956,19 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
         <span class="system-message-text" data-testid="system-message-text">{systemMessageText}</span>
+        {#if canUndoConnectedAccountReceipt}
+          <button
+            class="system-message-action-btn"
+            data-testid="connected-account-undo-button"
+            disabled={connectedAccountUndoLoading}
+            onclick={handleConnectedAccountUndo}
+          >
+            {connectedAccountUndoLoading ? $text('chat.connected_account_receipts.undoing') : $text('chat.connected_account_receipts.undo')}
+          </button>
+        {/if}
+        {#if connectedAccountUndoError}
+          <span class="system-message-text system-message-error">{connectedAccountUndoError}</span>
+        {/if}
         {#if status === 'waiting_for_user'}
           <!-- Credit rejection: show a button to navigate to billing/buy-credits -->
           <button
@@ -3483,6 +3533,17 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .system-message-action-btn:hover {
     opacity: 0.85;
+  }
+
+  .system-message-action-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .system-message-error {
+    display: block;
+    margin-top: var(--spacing-3);
+    color: var(--color-error);
   }
 
   /* Credits-restored variant: positive green tone to signal good news. */

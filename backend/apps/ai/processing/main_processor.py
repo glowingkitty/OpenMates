@@ -54,6 +54,9 @@ from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
 )
+from backend.apps.ai.processing.connected_account_receipts import (
+    attach_connected_account_action_metadata,
+)
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
     MAX_DIRECT_SUB_CHATS_PER_PARENT,
@@ -583,10 +586,11 @@ async def _record_connected_account_operation_journal_entries(
     encryption_service: EncryptionService,
     cache_service: CacheService,
     log_prefix: str,
-) -> None:
+) -> list[dict[str, Any]]:
     if app_id != "calendar" or not user_vault_key_id or not token_artifacts:
-        return
+        return []
 
+    journal_entries: list[dict[str, Any]] = []
     try:
         from backend.core.api.app.services.connected_account_operation_journal import (
             ConnectedAccountOperationJournalService,
@@ -625,6 +629,7 @@ async def _record_connected_account_operation_journal_entries(
                 chat_id=chat_id,
                 message_id=message_id,
             )
+            journal_entries.append(journal_entry)
             await publish_connected_account_action_receipt(
                 cache_service=cache_service,
                 user_id=user_id,
@@ -637,6 +642,7 @@ async def _record_connected_account_operation_journal_entries(
             )
     except Exception as journal_error:
         logger.error("%s Failed to persist connected-account operation journal: %s", log_prefix, journal_error, exc_info=True)
+    return journal_entries
 
 
 def _normalize_connected_account_results(results: Any) -> list[dict[str, Any]]:
@@ -4390,6 +4396,7 @@ async def handle_main_processing(
                         )
 
                     connected_account_token_artifacts: list[dict[str, str]] = []
+                    connected_account_journal_entries: list[dict[str, Any]] = []
                     if app_id == "calendar" and skill_id in {"get-events", "create-event", "update-event", "delete-event"}:
                         from backend.apps.ai.processing.connected_account_execution import (
                             cleanup_connected_account_token_artifacts,
@@ -4471,7 +4478,7 @@ async def handle_main_processing(
                             # max_retries uses default (1 retry = 2 total attempts)
                         )
                         if connected_account_token_artifacts:
-                            await _record_connected_account_operation_journal_entries(
+                            connected_account_journal_entries = await _record_connected_account_operation_journal_entries(
                                 app_id=app_id,
                                 skill_id=skill_id,
                                 results=results,
@@ -5078,7 +5085,14 @@ async def handle_main_processing(
                         log_prefix=log_prefix,
                         grouped_results=grouped_results,
                     )
-                
+
+                if connected_account_journal_entries and not is_async_skill and not is_multimodal_result:
+                    attach_connected_account_action_metadata(
+                        results=results_with_refs,
+                        journal_entries=connected_account_journal_entries,
+                        undo_available=_calendar_undo_available(skill_id),
+                    )
+
                 # STEP 3: Create embeds from results
                 # For multiple requests: Create one app_skill_use embed per request group
                 # For single request: Update the existing placeholder embed

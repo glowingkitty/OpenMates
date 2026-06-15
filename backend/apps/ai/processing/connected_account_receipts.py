@@ -45,3 +45,42 @@ async def publish_connected_account_action_receipt(
     except Exception as exc:
         logger.warning("Could not publish connected-account action receipt: %s", exc)
         return False
+
+
+def attach_connected_account_action_metadata(
+    *,
+    results: Any,
+    journal_entries: list[dict[str, Any]],
+    undo_available: bool,
+) -> None:
+    """Attach opaque action IDs to result objects for client-side controls only."""
+
+    action_ids = [
+        str(entry.get("action_id"))
+        for entry in journal_entries
+        if entry.get("action_id")
+    ]
+    if not action_ids:
+        return
+
+    action_id = action_ids[0]
+    for result in _iter_result_dicts(results):
+        result["connected_account_action_id"] = action_id
+        result["connected_account_undo_available"] = undo_available
+
+
+def _iter_result_dicts(results: Any) -> list[dict[str, Any]]:
+    if isinstance(results, list):
+        output: list[dict[str, Any]] = []
+        for item in results:
+            output.extend(_iter_result_dicts(item))
+        return output
+    if not isinstance(results, dict):
+        return []
+    nested = results.get("results")
+    if isinstance(nested, list):
+        output = []
+        for item in nested:
+            output.extend(_iter_result_dicts(item))
+        return output
+    return [results]

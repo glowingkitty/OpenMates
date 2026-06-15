@@ -138,6 +138,7 @@ export async function buildConnectedAccountSendContext(params: {
 	accountIds?: string[];
 	defaultAllowedActions?: string[];
 	allowedActionsOverride?: string[];
+	includeActionScope?: boolean;
 }): Promise<ConnectedAccountSendContext | undefined> {
 	const selectedIds = new Set(params.accountIds ?? []);
 	const rows = params.accountIds?.length
@@ -176,6 +177,7 @@ export async function buildConnectedAccountSendContext(params: {
 			? capabilities
 			: capabilities.capabilities ?? [];
 		const allowedActions = params.allowedActionsOverride ?? permissions.allowed_actions ?? params.defaultAllowedActions ?? [];
+		const actionScope = params.includeActionScope === false ? undefined : permissions.action_scope;
 		directory.push({
 			connected_account_id: row.id,
 			app_id: permissions.app_id ?? params.appId,
@@ -189,7 +191,7 @@ export async function buildConnectedAccountSendContext(params: {
 			app_id: permissions.app_id ?? params.appId,
 			allowed_actions: allowedActions,
 			refresh_token_envelope: refreshTokenEnvelope,
-			action_scope: permissions.action_scope
+			...(actionScope ? { action_scope: actionScope } : {})
 		});
 	}
 
