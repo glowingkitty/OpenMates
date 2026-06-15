@@ -8,6 +8,7 @@ reconstruct, or restore plaintext diff history.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ STREAM_CONSUMER_PATH = Path(__file__).resolve().parents[1] / "apps/ai/tasks/stre
 DIFF_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instructions/base_diff_editing_instruction.md"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_server_side_diff_persistence_reconstruction_and_restore_are_disabled() -> None:
     service = EmbedDiffService(
         cache_service=None,
@@ -61,3 +62,9 @@ def test_diff_instruction_forbids_new_embed_json_for_small_edits() -> None:
     assert "Do **not** create a new `json` / `json_embed` embed reference" in instruction
     assert "never respond with a new embed JSON block" in instruction
     assert "diff:<embed_ref>" in instruction
+
+
+def test_stream_consumer_uses_cache_embed_lookup_signature() -> None:
+    source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
+
+    assert not re.search(r"get_embed_from_cache\(\s*[^,)]+,", source)

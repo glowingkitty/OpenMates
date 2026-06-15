@@ -4051,9 +4051,7 @@ async def _consume_main_processing_stream(
                                         # Fall through to normal code block handling below
                                     else:
                                         # Fetch current content from cache, then fall back to Directus metadata.
-                                        cached_embed = await cache_service.get_embed_from_cache(
-                                            target_embed_id, request_data.user_id
-                                        )
+                                        cached_embed = await cache_service.get_embed_from_cache(target_embed_id)
                                         if not cached_embed:
                                             cached_embed = await directus_service.embed.get_embed_by_id(target_embed_id)
                                         current_content = None
@@ -4448,9 +4446,7 @@ async def _consume_main_processing_stream(
                                                 from toon_format import decode
 
                                                 replacement_ref, target_embed_id = replacement_target
-                                                cached_embed = await cache_service.get_embed_from_cache(
-                                                    target_embed_id, request_data.user_id
-                                                )
+                                                cached_embed = await cache_service.get_embed_from_cache(target_embed_id)
                                                 if not cached_embed:
                                                     cached_embed = await directus_service.embed.get_embed_by_id(target_embed_id)
 
@@ -5516,9 +5512,7 @@ async def _consume_main_processing_stream(
                                     if current_code_replacement_ref:
                                         from toon_format import decode
 
-                                        cached_embed = await cache_service.get_embed_from_cache(
-                                            current_code_embed_id, request_data.user_id
-                                        )
+                                        cached_embed = await cache_service.get_embed_from_cache(current_code_embed_id)
                                         if not cached_embed:
                                             cached_embed = await directus_service.embed.get_embed_by_id(current_code_embed_id)
 
