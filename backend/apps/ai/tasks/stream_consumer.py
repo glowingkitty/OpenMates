@@ -2564,6 +2564,20 @@ _EDIT_EXISTING_ARTIFACT_RE = re.compile(
 )
 
 
+def _is_edit_existing_artifact_request(request_data: AskSkillRequest) -> bool:
+    last_user_content = ""
+    for message in reversed(request_data.message_history or []):
+        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
+        if role != "user":
+            continue
+        content = message.content if hasattr(message, "content") else message.get("content") if isinstance(message, dict) else ""
+        if isinstance(content, str):
+            last_user_content = content
+        break
+
+    return bool(_EDIT_EXISTING_ARTIFACT_RE.search(last_user_content))
+
+
 def _select_full_replacement_target(
     request_data: AskSkillRequest,
     current_filename: Optional[str],
@@ -2578,17 +2592,7 @@ def _select_full_replacement_target(
     if current_filename and current_filename in file_path_index and current_filename not in reused_refs:
         return current_filename, file_path_index[current_filename]
 
-    last_user_content = ""
-    for message in reversed(request_data.message_history or []):
-        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
-        if role != "user":
-            continue
-        content = message.content if hasattr(message, "content") else message.get("content") if isinstance(message, dict) else ""
-        if isinstance(content, str):
-            last_user_content = content
-        break
-
-    if not _EDIT_EXISTING_ARTIFACT_RE.search(last_user_content):
+    if not _is_edit_existing_artifact_request(request_data):
         return None
     if reused_refs:
         return None
@@ -2596,6 +2600,41 @@ def _select_full_replacement_target(
         if embed_ref not in reused_refs:
             return embed_ref, embed_id
     return None
+
+
+async def _select_cached_code_full_replacement_target(
+    request_data: AskSkillRequest,
+    cache_service: Any,
+    reused_refs: Optional[set[str]] = None,
+) -> Optional[tuple[str, str]]:
+    """Return the newest cached code embed for edit turns with no ref index."""
+    reused_refs = reused_refs or set()
+    if reused_refs or not _is_edit_existing_artifact_request(request_data):
+        return None
+
+    embed_ids = await cache_service.get_chat_embed_ids(request_data.chat_id)
+    candidates: List[Dict[str, Any]] = []
+    for embed_id in embed_ids:
+        if embed_id in reused_refs:
+            continue
+        cached_embed = await cache_service.get_embed_from_cache(embed_id, request_data.user_id)
+        if not cached_embed or cached_embed.get("type") != "code":
+            continue
+        if cached_embed.get("status") != "finished":
+            continue
+        candidates.append(cached_embed)
+
+    if not candidates:
+        return None
+
+    candidates.sort(
+        key=lambda embed: int(embed.get("updated_at") or embed.get("created_at") or 0),
+        reverse=True,
+    )
+    embed_id = candidates[0].get("embed_id")
+    if not isinstance(embed_id, str) or not embed_id:
+        return None
+    return f"cached:{embed_id}", embed_id
 
 
 def _normalize_generated_app_file_path(filename: Optional[str]) -> Optional[str]:
@@ -4327,6 +4366,12 @@ async def _consume_main_processing_stream(
                                                 current_code_filename,
                                                 full_replacement_reused_refs,
                                             )
+                                            if not replacement_target:
+                                                replacement_target = await _select_cached_code_full_replacement_target(
+                                                    request_data,
+                                                    cache_service,
+                                                    full_replacement_reused_refs,
+                                                )
                                             if replacement_target:
                                                 from toon_format import decode
 

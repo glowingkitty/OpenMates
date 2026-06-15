@@ -9,7 +9,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from backend.apps.ai.tasks.stream_consumer import _select_full_replacement_target
+import pytest
+
+from backend.apps.ai.tasks.stream_consumer import (
+    _select_cached_code_full_replacement_target,
+    _select_full_replacement_target,
+)
 
 
 def _message(role: str, content: str) -> SimpleNamespace:
@@ -68,3 +73,37 @@ def test_does_not_reuse_embed_for_new_code_request() -> None:
     )
 
     assert _select_full_replacement_target(request, None) is None
+
+
+class _FakeCacheService:
+    def __init__(self, embeds: dict[str, dict[str, object]]) -> None:
+        self.embeds = embeds
+
+    async def get_chat_embed_ids(self, _chat_id: str) -> list[str]:
+        return list(self.embeds)
+
+    async def get_embed_from_cache(self, embed_id: str, _user_id: str) -> dict[str, object] | None:
+        return self.embeds.get(embed_id)
+
+
+@pytest.mark.anyio
+async def test_selects_newest_cached_code_embed_when_ref_index_is_missing() -> None:
+    request = SimpleNamespace(
+        chat_id="chat-1",
+        user_id="user-1",
+        embed_file_path_index={},
+        message_history=[
+            _message("assistant", "```json\n{\"type\": \"code\", \"embed_id\": \"embed-1\"}\n```"),
+            _message("user", "Edit the existing code artifact and preserve the same embed."),
+        ],
+    )
+    cache_service = _FakeCacheService({
+        "embed-old": {"embed_id": "embed-old", "type": "code", "status": "finished", "updated_at": 10},
+        "embed-new": {"embed_id": "embed-new", "type": "code", "status": "finished", "updated_at": 20},
+        "embed-mail": {"embed_id": "embed-mail", "type": "mail", "status": "finished", "updated_at": 30},
+    })
+
+    assert await _select_cached_code_full_replacement_target(request, cache_service) == (
+        "cached:embed-new",
+        "embed-new",
+    )
