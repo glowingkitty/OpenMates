@@ -108,7 +108,7 @@ class _FakeCacheService:
     async def get_chat_embed_ids(self, _chat_id: str) -> list[str]:
         return list(self.embeds)
 
-    async def get_embed_from_cache(self, embed_id: str, _user_id: str) -> dict[str, object] | None:
+    async def get_embed_from_cache(self, embed_id: str) -> dict[str, object] | None:
         return self.embeds.get(embed_id)
 
 

@@ -2637,10 +2637,17 @@ async def _select_cached_code_full_replacement_target(
     request_data: AskSkillRequest,
     cache_service: Any,
     reused_refs: Optional[set[str]] = None,
+    log_prefix: str = "",
 ) -> Optional[tuple[str, str]]:
     """Return the newest cached code embed for edit turns with no ref index."""
     reused_refs = reused_refs or set()
-    if reused_refs or not _is_edit_existing_artifact_request(request_data):
+    is_edit_request = _is_edit_existing_artifact_request(request_data)
+    if reused_refs or not is_edit_request:
+        if log_prefix and not reused_refs:
+            logger.info(
+                f"{log_prefix} [FULL_REPLACEMENT_EDIT] Cache fallback skipped "
+                f"(is_edit_request={is_edit_request})"
+            )
         return None
 
     embed_ids = await cache_service.get_chat_embed_ids(request_data.chat_id)
@@ -2648,7 +2655,7 @@ async def _select_cached_code_full_replacement_target(
     for embed_id in embed_ids:
         if embed_id in reused_refs:
             continue
-        cached_embed = await cache_service.get_embed_from_cache(embed_id, request_data.user_id)
+        cached_embed = await cache_service.get_embed_from_cache(embed_id)
         if not cached_embed or cached_embed.get("type") != "code":
             continue
         if cached_embed.get("status") != "finished":
@@ -2656,6 +2663,11 @@ async def _select_cached_code_full_replacement_target(
         candidates.append(cached_embed)
 
     if not candidates:
+        if log_prefix:
+            logger.info(
+                f"{log_prefix} [FULL_REPLACEMENT_EDIT] Cache fallback found no reusable code embeds "
+                f"(chat_embed_ids={len(embed_ids)})"
+            )
         return None
 
     candidates.sort(
@@ -2673,6 +2685,7 @@ async def _select_any_code_full_replacement_target(
     current_filename: Optional[str],
     cache_service: Any,
     reused_refs: Optional[set[str]] = None,
+    log_prefix: str = "",
 ) -> Optional[tuple[str, str]]:
     replacement_target = _select_full_replacement_target(
         request_data,
@@ -2690,6 +2703,7 @@ async def _select_any_code_full_replacement_target(
         request_data,
         cache_service,
         reused_refs,
+        log_prefix,
     )
 
 
@@ -4424,6 +4438,7 @@ async def _consume_main_processing_stream(
                                                 current_code_filename,
                                                 cache_service,
                                                 full_replacement_reused_refs,
+                                                log_prefix,
                                             )
                                             if replacement_target:
                                                 from toon_format import decode
@@ -4750,6 +4765,7 @@ async def _consume_main_processing_stream(
                                         current_code_filename,
                                         cache_service,
                                         full_replacement_reused_refs,
+                                        log_prefix,
                                     )
                                     if replacement_target:
                                         replacement_ref, target_embed_id = replacement_target
@@ -5022,6 +5038,7 @@ async def _consume_main_processing_stream(
                                         current_code_filename,
                                         cache_service,
                                         full_replacement_reused_refs,
+                                        log_prefix,
                                     )
                                     if replacement_target:
                                         replacement_ref, target_embed_id = replacement_target
