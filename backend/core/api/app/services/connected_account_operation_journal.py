@@ -89,6 +89,18 @@ class ConnectedAccountOperationJournalService:
         }
         return {key: value for key, value in entry.items() if value is not None}
 
+    async def record_entry(self, *, directus_service: Any, **entry_kwargs: Any) -> dict[str, Any]:
+        """Build and persist a journal entry in Directus."""
+
+        entry = await self.build_entry(**entry_kwargs)
+        result = await directus_service.create_item("connected_account_operation_journal", entry)
+        if isinstance(result, tuple):
+            success, payload = result[0], result[1] if len(result) > 1 else None
+            if not success:
+                raise RuntimeError("failed to persist connected-account operation journal entry")
+            return payload or entry
+        return result or entry
+
     async def _encrypt_optional(self, value: dict[str, Any] | None, key_id: str) -> str | None:
         if not value:
             return None

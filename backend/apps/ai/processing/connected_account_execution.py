@@ -114,6 +114,10 @@ async def prepare_connected_account_skill_execution(
             {
                 "turn_token_ref": turn_token_ref,
                 "access_token_handle": handle.access_token_handle,
+                "connected_account_id": str(token_ref_payload.get("connected_account_id") or ""),
+                "app_id": app_id,
+                "action": action,
+                "action_scope": action_scope,
             }
         )
 

@@ -65,6 +65,7 @@ async def test_prepare_connected_account_execution_injects_handles_and_cleans_up
         },
         connected_account_token_refs=[
             {
+                "connected_account_id": "acct-1",
                 "app_id": "calendar",
                 "allowed_actions": ["read"],
                 "turn_token_ref": ref.turn_token_ref,
@@ -89,6 +90,20 @@ async def test_prepare_connected_account_execution_injects_handles_and_cleans_up
     assert context.skill_arguments["_connected_account_access_tokens"] == {
         handle: "access-for-refresh-secret"
     }
+    assert context.token_artifacts == [
+        {
+            "turn_token_ref": ref.turn_token_ref,
+            "access_token_handle": handle,
+            "connected_account_id": "acct-1",
+            "app_id": "calendar",
+            "action": "read",
+            "action_scope": {
+                "calendar_id": "primary",
+                "time_min": "2026-06-15T00:00:00Z",
+                "time_max": "2026-06-16T00:00:00Z",
+            },
+        }
+    ]
 
     await cleanup_connected_account_token_artifacts(
         token_artifacts=context.token_artifacts,

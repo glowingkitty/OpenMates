@@ -569,6 +569,96 @@ def _filter_skill_results_for_llm(
     return filtered
 
 
+async def _record_connected_account_operation_journal_entries(
+    *,
+    app_id: str,
+    skill_id: str,
+    results: Any,
+    token_artifacts: list[dict[str, Any]],
+    user_id: str,
+    user_vault_key_id: str | None,
+    chat_id: str,
+    message_id: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    log_prefix: str,
+) -> None:
+    if app_id != "calendar" or not user_vault_key_id or not token_artifacts:
+        return
+
+    try:
+        from backend.core.api.app.services.connected_account_operation_journal import (
+            ConnectedAccountOperationJournalService,
+        )
+
+        journal_service = ConnectedAccountOperationJournalService(encryption_service=encryption_service)
+        normalized_results = _normalize_connected_account_results(results)
+        for artifact in token_artifacts:
+            connected_account_id = artifact.get("connected_account_id")
+            action = str(artifact.get("action") or "")
+            if not connected_account_id or not action:
+                logger.error("%s Connected-account journal artifact missing account/action metadata", log_prefix)
+                continue
+            await journal_service.record_entry(
+                directus_service=directus_service,
+                user_id=user_id,
+                user_vault_key_id=user_vault_key_id,
+                connected_account_id=str(connected_account_id),
+                app_id=app_id,
+                action=action,
+                decision="completed",
+                action_scope=artifact.get("action_scope") if isinstance(artifact.get("action_scope"), dict) else {},
+                receipt={
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "action": action,
+                    "decision": "completed",
+                    "result_count": len(normalized_results),
+                    "undo_available": _calendar_undo_available(skill_id),
+                },
+                undo_payload=_calendar_undo_payload(skill_id, normalized_results),
+                chat_id=chat_id,
+                message_id=message_id,
+            )
+    except Exception as journal_error:
+        logger.error("%s Failed to persist connected-account operation journal: %s", log_prefix, journal_error, exc_info=True)
+
+
+def _normalize_connected_account_results(results: Any) -> list[dict[str, Any]]:
+    if isinstance(results, list):
+        return [item for item in results if isinstance(item, dict)]
+    if isinstance(results, dict):
+        maybe_results = results.get("results")
+        if isinstance(maybe_results, list):
+            return [item for item in maybe_results if isinstance(item, dict)]
+        return [results]
+    return []
+
+
+def _calendar_undo_available(skill_id: str) -> bool:
+    return skill_id == "create-event"
+
+
+def _calendar_undo_payload(skill_id: str, results: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if skill_id != "create-event" or not results:
+        return None
+    created_events: list[dict[str, Any]] = []
+    for result in results:
+        event = result.get("event") if isinstance(result.get("event"), dict) else {}
+        event_id = event.get("id")
+        calendar_id = result.get("calendar_id")
+        if event_id and calendar_id:
+            created_events.append(
+                {
+                    "undo_type": "delete_created_event",
+                    "calendar_id": calendar_id,
+                    "event_id": event_id,
+                    "etag": event.get("etag"),
+                }
+            )
+    return {"events": created_events} if created_events else None
+
+
 DEFAULT_APP_INTERNAL_PORT = 8000
 APPROX_MAX_CONVERSATION_TOKENS = 120000
 AVG_CHARS_PER_TOKEN = 4
@@ -4365,6 +4455,20 @@ async def handle_main_processing(
                             cache_service=cache_service
                             # max_retries uses default (1 retry = 2 total attempts)
                         )
+                        if connected_account_token_artifacts:
+                            await _record_connected_account_operation_journal_entries(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                results=results,
+                                token_artifacts=connected_account_token_artifacts,
+                                user_id=request_data.user_id,
+                                user_vault_key_id=user_vault_key_id,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service,
+                                log_prefix=log_prefix,
+                            )
                     finally:
                         if connected_account_token_artifacts:
                             from backend.apps.ai.processing.connected_account_execution import cleanup_connected_account_token_artifacts

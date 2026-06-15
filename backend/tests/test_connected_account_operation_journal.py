@@ -60,3 +60,38 @@ async def test_operation_journal_rejects_provider_tokens() -> None:
             decision="failed",
             receipt={"refresh_token": "secret"},
         )
+
+
+@pytest.mark.asyncio
+async def test_operation_journal_persists_entry_to_directus() -> None:
+    from backend.core.api.app.services.connected_account_operation_journal import (
+        ConnectedAccountOperationJournalService,
+    )
+
+    class FakeDirectus:
+        def __init__(self) -> None:
+            self.collection = ""
+            self.payload: dict | None = None
+
+        async def create_item(self, collection: str, payload: dict):
+            self.collection = collection
+            self.payload = payload
+            return True, {"id": payload["id"]}
+
+    directus = FakeDirectus()
+    service = ConnectedAccountOperationJournalService(encryption_service=FakeEncryption())
+    result = await service.record_entry(
+        directus_service=directus,
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        app_id="calendar",
+        action="write",
+        decision="completed",
+        receipt={"summary": "Created event"},
+    )
+
+    assert directus.collection == "connected_account_operation_journal"
+    assert directus.payload is not None
+    assert directus.payload["encrypted_receipt"].startswith("vault:vault-key:")
+    assert result == {"id": directus.payload["id"]}
