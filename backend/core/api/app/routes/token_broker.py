@@ -18,7 +18,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.token_broker import TokenBrokerService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.shared.providers.google_calendar.oauth import exchange_google_refresh_token
-from backend.shared.python_schemas.user import User
+from backend.core.api.app.models.user import User
 
 router = APIRouter(prefix="/v1/token-broker", tags=["Token Broker"])
 

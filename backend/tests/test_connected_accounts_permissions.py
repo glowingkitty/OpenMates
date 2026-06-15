@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import sys
 from types import SimpleNamespace
+import hashlib
 
 import pytest
 
@@ -148,6 +149,94 @@ def test_connected_account_skill_rest_execution_requires_offline_grant() -> None
             "revoked": False,
         },
     )
+
+
+@pytest.mark.asyncio
+async def test_connected_accounts_routes_store_only_owned_encrypted_rows() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    sys.modules.setdefault(
+        "backend.core.api.app.services.cache",
+        SimpleNamespace(CacheService=object),
+    )
+    sys.modules.setdefault(
+        "backend.core.api.app.services.directus",
+        SimpleNamespace(DirectusService=object),
+    )
+    sys.modules.setdefault(
+        "backend.core.api.app.services.directus.directus",
+        SimpleNamespace(DirectusService=object),
+    )
+    from backend.core.api.app.routes import connected_accounts
+    from backend.core.api.app.models.user import User
+
+    class FakeDirectus:
+        def __init__(self) -> None:
+            self.rows: dict[str, dict] = {}
+
+        async def get_items(self, _collection: str, params: dict | None = None):
+            hashed_user_id = (params or {}).get("filter[hashed_user_id][_eq]")
+            account_id = (params or {}).get("filter[id][_eq]")
+            rows = [row for row in self.rows.values() if row.get("hashed_user_id") == hashed_user_id]
+            if account_id:
+                rows = [row for row in rows if row.get("id") == account_id]
+            return rows
+
+        async def create_item(self, _collection: str, payload: dict):
+            self.rows[payload["id"]] = dict(payload)
+            return True, dict(payload)
+
+        async def update_item(self, _collection: str, item_id: str, payload: dict):
+            self.rows[item_id].update(payload)
+            return dict(self.rows[item_id])
+
+    fake_directus = FakeDirectus()
+    user = User(id="user-1", username="alice", vault_key_id="vault-1")
+    hashed_user_id = hashlib.sha256(user.id.encode()).hexdigest()
+    app = FastAPI()
+    app.include_router(connected_accounts.router)
+    app.dependency_overrides[connected_accounts.get_current_user] = lambda: user
+    app.dependency_overrides[connected_accounts.get_directus_service] = lambda: fake_directus
+    client = TestClient(app)
+
+    row = {
+        "id": "acct-1",
+        "hashed_user_id": hashed_user_id,
+        "encrypted_provider_type": "enc:google",
+        "provider_type_hash": "hash:google",
+        "encrypted_account_label": "enc:work",
+        "encrypted_refresh_token_bundle": "enc:refresh",
+        "encrypted_capabilities": "enc:caps",
+        "encrypted_app_permissions": "enc:perms",
+    }
+
+    create_response = client.post("/v1/connected-accounts", json=row)
+    assert create_response.status_code == 200
+    assert create_response.json()["id"] == "acct-1"
+
+    list_response = client.get("/v1/connected-accounts")
+    assert list_response.status_code == 200
+    assert list_response.json()["rows"][0]["id"] == "acct-1"
+
+    patch_response = client.patch(
+        "/v1/connected-accounts/acct-1",
+        json={"encrypted_account_label": "enc:renamed"},
+    )
+    assert patch_response.status_code == 200
+    assert fake_directus.rows["acct-1"]["encrypted_account_label"] == "enc:renamed"
+
+    bad_owner_response = client.post(
+        "/v1/connected-accounts",
+        json={**row, "id": "acct-2", "hashed_user_id": "wrong"},
+    )
+    assert bad_owner_response.status_code == 403
+
+    plaintext_response = client.patch(
+        "/v1/connected-accounts/acct-1",
+        json={"provider_email": "user@example.com"},
+    )
+    assert plaintext_response.status_code == 400
 
 
 @pytest.mark.asyncio

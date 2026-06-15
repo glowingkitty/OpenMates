@@ -1120,6 +1120,7 @@ implementation_progress:
     status: partial
     completed:
       - Backend connected-account validators, token-broker refs, lazy exchange/access-token handle tests, Calendar skill contract tests, REST/API-key exclusion tests, permission broker tests, and operation journal privacy tests passed together.
+      - Authenticated connected-account storage routes now list, create, and patch encrypted/hash-only rows with owner-hash checks and plaintext provider identity/token rejection.
       - WebSocket connected-account directory/token-ref sanitizer coverage rejects chat-visible refresh tokens, access tokens, OAuth scopes, and plaintext provider account identity before message confirmation.
       - CLI client connected-account payload builders, token-ref request flow, and Sent gating passed focused build/unit verification.
       - Web chat send plumbing accepts optional connected-account directory and token-ref inputs, creates broker refs inside sendNewMessage before WebSocket send, and rejects forbidden token/plaintext account identity fields from chat-visible payloads.
@@ -1128,6 +1129,8 @@ implementation_progress:
     evidence:
       - command: python3 -m pytest backend/tests/test_connected_accounts_permissions.py backend/tests/test_token_broker_refs.py backend/tests/test_connected_account_execution.py backend/tests/test_calendar_permission_broker.py backend/tests/test_calendar_app_contract.py backend/tests/test_connected_account_operation_journal.py
         result: 20 passed
+      - command: python3 -m pytest backend/tests/test_connected_accounts_permissions.py backend/tests/test_token_broker_refs.py
+        result: 9 passed
       - command: python3 -m py_compile backend/core/api/app/services/connected_account_operation_journal.py backend/core/api/app/services/token_broker.py backend/apps/ai/processing/connected_account_execution.py
         result: passed
       - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountTokenBrokerService.ts src/services/sendersChatMessages.ts src/services/chatSyncService.ts
