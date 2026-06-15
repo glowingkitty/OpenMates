@@ -5220,13 +5220,8 @@ function printNewChatSuggestion(
   s: DecryptedNewChatSuggestion,
   index: number,
 ): void {
-  const appLabel = s.skillId
-    ? `\x1b[36m[${s.appId}-${s.skillId}]\x1b[0m `
-    : s.appId
-      ? `\x1b[36m[${s.appId}]\x1b[0m `
-      : "";
   const escapedBody = s.body.replace(/"/g, '\\"');
-  process.stdout.write(`\x1b[1m${index}.\x1b[0m ${appLabel}${s.body}\n`);
+  process.stdout.write(`\x1b[1m${index}.\x1b[0m ${s.body}\n`);
   process.stdout.write(
     `   \x1b[2mopenmates chats new "${escapedBody}"\x1b[0m\n`,
   );

@@ -892,18 +892,16 @@ export const MATE_NAMES: Record<string, string> = {
  *
  * Mirrors the format used by NewChatSuggestions.svelte in the web app.
  * The `body` text is the plain text to insert into the message input.
- * The optional `appId` and `skillId` are parsed from the `[app-skill]` prefix
- * (e.g. "[web-search] What's the weather today?" → appId="web", skillId="search").
  */
 export interface DecryptedNewChatSuggestion {
   id: string;
   chatId: string | null;
   body: string;
-  /** App ID if the suggestion has an [app-skill] or [app] prefix. */
-  appId: string | null;
-  /** Skill ID if the suggestion has an [app-skill] prefix. */
-  skillId: string | null;
   createdAt: number;
+}
+
+function stripLegacySuggestionPrefix(text: string): string {
+  return text.replace(/^\s*\[[^\]]+\]\s*/, "").trim();
 }
 
 /** A decrypted memory entry as returned to CLI callers. */
@@ -2200,16 +2198,10 @@ export class OpenMatesClient {
       );
       if (!plaintext) continue; // skip suggestions we can't decrypt
 
-      // Parse the [app-skill] or [app] prefix from the suggestion body.
-      // Mirrors parseSuggestion() in NewChatSuggestions.svelte.
-      const { body, appId, skillId } = parseNewChatSuggestionText(plaintext);
-
       results.push({
         id: typeof raw.id === "string" ? raw.id : String(raw.id ?? ""),
         chatId: typeof raw.chat_id === "string" ? raw.chat_id : null,
-        body,
-        appId,
-        skillId,
+        body: stripLegacySuggestionPrefix(plaintext),
         createdAt: typeof raw.created_at === "number" ? raw.created_at : 0,
       });
 
@@ -2229,7 +2221,13 @@ export class OpenMatesClient {
    * Mirrors: chat_actions_store.ts / FollowUpSuggestions.svelte (web app)
    */
   async getChatFollowUpSuggestions(chatId: string): Promise<string[]> {
-    const cache = await this.ensureSynced();
+    const cachedMatch = loadSyncCache()?.chats.find(
+      (c) =>
+        String(c.details.id ?? "") === chatId ||
+        String(c.details.id ?? "").startsWith(chatId),
+    );
+    const refreshChatId = String(cachedMatch?.details.id ?? chatId);
+    const cache = await this.ensureSynced(true, [refreshChatId]);
     const masterKey = this.getMasterKeyBytes();
 
     const found = cache.chats.find(
@@ -2263,9 +2261,10 @@ export class OpenMatesClient {
     try {
       const parsed = JSON.parse(plaintext);
       if (Array.isArray(parsed)) {
-        return (parsed as unknown[]).filter(
-          (s): s is string => typeof s === "string" && s.length > 0,
-        );
+        return (parsed as unknown[])
+          .filter((s): s is string => typeof s === "string" && s.length > 0)
+          .map(stripLegacySuggestionPrefix)
+          .filter((s) => s.length > 0);
       }
     } catch {
       // Corrupted — silently return empty
@@ -2853,6 +2852,14 @@ export class OpenMatesClient {
             chatKeyBytes,
             fallbackMessageId: persistedAssistantMessageId,
           });
+          await this.persistPostProcessingMetadata({
+            ws,
+            chatId,
+            chatKeyBytes,
+            followUpSuggestions: resp.followUpSuggestions,
+            newChatSuggestions: resp.newChatSuggestions,
+            encryptedChatKey,
+          });
           clearSyncCache();
         }
       } finally {
@@ -3029,6 +3036,45 @@ export class OpenMatesClient {
       await persistOne(embed, makeKey(), false);
       processed.add(embed.embed_id);
     }
+  }
+
+  private async persistPostProcessingMetadata(params: {
+    ws: OpenMatesWsClient;
+    chatId: string;
+    chatKeyBytes: Uint8Array;
+    followUpSuggestions: string[];
+    newChatSuggestions: string[];
+    encryptedChatKey: string | null;
+  }): Promise<void> {
+    const encryptedFollowUps = params.followUpSuggestions.length > 0
+      ? await encryptWithAesGcmCombined(
+          JSON.stringify(params.followUpSuggestions.slice(0, 18)),
+          params.chatKeyBytes,
+        )
+      : "";
+    const masterKey = this.getMasterKeyBytes();
+    const encryptedNewChatSuggestions = await Promise.all(
+      params.newChatSuggestions.slice(0, 6).map((suggestion) =>
+        encryptWithAesGcmCombined(suggestion, masterKey),
+      ),
+    );
+
+    if (!encryptedFollowUps && encryptedNewChatSuggestions.length === 0) return;
+
+    await params.ws.sendAsync("update_post_processing_metadata", {
+      chat_id: params.chatId,
+      encrypted_follow_up_suggestions: encryptedFollowUps,
+      encrypted_new_chat_suggestions: encryptedNewChatSuggestions,
+      encrypted_chat_key: params.encryptedChatKey ?? "",
+    });
+    await params.ws.waitForMessage(
+      "post_processing_metadata_stored",
+      (payload) => {
+        const p = payload as Record<string, unknown>;
+        return p.chat_id === params.chatId;
+      },
+      20_000,
+    );
   }
 
   /**
@@ -4855,8 +4901,12 @@ export class OpenMatesClient {
    * The sync cache stores encrypted data — decryption is always on-demand.
    * SECURITY: decrypted user content is NEVER written to disk.
    */
-  async ensureSynced(forceRefresh = false): Promise<SyncCache> {
-    if (!forceRefresh && isSyncCacheFresh()) {
+  async ensureSynced(
+    forceRefresh = false,
+    refreshChatIds: string[] = [],
+  ): Promise<SyncCache> {
+    const refreshChatIdSet = new Set(refreshChatIds.filter(Boolean));
+    if (!forceRefresh && refreshChatIdSet.size === 0 && isSyncCacheFresh()) {
       const cache = loadSyncCache();
       if (cache) return cache;
     }
@@ -4879,6 +4929,7 @@ export class OpenMatesClient {
         const id = String(chat.details.id ?? "");
         if (!id) continue;
         clientChatIds.push(id);
+        if (refreshChatIdSet.has(id)) continue;
         clientChatVersions[id] = {
           messages_v: getClientMessagesVersionForSync(chat),
           title_v:
@@ -5307,44 +5358,6 @@ function parseYamlLikeContent(raw: string): Record<string, unknown> {
   }
   flush();
   return result;
-}
-
-/**
- * Parse the [app-skill] or [app] prefix from a new-chat suggestion text.
- *
- * Mirrors parseSuggestion() in NewChatSuggestions.svelte (web app).
- *
- * Examples:
- *   "[web-search] What's the weather today?" → { body: "What's the weather today?", appId: "web", skillId: "search" }
- *   "[images-generate] Draw a cat" → { body: "Draw a cat", appId: "images", skillId: "generate" }
- *   "[web] Open my bookmarks" → { body: "Open my bookmarks", appId: "web", skillId: null }
- *   "How do I fix this bug?" → { body: "How do I fix this bug?", appId: null, skillId: null }
- */
-export function parseNewChatSuggestionText(text: string): {
-  body: string;
-  appId: string | null;
-  skillId: string | null;
-} {
-  const prefixMatch = /^\[([a-z0-9_-]+(?:-[a-z0-9_]+)?)\]\s*/.exec(text);
-  if (!prefixMatch) {
-    return { body: text.trim(), appId: null, skillId: null };
-  }
-
-  const raw = prefixMatch[1]; // e.g. "web-search" or "images-generate" or "web"
-  const body = text.slice(prefixMatch[0].length).trim();
-
-  // Split on the last hyphen to separate app from skill.
-  // App IDs that contain hyphens (e.g. "web") should not be split further
-  // if there is no skill ID portion. We rely on the convention that the
-  // prefix format is always [appId-skillId] or [appId].
-  const dashIdx = raw.indexOf("-");
-  if (dashIdx === -1) {
-    return { body, appId: raw, skillId: null };
-  }
-
-  const appId = raw.slice(0, dashIdx);
-  const skillId = raw.slice(dashIdx + 1);
-  return { body, appId, skillId };
 }
 
 function filenameFromContentDisposition(header: string | null): string | null {

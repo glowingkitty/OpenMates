@@ -318,58 +318,52 @@ postprocess_response_tool:
       - Conversation tags (topics, technologies, concepts discussed)
       - Last user message
       - Assistant's response
-      - Available skills and focus modes (provided in system context)
+      - Available app skills (provided in system context)
 
       ## Suggestion Format
 
-      Every suggestion MUST start with a prefix identifying the relevant app (and optionally a skill/focus):
+      Every suggestion MUST be plain natural language: exactly the text the user
+      would send as the next message. Do NOT include bracket prefixes, app IDs,
+      skill IDs, focus IDs, labels, metadata, or @skill mentions.
 
-        [app_id-skill_or_focus_id] Action text here   (when a specific skill/focus is relevant)
-        [app_id] Action text here                      (when no specific skill fits but an app is relevant)
+      App-skill suggestions are still natural language. They should be phrased
+      like the example prompts on app skill pages so the normal preprocessing
+      router can auto-detect and trigger the right app skill from the wording.
 
-      Examples (note: every suggestion starts with an action verb):
-        [web-search] Search for the latest AI breakthroughs
-        [videos-search] Find tutorial videos on React hooks
-        [jobs-career_insights] Start interview prep mode
-        [code] Write a Python hello world script
-        [images-generate] Generate a sunset landscape image
-        [ai] Explain why the sky is blue
-        [study] Teach me about quantum computing basics
-        [travel] Plan a weekend trip to Barcelona
-        [nutrition] Compare high-protein breakfast options
+      Examples of good app-skill suggestions:
+        Find upcoming drawing workshops in Berlin
+        Search for pro-level iPhone recording apps
+        Find tutorial videos for iPhone microphone setup
+        Compare wireless microphones for outdoor interviews
+        Calculate the monthly cost of this setup
 
-      Rules for the prefix:
-      - EVERY suggestion MUST have a prefix — plain suggestions without a prefix are NOT allowed
-      - Use `[app_id-skill_id]` for skill suggestions (e.g. `web-search`, `code-run`, `images-generate`)
-      - Use `[app_id-focus_id]` for focus mode activations (e.g. `jobs-career_insights`, `web-research`)
-      - Use `[app_id]` (app only, no dash) when the app is relevant but no specific skill/focus fits
-      - Use `[ai]` as a fallback for general knowledge questions that don't map to any specific app
-      - The prefix must exactly match an ID in the available skills/focus/apps list provided in the system context
-      - Do NOT invent prefix IDs — only use IDs from the provided lists
+      Examples of good general suggestions:
+        Explain why third-party microphones may fail
+        List beginner mistakes when recording audio outdoors
+        Compare wired and Bluetooth microphone tradeoffs
+        Help me troubleshoot unsupported accessory errors
 
       Guidelines:
-      1. **follow_up_request_suggestions**: Generate 6 contextual suggestions from the USER's perspective - these are things the USER might want to say or ask next, NOT questions the assistant would ask the user.
+      1. **follow_up_app_skill_suggestions** and **follow_up_general_suggestions**: Generate 6 contextual follow-up suggestions from the USER's perspective - these are things the USER might want to say or ask next, NOT questions the assistant would ask the user.
          - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
-         - **LANGUAGE**: Generate the action text in the CONVERSATION language (same language the user and assistant used in the chat). The prefix `[app_id-skill_id]` is always kept as-is (not translated).
-         - **ACTION-ORIENTED**: Every suggestion MUST begin with a strong action verb after the prefix (e.g. "Search for...", "Compare...", "Explain...", "Write...", "Find...", "Create...", "Show...", "List...", "Teach me...", "Help me...", "Analyze...", "Summarize..."). NEVER start with nouns, adjectives, or vague phrases.
-         - **MINIMUM LENGTH**: Each suggestion body (after the prefix) MUST be at least 4 words. Suggestions shorter than 4 words are too vague and will be filtered out.
-         - Suggestions should encourage:
-           - Learning more about the topic discussed (from user's perspective)
-           - Exploring different viewpoints (user asking questions)
-          - Discovering relevant app skills/features — use skill/focus prefixes when applicable
-            - For learning topics: include "Test me on this" or similar (user requesting)
-          - **Format**: Each suggestion MUST start with `[prefix]` followed by an action verb and a clear request. Avoid single keywords, incomplete phrases, or noun-only suggestions.
+         - **LANGUAGE**: Generate both arrays in the CONVERSATION language (same language the user and assistant used in the chat).
+         - **STRICT 50/50 SPLIT**: `follow_up_app_skill_suggestions` MUST contain exactly 3 suggestions that should trigger available app skills from natural wording. `follow_up_general_suggestions` MUST contain exactly 3 suggestions that continue the conversation without requiring a specialized app skill.
+         - **ACTION-ORIENTED**: Every suggestion MUST begin with a strong action verb (e.g. "Search for...", "Compare...", "Explain...", "Write...", "Find...", "Create...", "Show...", "List...", "Teach me...", "Help me...", "Analyze...", "Summarize..."). NEVER start with nouns, adjectives, or vague phrases.
+         - **MINIMUM LENGTH**: Each suggestion MUST be at least 4 words. Suggestions shorter than 4 words are too vague and will be filtered out.
+         - **APP-SKILL QUALITY**: App-skill suggestions must clearly imply a concrete tool-backed action such as searching live events, products, videos, news, maps, travel connections, recipes, appointments, weather, calculations, code execution, or image generation.
+         - **NO HIDDEN ROUTING**: Never include bracket prefixes, `@skill`, or any app/skill ID in the suggestion text.
 
-      2. **new_chat_request_suggestions**: Generate 6 suggestions for starting new conversations that:
+      2. **new_chat_app_skill_suggestions** and **new_chat_general_suggestions**: Generate 6 suggestions for starting new conversations that:
           - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
-          - **LANGUAGE**: Generate the action text in the USER'S SYSTEM LANGUAGE (specified in the system message), NOT the conversation language. This ensures a consistent language on the welcome screen. The prefix `[app_id-skill_id]` is always kept as-is (not translated).
-          - **ACTION-ORIENTED**: Every suggestion MUST begin with a strong action verb after the prefix (e.g. "Search for...", "Compare...", "Explain...", "Write...", "Find...", "Create...", "Show...", "List...", "Teach me...", "Help me...", "Analyze...", "Summarize...", "Plan...", "Design...", "Build..."). NEVER start with nouns, adjectives, or vague phrases like "The best..." or "Latest...".
-          - **MINIMUM LENGTH**: Each suggestion body (after the prefix) MUST be at least 4 words. Suggestions shorter than 4 words are too vague and will be filtered out.
+          - **LANGUAGE**: Generate both arrays in the USER'S SYSTEM LANGUAGE (specified in the system message), NOT the conversation language. This ensures a consistent language on the welcome screen.
+          - **STRICT 50/50 SPLIT**: `new_chat_app_skill_suggestions` MUST contain exactly 3 suggestions that should trigger available app skills from natural wording. `new_chat_general_suggestions` MUST contain exactly 3 suggestions that do not require a specialized app skill.
+          - **ACTION-ORIENTED**: Every suggestion MUST begin with a strong action verb (e.g. "Search for...", "Compare...", "Explain...", "Write...", "Find...", "Create...", "Show...", "List...", "Teach me...", "Help me...", "Analyze...", "Summarize...", "Plan...", "Design...", "Build..."). NEVER start with nouns, adjectives, or vague phrases like "The best..." or "Latest...".
+          - **MINIMUM LENGTH**: Each suggestion MUST be at least 4 words. Suggestions shorter than 4 words are too vague and will be filtered out.
           - Relate to topics discussed but explore new angles
           - Encourage learning and exploration
-          - Use skill/focus prefixes when applicable, or app-only prefix `[app_id]`, or `[ai]` for general topics
+          - Help users discover useful app skills through natural requests, not through visible skill syntax
           - Provide actionable conversation starters
-          - **Format**: Each suggestion MUST start with `[prefix]` followed by an action verb and a clear request. Avoid single keywords, incomplete phrases, or noun-only suggestions. EVERY suggestion must have a prefix — no plain unprefixed suggestions.
+          - **NO HIDDEN ROUTING**: Never include bracket prefixes, `@skill`, or any app/skill ID in the suggestion text.
 
       3. **harmful_response**: Score 0-10 for detecting potentially harmful responses (0 = safe, 10 = very harmful)
 
@@ -416,20 +410,34 @@ postprocess_response_tool:
     parameters:
       type: "object"
       properties:
-        follow_up_request_suggestions:
+        follow_up_app_skill_suggestions:
           type: "array"
-          description: "6 follow-up suggestions in the CONVERSATION language. Each MUST start with a prefix followed by an action verb: '[app_id-skill_or_focus_id] Verb ...' or '[app_id] Verb ...' or '[ai] Verb ...'. Body must be at least 4 words. Start with verbs like Search, Compare, Explain, Write, Find, Create, Show, List, Teach, Help, Analyze, Summarize."
+          description: "Exactly 3 plain natural-language follow-up suggestions in the CONVERSATION language that should auto-trigger available app skills from wording alone. No prefixes, app IDs, skill IDs, labels, or @skill mentions. Each must be at least 4 words and start with an action verb."
           items:
             type: "string"
-          minItems: 6
-          maxItems: 6
-        new_chat_request_suggestions:
+          minItems: 3
+          maxItems: 3
+        follow_up_general_suggestions:
           type: "array"
-          description: "6 new chat suggestions in the USER'S SYSTEM LANGUAGE (as specified in system message). Each MUST start with a prefix followed by an action verb: '[app_id-skill_or_focus_id] Verb ...' or '[app_id] Verb ...' or '[ai] Verb ...'. Body must be at least 4 words. Start with verbs like Search, Compare, Explain, Write, Find, Create, Show, List, Teach, Help, Plan, Design, Build. No plain unprefixed suggestions."
+          description: "Exactly 3 plain natural-language follow-up suggestions in the CONVERSATION language that continue the discussion without requiring a specialized app skill. No prefixes, app IDs, skill IDs, labels, or @skill mentions. Each must be at least 4 words and start with an action verb."
           items:
             type: "string"
-          minItems: 6
-          maxItems: 6
+          minItems: 3
+          maxItems: 3
+        new_chat_app_skill_suggestions:
+          type: "array"
+          description: "Exactly 3 plain natural-language new-chat suggestions in the USER'S SYSTEM LANGUAGE that should auto-trigger available app skills from wording alone. No prefixes, app IDs, skill IDs, labels, or @skill mentions. Each must be at least 4 words and start with an action verb."
+          items:
+            type: "string"
+          minItems: 3
+          maxItems: 3
+        new_chat_general_suggestions:
+          type: "array"
+          description: "Exactly 3 plain natural-language new-chat suggestions in the USER'S SYSTEM LANGUAGE that do not require a specialized app skill. No prefixes, app IDs, skill IDs, labels, or @skill mentions. Each must be at least 4 words and start with an action verb."
+          items:
+            type: "string"
+          minItems: 3
+          maxItems: 3
         harmful_response:
           type: "number"
           description: "Harmful response score 0-10 (0=safe, 10=very harmful)"
@@ -461,8 +469,10 @@ postprocess_response_tool:
           type: "string"
           description: "One existing quick-tip slug selected from the available quick_tip_slug values in the system message, or an empty string if no product tip fits. Never invent slugs and never write UI copy."
       required:
-        - "follow_up_request_suggestions"
-        - "new_chat_request_suggestions"
+        - "follow_up_app_skill_suggestions"
+        - "follow_up_general_suggestions"
+        - "new_chat_app_skill_suggestions"
+        - "new_chat_general_suggestions"
         - "harmful_response"
         - "chat_summary"
         - "share_cta_text"

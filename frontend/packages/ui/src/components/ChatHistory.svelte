@@ -903,7 +903,7 @@
     followUpSuggestions?: string[];
     quickTipSlugs?: string[];
     /** Callback fired when the user clicks a follow-up suggestion. */
-    onSuggestionClick?: (suggestion: string, mentionSyntax?: string) => void;
+    onSuggestionClick?: (suggestion: string) => void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
   } = $props();
 

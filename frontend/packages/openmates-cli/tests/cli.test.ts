@@ -22,7 +22,6 @@ import { WebSocketServer } from "ws";
 import {
   deriveAppUrl,
   MEMORY_TYPE_REGISTRY,
-  parseNewChatSuggestionText,
   serializeToYaml,
   getExtForLang,
   defaultCloneBranchForVersion,
@@ -1068,78 +1067,6 @@ describe("memory schema validation", () => {
 });
 
 // ---------------------------------------------------------------------------
-// parseNewChatSuggestionText
-// ---------------------------------------------------------------------------
-
-describe("parseNewChatSuggestionText", () => {
-  it("parses [app-skill] prefix with body", () => {
-    const result = parseNewChatSuggestionText(
-      "[web-search] What's the latest AI news?",
-    );
-    assert.strictEqual(result.appId, "web");
-    assert.strictEqual(result.skillId, "search");
-    assert.strictEqual(result.body, "What's the latest AI news?");
-  });
-
-  it("parses [images-generate] prefix", () => {
-    const result = parseNewChatSuggestionText(
-      "[images-generate] Draw a futuristic city at sunset",
-    );
-    assert.strictEqual(result.appId, "images");
-    assert.strictEqual(result.skillId, "generate");
-    assert.strictEqual(result.body, "Draw a futuristic city at sunset");
-  });
-
-  it("parses [news-search] prefix", () => {
-    const result = parseNewChatSuggestionText("[news-search] Climate tech");
-    assert.strictEqual(result.appId, "news");
-    assert.strictEqual(result.skillId, "search");
-    assert.strictEqual(result.body, "Climate tech");
-  });
-
-  it("parses [app] prefix without skill", () => {
-    const result = parseNewChatSuggestionText("[web] Open my bookmarks");
-    assert.strictEqual(result.appId, "web");
-    assert.strictEqual(result.skillId, null);
-    assert.strictEqual(result.body, "Open my bookmarks");
-  });
-
-  it("returns body unchanged when no prefix present", () => {
-    const result = parseNewChatSuggestionText(
-      "How do I implement a binary search tree?",
-    );
-    assert.strictEqual(result.appId, null);
-    assert.strictEqual(result.skillId, null);
-    assert.strictEqual(result.body, "How do I implement a binary search tree?");
-  });
-
-  it("trims whitespace from body", () => {
-    const result = parseNewChatSuggestionText(
-      "[math-calculate]   Solve 42 * 13 + 7  ",
-    );
-    assert.strictEqual(result.appId, "math");
-    assert.strictEqual(result.skillId, "calculate");
-    assert.strictEqual(result.body, "Solve 42 * 13 + 7");
-  });
-
-  it("handles suggestion with only the prefix and no body", () => {
-    const result = parseNewChatSuggestionText("[videos-search]");
-    assert.strictEqual(result.appId, "videos");
-    assert.strictEqual(result.skillId, "search");
-    assert.strictEqual(result.body, "");
-  });
-
-  it("treats plain text starting with a non-bracket char as plain body", () => {
-    const result = parseNewChatSuggestionText(
-      "Tell me about quantum computing",
-    );
-    assert.strictEqual(result.appId, null);
-    assert.strictEqual(result.skillId, null);
-    assert.strictEqual(result.body, "Tell me about quantum computing");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Follow-up suggestions rendering helpers (network-free)
 // ---------------------------------------------------------------------------
 
@@ -1209,72 +1136,47 @@ describe("follow-up suggestions rendering", () => {
  * Mirrors printNewChatSuggestion() in cli.ts without network.
  */
 function renderNewChatSuggestion(
-  suggestion: { body: string; appId: string | null; skillId: string | null },
+  suggestion: { body: string },
   index: number,
 ): string {
-  const appLabel = suggestion.skillId
-    ? `[${suggestion.appId}-${suggestion.skillId}] `
-    : suggestion.appId
-      ? `[${suggestion.appId}] `
-      : "";
   const escaped = suggestion.body.replace(/"/g, '\\"');
   return (
-    `${index}. ${appLabel}${suggestion.body}\n` +
+    `${index}. ${suggestion.body}\n` +
     `   openmates chats new "${escaped}"\n`
   );
 }
 
 describe("new chat suggestions rendering", () => {
-  it("renders a skill-prefixed suggestion with app/skill label", () => {
-    const s = parseNewChatSuggestionText(
-      "[web-search] Latest quantum computing breakthroughs",
-    );
-    const output = renderNewChatSuggestion(s, 1);
-    assert.ok(output.startsWith("1. [web-search]"));
-    assert.ok(output.includes("Latest quantum computing breakthroughs"));
+  it("renders a plain suggestion without app or skill labels", () => {
+    const output = renderNewChatSuggestion({ body: "Find upcoming drawing workshops in Berlin" }, 1);
+    assert.ok(output.startsWith("1. Find upcoming drawing workshops"));
     assert.ok(
       output.includes(
-        'openmates chats new "Latest quantum computing breakthroughs"',
+        'openmates chats new "Find upcoming drawing workshops in Berlin"',
       ),
     );
   });
 
-  it("renders a plain suggestion without prefix", () => {
-    const s = parseNewChatSuggestionText(
-      "Explain the history of the Roman Empire",
-    );
-    const output = renderNewChatSuggestion(s, 3);
-    assert.ok(output.startsWith("3. Explain the history"));
-    assert.ok(output.includes('openmates chats new "Explain the history'));
-  });
-
-  it("renders an app-only prefixed suggestion (no skill)", () => {
-    const s = parseNewChatSuggestionText("[images] Generate a logo for my app");
-    const output = renderNewChatSuggestion(s, 2);
-    assert.ok(output.startsWith("2. [images]"));
-    assert.ok(output.includes("Generate a logo for my app"));
+  it("renders legacy-prefixed suggestions as already-stripped plain text", () => {
+    const output = renderNewChatSuggestion({ body: "Find current AI news" }, 2);
+    assert.ok(output.startsWith("2. Find current AI news"));
+    assert.ok(!output.includes("[web-search]"));
   });
 
   it("correctly numbers multiple suggestions", () => {
     const suggestions = [
-      "[web-search] AI trends in 2026",
-      "[news-search] Startup funding news",
-      "How to improve my sleep?",
+      "Search current AI trends",
+      "Find startup funding news",
+      "Explain how to improve sleep",
     ];
-    const outputs = suggestions.map((text, i) => {
-      const s = parseNewChatSuggestionText(text);
-      return renderNewChatSuggestion(s, i + 1);
-    });
+    const outputs = suggestions.map((body, i) => renderNewChatSuggestion({ body }, i + 1));
     assert.ok(outputs[0].startsWith("1."));
     assert.ok(outputs[1].startsWith("2."));
     assert.ok(outputs[2].startsWith("3."));
   });
 
   it("escapes double quotes in suggestion body for shell safety", () => {
-    const s = parseNewChatSuggestionText(
-      'Summarize the book "Thinking Fast and Slow"',
-    );
-    const output = renderNewChatSuggestion(s, 1);
+    const output = renderNewChatSuggestion({ body: 'Summarize the book "Thinking Fast and Slow"' }, 1);
     assert.ok(
       output.includes(
         'openmates chats new "Summarize the book \\"Thinking Fast and Slow\\""',

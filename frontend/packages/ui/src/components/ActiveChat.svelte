@@ -115,7 +115,6 @@
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
     import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
     import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 search handler
-    import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
     import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
@@ -1293,8 +1292,8 @@
     }
     
     /**
-     * Navigate to the focus mode details page in the settings / app store.
-     * Deep link format: app_store/{appId}/focus/{focusModeId}
+     * Navigate to the focus mode details page in Settings / Apps.
+     * Deep link format: apps/{appId}/focus/{focusModeId}
      */
     async function handleFocusModeDetailsNavigation(focusId: string, appId: string) {
         if (!focusId || !appId) return;
@@ -1307,7 +1306,7 @@
             const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
             const { panelState } = await import('../stores/panelStateStore');
             
-            const deepLink = `app_store/${appId}/focus/${focusModeId}`;
+            const deepLink = `apps/${appId}/focus/${focusModeId}`;
             navigateToSettings(deepLink, 'Focus Mode Details', 'focus_mode', '');
             settingsDeepLink.set(deepLink);
             panelState.openSettings();
@@ -1330,8 +1329,8 @@
                 const { navigateToSettings } = await import('../stores/settingsNavigationStore');
                 const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
                 const { panelState } = await import('../stores/panelStateStore');
-                const settingsPath = tip.appId ? `app_store/${tip.appId}` : 'app_store';
-                navigateToSettings(settingsPath, 'App Store', 'app', '');
+                const settingsPath = tip.appId ? `apps/${tip.appId}` : 'apps';
+                navigateToSettings(settingsPath, 'Apps', 'app', '');
                 settingsDeepLink.set(settingsPath);
                 panelState.openSettings();
             } catch (error) {
@@ -2125,41 +2124,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Fullscreen opened from PiP restore');
     }
 
-    const SUGGESTION_MENTION_INSERT_DELAY_MS = 0;
     const FOLLOW_UP_SUGGESTION_KEY_SEPARATOR = '\u001f';
 
     // Handler for suggestion click - copies suggestion to message input.
-    // When mentionSyntax is provided (e.g. "@skill:web:search"), we insert the
-    // body text first, then set pendingMentionStore so MessageInput inserts the
-    // @mention chip at the START of the editor. This places the mention before
-    // the body text (e.g. "@Travel-Search Show me flights..."), which avoids
-    // false positives from the PII/sensitive-data detector (an @mention at the
-    // end of text can look like an email address).
-    function handleSuggestionClick(suggestion: string, mentionSyntax?: string) {
-        console.debug('[ActiveChat] Suggestion clicked:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
+    // App skill routing is handled by preprocessing from natural-language text.
+    function handleSuggestionClick(suggestion: string) {
+        console.debug('[ActiveChat] Suggestion clicked:', suggestion);
         if (messageInputFieldRef) {
-            if (mentionSyntax) {
-                // 1. Insert body text first so the editor has content.
-                messageInputFieldRef.setSuggestionText(suggestion);
-                // 2. Set pending mention — the $effect in MessageInput will insert
-                //    the @mention chip at the START of the editor, pushing body text
-                //    to the right. A trailing space is added after the chip.
-                tick().then(() => {
-                    pendingMentionStore.set(mentionSyntax);
-                    tick().then(() => {
-                        messageInputFieldRef?.focus();
-                    });
-                });
-            } else {
-                // No mention — insert plain text as before
-                messageInputFieldRef.setSuggestionText(suggestion);
-                messageInputFieldRef.focus();
-            }
+            messageInputFieldRef.setSuggestionText(suggestion);
+            messageInputFieldRef.focus();
         }
     }
 
-    async function handleFollowUpSuggestionClick(suggestion: string, mentionSyntax?: string) {
-        console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
+    async function handleFollowUpSuggestionClick(suggestion: string) {
+        console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion);
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
 
         if (!$authStore.isAuthenticated && currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
@@ -2170,13 +2148,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (messageInputFieldRef) {
             await messageInputFieldRef.clearMessageField(false);
             messageInputFieldRef.setSuggestionText(suggestion);
-            if (mentionSyntax) {
-                pendingMentionStore.set(mentionSyntax);
-                await tick();
-                await new Promise(resolve => setTimeout(resolve, SUGGESTION_MENTION_INSERT_DELAY_MS));
-            } else {
-                await tick();
-            }
+            await tick();
             messageInputFieldRef.sendCurrentMessage();
         }
     }
@@ -7116,7 +7088,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await tick();
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        settingsDeepLink.set('app_store/reminder/create');
+        settingsDeepLink.set('apps/reminder/create');
     }
 
     /**
@@ -11486,7 +11458,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
                                     onFocusPillDeepLink={() => {
                                         if (activeFocusAppId && activeFocusModeKey) {
-                                            settingsDeepLink.set(`app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`);
+                                            settingsDeepLink.set(`apps/${activeFocusAppId}/focus/${activeFocusModeKey}`);
                                             panelState.openSettings();
                                         }
                                     }}

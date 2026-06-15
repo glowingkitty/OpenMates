@@ -13,7 +13,6 @@ export {
   deriveAppUrl,
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
-  parseNewChatSuggestionText,
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";

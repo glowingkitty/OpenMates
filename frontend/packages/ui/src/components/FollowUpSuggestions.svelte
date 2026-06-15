@@ -7,7 +7,8 @@
 -->
 <script lang="ts">
   import { fade } from 'svelte/transition';
-  import { appSkillsStore } from '../stores/appSkillsStore';
+
+  const VISIBLE_SUGGESTION_COUNT = 4;
 
   let {
     suggestions = [],
@@ -16,73 +17,15 @@
   }: {
     suggestions: string[];
     messageInputContent?: string;
-    onSuggestionClick: (suggestion: string, mentionSyntax?: string) => void;
+    onSuggestionClick: (suggestion: string) => void;
   } = $props();
 
-  // Apps metadata for icon resolution
-  let appsMetadata = $state(appSkillsStore.getState());
   let isDismissing = $state(false);
   let clickedSuggestionRaw = $state<string | null>(null);
 
-  /**
-   * Parsed suggestion: splits "[app_id-skill_id] body text" into parts.
-   * Returns null prefix/appId/subId if no valid prefix is present.
-   */
-  interface ParsedSuggestion {
+  interface PlainSuggestion {
     raw: string;
-    prefix: string | null;  // e.g. "web-search"
-    appId: string | null;   // e.g. "web"
-    subId: string | null;   // e.g. "search"
-    body: string;           // The body text to insert on click
-  }
-
-  /**
-   * Parse a raw suggestion string of the form "[app_id-skill_id] body text".
-   * The prefix bracket content uses a dash separator between app and skill
-   * (e.g. "web-search", "jobs-career_insights"). LLMs sometimes generate dashes
-   * in the skill name portion (e.g. "reminder-set-reminder") instead of underscores
-   * ("reminder-set_reminder") — we correct for this by replacing dashes in the
-   * subId portion with underscores, then validate against the known app skills store.
-   * If no valid app+skill pair is found, we still keep the appId if the app exists
-   * (for app-level icon fallback). If the app doesn't exist, appId/subId are null.
-   */
-  function parseSuggestion(raw: string): ParsedSuggestion {
-    // Allow dashes anywhere in the prefix (LLMs may use dashes instead of underscores in skill names)
-    const match = raw.match(/^\[([a-z0-9_-]+)\]\s*(.+)$/i);
-    if (!match) {
-      return { raw, prefix: null, appId: null, subId: null, body: raw };
-    }
-    const prefix = match[1];
-    const body = match[2].trim();
-    const dashIdx = prefix.indexOf('-');
-    if (dashIdx === -1) {
-      // No dash: could be an app-only prefix like "[web]"
-      const appOnly = prefix;
-      const app = appsMetadata?.apps?.[appOnly];
-      if (app) {
-        return { raw, prefix: appOnly, appId: appOnly, subId: null, body };
-      }
-      return { raw, prefix: null, appId: null, subId: null, body: raw };
-    }
-    const appId = prefix.substring(0, dashIdx);
-    // Replace any remaining dashes in the subId with underscores to correct LLM errors
-    // (e.g. "set-reminder" -> "set_reminder")
-    const subIdRaw = prefix.substring(dashIdx + 1);
-    const subId = subIdRaw.replace(/-/g, '_');
-
-    // Validate that appId and subId correspond to a real skill or focus mode
-    const app = appsMetadata?.apps?.[appId];
-    const isValidSkill = app?.skills?.some(s => s.id === subId) ?? false;
-    const isValidFocus = app?.focus_modes?.some(f => f.id === subId) ?? false;
-    if (!isValidSkill && !isValidFocus) {
-      // Unknown skill — but if the app itself exists, keep appId for app-level icon
-      if (app) {
-        return { raw, prefix, appId, subId: null, body };
-      }
-      return { raw, prefix: null, appId: null, subId: null, body };
-    }
-
-    return { raw, prefix, appId, subId, body };
+    body: string;
   }
 
   /**
@@ -103,11 +46,19 @@
     return html.replace(/<[^>]+>/g, '');
   }
 
+  function stripLegacySuggestionPrefix(text: string): string {
+    return text.replace(/^\s*\[[^\]]+\]\s*/, '').trim();
+  }
+
   // Full suggestions pool - computed from prop to avoid duplicates.
-  // Strip HTML tags and parse prefix.
+  // Strip HTML tags and keep plain natural-language suggestion text.
   let fullSuggestions = $derived(
     Array.from(new Set(suggestions))
-      .map(s => parseSuggestion(stripHtmlTags(s)))
+      .map(s => {
+        const body = stripLegacySuggestionPrefix(stripHtmlTags(s));
+        return { raw: body, body };
+      })
+      .filter(s => s.body.length > 0)
   );
 
   // Filtered and displayed suggestions based on input content.
@@ -117,7 +68,7 @@
       : fullSuggestions;
 
     if (!messageInputContent || messageInputContent.trim() === '') {
-      return visibleSuggestions.slice(0, 3).map(parsed => ({ ...parsed, matchIndex: -1, matchLength: 0 }));
+      return visibleSuggestions.slice(0, VISIBLE_SUGGESTION_COUNT).map(parsed => ({ ...parsed, matchIndex: -1, matchLength: 0 }));
     }
 
     // When user is typing, filter across the FULL pool (searching over body text)
@@ -139,10 +90,10 @@
       // Exclude exact matches
       .filter(item => item.body.toLowerCase() !== searchTermLower);
 
-    return allFiltered.slice(0, 3);
+    return allFiltered.slice(0, VISIBLE_SUGGESTION_COUNT);
   });
 
-  function renderHighlightedText(suggestion: ParsedSuggestion & { matchIndex: number; matchLength: number }) {
+  function renderHighlightedText(suggestion: PlainSuggestion & { matchIndex: number; matchLength: number }) {
     if (suggestion.matchIndex === -1 || !messageInputContent || !messageInputContent.trim()) {
       return suggestion.body;
     }
@@ -155,21 +106,17 @@
   }
 
   /**
-   * Handle suggestion click - inserts body text and optionally triggers a skill mention.
-   * When a suggestion has a prefix (e.g. [web-search]), we build the @skill mention syntax
-   * so the parent can insert a proper mention node via pendingMentionStore, ensuring the
-   * app skill is triggered on send.
+   * Handle suggestion click - sends plain natural-language text. App skill routing
+   * is handled by normal preprocessing, not hidden prefixes or injected mentions.
    */
-  function handleSuggestionClick(appId: string | null, subId: string | null, body: string) {
+  function handleSuggestionClick(body: string) {
     if (isDismissing) return;
 
     const clickedSuggestion = filteredSuggestions.find(suggestion => suggestion.body === body);
     clickedSuggestionRaw = clickedSuggestion?.raw ?? body;
     isDismissing = true;
 
-    // Build mention syntax for skill-prefixed suggestions (e.g. "@skill:web:search")
-    const mentionSyntax = appId && subId ? `@skill:${appId}:${subId}` : undefined;
-    onSuggestionClick(body, mentionSyntax);
+    onSuggestionClick(body);
   }
 
 </script>
@@ -193,7 +140,7 @@
         onclick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          handleSuggestionClick(suggestion.appId, suggestion.subId, suggestion.body);
+          handleSuggestionClick(suggestion.body);
         }}
       >
         <span class="suggestion-text">
