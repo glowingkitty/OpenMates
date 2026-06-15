@@ -2557,6 +2557,42 @@ def _is_code_block_too_short_for_embed(code_content: str) -> bool:
     return len(code_content.strip()) < MIN_CODE_EMBED_CONTENT_LENGTH
 
 
+_EDIT_EXISTING_ARTIFACT_RE = re.compile(
+    r"\b(edit|modify|update|change|fix|rename|preserve|patch)\b.*\b(existing|previous|same|artifact|embed|code|function|file|document|table|email)\b"
+    r"|\b(existing|previous|same|artifact|embed|code|function|file|document|table|email)\b.*\b(edit|modify|update|change|fix|rename|preserve|patch)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _select_full_replacement_target(
+    request_data: AskSkillRequest,
+    current_filename: Optional[str],
+) -> Optional[tuple[str, str]]:
+    """Return a prior embed target when a model regenerates during an edit turn."""
+    file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
+    if not file_path_index:
+        return None
+
+    if current_filename and current_filename in file_path_index:
+        return current_filename, file_path_index[current_filename]
+
+    last_user_content = ""
+    for message in reversed(request_data.message_history or []):
+        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
+        if role != "user":
+            continue
+        content = message.content if hasattr(message, "content") else message.get("content") if isinstance(message, dict) else ""
+        if isinstance(content, str):
+            last_user_content = content
+        break
+
+    if not _EDIT_EXISTING_ARTIFACT_RE.search(last_user_content):
+        return None
+    if len(file_path_index) != 1:
+        return None
+    return next(iter(file_path_index.items()))
+
+
 def _normalize_generated_app_file_path(filename: Optional[str]) -> Optional[str]:
     if not filename:
         return None
@@ -4279,51 +4315,136 @@ async def _consume_main_processing_stream(
                                             current_code_content = ""
                                             current_code_embed_id = None
                                         else:
-                                            # Create code embed placeholder
-                                            embed_data = await embed_service.create_code_embed_placeholder(
-                                                language=current_code_language,
-                                                chat_id=request_data.chat_id,
-                                                message_id=request_data.message_id,
-                                                user_id=request_data.user_id,
-                                                user_id_hash=request_data.user_id_hash,
-                                                user_vault_key_id=user_vault_key_id,
-                                                task_id=task_id,
-                                                filename=current_code_filename,
-                                                log_prefix=log_prefix
+                                            replacement_applied = False
+                                            replacement_target = _select_full_replacement_target(
+                                                request_data,
+                                                current_code_filename,
                                             )
+                                            if replacement_target:
+                                                from toon_format import decode
 
-                                            if embed_data:
-                                                current_code_embed_id = embed_data["embed_id"]
-
-                                                # Update with full content and finalize
-                                                await embed_service.update_code_embed_content(
-                                                    embed_id=current_code_embed_id,
-                                                    code_content=code_content,
-                                                    chat_id=request_data.chat_id,
-                                                    user_id=request_data.user_id,
-                                                    user_id_hash=request_data.user_id_hash,
-                                                    user_vault_key_id=user_vault_key_id,
-                                                    status="finished",
-                                                    log_prefix=log_prefix
+                                                replacement_ref, target_embed_id = replacement_target
+                                                cached_embed = await cache_service.get_embed_from_cache(
+                                                    target_embed_id, request_data.user_id
                                                 )
-                                                _record_generated_code_file_embed(
-                                                    generated_code_file_embeds,
-                                                    embed_id=current_code_embed_id,
-                                                    filename=current_code_filename,
-                                                    language=current_code_language,
-                                                )
+                                                if not cached_embed:
+                                                    cached_embed = await directus_service.embed.get_embed_by_id(target_embed_id)
 
-                                                # Replace code block with embed reference in chunk
-                                                embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
-                                                chunk = embed_reference_code
-                                                logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+                                                current_content = None
+                                                if cached_embed and cached_embed.get("encrypted_content"):
+                                                    try:
+                                                        decrypted_toon = await encryption_service.decrypt_with_user_key(
+                                                            cached_embed["encrypted_content"], user_vault_key_id
+                                                        )
+                                                        decoded = decode(decrypted_toon)
+                                                        if isinstance(decoded, dict):
+                                                            current_content = decoded.get("code") or ""
+                                                    except Exception as e:
+                                                        logger.warning(
+                                                            f"{log_prefix} [FULL_REPLACEMENT_EDIT] Failed to decrypt/decode "
+                                                            f"target embed {target_embed_id}: {e}"
+                                                        )
 
-                                                # Reset state
+                                                if current_content:
+                                                    current_version = cached_embed.get("version_number") or 1
+                                                    new_version = current_version + 1
+                                                    now = int(time.time())
+                                                    version_history_rows = []
+                                                    if current_version == 1:
+                                                        version_history_rows.append({
+                                                            "embed_id": target_embed_id,
+                                                            "version_number": 1,
+                                                            "snapshot": current_content,
+                                                            "created_at": now,
+                                                        })
+                                                    version_history_rows.append({
+                                                        "embed_id": target_embed_id,
+                                                        "version_number": new_version,
+                                                        "snapshot": code_content,
+                                                        "created_at": now,
+                                                    })
+                                                    await embed_service.update_code_embed_content(
+                                                        embed_id=target_embed_id,
+                                                        code_content=code_content,
+                                                        chat_id=request_data.chat_id,
+                                                        user_id=request_data.user_id,
+                                                        user_id_hash=request_data.user_id_hash,
+                                                        user_vault_key_id=user_vault_key_id,
+                                                        status="finished",
+                                                        version_number=new_version,
+                                                        content_hash=hashlib.sha256(code_content.encode("utf-8")).hexdigest(),
+                                                        version_history_rows=version_history_rows,
+                                                        log_prefix=log_prefix,
+                                                    )
+                                                    embed_reference_json = json.dumps({
+                                                        "type": "code",
+                                                        "embed_id": target_embed_id,
+                                                    })
+                                                    chunk = f"```json\n{embed_reference_json}\n```\n\n"
+                                                    replacement_applied = True
+                                                    logger.info(
+                                                        f"{log_prefix} [FULL_REPLACEMENT_EDIT] Reused code embed "
+                                                        f"{target_embed_id} via ref {replacement_ref!r} "
+                                                        f"(v{current_version} → v{new_version})"
+                                                    )
+                                                else:
+                                                    logger.warning(
+                                                        f"{log_prefix} [FULL_REPLACEMENT_EDIT] Could not load current content "
+                                                        f"for {target_embed_id}; creating a new embed instead."
+                                                    )
+
+                                            if replacement_applied:
                                                 in_code_block = False
                                                 current_code_language = ""
                                                 current_code_filename = None
                                                 current_code_content = ""
                                                 current_code_embed_id = None
+                                            else:
+                                                # Create code embed placeholder
+                                                embed_data = await embed_service.create_code_embed_placeholder(
+                                                    language=current_code_language,
+                                                    chat_id=request_data.chat_id,
+                                                    message_id=request_data.message_id,
+                                                    user_id=request_data.user_id,
+                                                    user_id_hash=request_data.user_id_hash,
+                                                    user_vault_key_id=user_vault_key_id,
+                                                    task_id=task_id,
+                                                    filename=current_code_filename,
+                                                    log_prefix=log_prefix
+                                                )
+
+                                                if embed_data:
+                                                    current_code_embed_id = embed_data["embed_id"]
+
+                                                    # Update with full content and finalize
+                                                    await embed_service.update_code_embed_content(
+                                                        embed_id=current_code_embed_id,
+                                                        code_content=code_content,
+                                                        chat_id=request_data.chat_id,
+                                                        user_id=request_data.user_id,
+                                                        user_id_hash=request_data.user_id_hash,
+                                                        user_vault_key_id=user_vault_key_id,
+                                                        status="finished",
+                                                        log_prefix=log_prefix
+                                                    )
+                                                    _record_generated_code_file_embed(
+                                                        generated_code_file_embeds,
+                                                        embed_id=current_code_embed_id,
+                                                        filename=current_code_filename,
+                                                        language=current_code_language,
+                                                    )
+
+                                                    # Replace code block with embed reference in chunk
+                                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                                    chunk = embed_reference_code
+                                                    logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+
+                                                    # Reset state
+                                                    in_code_block = False
+                                                    current_code_language = ""
+                                                    current_code_filename = None
+                                                    current_code_content = ""
+                                                    current_code_embed_id = None
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error creating embed for complete block: {e}", exc_info=True)
                                 # Continue with original chunk if embed creation fails
