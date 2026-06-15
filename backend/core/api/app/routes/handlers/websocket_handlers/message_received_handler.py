@@ -1559,6 +1559,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_id=user_id, # Pass the actual user_id
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=message_history_for_ai,
+            current_user_content=content_plain,
             chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
             current_chat_title=current_chat_title_from_client,  # OPE-265: For post-processing title update evaluation
             is_incognito=is_incognito, # Pass the incognito flag
