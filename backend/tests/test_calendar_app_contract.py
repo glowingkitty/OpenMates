@@ -84,7 +84,7 @@ def test_calendar_mutation_skills_require_access_token_handle() -> None:
     assert delete_request.access_token_handle == "ath_123"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_calendar_get_events_executes_provider_with_hidden_access_token() -> None:
     from backend.apps.calendar.skills.get_events_skill import GetEventsSkill
     from backend.shared.providers.google_calendar.models import CalendarEvent

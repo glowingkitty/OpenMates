@@ -192,6 +192,7 @@ export function findProviderByName(name: string): ProviderMetadata | undefined {
         "bfl": "bfl",
         "brave": "brave",
         "flixbus / flixtrain": "flix",
+        "google calendar": "google",
         "mistral": "mistral",
         "protonmail": "protonmail",
     };

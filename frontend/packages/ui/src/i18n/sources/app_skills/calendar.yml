@@ -1,0 +1,43 @@
+get_events:
+  context: Skill name for reading calendar events
+  en: Get Events
+  de: Termine abrufen
+  verified_by_human: [en, de]
+get_events.description:
+  context: Description for reading calendar events
+  en: Read events, agendas, availability, and event details from a connected calendar.
+  de: Lies Termine, Agenden, Verfügbarkeiten und Termindetails aus einem verbundenen Kalender.
+  verified_by_human: [en, de]
+
+create_event:
+  context: Skill name for creating calendar events
+  en: Create Event
+  de: Termin erstellen
+  verified_by_human: [en, de]
+create_event.description:
+  context: Description for creating calendar events
+  en: Create a calendar event after you approve the proposed details.
+  de: Erstelle einen Kalendertermin, nachdem du die vorgeschlagenen Details genehmigt hast.
+  verified_by_human: [en, de]
+
+update_event:
+  context: Skill name for updating calendar events
+  en: Update Event
+  de: Termin bearbeiten
+  verified_by_human: [en, de]
+update_event.description:
+  context: Description for updating calendar events
+  en: Update an existing calendar event after permission checks.
+  de: Bearbeite einen bestehenden Kalendertermin nach den Berechtigungsprüfungen.
+  verified_by_human: [en, de]
+
+delete_event:
+  context: Skill name for deleting calendar events
+  en: Delete Event
+  de: Termin löschen
+  verified_by_human: [en, de]
+delete_event.description:
+  context: Description for deleting calendar events
+  en: Delete calendar events only after explicit permission or an allowed automation rule.
+  de: Lösche Kalendertermine nur nach ausdrücklicher Erlaubnis oder einer erlaubten Automatisierungsregel.
+  verified_by_human: [en, de]

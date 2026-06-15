@@ -62,7 +62,7 @@ skills:
     stage: development
     class_path: backend.apps.calendar.skills.get_events_skill.GetEventsSkill
     providers:
-      - name: Google Calendar
+      - name: Google
         no_api_key: true
     preprocessor_hint: >
       Read a user's connected Google Calendar events, agenda, availability, or event details after connected-account permission checks.
@@ -92,7 +92,7 @@ skills:
     stage: development
     class_path: backend.apps.calendar.skills.create_event_skill.CreateEventSkill
     providers:
-      - name: Google Calendar
+      - name: Google
         no_api_key: true
     preprocessor_hint: >
       Create a Calendar event only after connected-account write permission has been approved or auto-authorized.
@@ -119,7 +119,7 @@ skills:
     stage: development
     class_path: backend.apps.calendar.skills.update_event_skill.UpdateEventSkill
     providers:
-      - name: Google Calendar
+      - name: Google
         no_api_key: true
     preprocessor_hint: >
       Update an existing Calendar event only after connected-account write permission has been approved or auto-authorized.
@@ -147,7 +147,7 @@ skills:
     stage: development
     class_path: backend.apps.calendar.skills.delete_event_skill.DeleteEventSkill
     providers:
-      - name: Google Calendar
+      - name: Google
         no_api_key: true
     preprocessor_hint: >
       Delete Calendar events only after connected-account delete permission has been approved or auto-authorized.

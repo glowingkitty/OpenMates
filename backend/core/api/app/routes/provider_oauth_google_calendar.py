@@ -24,7 +24,10 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.services.connected_account_oauth_handoff import (
     ConnectedAccountOAuthHandoffService,
 )
-from backend.shared.providers.google_calendar.oauth import exchange_google_authorization_code
+from backend.shared.providers.google_calendar.oauth import (
+    exchange_google_authorization_code,
+    get_google_oauth_credentials,
+)
 
 router = APIRouter(prefix="/v1/provider-oauth/google/calendar", tags=["Google Calendar OAuth"])
 
@@ -56,13 +59,6 @@ def get_encryption_service(request: Request) -> Any:
     if not hasattr(request.app.state, "encryption_service"):
         raise HTTPException(status_code=500, detail="Encryption service unavailable")
     return request.app.state.encryption_service
-
-
-def _google_client_id() -> str:
-    client_id = os.getenv("GOOGLE_CALENDAR_CLIENT_ID") or os.getenv("GOOGLE_OAUTH_CLIENT_ID")
-    if not client_id:
-        raise HTTPException(status_code=500, detail="Google OAuth client id is not configured")
-    return client_id
 
 
 def _redirect_uri(request: Request) -> str:
@@ -126,6 +122,11 @@ async def start_google_calendar_oauth(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    try:
+        client_id, _client_secret = await get_google_oauth_credentials()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail="Google OAuth client credentials are not configured") from exc
+
     state = f"gcal_{secrets.token_urlsafe(24)}"
     expires_at = int(time.time()) + GOOGLE_CALENDAR_STATE_TTL_SECONDS
     redirect_uri = _redirect_uri(request)
@@ -147,7 +148,7 @@ async def start_google_calendar_oauth(
 
     authorization_url = GOOGLE_AUTHORIZATION_URL + "?" + urlencode(
         {
-            "client_id": _google_client_id(),
+            "client_id": client_id,
             "redirect_uri": redirect_uri,
             "response_type": "code",
             "scope": " ".join(scopes),

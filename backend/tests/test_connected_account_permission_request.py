@@ -43,7 +43,7 @@ class FakeCache:
         return True
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connected_account_permission_request_is_redacted_and_published() -> None:
     from backend.apps.ai.processing.connected_account_permission_request import (
         CONNECTED_ACCOUNT_PERMISSION_TTL_SECONDS,
@@ -106,7 +106,7 @@ async def test_connected_account_permission_request_is_redacted_and_published() 
     assert "provider_account_id" not in serialized
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connected_account_permission_request_rejects_secret_fields() -> None:
     from backend.apps.ai.processing.connected_account_permission_request import create_connected_account_permission_request
 

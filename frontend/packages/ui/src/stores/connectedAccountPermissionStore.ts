@@ -26,6 +26,12 @@ export interface ConnectedAccountPermissionRequest {
 	action: string;
 	requiredActions: string[];
 	accounts: ConnectedAccountPermissionAccount[];
+	requests?: Array<{
+		action_id: string;
+		action: string;
+		action_scope?: Record<string, unknown>;
+		summary?: Record<string, unknown>;
+	}>;
 	createdAt: number;
 }
 

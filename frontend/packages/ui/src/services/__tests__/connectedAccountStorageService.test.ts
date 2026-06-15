@@ -216,4 +216,36 @@ describe('connectedAccountStorageService', () => {
 
 		expect(context?.tokenRefInputs?.[0].allowed_actions).toEqual(['update']);
 	});
+
+	it('creates scoped broker token refs for explicit connected-account approvals', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			allowedActionsOverride: ['delete'],
+			actionScopesOverride: [
+				{ calendar_id: 'primary', event_id: 'event-1' },
+				{ calendar_id: 'primary', event_id: 'event-2' }
+			],
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:["read","write","delete"]',
+					encrypted_app_permissions:
+						'enc:{"app_id":"calendar","allowed_actions":["read","write","update","delete"]}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}'
+				}
+			]
+		});
+
+		expect(context?.tokenRefInputs).toHaveLength(2);
+		expect(context?.tokenRefInputs?.map((input) => input.action_scope)).toEqual([
+			{ calendar_id: 'primary', event_id: 'event-1' },
+			{ calendar_id: 'primary', event_id: 'event-2' }
+		]);
+		expect(context?.tokenRefInputs?.map((input) => input.allowed_actions)).toEqual([
+			['delete'],
+			['delete']
+		]);
+	});
 });

@@ -47,6 +47,20 @@ class FakeEncryption:
         return b64decode(ciphertext[len(prefix):].encode()).decode()
 
 
+class FakeSecretsManager:
+    vault_token = "vault-token"
+    vault_url = "http://vault:8200"
+
+    def __init__(self, values: dict[tuple[str, str], str]) -> None:
+        self.values = values
+
+    async def initialize(self) -> bool:
+        return True
+
+    async def get_secret(self, secret_path: str, secret_key: str, log_missing: bool = True):
+        return self.values.get((secret_path, secret_key))
+
+
 def import_route_module():
     sys.modules.setdefault(
         "backend.core.api.app.services.directus",
@@ -79,7 +93,8 @@ def make_client(cache: FakeCache, encryption: FakeEncryption | None = None):
 
 
 def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
-    monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_ID", "client-123")
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_ID", "client-123")
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_SECRET", "secret-123")
     monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_REDIRECT_URI", "https://api.dev.openmates.org/v1/provider-oauth/google/calendar/callback")
     cache = FakeCache()
     client, route = make_client(cache)
@@ -105,8 +120,53 @@ def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
     assert cache.values[state_key]["scopes"] == [route.CALENDAR_READ_SCOPE]
 
 
+@pytest.mark.anyio
+async def test_google_oauth_credentials_fall_back_to_vault(monkeypatch) -> None:
+    from backend.shared.providers.google_calendar.oauth import get_google_oauth_credentials
+
+    for env_var_name in (
+        "GOOGLE_CALENDAR_CLIENT_ID",
+        "GOOGLE_OAUTH_CLIENT_ID",
+        "GOOGLE_CALENDAR_CLIENT_SECRET",
+        "GOOGLE_OAUTH_CLIENT_SECRET",
+        "SECRET__GOOGLE__OAUTH_CLIENT_ID",
+        "SECRET__GOOGLE__OAUTH_CLIENT_SECRET",
+        "SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_ID",
+        "SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_SECRET",
+    ):
+        monkeypatch.delenv(env_var_name, raising=False)
+
+    secrets_manager = FakeSecretsManager(
+        {
+            ("kv/data/providers/google_calendar", "oauth_client_id"): "vault-client-id",
+            ("kv/data/providers/google_calendar", "oauth_client_secret"): "vault-client-secret",
+        }
+    )
+
+    assert await get_google_oauth_credentials(secrets_manager) == (
+        "vault-client-id",
+        "vault-client-secret",
+    )
+
+
+@pytest.mark.anyio
+async def test_google_oauth_credentials_prefer_generic_google_env(monkeypatch) -> None:
+    from backend.shared.providers.google_calendar.oauth import get_google_oauth_credentials
+
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_ID", "generic-client-id")
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_SECRET", "generic-client-secret")
+    monkeypatch.setenv("SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_ID", "calendar-client-id")
+    monkeypatch.setenv("SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_SECRET", "calendar-client-secret")
+
+    assert await get_google_oauth_credentials(FakeSecretsManager({})) == (
+        "generic-client-id",
+        "generic-client-secret",
+    )
+
+
 def test_google_calendar_start_uses_events_scope_for_write_or_delete(monkeypatch) -> None:
-    monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_ID", "client-123")
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_ID", "client-123")
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_SECRET", "secret-123")
     cache = FakeCache()
     client, route = make_client(cache)
 
@@ -119,9 +179,10 @@ def test_google_calendar_start_uses_events_scope_for_write_or_delete(monkeypatch
     assert response.json()["scopes"] == [route.CALENDAR_EVENTS_SCOPE]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(monkeypatch) -> None:
-    monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_ID", "client-123")
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_ID", "client-123")
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_SECRET", "secret-123")
     monkeypatch.setenv("WEBAPP_URL", "https://app.dev.openmates.org")
     cache = FakeCache()
     encryption = FakeEncryption()

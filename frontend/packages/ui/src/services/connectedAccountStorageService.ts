@@ -138,6 +138,7 @@ export async function buildConnectedAccountSendContext(params: {
 	accountIds?: string[];
 	defaultAllowedActions?: string[];
 	allowedActionsOverride?: string[];
+	actionScopesOverride?: Record<string, unknown>[];
 	includeActionScope?: boolean;
 }): Promise<ConnectedAccountSendContext | undefined> {
 	const selectedIds = new Set(params.accountIds ?? []);
@@ -177,7 +178,9 @@ export async function buildConnectedAccountSendContext(params: {
 				permissions.allowed_actions ?? params.defaultAllowedActions ?? [],
 				directoryHint?.runtime_modes
 			);
-		const actionScope = params.includeActionScope === false ? undefined : permissions.action_scope;
+		const actionScopes = params.actionScopesOverride?.length
+			? params.actionScopesOverride
+			: [permissions.action_scope].filter((scope): scope is Record<string, unknown> => Boolean(scope));
 		directory.push({
 			connected_account_id: row.id,
 			app_id: permissions.app_id ?? params.appId,
@@ -191,13 +194,16 @@ export async function buildConnectedAccountSendContext(params: {
 				row.encrypted_refresh_token_bundle,
 				'encrypted_refresh_token_bundle'
 			);
-			tokenRefInputs.push({
-				connected_account_id: row.id,
-				app_id: permissions.app_id ?? params.appId,
-				allowed_actions: allowedActions,
-				refresh_token_envelope: refreshTokenEnvelope,
-				...(actionScope ? { action_scope: actionScope } : {})
-			});
+			const scopes = params.includeActionScope === false ? [undefined] : actionScopes.length ? actionScopes : [undefined];
+			for (const actionScope of scopes) {
+				tokenRefInputs.push({
+					connected_account_id: row.id,
+					app_id: permissions.app_id ?? params.appId,
+					allowed_actions: allowedActions,
+					refresh_token_envelope: refreshTokenEnvelope,
+					...(actionScope ? { action_scope: actionScope } : {})
+				});
+			}
 		}
 	}
 

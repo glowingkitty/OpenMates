@@ -94,6 +94,16 @@ ai.skills.ask.description:
   sv: Fråga med text, bilder och annat media.
   he: שאל באמצעות טקסט, תמונות ומדיה נוספת.
   verified_by_human: [en, de]
+calendar:
+  context: App name for the Calendar app
+  en: Calendar
+  de: Kalender
+  verified_by_human: [en, de]
+calendar.description:
+  context: Description for the Calendar app
+  en: Connect your calendar so mates can read, create, update, and delete events with your permission.
+  de: Verbinde deinen Kalender, damit Mates mit deiner Erlaubnis Termine lesen, erstellen, bearbeiten und löschen können.
+  verified_by_human: [en, de]
 social_media:
   context: App name for the Social Media app
   en: Social Media

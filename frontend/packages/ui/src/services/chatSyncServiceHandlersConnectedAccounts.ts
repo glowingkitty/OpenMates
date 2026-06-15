@@ -124,7 +124,10 @@ export async function approveConnectedAccountPermissionRequest(): Promise<void> 
 			rows,
 			appId: request.appId,
 			accountIds: [selectedAccountId],
-			allowedActionsOverride: request.requiredActions
+			allowedActionsOverride: request.requiredActions,
+			actionScopesOverride: request.requests
+				?.map((item) => item.action_scope)
+				.filter((scope): scope is Record<string, unknown> => Boolean(scope))
 		});
 		if (!context?.tokenRefInputs?.length) {
 			throw new Error('No connected account token ref inputs were available for approval');

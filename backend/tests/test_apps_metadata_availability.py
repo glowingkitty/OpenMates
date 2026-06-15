@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from backend.core.api.app.routes.apps import check_provider_api_key_available
+from backend.core.api.app.routes.apps import SkillMetadataItem, check_provider_api_key_available
+from backend.shared.python_schemas.app_metadata_schemas import ProviderRef
 
 
 class FakeSecretsManager:
@@ -30,3 +31,16 @@ async def test_edamam_availability_accepts_app_id_and_app_key(monkeypatch: pytes
     monkeypatch.delenv("SECRET__EDAMAM__APP_KEY", raising=False)
 
     assert await check_provider_api_key_available("edamam", FakeSecretsManager()) is True
+
+
+def test_skill_metadata_response_preserves_providers() -> None:
+    item = SkillMetadataItem(
+        id="get_events",
+        name="Get events",
+        description="Read calendar events",
+        providers=[ProviderRef(name="Google", no_api_key=True)],
+    )
+
+    payload = item.model_dump()
+
+    assert payload["providers"] == [{"name": "Google", "display_name": None, "no_api_key": True}]

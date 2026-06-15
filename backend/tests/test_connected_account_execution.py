@@ -15,7 +15,7 @@ import pytest
 from backend.tests.test_token_broker_refs import FakeCache, FakeEncryption
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_prepare_connected_account_execution_injects_handles_and_cleans_up(monkeypatch) -> None:
     from backend.apps.ai.processing import connected_account_execution
     from backend.apps.ai.processing.connected_account_execution import (
@@ -115,7 +115,7 @@ async def test_prepare_connected_account_execution_injects_handles_and_cleans_up
     assert any(handle in key for key in cache.deleted)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_prepare_connected_account_execution_rejects_missing_ref() -> None:
     from backend.apps.ai.processing.connected_account_execution import prepare_connected_account_skill_execution
 
