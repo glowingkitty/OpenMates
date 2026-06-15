@@ -6545,24 +6545,6 @@ async def _consume_main_processing_stream(
     elif not usage:
         logger.info(f"{log_prefix} No usage metadata available. Skipping billing.")
 
-    # Publish final marker to Redis - include usage and billing info if available
-    final_payload = _create_redis_payload(
-        task_id, request_data, aggregated_response, stream_chunk_count + 1,
-        is_final=True, interrupted_soft=was_soft_limited_during_stream,
-        interrupted_revoke=was_revoked_during_stream,
-        model_name=stream_model_name,
-        prompt_tokens=billing_info.get("prompt_tokens"),
-        completion_tokens=billing_info.get("completion_tokens"),
-        user_input_tokens=billing_info.get("user_input_tokens"),
-        system_prompt_tokens=billing_info.get("system_prompt_tokens"),
-        total_credits=billing_info.get("total_credits"),
-        category=preprocessing_result.category or "general_knowledge"
-    )
-    await _publish_to_redis(
-        cache_service, redis_channel_name, final_payload, log_prefix,
-        f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
-    )
-
     # Save assistant response to cache for follow-up message context
     # This is CRITICAL for the architecture where last 3 chats are cached in memory
     # Even partial responses (due to revocation/soft limit) should be saved for context
@@ -6641,6 +6623,27 @@ async def _consume_main_processing_stream(
         logger.error(f"{log_prefix} CRITICAL: Encryption service not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
     elif not user_vault_key_id:
         logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
+
+    # Publish final marker only after the AI cache write has been attempted.
+    # CLI follow-up commands start the next process as soon as they see this final
+    # frame; publishing it first lets the next turn build history before the prior
+    # assistant message's embed reference is available for diff editing.
+    final_payload = _create_redis_payload(
+        task_id, request_data, aggregated_response, stream_chunk_count + 1,
+        is_final=True, interrupted_soft=was_soft_limited_during_stream,
+        interrupted_revoke=was_revoked_during_stream,
+        model_name=stream_model_name,
+        prompt_tokens=billing_info.get("prompt_tokens"),
+        completion_tokens=billing_info.get("completion_tokens"),
+        user_input_tokens=billing_info.get("user_input_tokens"),
+        system_prompt_tokens=billing_info.get("system_prompt_tokens"),
+        total_credits=billing_info.get("total_credits"),
+        category=preprocessing_result.category or "general_knowledge"
+    )
+    await _publish_to_redis(
+        cache_service, redis_channel_name, final_payload, log_prefix,
+        f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
+    )
     
     # Re-raise billing error after final chunk has been sent and metadata saved
     # This ensures proper error handling while still clearing the typing indicator
