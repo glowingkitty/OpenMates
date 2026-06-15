@@ -351,6 +351,7 @@ struct EmbedFullscreenContainer: View {
                                 RoundedRectangle(cornerRadius: .radius3)
                                     .stroke(Color.buttonPrimary, lineWidth: 1)
                             )
+                            .accessibilityIdentifier("embed-version-restore-button")
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("embed-version-restore-button")
