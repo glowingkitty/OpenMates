@@ -543,17 +543,29 @@ contracts:
       response: "Updated row id and sync version."
       errors:
         - 403 when account does not belong to authenticated hashed owner.
-    - route: POST /v1/provider-oauth/google/calendar/start
-      request: "Selected Calendar capabilities and return route context."
-      response: "OAuth authorization URL with minimal scope set."
+    - route: POST /v1/provider-oauth/{provider_id}/start
+      request: "Selected provider capabilities, app/account context, and return route context."
+      response: "Provider authorization URL with minimal scope set and CSRF/owner-bound state."
       errors:
-        - 400 when unsupported capability combination is requested.
-    - route: POST /v1/provider-oauth/google/calendar/callback
-      request: "Authorization code and state."
-      response: "Token bundle returned once to the authenticated client for encryption."
+        - 400 when unsupported capability combination is requested for the provider adapter.
+        - 404 when no confidential OAuth adapter exists for provider_id.
+    - route: GET /v1/provider-oauth/{provider_id}/callback
+      request: "Provider authorization code and state from OAuth redirect."
+      response: "Redirect to the web app with an opaque OAuth handoff id, never provider tokens in the URL."
       errors:
         - 400 when OAuth state is invalid.
         - 502 when provider exchange fails.
+      security:
+        - Provider adapters may briefly receive plaintext refresh tokens during confidential-server code exchange when a provider requires a server-held client secret.
+        - Adapters must immediately create a one-time connected-account OAuth handoff and must not persist or log plaintext tokens, provider emails, OAuth scopes, or provider account ids outside the encrypted handoff payload.
+    - route: POST /v1/connected-account-oauth/handoffs/{handoff_id}/claim
+      request: "Opaque OAuth handoff id from the authenticated browser session."
+      response: "Refresh-token bundle and account hint returned once to the owning client for immediate client-side encryption."
+      errors:
+        - 403 when handoff is expired, already claimed, or owned by another user.
+      security:
+        - Handoff payloads are stored only Vault-encrypted in cache with a short TTL and deleted on successful claim.
+        - The response is the only intended backend-to-client plaintext token transfer during account bootstrap; clients must encrypt the bundle and store only encrypted/hash connected-account rows.
     - route: POST /v1/token-broker/turn-token-refs
       request: "Refresh-token envelope, connected_account_id, chat_id, message_id, app_id, allowed actions, and action scope from the client."
       response: "Opaque turn_token_ref, ref expiry, and broker acceptance confirmation used before the client marks the message Sent."
@@ -688,6 +700,8 @@ contracts:
       fullscreen: "Surrounding calendar context with deleted event ghosted or greyed out so the user can identify what changed."
   privacy_security:
     - Persistent refresh-token storage is client-side encrypted by default.
+    - OAuth account bootstrap is provider-generic: confidential provider adapters may briefly see plaintext refresh tokens only during code exchange, then create a short-lived Vault-encrypted one-time browser handoff for client-side encryption.
+    - OAuth handoff ids must be owner-bound, short-lived, one-time claimable, and must not include provider tokens in redirect URLs.
     - Normal chat turns may submit refresh tokens only to the token broker, never to LLM-visible context or general skill handlers.
     - For Auto decide and Allow automatically, eligible refresh-token envelopes are submitted during message send and stored Vault-encrypted in Redis/memory under short-lived turn-token refs so requests can continue after device lock without exposing refresh tokens to main processing.
     - For Always ask, refresh tokens are not submitted until explicit user approval for the specific proposal.
@@ -1052,8 +1066,8 @@ implementation_plan:
     REST/API-key exclusion for client-mediated provider skills, and dedicated embeds.
   data_flow:
     - Client connects Google Calendar and chooses capability toggles.
-    - Backend OAuth broker exchanges authorization code, returns token bundle once, and discards plaintext tokens.
-    - Client encrypts connected account record and stores it through backend/Directus with hashed_user_id.
+    - Provider-specific OAuth adapter exchanges authorization code server-side when a provider requires a confidential client secret, creates a short-lived encrypted handoff, and discards plaintext tokens.
+    - Client claims the one-time handoff, encrypts the token bundle locally, and stores only encrypted/hash connected-account fields through backend/Directus.
     - Login sync sends encrypted connected accounts to client alongside app settings/memories.
     - On message send, client builds coarse preprocessor capabilities and anonymized main-processor account directory.
     - For Auto decide and Allow automatically eligible accounts/actions, client submits refresh-token envelopes to token broker during message send.
@@ -1075,7 +1089,11 @@ implementation_plan:
     - path: backend/core/api/app/routes/connected_accounts.py
       reason: Connected account CRUD and sync APIs.
     - path: backend/core/api/app/routes/provider_oauth_google_calendar.py
-      reason: Google Calendar OAuth start/callback/update routes.
+      reason: Google Calendar OAuth provider adapter for minimal-scope start/callback/update routes.
+    - path: backend/core/api/app/routes/connected_account_oauth.py
+      reason: Provider-neutral one-time OAuth handoff claim route.
+    - path: backend/core/api/app/services/connected_account_oauth_handoff.py
+      reason: Provider-neutral encrypted OAuth refresh-token handoff primitive.
     - path: backend/core/api/app/routes/token_broker.py
       reason: Active-turn token ref storage, lazy refresh-token exchange, and access-token handle creation.
     - path: backend/core/api/app/routes/apps_api.py
@@ -1121,6 +1139,7 @@ implementation_progress:
     completed:
       - Backend connected-account validators, token-broker refs, lazy exchange/access-token handle tests, Calendar skill contract tests, REST/API-key exclusion tests, permission broker tests, and operation journal privacy tests passed together.
       - Authenticated connected-account storage routes now list, create, and patch encrypted/hash-only rows with owner-hash checks and plaintext provider identity/token rejection.
+      - Provider-neutral OAuth refresh-token handoff service and claim route now support confidential-provider code exchange adapters without persistent plaintext token storage.
       - Browser connected-account storage service prepares owner hashes locally, calls authenticated encrypted-row routes, and rejects plaintext provider identity/token fields before network calls.
       - Browser connected-account storage service can decrypt encrypted rows into a chat-visible redacted account directory plus broker-only token-ref inputs for selected accounts/actions.
       - Calendar app-skill embeds now use generic Calendar preview/fullscreen wrappers so generated embed registry entries resolve to real Svelte components while the richer approval UI is pending.
@@ -1134,6 +1153,10 @@ implementation_progress:
         result: 20 passed
       - command: python3 -m pytest backend/tests/test_connected_accounts_permissions.py backend/tests/test_token_broker_refs.py
         result: 9 passed
+      - command: python3 -m pytest backend/tests/test_connected_account_oauth_handoff.py
+        result: 3 passed
+      - command: python3 -m py_compile backend/core/api/app/services/connected_account_oauth_handoff.py backend/core/api/app/routes/connected_account_oauth.py backend/core/api/main.py
+        result: passed
       - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountTokenBrokerService.ts src/services/connectedAccountStorageService.ts src/services/__tests__/connectedAccountStorageService.test.ts src/components/embeds/calendar/CalendarActionEmbedPreview.svelte src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte src/data/embedRegistry.generated.ts
         result: passed
       - command: cd frontend/packages/ui && node scripts/generate-embed-registry.js

@@ -63,6 +63,7 @@ from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug 
 from backend.core.api.app.routes import sync_api  # noqa: E402 # Native/desktop optional offline sync endpoints
 from backend.core.api.app.routes import token_broker  # noqa: E402 # Active-turn connected-account token broker
 from backend.core.api.app.routes import connected_accounts  # noqa: E402 # Encrypted connected-account storage APIs
+from backend.core.api.app.routes import connected_account_oauth  # noqa: E402 # One-time connected-account OAuth handoffs
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
 from backend.core.api.app.routes import notifications as notifications_api  # noqa: E402 # Safe notification list + SSE stream
 from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
@@ -1362,6 +1363,7 @@ def create_app() -> FastAPI:
     app.include_router(sync_api.router, include_in_schema=False)  # Native/desktop optional offline prefetch - JWT auth, encrypted payloads only
     app.include_router(token_broker.router, include_in_schema=False)  # Connected-account token refs - web/CLI/Apple authenticated only
     app.include_router(connected_accounts.router, include_in_schema=False)  # Encrypted connected-account rows - client source of truth
+    app.include_router(connected_account_oauth.router, include_in_schema=False)  # OAuth refresh-token handoffs - one-time browser encryption bridge
     app.include_router(status_routes.router, include_in_schema=True)  # Status page API v3
     app.include_router(docs_routes.router, include_in_schema=True)  # Public docs API - serves doc tree, markdown, and search for CLI
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs
