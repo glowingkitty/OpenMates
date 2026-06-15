@@ -20,7 +20,7 @@
 	"dependencies": {
 		"@fontsource-variable/lexend-deca": "^5.2.9",
 		"@repo/ui": "workspace:*",
-		"dompurify": "^3.4.9",
+		"dompurify": "^3.4.10",
 		"markdown-it": "^14.2.0",
 		"svelte-i18n": "^4.0.1",
 		"yaml": "^2.9.0"
