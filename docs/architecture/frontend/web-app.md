@@ -1,12 +1,14 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-15
 key_files:
 - frontend/apps/web_app/src/routes/+layout.svelte
 - frontend/apps/web_app/src/routes/+page.svelte
 - frontend/packages/ui/src/legal/documents/privacy-policy.ts
 - frontend/packages/ui/src/legal/documents/terms-of-use.ts
 - frontend/packages/ui/src/legal/documents/imprint.ts
+- frontend/packages/ui/src/services/websocketService.ts
+- frontend/packages/ui/src/stores/authLoginLogoutActions.ts
 claims:
 - id: arch-frontend-web-app-behavior
   type: unit
@@ -88,6 +90,10 @@ Legal documents are stored as TypeScript files in `frontend/packages/ui/src/lega
 
 On signup completion, demo chats are kept and the user receives a message explaining they can delete the example chats. Draft messages saved before signup are sent automatically.
 
+### WebSocket Auth Expiry
+
+`websocketService.ts` dispatches an `authError` event when the server rejects the WebSocket with an authentication or policy-violation signal. The app shell handles that event in `+page.svelte` by running the local logout cleanup directly instead of re-checking `/auth/session`, because the session check intentionally treats non-OK responses as offline-first recoverable failures. Pair-login deep links are explicitly excluded so stale WebSocket failures from an old session do not invalidate a fresh passkey pairing flow.
+
 ### Onboarding
 
 See [Onboarding Guide](../../user-guide/onboarding.md) for the implemented user onboarding flow.
@@ -104,3 +110,4 @@ tracked separately in [Native Apps Architecture](./native-apps.md).
 - [Accessibility](./accessibility.md) -- WCAG compliance patterns
 - [Daily Inspiration](./daily-inspiration.md) -- content generation pipeline
 - [Docs Web App](./docs-web-app.md) -- documentation rendering at `/docs`
+- [Frontend Dependency Pins](../audit_frontend_dependency_pins.md) -- lockfile guard for editor and asset-loading regressions

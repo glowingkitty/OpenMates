@@ -105,6 +105,7 @@
 	const DEFAULT_GUEST_INTRO_CHAT_ID = 'demo-for-everyone';
 	const STAY_LOGGED_IN_FLAG = 'openmates_was_stay_logged_in';
 	const AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS = 12_000;
+	const PAIR_LOGIN_HASH_PATTERN = /^#pair=[A-Za-z0-9]{6}$/i;
 
 	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
 
@@ -137,6 +138,21 @@
 		}
 
 		return true;
+	}
+
+	function isPairLoginPending(): boolean {
+		if (!browser) return false;
+
+		try {
+			return (
+				PAIR_LOGIN_HASH_PATTERN.test(window.location.hash) ||
+				PAIR_LOGIN_HASH_PATTERN.test(sessionStorage.getItem('pendingDeepLink') ?? '') ||
+				get(pendingPairToken) !== null
+			);
+		} catch (error) {
+			console.debug('[+page.svelte] Could not inspect pair login state:', error);
+			return false;
+		}
 	}
 
 	// Prime the public intro chat before ActiveChat's first client render. This mirrors
@@ -2036,21 +2052,18 @@
 				'[+page.svelte] WebSocket auth error detected - session expired or invalid token. Logging out user.'
 			);
 
-			// Import checkAuth dynamically to avoid circular dependencies
-			// checkAuth is exported from @repo/ui via authStore (which re-exports from authSessionActions)
-			const { checkAuth } = await import('@repo/ui');
-
-			// Check if user was previously authenticated (has master key)
-			const hadMasterKey = !!(await getKeyFromStorage());
-
-			if (hadMasterKey) {
-				// User was authenticated - trigger logout flow
-				// Use checkAuth with force=true to trigger the same logout logic as when server says user is not authenticated
-				await checkAuth(undefined, true);
-			} else {
-				// User wasn't authenticated - just clear auth state
-				console.debug('[+page.svelte] User was not authenticated, just clearing auth state');
+			if (isPairLoginPending()) {
+				console.debug(
+					'[+page.svelte] Skipping WebSocket auth-error logout because pair login is pending'
+				);
+				return;
 			}
+
+			// The session endpoint intentionally uses an offline-first fallback for non-OK responses.
+			// A WebSocket auth error is already a definitive stale-token signal, so clear local auth
+			// state and browser credentials directly instead of re-checking the session endpoint.
+			const { logout } = await import('@repo/ui');
+			await logout({ skipServerLogout: true, isSessionExpiredLogout: true });
 		};
 
 		// Register listener for WebSocket auth errors
