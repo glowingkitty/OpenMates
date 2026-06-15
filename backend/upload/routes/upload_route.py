@@ -152,6 +152,8 @@ class AIDetectionMetadata(BaseModel):
     """SightEngine AI-generated content detection result."""
     ai_generated: float = Field(..., description="Probability (0.0–1.0) that image is AI-generated")
     provider: str = Field(default="sightengine", description="Detection provider name")
+    status: str = Field(default="success", description="Detection status: success or failed")
+    error: Optional[str] = Field(None, description="Non-sensitive failure reason when detection failed")
 
 
 class UploadFileResponse(BaseModel):
@@ -828,15 +830,23 @@ async def upload_file(
             ai_detection_result = AIDetectionMetadata(
                 ai_generated=ai_result.ai_generated,
                 provider=ai_result.provider,
+                status="failed" if ai_result.error else "success",
+                error=ai_result.error,
             )
             logger.info(
                 f"{log_prefix} [7/13] AI detection: score={ai_result.ai_generated:.3f} "
                 f"(included in same request, no extra round-trip)"
             )
         else:
+            ai_detection_result = AIDetectionMetadata(
+                ai_generated=0.0,
+                provider="sightengine",
+                status="failed",
+                error="unavailable",
+            )
             logger.warning(
                 f"{log_prefix} [7/13] AI detection: SightEngine returned None "
-                f"(non-fatal, upload continues without score)"
+                f"(non-fatal, upload continues with failed detection status)"
             )
     elif is_image:
         logger.info(

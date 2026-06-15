@@ -300,7 +300,12 @@
         isAuthenticated: true,
         fileSize: content.file_size,
         fileType: content.file_type,
-        aiDetection: (content.ai_detection as { ai_generated: number; provider: string } | null) ?? null,
+        aiDetection: (content.ai_detection as {
+          ai_generated: number;
+          provider: string;
+          status?: 'success' | 'failed';
+          error?: string | null;
+        } | null) ?? null,
       },
       bubbles: true,
     });

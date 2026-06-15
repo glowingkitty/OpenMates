@@ -24,6 +24,7 @@ import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { mount, unmount } from "svelte";
 import { get } from "svelte/store";
 import ImageEmbedPreview from "../../../embeds/images/ImageEmbedPreview.svelte";
+import type { AIDetectionMetadata } from "../../../embeds/images/imageAuthenticity";
 import { authStore } from "../../../../stores/authStore";
 import { resolveEmbed } from "../../../../services/embedResolver";
 import { chatSyncService } from "../../../../services/chatSyncService";
@@ -70,7 +71,7 @@ interface ImageEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
    * Shape: { ai_generated: number (0–1), provider: string } | null
    * Also stored in the EmbedStore TOON blob as the 'ai_detection' field.
    */
-  aiDetection?: { ai_generated: number; provider: string } | null;
+  aiDetection?: AIDetectionMetadata | null;
   /**
    * Original file size in bytes. Present in editor context (from File object) and in
    * read-only context (read from TOON blob stored by embedHandlers.ts as 'file_size').
@@ -161,10 +162,7 @@ export class ImageRenderer implements EmbedRenderer {
         const aesNonce = parsed.aes_nonce as string | undefined;
         const filename = (parsed.filename as string) || attrs.filename;
         // Extract AI detection from TOON blob (stored by embedHandlers.ts / sendHandlers.ts)
-        const aiDetection = parsed.ai_detection as
-          | { ai_generated: number; provider: string }
-          | null
-          | undefined;
+        const aiDetection = parsed.ai_detection as AIDetectionMetadata | null | undefined;
         // Extract file size and MIME type — stored in the TOON blob by embedHandlers.ts
         // so they can be shown in read-only/received message context where the original
         // File object is no longer available (attrs.originalFile is always undefined there).

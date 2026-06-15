@@ -587,7 +587,12 @@
         isAuthenticated?: boolean;
         fileSize?: number;
         fileType?: string;
-        aiDetection?: { ai_generated: number; provider: string } | null;
+        aiDetection?: {
+          ai_generated: number;
+          provider: string;
+          status?: 'success' | 'failed';
+          error?: string | null;
+        } | null;
     }>({});
 
     // Note: isLoggingOutFromSignup state removed as it was set but never read

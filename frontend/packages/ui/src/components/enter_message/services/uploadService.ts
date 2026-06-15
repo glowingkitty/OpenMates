@@ -50,6 +50,10 @@ export interface AIDetectionMetadata {
   ai_generated: number;
   /** Detection provider name (e.g. 'sightengine') */
   provider: string;
+  /** Detection status; omitted on older uploads where success was implied */
+  status?: "success" | "failed";
+  /** Non-sensitive failure reason when detection failed */
+  error?: string | null;
 }
 
 export interface UploadFileResponse {
