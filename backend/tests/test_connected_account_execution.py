@@ -132,3 +132,105 @@ async def test_prepare_connected_account_execution_rejects_missing_ref() -> None
             cache_service=FakeCache(),
             encryption_service=FakeEncryption(),
         )
+
+
+@pytest.mark.anyio
+async def test_prepare_connected_account_execution_requires_exact_mutation_scope(monkeypatch) -> None:
+    from backend.apps.ai.processing import connected_account_execution
+    from backend.apps.ai.processing.connected_account_execution import prepare_connected_account_skill_execution
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    async def exchange(refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
+        return {"access_token": f"access-for-{refresh_token}", "expires_in": 3600}
+
+    monkeypatch.setattr(connected_account_execution, "exchange_google_refresh_token", exchange)
+
+    cache = FakeCache()
+    broker = TokenBrokerService(
+        cache_service=cache,
+        encryption_service=FakeEncryption(),
+        exchange_refresh_token=exchange,
+    )
+    ref = await broker.create_turn_token_ref(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        chat_id="chat-1",
+        message_id="msg-1",
+        app_id="calendar",
+        allowed_actions=["update"],
+        refresh_token_envelope={"refresh_token": "refresh-secret"},
+        action_scope={"calendar_id": "primary", "event_id": "event-1"},
+    )
+
+    with pytest.raises(PermissionError, match="permission"):
+        await prepare_connected_account_skill_execution(
+            app_id="calendar",
+            skill_id="update-event",
+            skill_arguments={
+                "requests": [
+                    {
+                        "calendar_id": "primary",
+                        "event_id": "event-2",
+                        "title": "Wrong event",
+                        "start": "2026-06-15T11:00:00Z",
+                        "end": "2026-06-15T11:30:00Z",
+                    }
+                ]
+            },
+            connected_account_token_refs=[
+                {
+                    "connected_account_id": "acct-1",
+                    "app_id": "calendar",
+                    "allowed_actions": ["update"],
+                    "turn_token_ref": ref.turn_token_ref,
+                    "action_scope": {"calendar_id": "primary", "event_id": "event-1"},
+                }
+            ],
+            user_id="user-1",
+            user_vault_key_id="vault-key",
+            chat_id="chat-1",
+            message_id="msg-1",
+            cache_service=cache,
+            encryption_service=FakeEncryption(),
+        )
+
+    context = await prepare_connected_account_skill_execution(
+        app_id="calendar",
+        skill_id="update-event",
+        skill_arguments={
+            "requests": [
+                {
+                    "calendar_id": "primary",
+                    "event_id": "event-1",
+                    "title": "Right event",
+                    "start": "2026-06-15T11:00:00Z",
+                    "end": "2026-06-15T11:30:00Z",
+                }
+            ]
+        },
+        connected_account_token_refs=[
+            {
+                "connected_account_id": "acct-1",
+                "app_id": "calendar",
+                "allowed_actions": ["update"],
+                "turn_token_ref": ref.turn_token_ref,
+                "action_scope": {"calendar_id": "primary", "event_id": "event-1"},
+            }
+        ],
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        chat_id="chat-1",
+        message_id="msg-1",
+        cache_service=cache,
+        encryption_service=FakeEncryption(),
+    )
+
+    request = context.skill_arguments["requests"][0]
+    assert request["event_id"] == "event-1"
+    assert request["access_token_handle"].startswith("ath_")
+    assert context.token_artifacts[0]["action"] == "update"
+    assert context.token_artifacts[0]["action_scope"] == {
+        "calendar_id": "primary",
+        "event_id": "event-1",
+    }
