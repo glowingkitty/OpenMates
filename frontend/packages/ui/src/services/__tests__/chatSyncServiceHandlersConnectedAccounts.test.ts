@@ -80,6 +80,7 @@ describe('chatSyncServiceHandlersConnectedAccounts', () => {
 		mocks.activeChatStore.get.mockReturnValue('chat-1');
 		mocks.listConnectedAccounts.mockResolvedValue([]);
 		mocks.buildConnectedAccountSendContext.mockResolvedValue({ tokenRefInputs: [] });
+		vi.stubGlobal('window', { dispatchEvent: vi.fn() });
 	});
 
 	it('preserves redacted Calendar request summaries for the approval card', async () => {
@@ -87,14 +88,7 @@ describe('chatSyncServiceHandlersConnectedAccounts', () => {
 			activeAITasks: new Map(),
 			dispatchEvent: vi.fn()
 		} as unknown as ChatSynchronizationService;
-		const seenRequests: unknown[] = [];
-		const listener = (event: Event) => {
-			seenRequests.push((event as CustomEvent).detail);
-		};
-		window.addEventListener('showConnectedAccountPermissionRequest', listener);
-
-		try {
-			await handleRequestConnectedAccountPermissionImpl(service, {
+		await handleRequestConnectedAccountPermissionImpl(service, {
 				request_id: 'permission-1',
 				chat_id: 'chat-1',
 				message_id: 'message-1',
@@ -124,12 +118,11 @@ describe('chatSyncServiceHandlersConnectedAccounts', () => {
 					}
 				]
 			});
-		} finally {
-			window.removeEventListener('showConnectedAccountPermissionRequest', listener);
-		}
 
-		expect(seenRequests).toHaveLength(1);
-		expect(seenRequests[0]).toMatchObject({
+		expect(window.dispatchEvent).toHaveBeenCalledTimes(1);
+		const event = vi.mocked(window.dispatchEvent).mock.calls[0][0] as CustomEvent;
+		expect(event.type).toBe('showConnectedAccountPermissionRequest');
+		expect(event.detail).toMatchObject({
 			requestId: 'permission-1',
 			requests: [
 				{
