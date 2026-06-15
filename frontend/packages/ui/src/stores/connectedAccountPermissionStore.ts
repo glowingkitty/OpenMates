@@ -40,13 +40,17 @@ interface ConnectedAccountPermissionState {
 	isVisible: boolean;
 	isLoading: boolean;
 	selectedAccountId: string | null;
+	selectedActionIds: string[];
+	selectedAccountIdsByActionId: Record<string, string>;
 }
 
 const initialState: ConnectedAccountPermissionState = {
 	currentRequest: null,
 	isVisible: false,
 	isLoading: false,
-	selectedAccountId: null
+	selectedAccountId: null,
+	selectedActionIds: [],
+	selectedAccountIdsByActionId: {}
 };
 
 function createConnectedAccountPermissionStore() {
@@ -56,17 +60,49 @@ function createConnectedAccountPermissionStore() {
 		subscribe,
 
 		showRequest(request: ConnectedAccountPermissionRequest) {
+			const defaultAccountId = request.accounts[0]?.connected_account_id ?? null;
+			const selectedActionIds = request.requests?.map((item) => item.action_id) ?? [];
+			const selectedAccountIdsByActionId = Object.fromEntries(
+				selectedActionIds.map((actionId) => [actionId, defaultAccountId ?? ''])
+			);
 			update((state) => ({
 				...state,
 				currentRequest: request,
 				isVisible: true,
 				isLoading: false,
-				selectedAccountId: request.accounts[0]?.connected_account_id ?? null
+				selectedAccountId: defaultAccountId,
+				selectedActionIds,
+				selectedAccountIdsByActionId
 			}));
 		},
 
 		setSelectedAccount(accountId: string) {
-			update((state) => ({ ...state, selectedAccountId: accountId }));
+			update((state) => ({
+				...state,
+				selectedAccountId: accountId,
+				selectedAccountIdsByActionId: Object.fromEntries(
+					(state.currentRequest?.requests ?? []).map((request) => [request.action_id, accountId])
+				)
+			}));
+		},
+
+		setSelectedAccountForAction(actionId: string, accountId: string) {
+			update((state) => ({
+				...state,
+				selectedAccountIdsByActionId: {
+					...state.selectedAccountIdsByActionId,
+					[actionId]: accountId
+				}
+			}));
+		},
+
+		toggleAction(actionId: string, selected: boolean) {
+			update((state) => {
+				const selectedActionIds = selected
+					? Array.from(new Set([...state.selectedActionIds, actionId]))
+					: state.selectedActionIds.filter((selectedActionId) => selectedActionId !== actionId);
+				return { ...state, selectedActionIds };
+			});
 		},
 
 		setLoading(isLoading: boolean) {
@@ -83,6 +119,15 @@ function createConnectedAccountPermissionStore() {
 
 		getSelectedAccountId(): string | null {
 			return get({ subscribe }).selectedAccountId;
+		},
+
+		getSelectedActionIds(): string[] {
+			return get({ subscribe }).selectedActionIds;
+		},
+
+		getSelectedAccountIdForAction(actionId: string): string | null {
+			const state = get({ subscribe });
+			return state.selectedAccountIdsByActionId[actionId] || state.selectedAccountId;
 		}
 	};
 }
@@ -107,6 +152,16 @@ export const connectedAccountPermissionLoading = derived(
 export const selectedConnectedAccountPermissionAccountId = derived(
 	connectedAccountPermissionStore,
 	($store) => $store.selectedAccountId
+);
+
+export const selectedConnectedAccountPermissionActionIds = derived(
+	connectedAccountPermissionStore,
+	($store) => $store.selectedActionIds
+);
+
+export const selectedConnectedAccountPermissionAccountIdsByActionId = derived(
+	connectedAccountPermissionStore,
+	($store) => $store.selectedAccountIdsByActionId
 );
 
 export function initConnectedAccountPermissionListener() {

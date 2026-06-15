@@ -373,9 +373,17 @@ connected_account_permissions.approve:
   context: Button that approves a connected account action request.
   en: Approve once
   verified_by_human: [en]
+connected_account_permissions.approve_selected:
+  context: Button that approves the selected connected-account action requests.
+  en: Approve selected
+  verified_by_human: [en]
 connected_account_permissions.loading:
   context: Button/status text while connected account approval is being sent.
   en: Approving...
+  verified_by_human: [en]
+connected_account_permissions.account:
+  context: Label for a connected-account picker shown on one requested action in an approval dialog.
+  en: Account
   verified_by_human: [en]
 connected_account_permissions.request_title:
   context: Header for one requested connected-account action summary. The action replacement is a short action name such as read, write, update, or delete.

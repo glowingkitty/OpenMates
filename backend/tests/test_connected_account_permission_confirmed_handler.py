@@ -65,6 +65,16 @@ class FakeCache:
             "skill_id": "create-event",
             "action": "write",
             "accounts": [{"connected_account_id": "acct-1", "app_id": "calendar"}],
+            "requests": [
+                {"action_id": "create-event:0", "action": "write"},
+                {"action_id": "create-event:1", "action": "write"},
+            ],
+            "skill_arguments": {
+                "requests": [
+                    {"calendar_id": "primary", "summary": "First meeting"},
+                    {"calendar_id": "primary", "summary": "Second meeting"},
+                ]
+            },
         }
 
     async def delete_pending_connected_account_permission_request(self, request_id: str) -> bool:
@@ -85,7 +95,7 @@ class FakeManager:
         return None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connected_account_permission_confirmation_dispatches_continuation(monkeypatch) -> None:
     module = import_handler_module()
     captured: dict = {}
@@ -116,6 +126,7 @@ async def test_connected_account_permission_confirmation_dispatches_continuation
             "request_id": "cap-1",
             "chat_id": "chat-1",
             "approved": True,
+            "approved_action_ids": ["create-event:1"],
             "connected_account_token_refs": [
                 {
                     "connected_account_id": "acct-1",
@@ -130,12 +141,21 @@ async def test_connected_account_permission_confirmation_dispatches_continuation
 
     request_data = captured["kwargs"]["request_data_dict"]
     assert request_data["is_connected_account_permission_continuation"] is True
-    assert request_data["connected_account_token_refs"][0]["turn_token_ref"] == "tref_1"
     assert request_data["message_history"][0]["content"] == "create meeting"
+    assert request_data["connected_account_token_refs"][0]["turn_token_ref"] == "tref_1"
+    assert request_data["connected_account_directory"] == [{"connected_account_id": "acct-1", "app_id": "calendar"}]
+    assert request_data["connected_account_token_refs"][0]["action_scope"] == {"calendar_id": "primary"}
+    permission_state = request_data["connected_account_permission_state"]
+    assert permission_state["approved"] is True
+    assert permission_state["approved_action_ids"] == ["create-event:1"]
+    assert permission_state["approved_requests"] == [{"action_id": "create-event:1", "action": "write"}]
+    assert permission_state["approved_skill_arguments"] == {
+        "requests": [{"calendar_id": "primary", "summary": "Second meeting"}]
+    }
     assert cache.deleted == ["cap-1"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connected_account_permission_rejection_publishes_receipt(monkeypatch) -> None:
     module = import_handler_module()
     captured: dict = {}
@@ -184,7 +204,7 @@ async def test_connected_account_permission_rejection_publishes_receipt(monkeypa
     assert cache.deleted == ["cap-1"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connected_account_permission_confirmation_rejects_secret_fields() -> None:
     module = import_handler_module()
 

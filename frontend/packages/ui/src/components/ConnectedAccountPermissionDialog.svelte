@@ -13,7 +13,9 @@
     connectedAccountPermissionLoading,
     connectedAccountPermissionStore,
     currentConnectedAccountPermissionRequest,
-    selectedConnectedAccountPermissionAccountId
+    selectedConnectedAccountPermissionAccountId,
+    selectedConnectedAccountPermissionAccountIdsByActionId,
+    selectedConnectedAccountPermissionActionIds
   } from '../stores/connectedAccountPermissionStore';
   import {
     approveConnectedAccountPermissionRequest,
@@ -65,10 +67,43 @@
         {#each $currentConnectedAccountPermissionRequest.requests as request (request.action_id)}
           <div class="connected-account-request" data-testid="connected-account-permission-request">
             <div class="connected-account-request-title">
-              {$text('chat.connected_account_permissions.request_title', {
-                values: { action: request.action }
-              })}
+              <label class="connected-account-request-toggle">
+                <input
+                  type="checkbox"
+                  data-testid="connected-account-permission-request-toggle"
+                  checked={$selectedConnectedAccountPermissionActionIds.includes(request.action_id)}
+                  onchange={(event) =>
+                    connectedAccountPermissionStore.toggleAction(
+                      request.action_id,
+                      event.currentTarget.checked
+                    )}
+                />
+                <span>
+                  {$text('chat.connected_account_permissions.request_title', {
+                    values: { action: request.action }
+                  })}
+                </span>
+              </label>
             </div>
+            {#if $currentConnectedAccountPermissionRequest.accounts.length > 1}
+              <label class="connected-account-request-account">
+                <span>{$text('chat.connected_account_permissions.account')}</span>
+                <select
+                  data-testid="connected-account-permission-request-account"
+                  value={$selectedConnectedAccountPermissionAccountIdsByActionId[request.action_id] ?? $selectedConnectedAccountPermissionAccountId ?? ''}
+                  onchange={(event) =>
+                    connectedAccountPermissionStore.setSelectedAccountForAction(
+                      request.action_id,
+                      event.currentTarget.value
+                    )}
+                  disabled={!$selectedConnectedAccountPermissionActionIds.includes(request.action_id)}
+                >
+                  {#each $currentConnectedAccountPermissionRequest.accounts as account (account.connected_account_id)}
+                    <option value={account.connected_account_id}>{account.label}</option>
+                  {/each}
+                </select>
+              </label>
+            {/if}
             {#if request.summary}
               <dl class="connected-account-request-summary">
                 {#if hasSummaryValue(request.summary, 'calendar_id')}
@@ -141,12 +176,12 @@
         class="btn-approve"
         data-testid="btn-approve-connected-account"
         onclick={approve}
-        disabled={!$selectedConnectedAccountPermissionAccountId || $connectedAccountPermissionLoading}
+        disabled={!$selectedConnectedAccountPermissionAccountId || $connectedAccountPermissionLoading || Boolean($currentConnectedAccountPermissionRequest.requests?.length && $selectedConnectedAccountPermissionActionIds.length === 0)}
       >
         {#if $connectedAccountPermissionLoading}
           {$text('chat.connected_account_permissions.loading')}
         {:else}
-          {$text('chat.connected_account_permissions.approve')}
+          {$text('chat.connected_account_permissions.approve_selected')}
         {/if}
       </button>
       <button
@@ -223,6 +258,35 @@
     font-size: var(--font-size-small);
     font-weight: 700;
     margin-bottom: var(--spacing-3);
+  }
+
+  .connected-account-request-toggle,
+  .connected-account-request-account {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+  }
+
+  .connected-account-request-toggle input {
+    accent-color: var(--color-button-primary);
+  }
+
+  .connected-account-request-account {
+    justify-content: space-between;
+    margin-bottom: var(--spacing-3);
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+  }
+
+  .connected-account-request-account select {
+    max-width: 60%;
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-3);
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+    padding: var(--spacing-2) var(--spacing-3);
+    font: inherit;
   }
 
   .connected-account-request-summary {

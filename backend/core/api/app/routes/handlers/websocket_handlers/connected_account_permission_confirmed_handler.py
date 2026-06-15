@@ -51,6 +51,7 @@ async def handle_connected_account_permission_confirmed(
         chat_id = payload.get("chat_id")
         approved = bool(payload.get("approved"))
         token_refs = payload.get("connected_account_token_refs") or []
+        approved_action_ids = _string_list(payload.get("approved_action_ids") or [])
 
         if not request_id or not chat_id:
             logger.warning("Invalid connected-account confirmation from user %s: missing request_id/chat_id", user_id)
@@ -101,6 +102,7 @@ async def handle_connected_account_permission_confirmed(
             user_id=user_id,
             pending_context=pending_context,
             approved=approved,
+            approved_action_ids=approved_action_ids,
             connected_account_token_refs=token_refs if approved else [],
         )
         await cache_service.delete_pending_connected_account_permission_request(request_id)
@@ -124,8 +126,14 @@ async def _trigger_connected_account_continuation(
     user_id: str,
     pending_context: dict[str, Any],
     approved: bool,
+    approved_action_ids: list[str],
     connected_account_token_refs: list[dict[str, Any]],
 ) -> None:
+    if approved and approved_action_ids:
+        pending_context = _filter_pending_context_for_approved_actions(
+            pending_context,
+            approved_action_ids,
+        )
     chat_id = str(pending_context["chat_id"])
     message_id = str(pending_context["message_id"])
     user_id_hash = str(pending_context.get("user_id_hash") or "")
@@ -153,6 +161,9 @@ async def _trigger_connected_account_continuation(
         "connected_account_permission_state": {
             "request_id": pending_context.get("request_id"),
             "approved": approved,
+            "approved_action_ids": approved_action_ids,
+            "approved_requests": pending_context.get("requests") or [],
+            "approved_skill_arguments": pending_context.get("skill_arguments") or {},
             "app_id": pending_context.get("app_id"),
             "skill_id": pending_context.get("skill_id"),
             "action": pending_context.get("action"),
@@ -175,6 +186,44 @@ async def _trigger_connected_account_continuation(
         pending_context.get("request_id"),
         approved,
     )
+
+
+def _filter_pending_context_for_approved_actions(
+    pending_context: dict[str, Any],
+    approved_action_ids: list[str],
+) -> dict[str, Any]:
+    allowed_ids = set(approved_action_ids)
+    action_requests = pending_context.get("requests") or []
+    if not isinstance(action_requests, list):
+        return pending_context
+
+    selected_indices: list[int] = []
+    selected_requests: list[dict[str, Any]] = []
+    for index, request in enumerate(action_requests):
+        if not isinstance(request, dict):
+            continue
+        if str(request.get("action_id") or "") in allowed_ids:
+            selected_indices.append(index)
+            selected_requests.append(dict(request))
+    if not selected_requests:
+        return pending_context
+
+    skill_arguments = dict(pending_context.get("skill_arguments") or {})
+    request_items = skill_arguments.get("requests")
+    if isinstance(request_items, list):
+        skill_arguments["requests"] = [
+            request_items[index]
+            for index in selected_indices
+            if index < len(request_items)
+        ]
+    elif f'{pending_context.get("skill_id")}:0' not in allowed_ids:
+        skill_arguments = {"requests": []}
+
+    return {
+        **pending_context,
+        "requests": selected_requests,
+        "skill_arguments": skill_arguments,
+    }
 
 
 async def _publish_rejection_receipt(
@@ -265,6 +314,12 @@ def _reject_secret_fields(value: Any) -> None:
     for key in CONNECTED_ACCOUNT_CONFIRMATION_FORBIDDEN_FIELDS:
         if f'"{key}"' in serialized:
             raise ValueError(f"connected-account confirmation contains forbidden field: {key}")
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if item]
 
 
 def _load_ask_skill_config_from_app_yml() -> Dict[str, Any]:

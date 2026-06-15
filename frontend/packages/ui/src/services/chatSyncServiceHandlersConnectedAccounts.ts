@@ -118,33 +118,64 @@ export async function approveConnectedAccountPermissionRequest(): Promise<void> 
 	const request = connectedAccountPermissionStore.getCurrentRequest();
 	const selectedAccountId = connectedAccountPermissionStore.getSelectedAccountId();
 	if (!request || !selectedAccountId) return;
+	const requestedActions = request.requests ?? [];
+	const selectedActionIds = requestedActions.length
+		? connectedAccountPermissionStore.getSelectedActionIds()
+		: [];
+	const selectedRequests = requestedActions.length
+		? requestedActions.filter((item) => selectedActionIds.includes(item.action_id))
+		: [];
+	if (requestedActions.length && selectedRequests.length === 0) return;
 
 	connectedAccountPermissionStore.setLoading(true);
 	try {
 		const rows = await listConnectedAccounts();
-		const context = await buildConnectedAccountSendContext({
-			rows,
-			appId: request.appId,
-			accountIds: [selectedAccountId],
-			allowedActionsOverride: request.requiredActions,
-			actionScopesOverride: request.requests
-				?.map((item) => item.action_scope)
-				.filter((scope): scope is Record<string, unknown> => Boolean(scope))
-		});
-		if (!context?.tokenRefInputs?.length) {
+		const tokenRefInputs = requestedActions.length
+			? (
+				await Promise.all(
+					selectedRequests.map(async (item) => {
+						const accountId = connectedAccountPermissionStore.getSelectedAccountIdForAction(item.action_id);
+						if (!accountId) return [];
+						const context = await buildConnectedAccountSendContext({
+							rows,
+							appId: request.appId,
+							accountIds: [accountId],
+							allowedActionsOverride: [item.action],
+							actionScopesOverride: item.action_scope ? [item.action_scope] : undefined
+						});
+						return context?.tokenRefInputs ?? [];
+					})
+				)
+			).flat()
+			: (
+				await buildConnectedAccountSendContext({
+					rows,
+					appId: request.appId,
+					accountIds: [selectedAccountId],
+					allowedActionsOverride: request.requiredActions
+				})
+			)?.tokenRefInputs ?? [];
+		if (!tokenRefInputs.length) {
 			throw new Error('No connected account token ref inputs were available for approval');
 		}
 
 		const tokenRefs = await createConnectedAccountTurnTokenRefs({
 			chatId: request.chatId,
 			messageId: request.messageId ?? request.requestId,
-			refs: context.tokenRefInputs
+			refs: tokenRefInputs
 		});
 
 		await webSocketService.sendMessage('connected_account_permission_confirmed', {
 			request_id: request.requestId,
 			chat_id: request.chatId,
 			approved: true,
+			approved_action_ids: selectedRequests.map((item) => item.action_id),
+			action_account_selections: Object.fromEntries(
+				selectedRequests.map((item) => [
+					item.action_id,
+					connectedAccountPermissionStore.getSelectedAccountIdForAction(item.action_id)
+				])
+			),
 			connected_account_token_refs: tokenRefs
 		});
 
