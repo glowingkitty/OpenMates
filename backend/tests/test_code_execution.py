@@ -305,6 +305,23 @@ async def test_resolve_code_embed_references_appends_cached_code_run_output() ->
 
 
 @pytest.mark.anyio
+async def test_resolve_code_embed_references_accepts_json_embed_fence() -> None:
+    code_toon = encode({"type": "code", "code": "print('ok')", "language": "python", "filename": "main.py"})
+    cache = FakeCache([TARGET_EMBED_ID], {TARGET_EMBED_ID: _metadata(encrypted_content=f"vault:{code_toon}")})
+    service = EmbedService(cache, FakeDirectus({}), FakeEncryption())
+
+    resolved, file_path_index = await service.resolve_embed_references_in_content(
+        f'```json_embed\n{{"type":"code","embed_id":"{TARGET_EMBED_ID}"}}\n```',
+        "vault-key",
+    )
+
+    assert "type: code" in resolved
+    assert "embed_ref: main.py" in resolved
+    assert list(file_path_index.values()) == [TARGET_EMBED_ID]
+    assert next(iter(file_path_index)) in resolved
+
+
+@pytest.mark.anyio
 async def test_collect_code_files_requests_client_content_for_directus_only_embed() -> None:
     with pytest.raises(HTTPException) as exc_info:
         await _collect_code_files(

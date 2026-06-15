@@ -3345,9 +3345,10 @@ class EmbedService:
         # Maps embed_ref (human-readable) → embed_id (UUID) for this call.
         file_path_index: Dict[str, str] = {}
 
-        # Pattern to match JSON code blocks that might contain embed references
-        # Format: ```json\n{...}\n```
-        json_block_pattern = r'```json\s*\n([\s\S]*?)\n```'
+        # Pattern to match JSON code blocks that might contain embed references.
+        # Both fence names are used by clients when storing assistant history.
+        # Format: ```json\n{...}\n``` or ```json_embed\n{...}\n```
+        json_block_pattern = r'```(?:json|json_embed)\s*\n([\s\S]*?)\n```'
 
         # Find all embed references first
         # Embed references now include optional URL field as fallback for LLM inference
