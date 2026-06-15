@@ -297,13 +297,9 @@ struct EmbedFullscreenContainer: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(Color.fontPrimary)
                 Spacer()
-                if selectedVersion != currentVersion {
-                    restoreButton(for: embed, selectedVersion: selectedVersion)
-                } else {
-                    Text("\(versions.count) versions")
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontSecondary)
-                }
+                Text("\(versions.count) versions")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -332,6 +328,9 @@ struct EmbedFullscreenContainer: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("embed-version-dot-\(version.versionNumber)")
+                    }
+                    if selectedVersion != currentVersion {
+                        restoreButton(for: embed, selectedVersion: selectedVersion)
                     }
                 }
                 .padding(.vertical, .spacing2)
