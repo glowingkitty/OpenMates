@@ -4288,6 +4288,7 @@ async def handle_main_processing(
                     if app_id == "calendar" and skill_id in {"get-events", "create-event", "update-event", "delete-event"}:
                         from backend.apps.ai.processing.connected_account_execution import (
                             cleanup_connected_account_token_artifacts,
+                            connected_account_action_for_skill,
                             prepare_connected_account_skill_execution,
                         )
 
@@ -4311,18 +4312,28 @@ async def handle_main_processing(
                                 f"{log_prefix} Connected-account permission required for "
                                 f"{app_id}.{skill_id}: {permission_error}"
                             )
-                            current_message_history.append({
-                                "tool_call_id": tool_call_id,
-                                "role": "tool",
-                                "name": tool_name,
-                                "content": json.dumps({
-                                    "status": "permission_required",
-                                    "reason": str(permission_error),
-                                    "app_id": app_id,
-                                    "skill_id": skill_id,
-                                }),
-                            })
-                            continue
+                            from backend.apps.ai.processing.connected_account_permission_request import (
+                                create_connected_account_permission_request,
+                            )
+
+                            request_id = await create_connected_account_permission_request(
+                                cache_service=cache_service,
+                                user_id=request_data.user_id,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id_hash=request_data.user_id_hash,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                action=connected_account_action_for_skill(app_id, skill_id),
+                                skill_arguments=skill_arguments,
+                                connected_account_directory=getattr(request_data, "connected_account_directory", None),
+                                reason=str(permission_error),
+                                task_id=task_id,
+                            )
+                            if request_id:
+                                yield {"__awaiting_connected_account_permission__": True, "request_id": request_id}
+                                return
+                            raise
 
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,

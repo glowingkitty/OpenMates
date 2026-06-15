@@ -2279,6 +2279,71 @@ class ChatCacheMixin:
             logger.error(f"Error deleting pending app settings/memories request for chat {chat_id}: {e}", exc_info=True)
             return False
 
+    # === Pending Connected-Account Permission Request Methods ===
+
+    def _get_pending_connected_account_permission_request_key(self, request_id: str) -> str:
+        """Get Redis key for a pending connected-account permission request."""
+        return f"pending_connected_account_permission_request:{request_id}"
+
+    async def store_pending_connected_account_permission_request(
+        self,
+        request_id: str,
+        context: Dict[str, Any],
+        ttl: int = 86400 * 7,
+    ) -> bool:
+        """Store minimal context for a connected-account approval continuation."""
+        client = await self.client
+        if not client:
+            logger.warning("Redis client not available, skipping connected-account permission storage for %s", request_id)
+            return False
+
+        key = self._get_pending_connected_account_permission_request_key(request_id)
+        try:
+            import json
+            await client.set(key, json.dumps(context), ex=ttl)
+            logger.info("Stored pending connected-account permission request %s with TTL %ss", request_id, ttl)
+            return True
+        except Exception as e:
+            logger.error("Error storing pending connected-account permission request %s: %s", request_id, e, exc_info=True)
+            return False
+
+    async def get_pending_connected_account_permission_request(
+        self,
+        request_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Get pending connected-account permission context by request id."""
+        client = await self.client
+        if not client:
+            return None
+
+        key = self._get_pending_connected_account_permission_request_key(request_id)
+        try:
+            import json
+            data = await client.get(key)
+            if not data:
+                return None
+            return json.loads(data.decode("utf-8") if isinstance(data, bytes) else data)
+        except Exception as e:
+            logger.error("Error getting pending connected-account permission request %s: %s", request_id, e, exc_info=True)
+            return None
+
+    async def delete_pending_connected_account_permission_request(
+        self,
+        request_id: str,
+    ) -> bool:
+        """Delete pending connected-account permission context by request id."""
+        client = await self.client
+        if not client:
+            return False
+
+        key = self._get_pending_connected_account_permission_request_key(request_id)
+        try:
+            deleted = await client.delete(key)
+            return bool(deleted)
+        except Exception as e:
+            logger.error("Error deleting pending connected-account permission request %s: %s", request_id, e, exc_info=True)
+            return False
+
     # === Pending Focus Mode Activation Methods ===
     # These methods manage the pending focus mode activation context.
     # When the AI calls activate_focus_mode, we store the context and wait

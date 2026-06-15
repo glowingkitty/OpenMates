@@ -3281,6 +3281,7 @@ async def _consume_main_processing_stream(
     # Track if we're awaiting app settings/memories permission from user
     # When this is True, we should NOT send an error message for empty stream
     awaiting_app_settings_memories_permission = False
+    awaiting_connected_account_permission = False
     # Track if we're awaiting focus mode confirmation (deferred activation)
     # Unlike app_settings, focus mode has embed content that needs to be finalized
     awaiting_focus_mode_confirmation = False
@@ -3328,6 +3329,12 @@ async def _consume_main_processing_stream(
                 awaiting_app_settings_memories_permission = True
                 request_id = chunk.get("request_id", "unknown")
                 logger.info(f"{log_prefix} Awaiting app settings/memories permission from user (request_id: {request_id}). Task will complete without response.")
+                continue
+
+            if isinstance(chunk, dict) and "__awaiting_connected_account_permission__" in chunk:
+                awaiting_connected_account_permission = True
+                request_id = chunk.get("request_id", "unknown")
+                logger.info(f"{log_prefix} Awaiting connected-account permission from user (request_id: {request_id}). Task will complete without response.")
                 continue
             
             # Check for focus mode confirmation marker
@@ -5776,6 +5783,7 @@ async def _consume_main_processing_stream(
         and not was_revoked_during_stream
         and not was_soft_limited_during_stream
         and not awaiting_app_settings_memories_permission
+        and not awaiting_connected_account_permission
         and not awaiting_focus_mode_confirmation
         and not awaiting_sub_chat_confirmation
         and not awaiting_sub_chats_completion
@@ -5852,6 +5860,10 @@ async def _consume_main_processing_stream(
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
         # Return early - no message processing needed
         # The client will receive the permission request via WebSocket and show the dialog
+        return "", False, False, [], debug_metadata
+
+    if awaiting_connected_account_permission:
+        logger.info(f"{log_prefix} Task completing without response - awaiting user permission for connected account. No final marker will be sent.")
         return "", False, False, [], debug_metadata
         
     # Handle paused execution cases: waiting for sub-chats or user input
