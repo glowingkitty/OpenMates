@@ -46,7 +46,7 @@ class FakeEncryption:
         return base64.urlsafe_b64decode(ciphertext.removeprefix(prefix)).decode()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_token_ref_stores_refresh_envelope_encrypted_without_eager_exchange() -> None:
     from backend.core.api.app.services.token_broker import TokenBrokerService
 
@@ -80,7 +80,7 @@ async def test_token_ref_stores_refresh_envelope_encrypted_without_eager_exchang
     assert "vault:vault-key" in json.dumps(stored_values)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_lazy_exchange_requires_matching_scope_and_deletes_refs() -> None:
     from backend.core.api.app.services.token_broker import TokenBrokerService
 
@@ -138,7 +138,7 @@ async def test_lazy_exchange_requires_matching_scope_and_deletes_refs() -> None:
     assert any(handle.access_token_handle in key for key in cache.deleted)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_access_token_handle_resolves_only_for_matching_scope() -> None:
     from backend.core.api.app.services.token_broker import TokenBrokerService
 
