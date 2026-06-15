@@ -15,7 +15,7 @@ import hashlib
 import os
 
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Request, Depends, Body, FastAPI, Cookie
+from fastapi import APIRouter, HTTPException, Request, Response, Depends, Body, FastAPI, Cookie
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.limiter import limiter
@@ -154,6 +154,7 @@ async def get_directus_service(request: Request) -> DirectusService:
 
 async def get_session_or_api_key_info(
     request: Request,
+    response: Response,
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
     refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),
@@ -172,6 +173,8 @@ async def get_session_or_api_key_info(
                 directus_service=directus_service,
                 cache_service=cache_service,
                 refresh_token=refresh_token,
+                response=response,
+                request=request,
             )
             # Detect CLI callers by User-Agent and generate a device_hash so
             # usage entries are trackable in the API/device usage tab.

@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.apps.ai.processing.connected_account_receipts import publish_connected_account_action_receipt
@@ -63,6 +63,7 @@ def get_encryption_service(request: Request) -> Any:
 
 async def get_current_user_lazy(
     request: Request,
+    response: Response,
     refresh_token: str | None = Cookie(None, alias="auth_refresh_token", include_in_schema=False),
 ) -> Any:
     from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
@@ -71,6 +72,8 @@ async def get_current_user_lazy(
         directus_service=request.app.state.directus_service,
         cache_service=request.app.state.cache_service,
         refresh_token=refresh_token,
+        response=response,
+        request=request,
     )
 
 

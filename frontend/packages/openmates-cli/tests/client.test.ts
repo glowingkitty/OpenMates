@@ -143,6 +143,36 @@ describe("OpenMatesClient session API URL", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  it("includes session_id when refreshing the WebSocket token", async () => {
+    let requestBody = "";
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/auth/session");
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        requestBody += chunk;
+      });
+      request.on("end", () => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await (client as unknown as { refreshWsToken(): Promise<void> }).refreshWsToken();
+
+      assert.deepEqual(JSON.parse(requestBody), { session_id: "test-session-id" });
+      const saved = JSON.parse(readFileSync(sessionPath, "utf-8"));
+      assert.strictEqual(saved.wsToken, "fresh-ws-token");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
 
 describe("memory type registry", () => {

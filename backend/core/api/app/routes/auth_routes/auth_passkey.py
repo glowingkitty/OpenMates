@@ -670,6 +670,7 @@ def verify_webauthn_signature(
 async def passkey_registration_initiate(
     request: Request,
     initiate_request: PasskeyRegistrationInitiateRequest,
+    response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
 ):
@@ -703,7 +704,9 @@ async def passkey_registration_initiate(
                     current_user = await get_current_user(
                         directus_service=directus_service,
                         cache_service=cache_service,
-                        refresh_token=refresh_token
+                        refresh_token=refresh_token,
+                        response=response,
+                        request=request,
                     )
                     actual_user_id = current_user.id
                     logger.info(f"Adding passkey to existing user: {actual_user_id}")
@@ -893,7 +896,9 @@ async def passkey_registration_complete(
                 current_user = await get_current_user(
                     directus_service=directus_service,
                     cache_service=cache_service,
-                    refresh_token=refresh_token
+                    refresh_token=refresh_token,
+                    response=response,
+                    request=request,
                 )
                 user_id = current_user.id
                 logger.info(f"Adding passkey to existing user: {user_id}")

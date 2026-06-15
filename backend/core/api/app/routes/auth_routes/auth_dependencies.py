@@ -5,10 +5,13 @@ including retrieving the currently authenticated user.
 """
 import logging
 import time
-from fastapi import Request, HTTPException, Depends, Cookie
+from fastapi import Request, Response, HTTPException, Depends, Cookie
 from typing import Optional
 
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
+from backend.core.api.app.routes.auth_routes.auth_common import preserve_rotated_session_metadata
+from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
+from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
 # Import services and models needed by get_current_user
 from backend.core.api.app.services.directus import DirectusService
@@ -53,7 +56,9 @@ def get_secrets_manager(request: Request):
 async def get_current_user(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False)  # Hidden from API docs - internal use only
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),  # Hidden from API docs - internal use only
+    response: Response = None,
+    request: Request = None,
 ) -> User:
     """
     Retrieves the current authenticated user based on the refresh token cookie.
@@ -64,6 +69,8 @@ async def get_current_user(
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Not authenticated: Missing token")
     
+    cache_ttl: Optional[int] = None
+
     # Check cache first using the enhanced cache service method
     cached_data = await cache_service.get_user_by_token(refresh_token)
 
@@ -161,9 +168,32 @@ async def get_current_user(
     # Rebuild the cache so subsequent requests don't need another refresh
     if "user_id" not in user_data and "id" in user_data:
         user_data["user_id"] = user_data["id"]
+    new_refresh_token = extract_directus_refresh_token(cookies) or refresh_token
     user_data["token_expiry"] = int(time.time()) + ACCESS_TOKEN_TTL_SECONDS
-    new_refresh_token = cookies.get("directus_refresh_token") or refresh_token
-    await cache_service.set_user(user_data, refresh_token=new_refresh_token, ttl=cache_service.SESSION_TTL)
+    _, cache_ttl = await preserve_rotated_session_metadata(
+        cache_service,
+        user_id=user_id,
+        old_refresh_token=refresh_token,
+        new_refresh_token=new_refresh_token,
+        user_data=user_data,
+    )
+    if response is not None and new_refresh_token != refresh_token:
+        cookie_params = {
+            "key": "auth_refresh_token",
+            "value": new_refresh_token,
+            "httponly": True,
+            "secure": True,
+            "samesite": "lax",
+            "max_age": cache_ttl,
+            "path": "/",
+        }
+        if request is not None:
+            cookie_domain = get_cookie_domain(request)
+            if cookie_domain:
+                cookie_params["domain"] = cookie_domain
+        response.set_cookie(**cookie_params)
+
+    refresh_token = new_refresh_token
     logger.info(f"Cache rebuilt for user {user_id[:6]}... via get_current_user fallback")
 
     # CRITICAL: Validate required fields before creating User object - fail fast if missing
@@ -266,11 +296,15 @@ async def get_current_user(
         "auto_topup_low_balance_currency": user.auto_topup_low_balance_currency,
         "encrypted_auto_topup_last_triggered": user.encrypted_auto_topup_last_triggered
     }
+    if user_data.get("stay_logged_in") is not None:
+        user_data_for_cache["stay_logged_in"] = bool(user_data.get("stay_logged_in"))
+    if user_data.get("token_expiry") is not None:
+        user_data_for_cache["token_expiry"] = user_data.get("token_expiry")
     # Remove gifted_credits_for_signup if it's None before caching
     if not user_data_for_cache.get("gifted_credits_for_signup"):
         user_data_for_cache.pop("gifted_credits_for_signup", None)
 
-    await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token)
+    await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token, ttl=cache_ttl)
     
     return user
 
@@ -278,14 +312,16 @@ async def get_current_user(
 async def get_current_user_optional(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False)
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),
+    response: Response = None,
+    request: Request = None,
 ) -> Optional[User]:
     """
     Optional variant of get_current_user.
     Returns None when no valid session is present instead of raising 401.
     """
     try:
-        return await get_current_user(directus_service, cache_service, refresh_token)
+        return await get_current_user(directus_service, cache_service, refresh_token, response, request)
     except HTTPException as e:
         if e.status_code == 401:
             return None
@@ -294,6 +330,7 @@ async def get_current_user_optional(
 
 async def get_current_user_or_api_key(
     request: Request,
+    response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False)  # Hidden from API docs - internal use only
@@ -316,7 +353,9 @@ async def get_current_user_or_api_key(
             return await get_current_user(
                 directus_service=directus_service,
                 cache_service=cache_service,
-                refresh_token=refresh_token
+                refresh_token=refresh_token,
+                response=response,
+                request=request,
             )
         except HTTPException:
             # Session auth failed, try API key auth

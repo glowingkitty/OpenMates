@@ -22,10 +22,12 @@
 
 import pytest
 import sys
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+from fastapi import Response
 from starlette.datastructures import Headers
 
 # Add project root to Python path for imports (schemas use 'backend.core...' paths)
@@ -530,6 +532,126 @@ class TestCacheMissFallback:
 
         # Should have attempted Directus fallback
         mock_directus_service.refresh_token.assert_called_once_with("valid-refresh-token")
+
+    @pytest.mark.anyio
+    @pytest.mark.integration
+    async def test_verify_authenticated_user_preserves_stay_logged_in_on_rotated_fallback(self):
+        """Cache-miss fallback must not downgrade stay_logged_in sessions to 24h."""
+        from core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
+
+        old_token = "valid-refresh-token"
+        new_token = "new-refresh-token"
+        old_hash = hashlib.sha256(old_token.encode()).hexdigest()
+        new_hash = hashlib.sha256(new_token.encode()).hexdigest()
+
+        cache_service = AsyncMock()
+        cache_service.SESSION_TTL = 86400
+        cache_service.SESSION_KEY_PREFIX = "session:"
+        cache_service.get_user_by_token = AsyncMock(return_value=None)
+        cache_service.get = AsyncMock(return_value={
+            old_hash: {"created_at": 1710000000, "stay_logged_in": True}
+        })
+        cache_service.set = AsyncMock(return_value=True)
+        cache_service.set_user = AsyncMock(return_value=True)
+
+        directus_service = AsyncMock()
+        directus_service.refresh_token = AsyncMock(return_value=(
+            True,
+            {
+                "cookies": {"directus_refresh_token": new_token},
+                "data": {"access_token": "new-access-token"},
+            },
+            "Token refreshed",
+        ))
+        directus_service.validate_token = AsyncMock(return_value=(True, {"id": "test-user-id"}))
+        directus_service.get_user_profile = AsyncMock(return_value=(
+            True,
+            {"id": "test-user-id", "username": "testuser", "vault_key_id": "vault-key"},
+            "ok",
+        ))
+
+        mock_request = MagicMock()
+        mock_request.cookies = {"auth_refresh_token": old_token}
+        mock_request.headers = MagicMock()
+        mock_request.headers.get = MagicMock(return_value="Mozilla/5.0")
+        mock_request.client = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+
+        success, user_data, refresh_token, auth_status = await verify_authenticated_user(
+            request=mock_request,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            require_known_device=False,
+        )
+
+        assert success is True
+        assert auth_status is None
+        assert refresh_token == new_token
+        assert user_data["stay_logged_in"] is True
+        cache_service.set_user.assert_awaited_once()
+        assert cache_service.set_user.await_args.kwargs["ttl"] == 2592000
+
+        cache_service.set.assert_awaited_once()
+        token_map = cache_service.set.await_args.args[1]
+        assert old_hash not in token_map
+        assert token_map[new_hash]["stay_logged_in"] is True
+        assert cache_service.set.await_args.kwargs["ttl"] == 2592000 * 7
+
+    @pytest.mark.anyio
+    @pytest.mark.integration
+    async def test_get_current_user_sets_rotated_cookie_on_cache_miss_fallback(self):
+        """get_current_user fallback rotates Directus tokens and must update the browser cookie."""
+        from core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+
+        old_token = "valid-refresh-token"
+        new_token = "new-refresh-token"
+        old_hash = hashlib.sha256(old_token.encode()).hexdigest()
+
+        cache_service = AsyncMock()
+        cache_service.SESSION_TTL = 86400
+        cache_service.SESSION_KEY_PREFIX = "session:"
+        cache_service.get_user_by_token = AsyncMock(return_value=None)
+        cache_service.get = AsyncMock(return_value={
+            old_hash: {"created_at": 1710000000, "stay_logged_in": True}
+        })
+        cache_service.set = AsyncMock(return_value=True)
+        cache_service.set_user = AsyncMock(return_value=True)
+
+        directus_service = AsyncMock()
+        directus_service.refresh_token = AsyncMock(return_value=(
+            True,
+            {
+                "cookies": {"directus_refresh_token": new_token},
+                "data": {"access_token": "new-access-token"},
+            },
+            "Token refreshed",
+        ))
+        directus_service.validate_token = AsyncMock(return_value=(True, {"id": "test-user-id"}))
+        directus_service.get_user_profile = AsyncMock(return_value=(
+            True,
+            {"id": "test-user-id", "username": "testuser", "vault_key_id": "vault-key"},
+            "ok",
+        ))
+        response = Response()
+
+        user = await get_current_user(
+            directus_service=directus_service,
+            cache_service=cache_service,
+            refresh_token=old_token,
+            response=response,
+        )
+
+        assert user.id == "test-user-id"
+        cache_service.set_user.assert_awaited_once()
+        assert cache_service.set_user.await_args.kwargs["refresh_token"] == new_token
+        assert cache_service.set_user.await_args.kwargs["ttl"] == 2592000
+        set_cookie_headers = [
+            value.decode()
+            for key, value in response.raw_headers
+            if key == b"set-cookie"
+        ]
+        assert any("auth_refresh_token=new-refresh-token" in header for header in set_cookie_headers)
+        assert any("Max-Age=2592000" in header for header in set_cookie_headers)
 
     @pytest.mark.anyio
     @pytest.mark.integration

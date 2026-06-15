@@ -4834,7 +4834,7 @@ export class OpenMatesClient {
       const res = await this.http.post<{
         success?: boolean;
         ws_token?: string;
-      }>("/v1/auth/session", {}, this.getCliRequestHeaders());
+      }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
       if (res.ok && res.data.ws_token) {
         session.wsToken = res.data.ws_token;
       }

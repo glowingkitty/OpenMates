@@ -1,14 +1,68 @@
 from fastapi import Request, HTTPException, status
 import logging
 import time
+import hashlib
 from typing import Tuple, Dict, Any, Optional
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
+from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
 logger = logging.getLogger(__name__)
+
+EXTENDED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
+
+
+async def preserve_rotated_session_metadata(
+    cache_service: CacheService,
+    *,
+    user_id: str,
+    old_refresh_token: str,
+    new_refresh_token: str,
+    user_data: Dict[str, Any],
+) -> Tuple[bool, int]:
+    """Preserve session metadata when Directus rotates a refresh token."""
+    stay_logged_in = bool(user_data.get("stay_logged_in", False))
+    user_tokens_key = f"user_tokens:{user_id}"
+    current_tokens = await cache_service.get(user_tokens_key) or {}
+    metadata_changed = False
+
+    if not isinstance(current_tokens, dict):
+        current_tokens = {}
+
+    old_token_hash = hashlib.sha256(old_refresh_token.encode()).hexdigest()
+    new_token_hash = hashlib.sha256(new_refresh_token.encode()).hexdigest()
+    old_metadata = current_tokens.get(old_token_hash)
+    new_metadata = current_tokens.get(new_token_hash)
+
+    if isinstance(old_metadata, dict):
+        stay_logged_in = bool(old_metadata.get("stay_logged_in", stay_logged_in))
+        current_tokens[new_token_hash] = {
+            **old_metadata,
+            "stay_logged_in": stay_logged_in,
+        }
+        if old_token_hash != new_token_hash:
+            current_tokens.pop(old_token_hash, None)
+        metadata_changed = True
+    elif isinstance(new_metadata, dict):
+        stay_logged_in = bool(new_metadata.get("stay_logged_in", stay_logged_in))
+        if new_metadata.get("stay_logged_in") != stay_logged_in:
+            current_tokens[new_token_hash] = {
+                **new_metadata,
+                "stay_logged_in": stay_logged_in,
+            }
+            metadata_changed = True
+
+    user_data["stay_logged_in"] = stay_logged_in
+    cache_ttl = EXTENDED_SESSION_TTL_SECONDS if stay_logged_in else cache_service.SESSION_TTL
+
+    if metadata_changed:
+        token_list_ttl = cache_ttl * 7 if stay_logged_in else cache_service.SESSION_TTL * 7
+        await cache_service.set(user_tokens_key, current_tokens, ttl=token_list_ttl)
+
+    return stay_logged_in, cache_ttl
 
 async def verify_authenticated_user(
     request: Request,
@@ -68,7 +122,7 @@ async def verify_authenticated_user(
             cookies = auth_data.get("cookies", {})
             
             # Extract the new refresh token issued by Directus
-            new_refresh_token = cookies.get("directus_refresh_token")
+            new_refresh_token = extract_directus_refresh_token(cookies)
             if new_refresh_token:
                 logger.info("Fallback: extracted new refresh token from Directus rotation")
             else:
@@ -120,11 +174,15 @@ async def verify_authenticated_user(
             elif "id" in user_profile:
                 user_profile["user_id"] = user_profile["id"]
             
-            # Rebuild cache with default TTL (24 hours) since we can't determine stay_logged_in preference
-            # The session endpoint will update this with the correct TTL if stay_logged_in is known
-            cache_ttl = cache_service.SESSION_TTL  # Default to 24 hours
             # Set token_expiry so the /session endpoint knows when to trigger the next refresh.
             user_profile["token_expiry"] = int(time.time()) + ACCESS_TOKEN_TTL_SECONDS
+            _, cache_ttl = await preserve_rotated_session_metadata(
+                cache_service,
+                user_id=user_id,
+                old_refresh_token=refresh_token,
+                new_refresh_token=new_refresh_token,
+                user_data=user_profile,
+            )
             # CRITICAL: Cache with the NEW refresh token, not the old one that Directus just invalidated.
             # The old token from the cookie is dead after rotation.
             cache_success = await cache_service.set_user(user_profile, refresh_token=new_refresh_token, ttl=cache_ttl)
