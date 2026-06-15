@@ -12,6 +12,7 @@ vi.mock('../cryptoService', () => ({
 	encryptWithMasterKey: vi.fn(async (value: string) => `enc:${value.length}:${value.charCodeAt(0)}`)
 }));
 
+import { encryptWithMasterKey } from '../cryptoService';
 import {
 	buildEncryptedConnectedAccountRow,
 	claimOAuthHandoff,
@@ -92,6 +93,12 @@ describe('connectedAccountOAuthService', () => {
 		});
 		expect(row.encrypted_provider_type.startsWith('enc:')).toBe(true);
 		expect(row.encrypted_account_label.startsWith('enc:')).toBe(true);
+		expect(vi.mocked(encryptWithMasterKey)).toHaveBeenCalledWith(
+			expect.stringContaining('"allowed_actions":["read","write","update"]')
+		);
+		expect(vi.mocked(encryptWithMasterKey)).toHaveBeenCalledWith(
+			expect.stringContaining('"update":"ask_each_time"')
+		);
 		expect(JSON.stringify(row)).not.toContain('"refresh_token"');
 		expect(JSON.stringify(row)).not.toContain('secret-refresh');
 		expect(JSON.stringify(row)).not.toContain('"scopes"');

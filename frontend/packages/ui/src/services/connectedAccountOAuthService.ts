@@ -151,7 +151,10 @@ function actionsForCapabilities(capabilities: string[]): string[] {
 	const actions = new Set<string>();
 	for (const capability of capabilities) {
 		if (capability === 'read') actions.add('read');
-		if (capability === 'write') actions.add('write');
+		if (capability === 'write') {
+			actions.add('write');
+			actions.add('update');
+		}
 		if (capability === 'delete') actions.add('delete');
 	}
 	return Array.from(actions);
