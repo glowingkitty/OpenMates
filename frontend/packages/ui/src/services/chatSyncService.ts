@@ -64,6 +64,7 @@ import { flushPendingEmbedOperations } from "./embedSenders";
 import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
 import type { ConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
+import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
@@ -1719,10 +1720,11 @@ export class ChatSynchronizationService extends EventTarget {
     encryptedSuggestionToDelete?: string | null,
     connectedAccountContext?: ConnectedAccountSendContext,
   ): Promise<void> {
+    const context = connectedAccountContext ?? await this.buildDefaultConnectedAccountSendContext();
     const preparedConnectedAccountContext = await prepareConnectedAccountSendContext({
       chatId: message.chat_id,
       messageId: message.message_id,
-      context: connectedAccountContext,
+      context,
     });
     await senders.sendNewMessageImpl(
       this,
@@ -1730,6 +1732,12 @@ export class ChatSynchronizationService extends EventTarget {
       encryptedSuggestionToDelete,
       preparedConnectedAccountContext,
     );
+  }
+
+  private async buildDefaultConnectedAccountSendContext(): Promise<ConnectedAccountSendContext | undefined> {
+    if (!get(authStore).isAuthenticated) return undefined;
+    const rows = await listConnectedAccounts();
+    return buildConnectedAccountSendContext({ rows, appId: "calendar" });
   }
   public async sendCompletedAIResponse(aiMessage: Message): Promise<void> {
     await senders.sendCompletedAIResponseImpl(this, aiMessage);

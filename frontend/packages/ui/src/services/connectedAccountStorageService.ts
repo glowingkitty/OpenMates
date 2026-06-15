@@ -151,7 +151,7 @@ export async function buildConnectedAccountSendContext(params: {
 
 	for (const row of rows) {
 		assertNoPlaintextConnectedAccountFields(row);
-		const [label, capabilities, permissions, refreshTokenEnvelope, directoryHint] = await Promise.all([
+		const [label, capabilities, permissions, directoryHint] = await Promise.all([
 			decryptConnectedAccountValue<string>(row.encrypted_account_label, 'encrypted_account_label'),
 			decryptConnectedAccountValue<string[] | { capabilities?: string[] }>(
 				row.encrypted_capabilities,
@@ -160,10 +160,6 @@ export async function buildConnectedAccountSendContext(params: {
 			decryptConnectedAccountValue<ConnectedAccountPermissionsEnvelope>(
 				row.encrypted_app_permissions,
 				'encrypted_app_permissions'
-			),
-			decryptConnectedAccountValue<Record<string, unknown>>(
-				row.encrypted_refresh_token_bundle,
-				'encrypted_refresh_token_bundle'
 			),
 			row.encrypted_account_directory_hint
 				? decryptConnectedAccountValue<ConnectedAccountDirectoryHint>(
@@ -176,7 +172,11 @@ export async function buildConnectedAccountSendContext(params: {
 		const capabilityList = Array.isArray(capabilities)
 			? capabilities
 			: capabilities.capabilities ?? [];
-		const allowedActions = params.allowedActionsOverride ?? permissions.allowed_actions ?? params.defaultAllowedActions ?? [];
+		const allowedActions = params.allowedActionsOverride
+			?? preauthorizedActions(
+				permissions.allowed_actions ?? params.defaultAllowedActions ?? [],
+				directoryHint?.runtime_modes
+			);
 		const actionScope = params.includeActionScope === false ? undefined : permissions.action_scope;
 		directory.push({
 			connected_account_id: row.id,
@@ -186,17 +186,34 @@ export async function buildConnectedAccountSendContext(params: {
 			capabilities: directoryHint?.capabilities ?? capabilityList,
 			runtime_modes: directoryHint?.runtime_modes
 		});
-		tokenRefInputs.push({
-			connected_account_id: row.id,
-			app_id: permissions.app_id ?? params.appId,
-			allowed_actions: allowedActions,
-			refresh_token_envelope: refreshTokenEnvelope,
-			...(actionScope ? { action_scope: actionScope } : {})
-		});
+		if (allowedActions.length > 0) {
+			const refreshTokenEnvelope = await decryptConnectedAccountValue<Record<string, unknown>>(
+				row.encrypted_refresh_token_bundle,
+				'encrypted_refresh_token_bundle'
+			);
+			tokenRefInputs.push({
+				connected_account_id: row.id,
+				app_id: permissions.app_id ?? params.appId,
+				allowed_actions: allowedActions,
+				refresh_token_envelope: refreshTokenEnvelope,
+				...(actionScope ? { action_scope: actionScope } : {})
+			});
+		}
 	}
 
 	assertNoConnectedAccountSecretLeak(directory);
 	return { directory, tokenRefInputs };
+}
+
+function preauthorizedActions(
+	actions: string[],
+	runtimeModes?: Record<string, string>
+): string[] {
+	if (!runtimeModes) return [];
+	return actions.filter((action) => {
+		const mode = runtimeModes[action];
+		return mode === 'allow_automatically' || mode === 'auto_decide';
+	});
 }
 
 export function assertNoPlaintextConnectedAccountFields(value: unknown): void {

@@ -12,6 +12,8 @@ vi.mock('../cryptoService', () => ({
 	decryptWithMasterKey: vi.fn(async (value: string) => value.replace(/^enc:/, ''))
 }));
 
+import { decryptWithMasterKey } from '../cryptoService';
+
 import {
 	buildConnectedAccountSendContext,
 	createConnectedAccount,
@@ -139,6 +141,60 @@ describe('connectedAccountStorageService', () => {
 			refresh_token_envelope: { refresh_token: 'secret-refresh', provider: 'google' },
 			action_scope: { calendar_id: 'primary' }
 		});
+	});
+
+	it('pre-submits token refs only for auto runtime modes during normal sends', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:["read","write","delete"]',
+					encrypted_app_permissions:
+						'enc:{"app_id":"calendar","allowed_actions":["read","write","update","delete"]}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}',
+					encrypted_account_directory_hint:
+						'enc:{"account_ref":"calendar-work","label":"Work","capabilities":["read","write","delete"],"runtime_modes":{"read":"allow_automatically","write":"always_ask","update":"always_ask","delete":"always_ask"}}'
+				}
+			]
+		});
+
+		expect(context?.directory?.[0].runtime_modes).toEqual({
+			read: 'allow_automatically',
+			write: 'always_ask',
+			update: 'always_ask',
+			delete: 'always_ask'
+		});
+		expect(context?.tokenRefInputs).toHaveLength(1);
+		expect(context?.tokenRefInputs?.[0].allowed_actions).toEqual(['read']);
+		expect(JSON.stringify(context?.tokenRefInputs)).not.toContain('always_ask');
+	});
+
+	it('does not decrypt refresh token envelopes when every action is always ask', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:["write","delete"]',
+					encrypted_app_permissions:
+						'enc:{"app_id":"calendar","allowed_actions":["write","update","delete"]}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}',
+					encrypted_account_directory_hint:
+						'enc:{"account_ref":"calendar-work","label":"Work","capabilities":["write","delete"],"runtime_modes":{"write":"always_ask","update":"always_ask","delete":"always_ask"}}'
+				}
+			]
+		});
+
+		expect(context?.directory).toHaveLength(1);
+		expect(context?.tokenRefInputs).toEqual([]);
+		expect(vi.mocked(decryptWithMasterKey)).not.toHaveBeenCalledWith(
+			'enc:{"refresh_token":"secret-refresh","provider":"google"}'
+		);
 	});
 
 	it('narrows broker token refs to an approved action override', async () => {
