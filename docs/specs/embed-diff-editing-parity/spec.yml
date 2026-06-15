@@ -344,9 +344,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: docker-pytest-2026-06-15-1828
+        timestamp: "2026-06-15T18:28:00+00:00"
 
   - id: T-PYTEST-DIFF-CONTRACT
     type: pytest
@@ -451,9 +451,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: docker-pytest-2026-06-15-1828
+        timestamp: "2026-06-15T18:28:00+00:00"
 
   - id: T-VITEST-WEB-TIMELINE
     type: vitest
@@ -568,9 +568,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: gha-27566713218
+        timestamp: "2026-06-15T18:19:21+00:00"
 
   - id: T-APPLE-UNIT
     type: unit
@@ -595,9 +595,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked_remote_checkout_stale_dirty
+        run_id: remote-macos-peer-head-4af7e6beb-missing-ed8f7248e-tests
+        timestamp: "2026-06-15T18:25:00+00:00"
 
   - id: T-APPLE-E2E
     type: manual
@@ -622,9 +622,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked_remote_checkout_stale_dirty
+        run_id: remote-macos-peer-head-4af7e6beb-dirty-apple-tree
+        timestamp: "2026-06-15T18:25:00+00:00"
 
 implementation_plan:
   existing_patterns:
