@@ -25,6 +25,7 @@ LLM_PROVIDER_FILES = [
     "google.yml",
     "mistral.yml",
     "deepseek.yml",
+    "moonshot.yml",
     "alibaba.yml",
     "zai.yml",
 ]

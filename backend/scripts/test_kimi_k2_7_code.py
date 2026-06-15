@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # backend/scripts/test_kimi_k2_7_code.py
 #
-# Live quality smoke test for Moonshot Kimi K2.7 Code via OpenRouter.
-# Invokes the configured OpenRouter model on three coding tasks, extracts the
+# Live quality smoke test for Moonshot Kimi K2.7 Code via Together AI.
+# Invokes the configured Together AI model on three coding tasks, extracts the
 # returned Python code, performs a small AST safety check, and runs deterministic
 # correctness cases against the generated implementations.
 
@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-MODEL_ID = "moonshot/kimi-k2.7-code"
+MODEL_ID = "moonshotai/Kimi-K2.7-Code"
 MAX_TOKENS = 1800
 TEMPERATURE = 0
 
@@ -170,7 +170,7 @@ SMOKE_TASKS = [
 
 
 async def _run_smoke_tests() -> int:
-    from backend.apps.ai.llm_providers.openai_openrouter import invoke_openrouter_chat_completions
+    from backend.apps.ai.llm_providers.together_wrapper import invoke_together_chat_completions
     from backend.core.api.app.utils.secrets_manager import SecretsManager
 
     secrets_manager = SecretsManager()
@@ -182,7 +182,7 @@ async def _run_smoke_tests() -> int:
 
     failures = 0
     for task in SMOKE_TASKS:
-        response = await invoke_openrouter_chat_completions(
+        response = await invoke_together_chat_completions(
             task_id=f"test_kimi_k2_7_code_{task.name}",
             model_id=MODEL_ID,
             messages=[{"role": "user", "content": task.prompt}],
