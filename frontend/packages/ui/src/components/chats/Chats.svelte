@@ -3843,7 +3843,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		{:else}
 			<!-- Hidden chats section (shown when unlocked) - reusing overscroll-unlock-container styling -->
 			{#if hiddenChatState.isUnlocked}
-				<div class="overscroll-unlock-container">
+				<div class="overscroll-unlock-container" data-testid="hidden-chats-section">
 					<div class="overscroll-unlock-content">
 						<p class="overscroll-unlock-label">
 							<span class="clickable-icon icon_hidden"></span>
@@ -3855,29 +3855,30 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									{#if groupItems.length > 0}
 										<div class="chat-group">
 											<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
-											{#each groupItems as chat (chat.chat_id)}
-												<div
-													role="button"
-													tabindex="0"
-													class="chat-item hidden-chat-item"
-													class:active={selectedChatId === chat.chat_id}
-													onclick={(event) => {
-														handleChatItemClick(chat, event);
-														hiddenChatStore.recordActivity();
-													}}
-													onkeydown={(e) => {
-														if (e.key === 'Enter' || e.key === ' ') {
-															e.preventDefault();
-															// Create a synthetic mouse event for keyboard navigation
-															const syntheticEvent = new MouseEvent('click', {
-																bubbles: true,
-																cancelable: true
-															});
-															handleChatItemClick(chat, syntheticEvent);
-															hiddenChatStore.recordActivity();
-														}
-													}}
-												>
+									{#each groupItems as chat (chat.chat_id)}
+										<div
+											role="button"
+											tabindex="0"
+											data-testid="hidden-chat-item"
+											class="chat-item hidden-chat-item"
+											class:active={selectedChatId === chat.chat_id}
+											onclick={(event) => {
+												handleChatItemClick(chat, event);
+												hiddenChatStore.recordActivity();
+											}}
+											onkeydown={(e) => {
+												if (e.key === 'Enter' || e.key === ' ') {
+													e.preventDefault();
+													// Create a synthetic mouse event for keyboard navigation
+													const syntheticEvent = new MouseEvent('click', {
+														bubbles: true,
+														cancelable: true
+													});
+													handleChatItemClick(chat, syntheticEvent);
+													hiddenChatStore.recordActivity();
+												}
+											}}
+										>
 													<ChatComponent
 														{chat}
 														activeChatId={selectedChatId}

@@ -530,6 +530,9 @@ test('hides second chat directly without inline form when vault is already unloc
 	// Step 3: Try to hide the second chat — since vault is unlocked in memory,
 	// it should hide DIRECTLY without showing the inline unlock form
 	await openContextMenuForActiveChat(page);
+	const secondActiveChatId = await page
+		.locator('[data-testid="chat-item-wrapper"].active')
+		.getAttribute('data-chat-id');
 	const hideButton2 = page.getByTestId('chat-context-hide');
 	await expect(hideButton2).toBeVisible({ timeout: 5000 });
 
@@ -560,13 +563,18 @@ test('hides second chat directly without inline form when vault is already unloc
 		await screenshot(page, 'second-chat-hidden-via-form');
 		log('Second chat hidden (required form re-entry).');
 	} else {
-		// No form — the chat should disappear immediately (vault was already unlocked)
-		const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
-		await expect(async () => {
-			const stillVisible = await activeChatItem.isVisible();
-			expect(stillVisible).toBe(false);
-		}).toPass({ timeout: 15000 });
-		log('Second chat hidden directly without inline form — vault was already unlocked.');
+		// No form — vault was already unlocked, so the hidden chat remains visible
+		// in the unlocked hidden chats section rather than disappearing from the UI.
+		const hiddenSection = page.getByTestId('hidden-chats-section');
+		await expect(hiddenSection).toBeVisible({ timeout: 15000 });
+		if (secondActiveChatId) {
+			await expect(
+				hiddenSection.locator(
+					`[data-testid="chat-item-wrapper"][data-chat-id="${secondActiveChatId}"]`
+				)
+			).toBeVisible({ timeout: 15000 });
+		}
+		log('Second chat hidden directly into the unlocked hidden chats section.');
 	}
 
 	await screenshot(page, 'test-done');
