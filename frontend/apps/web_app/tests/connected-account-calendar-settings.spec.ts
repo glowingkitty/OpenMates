@@ -25,6 +25,33 @@ test.describe('Calendar connected-account settings', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	test('shows a safe error when connected accounts cannot be loaded', async ({ page }: { page: any }) => {
+		const logCheckpoint = createSignupLogger('CONNECTED_ACCOUNT_CALENDAR_SETTINGS_LOAD_FAILURE');
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+			filenamePrefix: 'connected-account-calendar-settings-load-failure',
+		});
+
+		await archiveExistingScreenshots(logCheckpoint);
+		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+		await page.route('**/v1/connected-accounts', async (route: any) => {
+			if (route.request().method() === 'GET') {
+				await route.abort('failed');
+				return;
+			}
+			await route.continue();
+		});
+
+		await page.goto(getE2EDebugUrl('/#settings/apps/calendar'), { waitUntil: 'domcontentloaded' });
+		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="apps/calendar"]');
+		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+
+		const accountSection = settingsMenu.getByTestId('calendar-connected-accounts-section');
+		await expect(accountSection).toBeVisible({ timeout: 15000 });
+		await expect(accountSection).toContainText('Could not load connected accounts.', { timeout: 15000 });
+		await expect(accountSection).not.toContainText(/Load failed|Failed to fetch|TypeError/i);
+		await takeStepScreenshot(page, 'connected-account-load-failure-safe-error');
+	});
+
 	test('connects Google Calendar through settings using encrypted OAuth handoff storage', async ({ page }: { page: any }) => {
 		const logCheckpoint = createSignupLogger('CONNECTED_ACCOUNT_CALENDAR_SETTINGS');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {

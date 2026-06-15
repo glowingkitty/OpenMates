@@ -217,9 +217,8 @@
             const rows = await listConnectedAccounts();
             connectedCalendarAccounts = rows.filter((row) => row.provider_type_hash === providerHash);
         } catch (error) {
-            connectedAccountError = error instanceof Error
-                ? error.message
-                : $text('settings.app_store.connected_accounts.load_error');
+            console.warn('[AppDetails] Failed to load Calendar connected accounts:', error);
+            connectedAccountError = $text('settings.app_store.connected_accounts.load_error');
         } finally {
             connectedAccountsLoading = false;
         }
@@ -244,9 +243,8 @@
             connectedAccountSuccess = $text('settings.app_store.connected_accounts.connected_success');
             removeOAuthHandoffQueryParam();
         } catch (error) {
-            connectedAccountError = error instanceof Error
-                ? error.message
-                : $text('settings.app_store.connected_accounts.finalize_error');
+            console.warn('[AppDetails] Failed to finalize Calendar OAuth handoff:', error);
+            connectedAccountError = $text('settings.app_store.connected_accounts.finalize_error');
         } finally {
             connectedAccountAction = 'idle';
         }
@@ -275,10 +273,9 @@
             });
             window.location.assign(result.authorization_url);
         } catch (error) {
+            console.warn('[AppDetails] Failed to start Google Calendar OAuth:', error);
             connectedAccountAction = 'idle';
-            connectedAccountError = error instanceof Error
-                ? error.message
-                : $text('settings.app_store.connected_accounts.start_error');
+            connectedAccountError = $text('settings.app_store.connected_accounts.start_error');
         }
     }
 </script>
