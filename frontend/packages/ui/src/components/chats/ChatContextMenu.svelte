@@ -60,6 +60,8 @@
     let showBelow = $state(false); // Track whether menu should appear below clicked point
     let deleteConfirmMode = $state(false);
     let deleteConfirmTimeout: number | undefined;
+    let openedAt = 0;
+    const OPENING_EVENT_SETTLE_MS = 150;
     
     // Check if the current chat is selected
     let isChatSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
@@ -250,6 +252,8 @@
     // Don't allow closing while a download is in progress
     function handleClickOutside(event: MouseEvent | TouchEvent) {
         if (downloading) return;
+        if (Date.now() - openedAt < OPENING_EVENT_SETTLE_MS) return;
+        if (event instanceof MouseEvent && event.button !== 0) return;
         if (menuElement && !menuElement.contains(event.target as Node)) {
             dispatch('close', 'close');
         }
@@ -352,6 +356,7 @@
 
     // Add scroll handler - don't close while downloading
     function handleScroll() {
+        if (Date.now() - openedAt < OPENING_EVENT_SETTLE_MS) return;
         if (show && !downloading) {
             dispatch('close', 'close');
         }
@@ -359,6 +364,7 @@
 
     // Add and remove event listeners
     onMount(() => {
+        openedAt = Date.now();
         const outsideListenerTimer = window.setTimeout(() => {
             document.addEventListener('mousedown', handleClickOutside);
             document.addEventListener('touchstart', handleClickOutside);
