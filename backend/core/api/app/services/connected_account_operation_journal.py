@@ -29,6 +29,7 @@ class ConnectedAccountJournalEntry:
     """Validated connected-account operation journal entry."""
 
     id: str
+    action_id: str
     hashed_user_id: str
     connected_account_id_hash: str
     app_id_hash: str
@@ -56,6 +57,7 @@ class ConnectedAccountOperationJournalService:
         app_id: str,
         action: str,
         decision: str,
+        action_id: str | None = None,
         action_scope: dict[str, Any] | None = None,
         receipt: dict[str, Any] | None = None,
         undo_payload: dict[str, Any] | None = None,
@@ -72,8 +74,10 @@ class ConnectedAccountOperationJournalService:
         encrypted_action_scope = await self._encrypt_optional(action_scope, user_vault_key_id)
         encrypted_receipt = await self._encrypt_optional(receipt, user_vault_key_id)
         encrypted_undo_payload = await self._encrypt_optional(undo_payload, user_vault_key_id)
+        entry_id = str(uuid.uuid4())
         entry = {
-            "id": str(uuid.uuid4()),
+            "id": entry_id,
+            "action_id": action_id or entry_id,
             "hashed_user_id": _sha256(user_id),
             "connected_account_id_hash": _sha256(connected_account_id),
             "chat_id_hash": _sha256(chat_id) if chat_id else None,
@@ -100,6 +104,59 @@ class ConnectedAccountOperationJournalService:
                 raise RuntimeError("failed to persist connected-account operation journal entry")
             return payload or entry
         return result or entry
+
+    async def load_owned_action(
+        self,
+        *,
+        directus_service: Any,
+        user_id: str,
+        action_id: str,
+    ) -> dict[str, Any] | None:
+        """Load a journal entry by opaque action id and user hash."""
+
+        rows = await directus_service.get_items(
+            "connected_account_operation_journal",
+            params={
+                "filter[action_id][_eq]": action_id,
+                "filter[hashed_user_id][_eq]": _sha256(user_id),
+                "limit": 1,
+            },
+        )
+        return rows[0] if rows else None
+
+    async def decrypt_undo_payload(self, *, entry: dict[str, Any], user_vault_key_id: str) -> dict[str, Any]:
+        encrypted = entry.get("encrypted_undo_payload")
+        if not encrypted:
+            return {}
+        plaintext = await self.encryption.decrypt_with_user_key(str(encrypted), user_vault_key_id)
+        payload = json.loads(plaintext)
+        return payload if isinstance(payload, dict) else {}
+
+    async def mark_undone(
+        self,
+        *,
+        directus_service: Any,
+        entry: dict[str, Any],
+        receipt: dict[str, Any],
+        user_vault_key_id: str,
+    ) -> dict[str, Any]:
+        """Mark an operation as undone with an encrypted undo receipt."""
+
+        _reject_forbidden_fields({"receipt": receipt})
+        encrypted_receipt = await self._encrypt_optional(receipt, user_vault_key_id)
+        payload = {
+            "decision": "undo_success",
+            "encrypted_receipt": encrypted_receipt,
+            "undone_at": int(time.time()),
+        }
+        updated = await directus_service.update_item(
+            "connected_account_operation_journal",
+            str(entry["id"]),
+            payload,
+        )
+        if not updated:
+            raise RuntimeError("failed to mark connected-account operation as undone")
+        return updated
 
     async def _encrypt_optional(self, value: dict[str, Any] | None, key_id: str) -> str | None:
         if not value:

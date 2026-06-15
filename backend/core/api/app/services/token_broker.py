@@ -207,6 +207,18 @@ class TokenBrokerService:
         if access_token_handle:
             await self.cache.delete(self._access_token_key(access_token_handle))
 
+    async def get_turn_token_ref_metadata(self, *, turn_token_ref: str) -> dict[str, Any] | None:
+        """Return non-secret metadata for a turn-token ref."""
+
+        payload = await self.cache.get(self._turn_token_key(turn_token_ref))
+        if not payload:
+            return None
+        return {
+            key: value
+            for key, value in payload.items()
+            if key != "encrypted_refresh_token_envelope"
+        }
+
     async def resolve_access_token_handle(
         self,
         *,

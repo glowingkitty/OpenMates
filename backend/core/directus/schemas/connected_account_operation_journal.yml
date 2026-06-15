@@ -14,6 +14,12 @@ connected_account_operation_journal:
       primary: true
       note: "Operation journal UUID"
 
+    action_id:
+      type: string
+      length: 64
+      required: true
+      note: "[Indexed] Opaque operation id used by cancel and undo APIs"
+
     hashed_user_id:
       type: string
       length: 64
@@ -74,3 +80,7 @@ connected_account_operation_journal:
     expires_at:
       type: integer
       note: "Optional Unix timestamp for retention cleanup of reversible action metadata"
+
+    undone_at:
+      type: integer
+      note: "Unix timestamp when a reversible operation was undone"
