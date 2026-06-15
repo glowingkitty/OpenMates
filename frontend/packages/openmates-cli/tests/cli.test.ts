@@ -770,7 +770,7 @@ describe("embed version commands", () => {
     rmSync(tempFile, { force: true });
   });
 
-  it("requires login for encrypted client-side restore before any server restore endpoint", async () => {
+  it("requires local encrypted cache for client-side restore before any server restore endpoint", async () => {
     await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
       try {
         await execFileAsync("node", ["dist/cli.js", "embeds", "versions", "restore", embedId, "--version", "1", "--yes"], {
@@ -779,10 +779,10 @@ describe("embed version commands", () => {
           env: { ...process.env, TERM: "dumb", OPENMATES_API_URL: apiUrl },
           timeout: 15_000,
         });
-        assert.fail("restore should require a logged-in WebSocket session");
+        assert.fail("restore should require local encrypted embed state");
       } catch (error) {
         const stderr = (error as { stderr?: string }).stderr ?? String(error);
-        assert.match(stderr, /Not logged in/);
+        assert.match(stderr, /not found in local cache/);
       }
       assert.deepEqual(requests, []);
     });
@@ -797,10 +797,10 @@ describe("embed version commands", () => {
           env: { ...process.env, TERM: "dumb", OPENMATES_API_URL: apiUrl },
           timeout: 15_000,
         });
-        assert.fail("restore should require a logged-in WebSocket session");
+        assert.fail("restore should require local encrypted embed state");
       } catch (error) {
         const stderr = (error as { stderr?: string }).stderr ?? String(error);
-        assert.match(stderr, /Not logged in/);
+        assert.match(stderr, /not found in local cache/);
       }
       assert.deepEqual(requests, []);
     });
