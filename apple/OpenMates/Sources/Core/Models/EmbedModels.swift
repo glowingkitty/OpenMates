@@ -217,11 +217,13 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             ?? (try legacyContainer.decodeIfPresent(Int.self, forKey: .versionNumber))
         contentHash = try container.decodeIfPresent(String.self, forKey: .contentHash)
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .contentHash))
-        versionHistory = (try container.decodeIfPresent([EmbedVersionMetadata].self, forKey: .versionHistory))
-            ?? (try legacyContainer.decodeIfPresent([EmbedVersionMetadata].self, forKey: .versionHistory))
+        let decodedVersionHistory = try container.decodeIfPresent([EmbedVersionMetadata].self, forKey: .versionHistory)
+        versionHistory = try decodedVersionHistory
+            ?? legacyContainer.decodeIfPresent([EmbedVersionMetadata].self, forKey: .versionHistory)
             ?? []
-        versionHistoryReadonly = (try container.decodeIfPresent(Bool.self, forKey: .versionHistoryReadonly))
-            ?? (try legacyContainer.decodeIfPresent(Bool.self, forKey: .versionHistoryReadonly))
+        let decodedVersionHistoryReadonly = try container.decodeIfPresent(Bool.self, forKey: .versionHistoryReadonly)
+        versionHistoryReadonly = try decodedVersionHistoryReadonly
+            ?? legacyContainer.decodeIfPresent(Bool.self, forKey: .versionHistoryReadonly)
             ?? false
         var decodedEmbedIds: String?
         if let ids = try container.decodeIfPresent([String].self, forKey: .embedIds) {
