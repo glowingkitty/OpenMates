@@ -646,6 +646,30 @@ apps:
   sv: Appar
   he: אפליקציות
   verified_by_human: []
+apps.all:
+  context: Title for the all apps settings page banner
+  en: Apps
+  de: Apps
+  zh: 应用
+  es: Aplicaciones
+  fr: Applis
+  pt: Aplicativos
+  ru: Приложения
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
+  ar: تطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
+  he: אפליקציות
+  verified_by_human: []
 mates.description:
   context: Short description shown in the mates settings page gradient banner header
   en: Configure your AI mates and their personalities
