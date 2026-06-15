@@ -947,11 +947,15 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     if (action === 'write') return $text('chat.connected_account_receipts.action_write');
     if (action === 'update') return $text('chat.connected_account_receipts.action_update');
     if (action === 'delete') return $text('chat.connected_account_receipts.action_delete');
+    if (action === 'undo') return $text('chat.connected_account_receipts.action_undo');
     return action || $text('chat.connected_account_receipts.action_unknown');
   }
 
   function connectedAccountReceiptText(receipt: ConnectedAccountActionReceiptContent): string {
     const action = connectedAccountActionLabel(receipt.receipt?.action);
+    if (receipt.receipt?.decision === 'undo_success') {
+      return $text('chat.connected_account_receipts.undone', { values: { action } });
+    }
     const base = $text('chat.connected_account_receipts.completed', { values: { action } });
     return receipt.receipt?.undo_available
       ? `${base} ${$text('chat.connected_account_receipts.undo_available')}`

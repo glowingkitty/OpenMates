@@ -381,6 +381,10 @@ connected_account_receipts.completed:
   context: System receipt shown after a connected-account action completed. The action replacement is a localized action label such as Calendar read or Calendar write.
   en: "{action} completed."
   verified_by_human: [en]
+connected_account_receipts.undone:
+  context: System receipt shown after a connected-account action was undone. The action replacement is a localized action label.
+  en: "{action} completed."
+  verified_by_human: [en]
 connected_account_receipts.undo_available:
   context: Short sentence appended to a connected-account receipt when undo is available.
   en: Undo is available.
@@ -400,6 +404,10 @@ connected_account_receipts.action_update:
 connected_account_receipts.action_delete:
   context: Action label for a connected account Calendar delete receipt.
   en: Calendar delete
+  verified_by_human: [en]
+connected_account_receipts.action_undo:
+  context: Action label for a connected account undo receipt.
+  en: Calendar undo
   verified_by_human: [en]
 connected_account_receipts.action_unknown:
   context: Fallback action label for an unknown connected account receipt action.

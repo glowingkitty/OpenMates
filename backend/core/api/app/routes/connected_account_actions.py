@@ -14,6 +14,7 @@ from typing import Any
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from backend.apps.ai.processing.connected_account_receipts import publish_connected_account_action_receipt
 from backend.core.api.app.services.connected_account_operation_journal import (
     ConnectedAccountOperationJournalService,
 )
@@ -181,6 +182,16 @@ async def undo_connected_account_action(
         entry=entry,
         receipt=receipt,
         user_vault_key_id=vault_key_id,
+    )
+    await publish_connected_account_action_receipt(
+        cache_service=cache_service,
+        user_id=current_user.id,
+        payload={
+            "chat_id": body.chat_id,
+            "message_id": body.message_id,
+            "action_id": action_id,
+            "receipt": receipt,
+        },
     )
     return UndoConnectedAccountActionResponse(
         action_id=action_id,
