@@ -81,7 +81,10 @@ describe('chatSyncServiceHandlersConnectedAccounts', () => {
 		mocks.activeChatStore.get.mockReturnValue('chat-1');
 		mocks.listConnectedAccounts.mockResolvedValue([]);
 		mocks.buildConnectedAccountSendContext.mockResolvedValue({ tokenRefInputs: [] });
-		vi.spyOn(window, 'dispatchEvent').mockReturnValue(true);
+		Object.defineProperty(window, 'dispatchEvent', {
+			value: vi.fn(() => true),
+			configurable: true
+		});
 	});
 
 	it('preserves redacted Calendar request summaries for the approval card', async () => {
