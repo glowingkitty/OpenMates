@@ -84,7 +84,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertTrue(historicalStatus.waitForExistence(timeout: 3))
 
         let restoreButton = app.descendants(matching: .any)["embed-version-restore-button"]
-        XCTAssertTrue(restoreButton.exists, app.debugDescription)
+        XCTAssertTrue(restoreButton.exists)
         restoreButton.tap()
 
         let confirmRestore = app.buttons
