@@ -1211,8 +1211,12 @@ implementation_progress:
         result: passed
       - command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
         result: ssh_reachable, iOS build succeeded
+      - command: bash scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/chatSyncService.ts --path frontend/packages/ui/src/services/connectedAccountStorageService.ts --path frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+        result: passed
+      - command: python3 scripts/run_tests.py --suite vitest
+        result: 400 passed on GitHub Actions run 27562662616 for commit 7008d0b
     blocked_or_remaining:
-      - Full connected-account settings/OAuth UI, Calendar permission cards, pause/resume events, receipts, cancel, undo, live Google verification, web Playwright, and Apple parity are not complete.
+      - Calendar connected-account settings add flow has mocked Playwright coverage, but capability toggles/update flow, Calendar permission cards, pause/resume events, cancel windows, full undo surfaces, live Google verification, and Apple parity are not complete.
       - Package-level UI lint remains blocked by pre-existing unrelated lint debt; targeted changed-file lint passed.
 
 tasks:
