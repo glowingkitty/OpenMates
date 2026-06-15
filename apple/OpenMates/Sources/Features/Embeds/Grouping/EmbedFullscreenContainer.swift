@@ -333,11 +333,10 @@ struct EmbedFullscreenContainer: View {
                 .padding(.vertical, .spacing2)
             }
 
-            HStack(spacing: .spacing3) {
+            HStack(alignment: .center, spacing: .spacing3) {
                 Text(versionTimelineStatusText(selectedVersion: selectedVersion, currentVersion: currentVersion))
                     .font(.omXs)
                     .foregroundStyle(Color.fontSecondary)
-                Spacer()
                 if selectedVersion != currentVersion && !embed.versionHistoryReadonly {
                     Button {
                         restoreConfirmVersion = restoreConfirmVersion == selectedVersion ? nil : selectedVersion
