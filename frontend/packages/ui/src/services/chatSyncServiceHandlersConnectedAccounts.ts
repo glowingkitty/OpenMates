@@ -33,6 +33,7 @@ interface RequestConnectedAccountPermissionPayload {
 	action: string;
 	required_actions?: string[];
 	accounts?: ConnectedAccountPermissionAccount[];
+	requests?: ConnectedAccountPermissionRequest['requests'];
 }
 
 interface ConnectedAccountActionReceiptPayload {
@@ -77,6 +78,7 @@ export async function handleRequestConnectedAccountPermissionImpl(
 		action,
 		requiredActions: payload.required_actions?.length ? payload.required_actions : [action],
 		accounts,
+		requests: Array.isArray(payload.requests) ? payload.requests : undefined,
 		createdAt: Date.now()
 	};
 

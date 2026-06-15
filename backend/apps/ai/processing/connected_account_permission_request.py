@@ -128,8 +128,9 @@ def _safe_action_summary(request: dict[str, Any], action: str) -> dict[str, Any]
     if action in {"write", "update", "delete"}:
         if request.get("event_id"):
             summary["event_id"] = request["event_id"]
-        if request.get("summary"):
-            summary["event_title"] = request["summary"]
+        event_title = request.get("title") or request.get("summary")
+        if event_title:
+            summary["event_title"] = event_title
         if request.get("start"):
             summary["start"] = request["start"]
         if request.get("end"):

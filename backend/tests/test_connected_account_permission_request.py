@@ -99,7 +99,12 @@ async def test_connected_account_permission_request_is_redacted_and_published() 
     assert payload["request_id"] == request_id
     assert payload["accounts"][0]["connected_account_id"] == "acct-1"
     assert payload["requests"][0]["action"] == "write"
-    assert "Planning meeting" in json.dumps(payload)
+    assert payload["requests"][0]["summary"] == {
+        "calendar_id": "primary",
+        "event_title": "Planning meeting",
+        "start": "2026-06-15T10:00:00Z",
+        "end": "2026-06-15T11:00:00Z",
+    }
     serialized = json.dumps({"payload": payload, "pending": cache.pending[request_id]})
     assert "refresh_token" not in serialized
     assert "access_token" not in serialized

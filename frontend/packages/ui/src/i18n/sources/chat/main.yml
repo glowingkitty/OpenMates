@@ -377,6 +377,38 @@ connected_account_permissions.loading:
   context: Button/status text while connected account approval is being sent.
   en: Approving...
   verified_by_human: [en]
+connected_account_permissions.request_title:
+  context: Header for one requested connected-account action summary. The action replacement is a short action name such as read, write, update, or delete.
+  en: Requested {action} action
+  verified_by_human: [en]
+connected_account_permissions.calendar:
+  context: Label for the target calendar in a connected-account approval summary.
+  en: Calendar
+  verified_by_human: [en]
+connected_account_permissions.event_title:
+  context: Label for the event title in a connected-account approval summary.
+  en: Event
+  verified_by_human: [en]
+connected_account_permissions.event_id:
+  context: Label for the provider event id in a connected-account approval summary.
+  en: Event ID
+  verified_by_human: [en]
+connected_account_permissions.start:
+  context: Label for the event start time in a connected-account approval summary.
+  en: Start
+  verified_by_human: [en]
+connected_account_permissions.end:
+  context: Label for the event end time in a connected-account approval summary.
+  en: End
+  verified_by_human: [en]
+connected_account_permissions.from:
+  context: Label for the beginning of a Calendar read range in a connected-account approval summary.
+  en: From
+  verified_by_human: [en]
+connected_account_permissions.to:
+  context: Label for the end of a Calendar read range in a connected-account approval summary.
+  en: To
+  verified_by_human: [en]
 connected_account_receipts.completed:
   context: System receipt shown after a connected-account action completed. The action replacement is a localized action label such as Calendar read or Calendar write.
   en: "{action} completed."

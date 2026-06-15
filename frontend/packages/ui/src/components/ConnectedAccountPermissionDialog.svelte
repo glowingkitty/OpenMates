@@ -27,6 +27,15 @@
   async function reject() {
     await rejectConnectedAccountPermissionRequest();
   }
+
+  function summaryValue(value: unknown): string {
+    if (value === null || value === undefined || value === '') return '';
+    return String(value);
+  }
+
+  function hasSummaryValue(summary: Record<string, unknown> | undefined, key: string): boolean {
+    return Boolean(summaryValue(summary?.[key]));
+  }
 </script>
 
 {#if $currentConnectedAccountPermissionRequest}
@@ -50,6 +59,66 @@
         </p>
       </div>
     </div>
+
+    {#if $currentConnectedAccountPermissionRequest.requests?.length}
+      <div class="connected-account-request-list" data-testid="connected-account-permission-requests">
+        {#each $currentConnectedAccountPermissionRequest.requests as request (request.action_id)}
+          <div class="connected-account-request" data-testid="connected-account-permission-request">
+            <div class="connected-account-request-title">
+              {$text('chat.connected_account_permissions.request_title', {
+                values: { action: request.action }
+              })}
+            </div>
+            {#if request.summary}
+              <dl class="connected-account-request-summary">
+                {#if hasSummaryValue(request.summary, 'calendar_id')}
+                  <div>
+                    <dt>{$text('chat.connected_account_permissions.calendar')}</dt>
+                    <dd>{summaryValue(request.summary.calendar_id)}</dd>
+                  </div>
+                {/if}
+                {#if hasSummaryValue(request.summary, 'event_title')}
+                  <div>
+                    <dt>{$text('chat.connected_account_permissions.event_title')}</dt>
+                    <dd>{summaryValue(request.summary.event_title)}</dd>
+                  </div>
+                {/if}
+                {#if hasSummaryValue(request.summary, 'event_id')}
+                  <div>
+                    <dt>{$text('chat.connected_account_permissions.event_id')}</dt>
+                    <dd>{summaryValue(request.summary.event_id)}</dd>
+                  </div>
+                {/if}
+                {#if hasSummaryValue(request.summary, 'start')}
+                  <div>
+                    <dt>{$text('chat.connected_account_permissions.start')}</dt>
+                    <dd>{summaryValue(request.summary.start)}</dd>
+                  </div>
+                {/if}
+                {#if hasSummaryValue(request.summary, 'end')}
+                  <div>
+                    <dt>{$text('chat.connected_account_permissions.end')}</dt>
+                    <dd>{summaryValue(request.summary.end)}</dd>
+                  </div>
+                {/if}
+                {#if hasSummaryValue(request.summary, 'time_min')}
+                  <div>
+                    <dt>{$text('chat.connected_account_permissions.from')}</dt>
+                    <dd>{summaryValue(request.summary.time_min)}</dd>
+                  </div>
+                {/if}
+                {#if hasSummaryValue(request.summary, 'time_max')}
+                  <div>
+                    <dt>{$text('chat.connected_account_permissions.to')}</dt>
+                    <dd>{summaryValue(request.summary.time_max)}</dd>
+                  </div>
+                {/if}
+              </dl>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    {/if}
 
     <div class="connected-account-list">
       {#each $currentConnectedAccountPermissionRequest.accounts as account (account.connected_account_id)}
@@ -133,6 +202,52 @@
     flex-direction: column;
     gap: var(--spacing-3);
     margin-bottom: var(--spacing-6);
+  }
+
+  .connected-account-request-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-6);
+  }
+
+  .connected-account-request {
+    background: var(--color-grey-0);
+    border: 1px solid var(--color-grey-25);
+    border-radius: var(--radius-4);
+    padding: var(--spacing-4);
+  }
+
+  .connected-account-request-title {
+    color: var(--color-font-primary);
+    font-size: var(--font-size-small);
+    font-weight: 700;
+    margin-bottom: var(--spacing-3);
+  }
+
+  .connected-account-request-summary {
+    display: grid;
+    gap: var(--spacing-2);
+    margin: 0;
+  }
+
+  .connected-account-request-summary div {
+    display: grid;
+    grid-template-columns: minmax(5.5rem, max-content) 1fr;
+    gap: var(--spacing-3);
+  }
+
+  .connected-account-request-summary dt {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+  }
+
+  .connected-account-request-summary dd {
+    color: var(--color-font-primary);
+    font-size: var(--font-size-xs);
+    margin: 0;
+    overflow-wrap: anywhere;
   }
 
   .connected-account-option {
