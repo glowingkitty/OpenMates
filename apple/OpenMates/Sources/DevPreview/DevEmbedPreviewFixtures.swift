@@ -85,7 +85,7 @@ enum DevEmbedPreviewFixtures {
         case .audio:
             return [recording]
         case .code:
-            return [codeRepoSearch, codeRepo, codeEmbed, codeApplication, codeGetDocs]
+            return [codeEmbed, codeRepoSearch, codeRepo, codeApplication, codeGetDocs]
         case .docs:
             return [docsDocument]
         case .electronics:
