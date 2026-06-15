@@ -10,16 +10,21 @@
 -->
 
 <script lang="ts">
+    import { onMount } from 'svelte';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
+    import { userProfile } from '../../stores/userProfile';
     import AppStoreCard from './AppStoreCard.svelte';
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
-    import { SettingsSectionHeading } from './elements';
+    import { SettingsButton, SettingsCard, SettingsInfoBox, SettingsSectionHeading } from './elements';
     import type { AppMetadata, MemoryFieldMetadata, SkillMetadata } from '../../types/apps';
     import { CONTENT_EMBED_CATALOG, type ContentEmbedCatalogItem } from '../../data/embedRegistry.generated';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import { computeSHA256 } from '../../message_parsing/utils';
+    import { listConnectedAccounts, type EncryptedConnectedAccountRow } from '../../services/connectedAccountStorageService';
+    import { finalizeOAuthHandoffAsConnectedAccount, startGoogleCalendarOAuth } from '../../services/connectedAccountOAuthService';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -46,6 +51,11 @@
     let contentTypes = $derived(CONTENT_EMBED_CATALOG.filter((item) => item.appId === appId));
     let focusModes = $derived(app?.focus_modes || []);
     let memoryFields = $derived(app?.settings_and_memories || []);
+    let connectedCalendarAccounts = $state<EncryptedConnectedAccountRow[]>([]);
+    let connectedAccountsLoading = $state(false);
+    let connectedAccountAction = $state<'idle' | 'connecting' | 'finalizing'>('idle');
+    let connectedAccountError = $state('');
+    let connectedAccountSuccess = $state('');
 
     function hasGuestExamples(category: MemoryFieldMetadata): boolean {
         return (category.example_entries?.length ?? 0) > 0 || (category.example_translation_keys?.length ?? 0) > 0;
@@ -175,6 +185,84 @@
             title: 'Apps'
         });
     }
+
+    onMount(() => {
+        if (appId !== 'calendar' || !isAuthenticated) return;
+        void initializeCalendarConnectedAccounts();
+    });
+
+    async function initializeCalendarConnectedAccounts() {
+        await finalizeOAuthHandoffFromUrl();
+        await loadConnectedCalendarAccounts(false);
+    }
+
+    async function loadConnectedCalendarAccounts(clearExistingError = true) {
+        connectedAccountsLoading = true;
+        if (clearExistingError) {
+            connectedAccountError = '';
+        }
+        try {
+            const providerHash = await computeSHA256('google_calendar');
+            const rows = await listConnectedAccounts();
+            connectedCalendarAccounts = rows.filter((row) => row.provider_type_hash === providerHash);
+        } catch (error) {
+            connectedAccountError = error instanceof Error
+                ? error.message
+                : $text('settings.app_store.connected_accounts.load_error');
+        } finally {
+            connectedAccountsLoading = false;
+        }
+    }
+
+    async function finalizeOAuthHandoffFromUrl() {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const handoffId = params.get('oauth_handoff_id');
+        if (!handoffId) return;
+        const userId = $userProfile.user_id;
+        if (!userId) {
+            connectedAccountError = $text('settings.app_store.connected_accounts.sign_in_required');
+            return;
+        }
+        connectedAccountAction = 'finalizing';
+        connectedAccountError = '';
+        try {
+            await finalizeOAuthHandoffAsConnectedAccount({ userId, handoffId });
+            connectedAccountSuccess = $text('settings.app_store.connected_accounts.connected_success');
+            removeOAuthHandoffQueryParam();
+        } catch (error) {
+            connectedAccountError = error instanceof Error
+                ? error.message
+                : $text('settings.app_store.connected_accounts.finalize_error');
+        } finally {
+            connectedAccountAction = 'idle';
+        }
+    }
+
+    function removeOAuthHandoffQueryParam() {
+        if (typeof window === 'undefined') return;
+        const url = new URL(window.location.href);
+        url.searchParams.delete('oauth_handoff_id');
+        window.history.replaceState({}, '', url.toString());
+    }
+
+    async function connectGoogleCalendar() {
+        connectedAccountAction = 'connecting';
+        connectedAccountError = '';
+        connectedAccountSuccess = '';
+        try {
+            const result = await startGoogleCalendarOAuth({
+                capabilities: ['read', 'write', 'delete'],
+                returnPath: '/#settings/app_store/calendar'
+            });
+            window.location.assign(result.authorization_url);
+        } catch (error) {
+            connectedAccountAction = 'idle';
+            connectedAccountError = error instanceof Error
+                ? error.message
+                : $text('settings.app_store.connected_accounts.start_error');
+        }
+    }
 </script>
 
 <div class="app-details">
@@ -288,7 +376,57 @@
                 </div>
             </div>
         {/if}
-        
+
+        {#if isAuthenticated && appId === 'calendar'}
+            <div class="section" data-testid="calendar-connected-accounts-section">
+                <SettingsSectionHeading title={$text('settings.app_store.connected_accounts.title')} icon="calendar" />
+                <p class="section-description">{$text('settings.app_store.connected_accounts.description')}</p>
+
+                <SettingsCard>
+                    <div class="connected-account-card">
+                        <div>
+                            <h3>{$text('settings.app_store.connected_accounts.google_calendar_title')}</h3>
+                            <p>
+                                {#if connectedAccountsLoading}
+                                    {$text('settings.app_store.connected_accounts.loading')}
+                                {:else if connectedCalendarAccounts.length > 0}
+                                    {$text('settings.app_store.connected_accounts.connected_count', { values: { count: String(connectedCalendarAccounts.length) } })}
+                                {:else}
+                                    {$text('settings.app_store.connected_accounts.not_connected')}
+                                {/if}
+                            </p>
+                        </div>
+                        <SettingsButton
+                            dataTestid="connect-google-calendar-button"
+                            loading={connectedAccountAction === 'connecting'}
+                            disabled={connectedAccountAction !== 'idle'}
+                            onClick={connectGoogleCalendar}
+                        >
+                            {$text('settings.app_store.connected_accounts.connect_button')}
+                        </SettingsButton>
+                    </div>
+                </SettingsCard>
+
+                {#if connectedAccountAction === 'finalizing'}
+                    <SettingsInfoBox type="info">
+                        <p>{$text('settings.app_store.connected_accounts.finalizing')}</p>
+                    </SettingsInfoBox>
+                {/if}
+
+                {#if connectedAccountSuccess}
+                    <SettingsInfoBox type="success">
+                        <p>{connectedAccountSuccess}</p>
+                    </SettingsInfoBox>
+                {/if}
+
+                {#if connectedAccountError}
+                    <SettingsInfoBox type="error">
+                        <p>{connectedAccountError}</p>
+                    </SettingsInfoBox>
+                {/if}
+            </div>
+        {/if}
+         
         <!-- Active Reminders section - only shown for reminder app, authenticated users -->
         {#if isAuthenticated && appId === 'reminder'}
             <div class="section">
@@ -347,6 +485,33 @@
         background: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
+    }
+
+    .connected-account-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .connected-account-card h3 {
+        margin: 0 0 0.25rem 0;
+        font-size: var(--font-size-p, 0.875rem);
+        color: var(--color-font-primary);
+    }
+
+    .connected-account-card p {
+        margin: 0;
+        color: var(--color-font-secondary);
+        font-size: 0.875rem;
+        line-height: 1.4;
+    }
+
+    @media (max-width: 640px) {
+        .connected-account-card {
+            align-items: stretch;
+            flex-direction: column;
+        }
     }
 
     .error {
