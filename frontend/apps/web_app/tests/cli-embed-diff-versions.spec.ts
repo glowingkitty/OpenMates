@@ -261,17 +261,19 @@ test.describe('CLI Embed Diff Versions', () => {
 		const embedId = extractEmbedIdFromText(turn1.assistant);
 		expect(embedId, `assistant response should reference a code embed: ${turn1.assistant}`).toBeTruthy();
 
-		await runCliJson(
+		const turn2 = await runCliJson(
 			apiUrl,
 			[
 				'chats',
 				'send',
 				'--chat',
 				turn1.chatId,
-				'Edit the existing code embed only: rename calculate_average to compute_mean and add a -> float return type hint. Preserve the same code artifact by applying a diff.'
+				'Edit the existing code artifact from the previous turn only. Rename calculate_average to compute_mean and add a -> float return type hint. Do not create a new code artifact or new JSON embed block; preserve the same artifact by applying a diff to it.'
 			],
 			150_000
 		);
+		const updatedEmbedId = extractEmbedIdFromText(turn2.assistant);
+		expect(updatedEmbedId).toBe(embedId);
 
 		const versions = await runCliJson(apiUrl, ['embeds', 'versions', 'list', embedId], 60_000);
 		expect(versions.embed_id).toBe(embedId);
