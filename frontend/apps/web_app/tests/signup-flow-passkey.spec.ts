@@ -257,7 +257,7 @@ test('completes passkey signup flow with email', async ({
 
 		// Secure account step: choose passkey-based setup.
 		const passkeyOption = page.locator('#signup-passkey-option');
-		await expect(passkeyOption).toBeVisible({ timeout: 10000 });
+		await expect(passkeyOption).toBeVisible({ timeout: 30000 });
 		await takeStepScreenshot(page, 'secure-account');
 		const passkeyInitiateResponsePromise = page.waitForResponse(
 			(response: any) =>

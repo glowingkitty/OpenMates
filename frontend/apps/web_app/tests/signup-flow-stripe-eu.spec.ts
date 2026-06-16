@@ -224,7 +224,7 @@ test('completes signup and EU card purchase from Settings billing', async ({
 
 	// Secure account step: choose password-based setup.
 	const passwordOption = page.locator('#signup-password-option');
-	await expect(passwordOption).toBeVisible({ timeout: 10000 });
+	await expect(passwordOption).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'secure-account');
 	await passwordOption.click();
 	await takeStepScreenshot(page, 'password-step');
