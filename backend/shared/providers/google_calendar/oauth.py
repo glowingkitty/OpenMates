@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import httpx
@@ -17,29 +16,9 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 TOKEN_EXCHANGE_TIMEOUT_SECONDS = 15.0
-GOOGLE_OAUTH_CLIENT_ID_ENV_VARS = (
-    "SECRET__GOOGLE__OAUTH_CLIENT_ID",
-    "GOOGLE_CALENDAR_CLIENT_ID",
-    "GOOGLE_OAUTH_CLIENT_ID",
-    "SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_ID",
-)
-GOOGLE_OAUTH_CLIENT_SECRET_ENV_VARS = (
-    "SECRET__GOOGLE__OAUTH_CLIENT_SECRET",
-    "GOOGLE_CALENDAR_CLIENT_SECRET",
-    "GOOGLE_OAUTH_CLIENT_SECRET",
-    "SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_SECRET",
-)
 GOOGLE_OAUTH_SECRET_PATHS = ("kv/data/providers/google", "kv/data/providers/google_calendar")
 GOOGLE_OAUTH_CLIENT_ID_SECRET_KEYS = ("oauth_client_id", "client_id")
 GOOGLE_OAUTH_CLIENT_SECRET_SECRET_KEYS = ("oauth_client_secret", "client_secret")
-
-
-def _first_env_value(env_var_names: tuple[str, ...]) -> str | None:
-    for env_var_name in env_var_names:
-        value = os.getenv(env_var_name)
-        if value and value.strip():
-            return value.strip()
-    return None
 
 
 async def _first_vault_value(
@@ -62,16 +41,11 @@ async def _first_vault_value(
 async def get_google_oauth_credentials(
     secrets_manager: SecretsManager | None = None,
 ) -> tuple[str, str]:
-    """Resolve Google OAuth client credentials from env or Vault."""
-
-    client_id = _first_env_value(GOOGLE_OAUTH_CLIENT_ID_ENV_VARS)
-    client_secret = _first_env_value(GOOGLE_OAUTH_CLIENT_SECRET_ENV_VARS)
-    if client_id and client_secret:
-        return client_id, client_secret
+    """Resolve Google OAuth client credentials from Vault only."""
 
     manager = secrets_manager or SecretsManager()
-    client_id = client_id or await _first_vault_value(manager, GOOGLE_OAUTH_CLIENT_ID_SECRET_KEYS)
-    client_secret = client_secret or await _first_vault_value(manager, GOOGLE_OAUTH_CLIENT_SECRET_SECRET_KEYS)
+    client_id = await _first_vault_value(manager, GOOGLE_OAUTH_CLIENT_ID_SECRET_KEYS)
+    client_secret = await _first_vault_value(manager, GOOGLE_OAUTH_CLIENT_SECRET_SECRET_KEYS)
     if not client_id or not client_secret:
         raise RuntimeError("Google OAuth client credentials are not configured")
     return client_id, client_secret

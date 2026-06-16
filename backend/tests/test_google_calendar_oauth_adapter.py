@@ -93,11 +93,14 @@ def make_client(cache: FakeCache, encryption: FakeEncryption | None = None):
 
 
 def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
-    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_ID", "client-123")
-    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_SECRET", "secret-123")
     monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_REDIRECT_URI", "https://api.dev.openmates.org/v1/provider-oauth/google/calendar/callback")
     cache = FakeCache()
     client, route = make_client(cache)
+
+    async def fake_get_google_oauth_credentials():
+        return "vault-client-id", "vault-client-secret"
+
+    monkeypatch.setattr(route, "get_google_oauth_credentials", fake_get_google_oauth_credentials)
 
     response = client.post(
         "/v1/provider-oauth/google/calendar/start",
@@ -110,7 +113,7 @@ def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
     parsed = urlparse(payload["authorization_url"])
     params = parse_qs(parsed.query)
     assert parsed.netloc == "accounts.google.com"
-    assert params["client_id"] == ["client-123"]
+    assert params["client_id"] == ["vault-client-id"]
     assert params["access_type"] == ["offline"]
     assert params["prompt"] == ["consent"]
     assert params["scope"] == [route.CALENDAR_READ_SCOPE]
@@ -121,20 +124,8 @@ def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
 
 
 @pytest.mark.anyio
-async def test_google_oauth_credentials_fall_back_to_vault(monkeypatch) -> None:
+async def test_google_oauth_credentials_resolve_from_vault(monkeypatch) -> None:
     from backend.shared.providers.google_calendar.oauth import get_google_oauth_credentials
-
-    for env_var_name in (
-        "GOOGLE_CALENDAR_CLIENT_ID",
-        "GOOGLE_OAUTH_CLIENT_ID",
-        "GOOGLE_CALENDAR_CLIENT_SECRET",
-        "GOOGLE_OAUTH_CLIENT_SECRET",
-        "SECRET__GOOGLE__OAUTH_CLIENT_ID",
-        "SECRET__GOOGLE__OAUTH_CLIENT_SECRET",
-        "SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_ID",
-        "SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_SECRET",
-    ):
-        monkeypatch.delenv(env_var_name, raising=False)
 
     secrets_manager = FakeSecretsManager(
         {
@@ -150,25 +141,32 @@ async def test_google_oauth_credentials_fall_back_to_vault(monkeypatch) -> None:
 
 
 @pytest.mark.anyio
-async def test_google_oauth_credentials_prefer_generic_google_env(monkeypatch) -> None:
+async def test_google_oauth_credentials_ignore_env_values(monkeypatch) -> None:
     from backend.shared.providers.google_calendar.oauth import get_google_oauth_credentials
 
-    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_ID", "generic-client-id")
-    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_SECRET", "generic-client-secret")
-    monkeypatch.setenv("SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_ID", "calendar-client-id")
-    monkeypatch.setenv("SECRET__GOOGLE_CALENDAR__OAUTH_CLIENT_SECRET", "calendar-client-secret")
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_ID", "bad-env-client-id")
+    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_SECRET", "bad-env-client-secret")
+    secrets_manager = FakeSecretsManager(
+        {
+            ("kv/data/providers/google", "oauth_client_id"): "vault-client-id",
+            ("kv/data/providers/google", "oauth_client_secret"): "vault-client-secret",
+        }
+    )
 
-    assert await get_google_oauth_credentials(FakeSecretsManager({})) == (
-        "generic-client-id",
-        "generic-client-secret",
+    assert await get_google_oauth_credentials(secrets_manager) == (
+        "vault-client-id",
+        "vault-client-secret",
     )
 
 
 def test_google_calendar_start_uses_events_scope_for_write_or_delete(monkeypatch) -> None:
-    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_ID", "client-123")
-    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_SECRET", "secret-123")
     cache = FakeCache()
     client, route = make_client(cache)
+
+    async def fake_get_google_oauth_credentials():
+        return "vault-client-id", "vault-client-secret"
+
+    monkeypatch.setattr(route, "get_google_oauth_credentials", fake_get_google_oauth_credentials)
 
     response = client.post(
         "/v1/provider-oauth/google/calendar/start",
@@ -181,8 +179,6 @@ def test_google_calendar_start_uses_events_scope_for_write_or_delete(monkeypatch
 
 @pytest.mark.anyio
 async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(monkeypatch) -> None:
-    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_ID", "client-123")
-    monkeypatch.setenv("SECRET__GOOGLE__OAUTH_CLIENT_SECRET", "secret-123")
     monkeypatch.setenv("WEBAPP_URL", "https://app.dev.openmates.org")
     cache = FakeCache()
     encryption = FakeEncryption()
@@ -231,7 +227,6 @@ async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(
 
 
 def test_google_calendar_callback_rejects_owner_mismatch(monkeypatch) -> None:
-    monkeypatch.setenv("GOOGLE_CALENDAR_CLIENT_ID", "client-123")
     cache = FakeCache()
     client, route = make_client(cache)
 
