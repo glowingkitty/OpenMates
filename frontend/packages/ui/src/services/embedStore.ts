@@ -63,6 +63,7 @@ const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
 const MAX_CHILD_EMBEDS_TO_INDEX = 50;
 const MAX_REF_REPAIR_CANDIDATES = 200;
 const DIRECT_EMBED_REF_ID_PREFIX_RE = /^[0-9a-f]{6}$/i;
+const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
 
 const FILE_SEARCH_RESULT_LIMIT = 6;
 const FILE_LIKE_EMBED_TYPES = new Set([
@@ -619,8 +620,12 @@ export class EmbedStore {
     if (typeof decoded.embed_ref === "string") {
       embedRefs.add(decoded.embed_ref);
     }
-    if (embedType === "video" && typeof decoded.video_id === "string") {
-      embedRefs.add(decoded.video_id);
+    const videoId =
+      typeof decoded.video_id === "string" ? decoded.video_id : null;
+    const hasYouTubeVideoId =
+      videoId !== null && YOUTUBE_VIDEO_ID_RE.test(videoId);
+    if (hasYouTubeVideoId) {
+      embedRefs.add(videoId);
     }
 
     return {
@@ -628,7 +633,7 @@ export class EmbedStore {
       appId:
         typeof decoded.app_id === "string"
           ? decoded.app_id
-          : embedType === "video"
+          : embedType === "video" || hasYouTubeVideoId
             ? "videos"
             : null,
     };

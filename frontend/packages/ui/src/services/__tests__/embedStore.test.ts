@@ -178,7 +178,6 @@ describe('EmbedStore.resolveByRefDeep', () => {
     }, 'collectAllRefRepairCandidatesFromIndexedDb').mockResolvedValue([]);
     vi.spyOn(store, 'get').mockResolvedValue({
       contentRef: 'embed:video-embed-id',
-      type: 'video',
       status: 'finished',
       content: JSON.stringify({
         video_id: 'vS-gfLhxYDg',
