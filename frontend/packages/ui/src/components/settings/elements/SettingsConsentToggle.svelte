@@ -93,7 +93,7 @@
         <Toggle
             {checked}
             {disabled}
-            ariaLabel={ariaLabel || 'Consent toggle'}
+            presentationOnly={true}
         />
     </div>
     <div class="consent-text">
@@ -114,6 +114,7 @@
     onkeydown={handleKeydown}
     role="checkbox"
     aria-checked={checked}
+    aria-disabled="true"
     aria-label={ariaLabel || consentText}
     data-testid={dataTestid || undefined}
     tabindex="-1"
@@ -127,6 +128,7 @@
     onkeydown={handleKeydown}
     role="checkbox"
     aria-checked={checked}
+    aria-disabled="false"
     aria-label={ariaLabel || consentText}
     data-testid={dataTestid || undefined}
     tabindex="0"
