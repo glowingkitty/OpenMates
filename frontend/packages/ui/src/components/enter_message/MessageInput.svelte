@@ -2368,8 +2368,10 @@
         
         const text = currentText ?? editor.getText();
         
-        // Skip if text hasn't changed (e.g. cursor movement, selection change)
-        if (text === lastPIIText) return;
+        // Skip if text hasn't changed and matching decorations are already present.
+        // Context resets can clear decorations while keeping lastPIIText unchanged;
+        // in that state we must re-run detection so highlights become visible again.
+        if (text === lastPIIText && currentPIIDecorations.length > 0) return;
         
         // If text was cleared, update immediately (no need to debounce cleanup)
         if (!text || text.trim().length === 0) {
@@ -2415,8 +2417,9 @@
         
         const text = editor.getText();
         
-        // Skip if text hasn't changed (e.g. cursor movement, selection change)
-        if (text === lastPIIText) return;
+        // Skip if text hasn't changed and matching decorations are already present.
+        // If decorations were cleared by a chat/draft context reset, re-run detection.
+        if (text === lastPIIText && currentPIIDecorations.length > 0) return;
         lastPIIText = text;
         
         if (!text || text.trim().length === 0) {
