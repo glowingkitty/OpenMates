@@ -337,6 +337,7 @@
     let selectedNode = $state<{ node: ProseMirrorNode; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
+    let forceDraftActionsVisible = $state(false);
 
     const MESSAGE_FIELD_MIN_HEIGHT = 100;
     const MESSAGE_FIELD_MIN_HEIGHT_COMPACT = 60;
@@ -365,7 +366,7 @@
 
     // Draft preview mode: text-only field has content but is not focused — show truncated text, hide buttons.
     // File/PDF/image embeds must keep actions visible so users can send after upload completion.
-    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen);
+    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -4484,6 +4485,10 @@
         isFocused = true;
         editor.commands.focus('end');
     }
+    export function revealDraftActions() {
+        forceDraftActionsVisible = true;
+        focus();
+    }
     export function sendCurrentMessage() { handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
@@ -4626,6 +4631,7 @@
     export async function clearMessageField(shouldFocus: boolean = true, preserveContext: boolean = false) {
         await clearEditorAndResetDraftState(shouldFocus, preserveContext);
         hasContent = false;
+        forceDraftActionsVisible = false;
         originalMarkdown = ''; // Clear markdown tracking
         lastEditorUpdateText = ''; // Reset text-change guard so next update processes fully
         ignoredEmbedUrls = new Set(); // Clear the URL ignore list when the field is fully cleared

@@ -188,6 +188,7 @@
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
+        revealDraftActions?: () => void;
         sendCurrentMessage: () => void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
@@ -3996,9 +3997,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let showAnonymousUploadSignupPrompt = $derived(anonymousFileAttachmentPending && !$authStore.isAuthenticated);
 
     async function removeAnonymousUploadSignupPrompt() {
+        messageInputFieldRef?.revealDraftActions?.();
         anonymousFileAttachmentPending = false;
         await tick();
-        messageInputFieldRef?.focus();
+        messageInputFieldRef?.revealDraftActions?.();
     }
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
