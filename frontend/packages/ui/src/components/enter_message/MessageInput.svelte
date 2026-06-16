@@ -5178,7 +5178,8 @@
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasContent}
-                    isAuthenticated={anonymousTextSendEnabled || (anonymousFileAttachmentPending ? false : demoVisualAuthenticated)}
+                    isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
+                    allowAnonymousTextSend={anonymousTextSendEnabled}
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
                     forceUnauthenticatedCta={anonymousFileAttachmentPending}
