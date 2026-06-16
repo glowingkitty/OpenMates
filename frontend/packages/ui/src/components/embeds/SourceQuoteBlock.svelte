@@ -16,6 +16,8 @@
 
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
 
+  const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
+
   interface Props {
     /** The exact quoted text from the source */
     quoteText: string;
@@ -56,6 +58,31 @@
     embedRef.replace(/-[a-zA-Z0-9]{3}$/, '') || embedRef,
   );
 
+  function extractEmbedIdFromRenderedCandidate(candidate: HTMLElement): string | null {
+    const embedId = candidate.getAttribute('data-embed-id');
+    if (embedId) return embedId;
+
+    const contentRef = candidate.getAttribute('data-content-ref');
+    return contentRef?.startsWith('embed:') ? contentRef.slice('embed:'.length) : null;
+  }
+
+  function findRenderedVideoEmbedId(target: EventTarget | null): string | null {
+    if (!YOUTUBE_VIDEO_ID_RE.test(embedRef)) return null;
+
+    const currentElement = target instanceof HTMLElement ? target : null;
+    const messageRoot = currentElement?.closest('[data-message-id]') ?? null;
+    const selector = `[data-testid="embed-full-width-wrapper"][data-video-id="${embedRef}"][data-content-ref^="embed:"]`;
+    const scopedCandidate = messageRoot?.querySelector<HTMLElement>(selector);
+    if (scopedCandidate) return extractEmbedIdFromRenderedCandidate(scopedCandidate);
+
+    const documentCandidates = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    if (documentCandidates.length === 1) {
+      return extractEmbedIdFromRenderedCandidate(documentCandidates[0]);
+    }
+
+    return null;
+  }
+
   /**
    * Open embed fullscreen on click, passing the quote text so the fullscreen
    * can highlight it within the source content.
@@ -64,7 +91,14 @@
     e.preventDefault();
     e.stopPropagation();
 
-    const resolvedEmbedId = await embedStore.resolveByRefDeep(embedRef);
+    let resolvedEmbedId = await embedStore.resolveByRefDeep(embedRef);
+    if (!resolvedEmbedId) {
+      const renderedEmbedId = findRenderedVideoEmbedId(e.currentTarget);
+      if (renderedEmbedId) {
+        embedStore.registerEmbedRef(embedRef, renderedEmbedId, 'videos');
+        resolvedEmbedId = renderedEmbedId;
+      }
+    }
 
     if (!resolvedEmbedId) {
       console.warn(

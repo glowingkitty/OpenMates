@@ -67,9 +67,32 @@ import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
+const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
+const YOUTUBE_URL_VIDEO_ID_RE =
+  /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
 export class AppSkillUseRenderer implements EmbedRenderer {
   type = "app-skill-use";
+
+  private extractYouTubeVideoIdFromValue(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    if (YOUTUBE_VIDEO_ID_RE.test(value)) return value;
+    return value.match(YOUTUBE_URL_VIDEO_ID_RE)?.[1] ?? null;
+  }
+
+  private extractVideoTranscriptVideoId(
+    decodedContent: any,
+    results: any[],
+    url: string,
+  ): string | null {
+    return (
+      this.extractYouTubeVideoIdFromValue(decodedContent?.video_id) ||
+      this.extractYouTubeVideoIdFromValue(decodedContent?.url) ||
+      this.extractYouTubeVideoIdFromValue(results[0]?.video_id) ||
+      this.extractYouTubeVideoIdFromValue(results[0]?.url) ||
+      this.extractYouTubeVideoIdFromValue(url)
+    );
+  }
 
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
@@ -2425,6 +2448,22 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       const handleFullscreen = () => {
         this.openFullscreen(attrs, embedData, decodedContent);
       };
+
+      if (attrs.contentRef?.startsWith("embed:") && embedId) {
+        content.setAttribute("data-content-ref", attrs.contentRef);
+        content.setAttribute("data-embed-id", embedId);
+      }
+
+      const videoId = this.extractVideoTranscriptVideoId(
+        decodedContent,
+        results,
+        url,
+      );
+      if (videoId) {
+        content.setAttribute("data-video-id", videoId);
+      } else {
+        content.removeAttribute("data-video-id");
+      }
 
       const component = mount(VideoTranscriptEmbedPreview, {
         target: content,
