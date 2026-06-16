@@ -131,7 +131,9 @@ describe('draftCore setCurrentChatContext', () => {
     mocks.draftEditorUIState.reset({ currentChatId: 'chat-1' });
     initializeDraftService(editor as never);
 
-    await setCurrentChatContext('chat-2', null, 0);
+    const contextPromise = setCurrentChatContext('chat-2', null, 0);
+    await vi.advanceTimersByTimeAsync(50);
+    await contextPromise;
 
     expect(chain.setContent).toHaveBeenCalledWith(
       { type: 'doc', content: [] },
