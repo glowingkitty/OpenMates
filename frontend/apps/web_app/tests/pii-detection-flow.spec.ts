@@ -599,10 +599,10 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	await expect(assistantMessage).toBeVisible({ timeout: 60000 });
 	logCheckpoint('Assistant message is visible.');
 
-	// A finished mail embed has data-status="finished" in its preview.
+	// A finished mail embed has data-app-id="mail" and data-status="finished" in its preview.
+	// Avoid matching the web-search embed from the same assistant response via generic words like "heater".
 	const mailEmbedPreview = page
-		.locator('[data-testid="embed-preview"][data-status="finished"]')
-		.filter({ hasText: /mail|email|heater/i })
+		.locator('[data-testid="embed-preview"][data-app-id="mail"][data-status="finished"]')
 		.first();
 	await expect(mailEmbedPreview).toBeVisible({ timeout: 120000 });
 	logCheckpoint('Mail embed preview reached finished status.');
