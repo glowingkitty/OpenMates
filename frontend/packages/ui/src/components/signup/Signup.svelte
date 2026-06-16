@@ -49,6 +49,7 @@
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
     import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
     import { createOnboardingChat, hasOnboardingChat, ONBOARDING_ENABLED } from '../../services/onboardingChatService'; // Import onboarding chat creation
+    import { promoteAnonymousChatsAfterSignup } from '../../services/anonymousChatPromotionService';
     import { getSignupStepSequence } from './signupFlow';
 
     // Dynamic imports for step contents
@@ -1133,6 +1134,17 @@
         phasedSyncState.markSyncCompleted();
         console.debug("[Signup] Marked phased sync as completed after signup (new user has no chats to sync)");
 
+        let promotedAnonymousChatCount = 0;
+        try {
+            const promotionResult = await promoteAnonymousChatsAfterSignup();
+            promotedAnonymousChatCount = promotionResult.promotedCount;
+            if (promotionResult.promotedCount > 0) {
+                console.info(`[Signup] Promoted ${promotionResult.promotedCount} anonymous chat(s) after signup`, promotionResult.promotedChatIds);
+            }
+        } catch (error) {
+            console.error('[Signup] Failed to promote anonymous chats after signup; local anonymous data was preserved for retry:', error);
+        }
+
         // Create the onboarding chat with Suki's pre-activated welcome focus mode.
         // Uses hasOnboardingChat() as a guard against duplicate creation on page reload.
         // This is fire-and-forget — a failure here must not block signup completion.
@@ -1143,7 +1155,9 @@
         //
         // Gated by ONBOARDING_ENABLED while we rework the onboarding experience.
         // window.onboarding() still works for manual QA.
-        if (!ONBOARDING_ENABLED) {
+        if (promotedAnonymousChatCount > 0) {
+            console.debug('[Signup] Anonymous chats promoted — skipping onboarding auto-create so the user returns to their chat');
+        } else if (!ONBOARDING_ENABLED) {
             console.debug("[Signup] Onboarding disabled — skipping auto-create");
         } else try {
             const alreadyExists = await hasOnboardingChat();

@@ -366,6 +366,7 @@ export interface Chat {
 
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)
+  is_anonymous?: boolean; // True for logged-out anonymous free-usage chats stored only in this browser session
 
   // Demo duplication tracking
   source_demo_id?: string | null; // ID of the source demo chat if this chat was created by duplicating a demo

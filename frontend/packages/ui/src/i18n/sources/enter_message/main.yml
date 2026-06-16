@@ -70,6 +70,30 @@ click_to_add_text:
   sv: "Klicka här för att lägga till text"
   he: לחץ כאן כדי להוסיף טקסט
   verified_by_human: []
+anonymous_terms_reminder:
+  context: Reminder shown above the message input before a logged-out anonymous user sends typed text
+  en: By sending a message you accept the terms & privacy policy of OpenMates.
+  de: Wenn du eine Nachricht sendest, akzeptierst du die Nutzungsbedingungen und die Datenschutzrichtlinie von OpenMates.
+  zh: 发送消息即表示您接受 OpenMates 的条款和隐私政策。
+  es: Al enviar un mensaje, aceptas los términos y la política de privacidad de OpenMates.
+  fr: En envoyant un message, vous acceptez les conditions et la politique de confidentialité d'OpenMates.
+  pt: Ao enviar uma mensagem, você aceita os termos e a política de privacidade do OpenMates.
+  ru: Отправляя сообщение, вы принимаете условия и политику конфиденциальности OpenMates.
+  ja: メッセージを送信すると、OpenMates の利用規約とプライバシーポリシーに同意したものとみなされます。
+  ko: 메시지를 보내면 OpenMates의 약관 및 개인정보 처리방침에 동의하는 것입니다.
+  it: Inviando un messaggio, accetti i termini e l'informativa sulla privacy di OpenMates.
+  tr: Bir mesaj göndererek OpenMates şartlarını ve gizlilik politikasını kabul etmiş olursunuz.
+  vi: Khi gửi tin nhắn, bạn chấp nhận điều khoản và chính sách quyền riêng tư của OpenMates.
+  id: Dengan mengirim pesan, Anda menerima ketentuan dan kebijakan privasi OpenMates.
+  pl: Wysyłając wiadomość, akceptujesz warunki i politykę prywatności OpenMates.
+  nl: Door een bericht te sturen accepteer je de voorwaarden en het privacybeleid van OpenMates.
+  ar: بإرسال رسالة، فإنك تقبل شروط OpenMates وسياسة الخصوصية.
+  hi: संदेश भेजकर आप OpenMates की शर्तों और गोपनीयता नीति को स्वीकार करते हैं।
+  th: การส่งข้อความถือว่าคุณยอมรับข้อกำหนดและนโยบายความเป็นส่วนตัวของ OpenMates
+  cs: Odesláním zprávy přijímáte podmínky a zásady ochrany osobních údajů OpenMates.
+  sv: Genom att skicka ett meddelande accepterar du OpenMates villkor och integritetspolicy.
+  he: בשליחת הודעה אתם מאשרים את התנאים ומדיניות הפרטיות של OpenMates.
+  verified_by_human: []
 send:
   context: Button text for sending a message
   en: Send

@@ -13,6 +13,108 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
 
 test.describe('Anonymous free chat', () => {
+	test('anonymous text chat shows terms reminder before send and feature notice in chat', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		const anonymousRequests: Array<Record<string, unknown>> = [];
+		await page.route('**/v1/anonymous/chat/stream', async (route: any) => {
+			const body = JSON.parse(route.request().postData() || '{}') as Record<string, unknown>;
+			anonymousRequests.push(body);
+			const responseNumber = anonymousRequests.length;
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					status: 'completed',
+					messageId: `anonymous-assistant-${responseNumber}`,
+					assistant: `Anonymous answer ${responseNumber}`,
+					category: 'ai',
+					modelName: 'test-model'
+				})
+			});
+		});
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+		await page.getByTestId('new-chat-cta-fullwidth').click();
+
+		const editor = page.getByTestId('message-editor');
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await editor.click();
+		await page.keyboard.insertText('Hello anonymous text');
+		const termsReminder = page.getByTestId('anonymous-terms-reminder');
+		await expect(termsReminder).toBeVisible({ timeout: 5000 });
+		await expect(termsReminder).toContainText(
+			'By sending a message you accept the terms & privacy policy of OpenMates.'
+		);
+		await page.locator('[data-action="send-message"]').click();
+
+		await expect(termsReminder).toHaveCount(0);
+		await expect(
+			page.getByTestId('message-system').filter({
+				hasText: 'You are using free anonymous credits.'
+			})
+		).toBeVisible({ timeout: 10000 });
+		await expect(
+			page.getByTestId('message-system').filter({
+				hasText: 'By sending a message you accept the terms'
+			})
+		).toHaveCount(0);
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 1' })).toBeVisible({
+			timeout: 10000
+		});
+
+		expect(anonymousRequests).toHaveLength(1);
+		expect(anonymousRequests[0].plaintext_message).toBe('Hello anonymous text');
+		expect(anonymousRequests[0].message_history).toEqual([]);
+
+		await editor.click();
+		await page.keyboard.insertText('Second anonymous text');
+		await page.locator('[data-action="send-message"]').click();
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' })).toBeVisible({
+			timeout: 10000
+		});
+
+		expect(anonymousRequests).toHaveLength(2);
+		expect(JSON.stringify(anonymousRequests[1].message_history)).not.toContain(
+			'By sending a message you accept the terms'
+		);
+		expect(JSON.stringify(anonymousRequests[1].message_history)).not.toContain(
+			'You are using free anonymous credits.'
+		);
+		expect(anonymousRequests[1].message_history).toEqual([
+			expect.objectContaining({ role: 'user', content: 'Hello anonymous text' }),
+			expect.objectContaining({ role: 'assistant', content: 'Anonymous answer 1' })
+		]);
+
+		const encryptedPayload = await page.evaluate(() => localStorage.getItem('openmates_anonymous_chats_v1'));
+		expect(encryptedPayload).toBeTruthy();
+		expect(encryptedPayload).not.toContain('Hello anonymous text');
+		expect(encryptedPayload).not.toContain('Anonymous answer 1');
+		expect(encryptedPayload).not.toContain('By sending a message you accept the terms');
+		expect(encryptedPayload).not.toContain('You are using free anonymous credits.');
+
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' })).toBeVisible({
+			timeout: 10000
+		});
+
+		await page.evaluate(() => sessionStorage.removeItem('openmates_anonymous_chat_key'));
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect
+			.poll(() => page.evaluate(() => localStorage.getItem('openmates_anonymous_chats_v1')))
+			.toBeNull();
+		await assertNoMissingTranslations(page);
+	});
+
 	test('anonymous file attachment is signup-gated without uploading file bytes', async ({
 		page
 	}: {

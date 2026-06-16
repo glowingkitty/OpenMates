@@ -17,6 +17,7 @@ import { tipTapToCanonicalMarkdown } from "../../../message_parsing/serializers"
 import { isPublicChat } from "../../../demo_chats/convertToChat";
 import { websocketStatus } from "../../../stores/websocketStatusStore"; // Import WebSocket status store
 import { chatListCache } from "../../../services/chatListCache";
+import { anonymousChatStorage } from "../../../services/anonymousChatStorage";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
@@ -1007,11 +1008,16 @@ export async function handleSend(
   const urlSpan = tracer.startSpan('message.send.url_processing');
   recordSendDebugStep("url_processing_started", { currentChatId });
   try {
-    markdown = await processUrlsBeforeSend(markdown);
-    recordSendDebugStep("url_processing_complete", {
-      currentChatId,
-      markdownLength: markdown.length,
-    });
+    if (get(authStore).isAuthenticated) {
+      markdown = await processUrlsBeforeSend(markdown);
+      recordSendDebugStep("url_processing_complete", {
+        currentChatId,
+        markdownLength: markdown.length,
+      });
+    } else {
+      // Anonymous free usage is text-only: do not create URL/file embeds or upload metadata.
+      recordSendDebugStep("url_processing_skipped_anonymous", { currentChatId });
+    }
   } catch (error) {
     console.error("[handleSend] Error processing URLs before send:", error);
     // Continue with original markdown if URL processing fails
@@ -1188,6 +1194,23 @@ export async function handleSend(
   let messagePayload: Message; // Defined here to be accessible for sendNewMessage
 
   try {
+    if (!get(authStore).isAuthenticated) {
+      const anonymousResult = await anonymousChatStorage.sendTextMessage({
+        markdown,
+        currentChatId,
+        sourceDemoId: currentChatId && isPublicChat(currentChatId) ? currentChatId : null,
+      });
+      setHasContent(false);
+      resetEditorContent(editor, false);
+      dispatch("sendMessage", {
+        message: anonymousResult.userMessage,
+        newChat: anonymousResult.isNewChat ? anonymousResult.chat : undefined,
+      });
+      dispatch("anonymousAssistantMessage", anonymousResult);
+      await clearCurrentDraft();
+      return;
+    }
+
     // Check if there's already a chat with a draft (created during typing)
     const draftState = get(draftEditorUIState);
     if (!chatIdToUse && draftState.currentChatId) {

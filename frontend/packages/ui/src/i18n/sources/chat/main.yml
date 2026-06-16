@@ -70,6 +70,30 @@ request_feature_prefill:
   sv: "Begärd funktion:"
   he: "התכונה המבוקשת:"
   verified_by_human: []
+anonymous_free_usage.feature_notice:
+  context: Local system notice shown in anonymous free-usage chats explaining free credits and signup-only features
+  en: You are using free anonymous credits. File uploads, memories, chat sync, and some other features require creating an account.
+  de: Du verwendest kostenlose anonyme Credits. Datei-Uploads, Erinnerungen, Chat-Synchronisierung und einige weitere Funktionen erfordern ein Konto.
+  zh: 您正在使用免费的匿名额度。文件上传、记忆、聊天同步以及其他一些功能需要创建账户。
+  es: Estás usando créditos anónimos gratuitos. Las cargas de archivos, memorias, sincronización de chats y algunas otras funciones requieren crear una cuenta.
+  fr: Vous utilisez des crédits anonymes gratuits. Les téléversements de fichiers, les mémoires, la synchronisation des chats et certaines autres fonctionnalités nécessitent la création d'un compte.
+  pt: Você está usando créditos anônimos gratuitos. Uploads de arquivos, memórias, sincronização de chats e alguns outros recursos exigem a criação de uma conta.
+  ru: Вы используете бесплатные анонимные кредиты. Загрузка файлов, память, синхронизация чатов и некоторые другие функции требуют создания аккаунта.
+  ja: 無料の匿名クレジットを使用しています。ファイルアップロード、メモリ、チャット同期、その他一部の機能を使うにはアカウント作成が必要です。
+  ko: 무료 익명 크레딧을 사용하고 있습니다. 파일 업로드, 메모리, 채팅 동기화 및 일부 다른 기능은 계정 생성이 필요합니다.
+  it: Stai usando crediti anonimi gratuiti. Caricamenti di file, memorie, sincronizzazione delle chat e alcune altre funzionalità richiedono la creazione di un account.
+  tr: Ücretsiz anonim krediler kullanıyorsunuz. Dosya yüklemeleri, hafızalar, sohbet senkronizasyonu ve bazı diğer özellikler için hesap oluşturmanız gerekir.
+  vi: Bạn đang dùng tín dụng ẩn danh miễn phí. Tải tệp lên, bộ nhớ, đồng bộ trò chuyện và một số tính năng khác yêu cầu tạo tài khoản.
+  id: Anda menggunakan kredit anonim gratis. Unggahan file, memori, sinkronisasi chat, dan beberapa fitur lain memerlukan pembuatan akun.
+  pl: Używasz bezpłatnych anonimowych kredytów. Przesyłanie plików, pamięć, synchronizacja czatów i niektóre inne funkcje wymagają utworzenia konta.
+  nl: Je gebruikt gratis anonieme credits. Bestandsuploads, herinneringen, chatsynchronisatie en sommige andere functies vereisen het aanmaken van een account.
+  ar: أنت تستخدم رصيدًا مجانيًا مجهولًا. تتطلب عمليات رفع الملفات والذاكرة ومزامنة المحادثات وبعض الميزات الأخرى إنشاء حساب.
+  hi: आप मुफ्त गुमनाम क्रेडिट का उपयोग कर रहे हैं। फ़ाइल अपलोड, मेमोरी, चैट सिंक और कुछ अन्य सुविधाओं के लिए खाता बनाना आवश्यक है।
+  th: คุณกำลังใช้เครดิตฟรีแบบนิรนาม การอัปโหลดไฟล์ ความทรงจำ การซิงค์แชท และฟีเจอร์อื่นบางอย่างต้องสร้างบัญชี
+  cs: Používáte bezplatné anonymní kredity. Nahrávání souborů, paměti, synchronizace chatů a některé další funkce vyžadují vytvoření účtu.
+  sv: Du använder gratis anonyma krediter. Filuppladdningar, minnen, chattsynkronisering och vissa andra funktioner kräver att du skapar ett konto.
+  he: אתם משתמשים בקרדיטים אנונימיים בחינם. העלאות קבצים, זיכרונות, סנכרון צ'אטים וחלק מהתכונות האחרות דורשים יצירת חשבון.
+  verified_by_human: []
 interactive_question_failed:
   context: Fallback shown when an interactive question payload cannot be parsed or displayed
   en: Failed to display question.

@@ -493,6 +493,7 @@
     // Checked client-side against the synced userProfile store — no server request needed.
     let demoVisualAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
     let anonymousTextSendEnabled = $derived(!$authStore.isAuthenticated && $anonymousFreeUsageStatus?.active === true && !anonymousFileAttachmentPending);
+    let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent);
     let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
@@ -4990,6 +4991,12 @@
         </div>
     {/if}
 
+    {#if showAnonymousTermsReminder}
+        <div class="anonymous-terms-reminder" data-testid="anonymous-terms-reminder" transition:fade={{ duration: 160 }}>
+            {$text('enter_message.anonymous_terms_reminder')}
+        </div>
+    {/if}
+
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
@@ -5318,6 +5325,18 @@
 
     .edit-banner-cancel:hover {
         background: var(--color-grey-20, rgba(255, 255, 255, 0.1));
+    }
+
+    .anonymous-terms-reminder {
+        margin: 0 8px var(--spacing-2, 6px);
+        padding: var(--spacing-2, 6px) var(--spacing-4, 12px);
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--radius-4, 12px);
+        background: var(--color-grey-0);
+        color: var(--color-font-secondary);
+        font-size: var(--font-size-xs);
+        line-height: 1.35;
+        text-align: center;
     }
 
     .edit-banner-close-icon {

@@ -94,6 +94,7 @@
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
+    import { anonymousChatStorage, type AnonymousSendResult } from '../services/anonymousChatStorage';
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
@@ -209,7 +210,7 @@
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
 
     function shouldAutoStartCreatedApplicationPreview(chat: Chat | null): boolean {
-        if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito) return false;
+        if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito || chat.is_anonymous) return false;
         if (isPublicChat(chat.chat_id) || isDemoChat(chat.chat_id) || isExampleChat(chat.chat_id) || isLegalChat(chat.chat_id) || isNewsletterChat(chat.chat_id)) return false;
         return true;
     }
@@ -5524,7 +5525,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
                 // Skip for incognito chats (they're not stored on the server)
                 // This uses a separate event type 'ai_response_completed' to avoid triggering AI processing
-                if (!currentChat?.is_incognito) {
+                if (!currentChat?.is_incognito && !currentChat?.is_anonymous) {
                     try {
                         console.debug('[ActiveChat] Sending completed AI response to server for encrypted Directus storage:', {
                             messageId: updatedFinalMessage.message_id,
@@ -5824,13 +5825,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         currentChat = incognitoChat as Chat;
                         hydratedMessagesForChat = await incognitoChatService.getMessagesForChat(message.chat_id);
                     } else {
-                        const dbChat = await chatDB.getChat(message.chat_id);
-                        if (dbChat) {
-                            currentChat = dbChat as Chat;
-                            hydratedMessagesForChat = await chatDB.getMessagesForChat(message.chat_id);
+                        const anonymousChat = await anonymousChatStorage.getChat(message.chat_id);
+                        if (anonymousChat) {
+                            currentChat = anonymousChat as Chat;
+                            hydratedMessagesForChat = await anonymousChatStorage.getMessagesForChat(message.chat_id);
                         } else {
-                            // Minimal fallback to keep UI consistent; DB should catch up shortly
-                            currentChat = { chat_id: message.chat_id } as Chat;
+                            const dbChat = await chatDB.getChat(message.chat_id);
+                            if (dbChat) {
+                                currentChat = dbChat as Chat;
+                                hydratedMessagesForChat = await chatDB.getMessagesForChat(message.chat_id);
+                            } else {
+                                // Minimal fallback to keep UI consistent; DB should catch up shortly
+                                currentChat = { chat_id: message.chat_id } as Chat;
+                            }
                         }
                     }
                 } catch (err) {
@@ -5875,7 +5882,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             updateNavFromCache(currentChat.chat_id);
 
             const createdChatId = currentChat.chat_id;
-            if (!currentChat.is_incognito) {
+            if (!currentChat.is_incognito && !currentChat.is_anonymous) {
                 void import('../services/chatSyncServiceHandlersAI')
                     .then(({ flushPendingFinalizedEmbedsForChat }) =>
                         flushPendingFinalizedEmbedsForChat(chatSyncService, createdChatId)
@@ -5888,7 +5895,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Notify backend about the active chat, but only if not in signup flow
             // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
             // Non-authenticated users can send set_active_chat for demo chats
-            if (!$authStore.isAuthenticated || !$isInSignupProcess) {
+            if (!currentChat.is_anonymous && (!$authStore.isAuthenticated || !$isInSignupProcess)) {
                 chatSyncService.sendSetActiveChat(currentChat.chat_id);
             } else {
                 console.debug('[ActiveChat] Authenticated user is in signup flow - skipping set_active_chat for new chat to preserve last_opened path');
@@ -6009,6 +6016,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // should ideally update the message status in DB, and that change should flow
         // back via messageStatusChanged event if sendNewMessage fails at WebSocket level.
         // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
+    }
+
+    function handleAnonymousAssistantMessage(event: CustomEvent<AnonymousSendResult>) {
+        const { chat, userMessage, assistantMessage } = event.detail;
+        currentChat = chat;
+        activeChatDecryptedTitle = typeof chat.title === 'string' ? chat.title : activeChatDecryptedTitle;
+        activeChatDecryptedCategory = chat.category ?? assistantMessage.category ?? activeChatDecryptedCategory;
+        activeChatDecryptedIcon = chat.icon ? chat.icon.split(',')[0]?.trim() || null : activeChatDecryptedIcon;
+        activeChatDecryptedSummary = null;
+        isNewChatGeneratingTitle = false;
+        isNewChatProcessing = false;
+        processingPhase = null;
+
+        const existingWithoutUser = currentMessages.filter(m => m.message_id !== userMessage.message_id);
+        const existingWithoutAssistant = existingWithoutUser.filter(m => m.message_id !== assistantMessage.message_id);
+        currentMessages = [...existingWithoutAssistant, userMessage, assistantMessage];
+        chatListCache.upsertChat(chat);
+        chatListCache.setLastMessage(chat.chat_id, assistantMessage);
+        window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chat.chat_id } }));
+        chatHistoryRef?.updateMessages(currentMessages);
     }
 
     async function handleNewChatCreationCancelled(event: CustomEvent) {
@@ -7851,6 +7878,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.debug(`[ActiveChat] Error loading incognito chat ${chat.chat_id}, using provided chat object:`, error);
                 freshChat = chat;
             }
+        } else if (chat.is_anonymous) {
+            try {
+                const anonymousChat = await anonymousChatStorage.getChat(chat.chat_id);
+                freshChat = anonymousChat || chat;
+                console.debug(`[ActiveChat] Loading anonymous chat ${chat.chat_id} - using anonymousChatStorage`);
+            } catch (error) {
+                console.debug(`[ActiveChat] Error loading anonymous chat ${chat.chat_id}, using provided chat object:`, error);
+                freshChat = chat;
+            }
         } else if (!$authStore.isAuthenticated) {
             // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
             // (new chat with draft that doesn't exist in database yet)
@@ -7929,8 +7965,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                       activeChatDecryptedSummary = s;
                       console.debug('[ActiveChat] loadChat: Restored chat header for public chat:', t, c, ic);
                   }
-              } else if (chatForHeader.is_incognito) {
-                  // Incognito chats: category and icon are plaintext; title may be blank on new ones
+              } else if (chatForHeader.is_incognito || chatForHeader.is_anonymous) {
+                  // Session-only chats: category and icon are plaintext; title may be blank on new ones
                   const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
                   const c = chatForHeader.category || null;
                   const rawIcon = chatForHeader.icon || null;
@@ -7940,9 +7976,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                       activeChatDecryptedTitle = t;
                       activeChatDecryptedCategory = c;
                       activeChatDecryptedIcon = ic;
-                      // Incognito chats do not persist a summary
+                      // Session-only chats do not persist a summary
                       activeChatDecryptedSummary = null;
-                      console.debug('[ActiveChat] loadChat: Restored chat header for incognito chat:', t, c, ic);
+                      console.debug('[ActiveChat] loadChat: Restored chat header for session-only chat:', t, c, ic);
                   }
               } else {
                   // Regular encrypted chats: decrypt encrypted fields.
@@ -8096,6 +8132,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from incognitoChatService for ${currentChat.chat_id}`);
                 } catch (error) {
                     console.error(`[ActiveChat] Error loading incognito chat messages for ${currentChat.chat_id}:`, error);
+                    newMessages = [];
+                }
+            } else if (currentChat.is_anonymous) {
+                try {
+                    newMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
+                    console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from anonymousChatStorage for ${currentChat.chat_id}`);
+                } catch (error) {
+                    console.error(`[ActiveChat] Error loading anonymous chat messages for ${currentChat.chat_id}:`, error);
                     newMessages = [];
                 }
             } else if (!$authStore.isAuthenticated) {
@@ -11507,6 +11551,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:pdffullscreen={handlePdfFullscreen}
                                     on:recordingfullscreen={handleRecordingFullscreen}
                                     on:sendMessage={handleSendMessage}
+                                    on:anonymousAssistantMessage={handleAnonymousAssistantMessage}
                                     on:newChatCreationCancelled={handleNewChatCreationCancelled}
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}

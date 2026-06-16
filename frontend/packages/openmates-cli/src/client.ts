@@ -1008,6 +1008,13 @@ interface TaskStatusResponse {
   error?: string | null;
 }
 
+export interface AnonymousFreeUsageStatus {
+  active: boolean;
+  reason: string | null;
+  resetAt: string | null;
+  cta: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -1255,6 +1262,42 @@ export class OpenMatesClient {
     return this.session !== null;
   }
 
+  async getAnonymousFreeUsageStatus(): Promise<AnonymousFreeUsageStatus> {
+    const response = await this.http.get<{
+      active?: boolean;
+      reason?: string | null;
+      reset_at?: string | null;
+      cta?: string | null;
+      detail?: { code?: string; message?: string } | string;
+    }>("/v1/anonymous/free-usage/status");
+
+    if (response.status === 404) {
+      return {
+        active: false,
+        reason: "self_hosted",
+        resetAt: null,
+        cta: "Anonymous free chat is not available on this server.",
+      };
+    }
+
+    if (!response.ok) {
+      const detail = response.data.detail;
+      const message = typeof detail === "object" && detail?.message
+        ? detail.message
+        : typeof detail === "string"
+          ? detail
+          : `Anonymous free usage status failed with HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    return {
+      active: response.data.active === true,
+      reason: response.data.reason ?? null,
+      resetAt: response.data.reset_at ?? null,
+      cta: response.data.cta ?? null,
+    };
+  }
+
   async sendAnonymousMessage(params: { message: string }): Promise<{
     status: "completed";
     chatId: string;
@@ -1272,6 +1315,11 @@ export class OpenMatesClient {
       entryCount: number;
     }>;
   }> {
+    const availability = await this.getAnonymousFreeUsageStatus();
+    if (!availability.active) {
+      throw new Error(availability.cta ?? "Create an account to keep using OpenMates.");
+    }
+
     let anonymousId = loadAnonymousId();
     if (!anonymousId) {
       anonymousId = randomUUID();

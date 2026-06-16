@@ -3790,8 +3790,12 @@ async function sendMessageStreaming(
   finalMessage = piiResult.redacted;
 
   if (!client.hasSession()) {
-    const result = await client.sendAnonymousMessage({ message: finalMessage });
-    clearTyping();
+    let result: Awaited<ReturnType<OpenMatesClient["sendAnonymousMessage"]>>;
+    try {
+      result = await client.sendAnonymousMessage({ message: finalMessage });
+    } finally {
+      clearTyping();
+    }
     if (!params.json) {
       const mateBlock = ansiMateBlock(result.category, result.mateName);
       const modelSuffix = result.modelName

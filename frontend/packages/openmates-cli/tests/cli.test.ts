@@ -171,6 +171,15 @@ async function withAnonymousMockApi<T>(
   mkdirSync(tempHome, { recursive: true });
   const server = createServer(async (request, response) => {
     try {
+      if (request.method === "GET" && request.url === "/v1/anonymous/free-usage/status") {
+        writeJson(response, {
+          active: true,
+          reason: null,
+          reset_at: "2026-06-17T00:00:00+00:00",
+          cta: "Sign up to keep using OpenMates",
+        });
+        return;
+      }
       if (request.method === "POST" && request.url === "/v1/anonymous/chat/stream") {
         const body = await readJsonBody(request);
         requests.push(body);
