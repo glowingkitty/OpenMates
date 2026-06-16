@@ -55,6 +55,7 @@ FASTAPI_ROUTES = [
     ("/v1/connected-accounts", "Connected account storage and actions", False),
     ("/v1/connected-account-oauth", "Connected account OAuth handoffs", False),
     ("/v1/provider-oauth/google/calendar", "Google Calendar OAuth", False),
+    ("/v1/token-broker", "Connected account token broker", False),
     ("/v1/newsletter", "Newsletter", False),
     ("/v1/block-email", "Email blocking", False),
     ("/v1/debug", "Debug sync", False),

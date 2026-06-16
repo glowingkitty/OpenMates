@@ -62,7 +62,10 @@ import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
 import * as senders from "./chatSyncServiceSenders";
 import { flushPendingEmbedOperations } from "./embedSenders";
 import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
-import type { ConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
+import type {
+  ConnectedAccountSendContext,
+  PreparedConnectedAccountSendContext,
+} from "./connectedAccountTokenBrokerService";
 import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
 import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
 
@@ -1721,11 +1724,19 @@ export class ChatSynchronizationService extends EventTarget {
     connectedAccountContext?: ConnectedAccountSendContext,
   ): Promise<void> {
     const context = connectedAccountContext ?? await this.buildDefaultConnectedAccountSendContext();
-    const preparedConnectedAccountContext = await prepareConnectedAccountSendContext({
-      chatId: message.chat_id,
-      messageId: message.message_id,
-      context,
-    });
+    let preparedConnectedAccountContext: PreparedConnectedAccountSendContext | undefined;
+    try {
+      preparedConnectedAccountContext = await prepareConnectedAccountSendContext({
+        chatId: message.chat_id,
+        messageId: message.message_id,
+        context,
+      });
+    } catch (error) {
+      console.warn(
+        "[ChatSyncService] Connected account token prep failed; sending without connected account context.",
+        error,
+      );
+    }
     await senders.sendNewMessageImpl(
       this,
       message,
