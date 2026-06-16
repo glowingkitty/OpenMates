@@ -594,12 +594,16 @@ export class EmbedStore {
     }
   }
 
-  private async extractRefFromResolvedEmbed(
+  private async extractRefsFromResolvedEmbed(
     embed: Record<string, unknown> | string | undefined,
-  ): Promise<{ embedRef: string | null; appId: string | null }> {
-    if (!embed) return { embedRef: null, appId: null };
+  ): Promise<{ embedRefs: string[]; appId: string | null }> {
+    if (!embed) return { embedRefs: [], appId: null };
 
     let decodedSource: unknown = embed;
+    const embedType =
+      typeof embed === "object" && typeof embed.type === "string"
+        ? embed.type
+        : null;
     if (typeof embed === "object" && typeof embed.content === "string") {
       decodedSource = await decodeToonContentLocal(embed.content);
     } else if (typeof embed === "string") {
@@ -607,13 +611,26 @@ export class EmbedStore {
     }
 
     if (!decodedSource || typeof decodedSource !== "object") {
-      return { embedRef: null, appId: null };
+      return { embedRefs: [], appId: null };
     }
 
     const decoded = decodedSource as Record<string, unknown>;
+    const embedRefs = new Set<string>();
+    if (typeof decoded.embed_ref === "string") {
+      embedRefs.add(decoded.embed_ref);
+    }
+    if (embedType === "video" && typeof decoded.video_id === "string") {
+      embedRefs.add(decoded.video_id);
+    }
+
     return {
-      embedRef: typeof decoded.embed_ref === "string" ? decoded.embed_ref : null,
-      appId: typeof decoded.app_id === "string" ? decoded.app_id : null,
+      embedRefs: Array.from(embedRefs),
+      appId:
+        typeof decoded.app_id === "string"
+          ? decoded.app_id
+          : embedType === "video"
+            ? "videos"
+            : null,
     };
   }
 
@@ -3270,9 +3287,9 @@ export class EmbedStore {
       const registeredEmbedId = this.resolveByRef(embedRef);
       if (registeredEmbedId) return registeredEmbedId;
 
-      const { embedRef: verifiedRef, appId } =
-        await this.extractRefFromResolvedEmbed(resolvedEmbed);
-      if (verifiedRef === embedRef) {
+      const { embedRefs: verifiedRefs, appId } =
+        await this.extractRefsFromResolvedEmbed(resolvedEmbed);
+      if (verifiedRefs.includes(embedRef)) {
         this.registerEmbedRef(embedRef, candidateEmbedId, appId);
         return candidateEmbedId;
       }

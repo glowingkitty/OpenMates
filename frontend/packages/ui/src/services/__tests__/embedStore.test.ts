@@ -158,3 +158,39 @@ describe('EmbedStore uploaded file search metadata', () => {
     expect(hasEvidence).toBe(false);
   });
 });
+
+describe('EmbedStore.resolveByRefDeep', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it('repairs video source quote refs that use a YouTube video ID', async () => {
+    const store = new EmbedStore();
+
+    vi.spyOn(store as unknown as {
+      collectAllRefRepairCandidatesFromCache(): string[];
+    }, 'collectAllRefRepairCandidatesFromCache').mockReturnValue([
+      'video-embed-id',
+    ]);
+    vi.spyOn(store as unknown as {
+      collectAllRefRepairCandidatesFromIndexedDb(): Promise<string[]>;
+    }, 'collectAllRefRepairCandidatesFromIndexedDb').mockResolvedValue([]);
+    vi.spyOn(store, 'get').mockResolvedValue({
+      contentRef: 'embed:video-embed-id',
+      type: 'video',
+      status: 'finished',
+      content: JSON.stringify({
+        video_id: 'vS-gfLhxYDg',
+        title: 'Sample YouTube video',
+      }),
+      embed_id: 'video-embed-id',
+    } as Record<string, unknown>);
+
+    await expect(store.resolveByRefDeep('vS-gfLhxYDg')).resolves.toBe(
+      'video-embed-id',
+    );
+    expect(store.resolveByRef('vS-gfLhxYDg')).toBe('video-embed-id');
+    expect(store.resolveAppIdByRef('vS-gfLhxYDg')).toBe('videos');
+  });
+});
