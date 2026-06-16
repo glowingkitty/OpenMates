@@ -118,17 +118,24 @@ export async function prepareConnectedAccountSendContext(params: {
 }): Promise<PreparedConnectedAccountSendContext | undefined> {
 	if (!params.context) return undefined;
 	const tokenRefs = [...(params.context.tokenRefs ?? [])];
-	if (params.context.tokenRefInputs?.length) {
-		tokenRefs.push(
-			...(await createConnectedAccountTurnTokenRefs({
-				chatId: params.chatId,
-				messageId: params.messageId,
-				refs: params.context.tokenRefInputs
-			}))
-		);
-	}
 	if (params.context.directory?.length) {
 		assertNoConnectedAccountSecretLeak(params.context.directory);
+	}
+	if (params.context.tokenRefInputs?.length) {
+		try {
+			tokenRefs.push(
+				...(await createConnectedAccountTurnTokenRefs({
+					chatId: params.chatId,
+					messageId: params.messageId,
+					refs: params.context.tokenRefInputs
+				}))
+			);
+		} catch (error) {
+			console.warn(
+				'[ConnectedAccountTokenBroker] Token-ref creation failed; sending redacted directory only.',
+				error
+			);
+		}
 	}
 	if (tokenRefs.length) {
 		assertNoConnectedAccountSecretLeak(tokenRefs);
