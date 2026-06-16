@@ -352,6 +352,8 @@
     let suppressHeightChangeDispatch = $state(false);
     
     let hasEmbedContent = $state(false);
+    let anonymousTextSendEnabled = $derived(!$authStore.isAuthenticated && $anonymousFreeUsageStatus?.active === true && !anonymousFileAttachmentPending);
+    let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent);
 
     function editorHasEmbedContent(editor: Editor): boolean {
         let found = false;
@@ -367,7 +369,7 @@
 
     // Draft preview mode: text-only field has content but is not focused — show truncated text, hide buttons.
     // File/PDF/image embeds must keep actions visible so users can send after upload completion.
-    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
+    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible && !anonymousTextSendEnabled);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -492,8 +494,6 @@
     // True when the user is authenticated but has zero or negative credits.
     // Checked client-side against the synced userProfile store — no server request needed.
     let demoVisualAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
-    let anonymousTextSendEnabled = $derived(!$authStore.isAuthenticated && $anonymousFreeUsageStatus?.active === true && !anonymousFileAttachmentPending);
-    let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent);
     let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
