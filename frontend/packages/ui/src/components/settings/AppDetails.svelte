@@ -17,7 +17,7 @@
     import AppStoreCard from './AppStoreCard.svelte';
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
-    import { SettingsButton, SettingsCard, SettingsInfoBox, SettingsSectionHeading } from './elements';
+    import { SettingsButton, SettingsCard, SettingsCheckboxList, SettingsInfoBox, SettingsSectionHeading } from './elements';
     import type { AppMetadata, MemoryFieldMetadata, SkillMetadata } from '../../types/apps';
     import { CONTENT_EMBED_CATALOG, type ContentEmbedCatalogItem } from '../../data/embedRegistry.generated';
     import { createEventDispatcher } from 'svelte';
@@ -57,6 +57,15 @@
     let connectedAccountError = $state('');
     let connectedAccountSuccess = $state('');
     let finalizedOAuthHandoffId = $state('');
+    let calendarCapabilitySelections = $state<Record<CalendarCapability, boolean>>({
+        read: true,
+        write: true,
+        delete: true
+    });
+
+    type CalendarCapability = 'read' | 'write' | 'delete';
+
+    const CALENDAR_CAPABILITIES: CalendarCapability[] = ['read', 'write', 'delete'];
 
     function hasGuestExamples(category: MemoryFieldMetadata): boolean {
         return (category.example_entries?.length ?? 0) > 0 || (category.example_translation_keys?.length ?? 0) > 0;
@@ -67,6 +76,28 @@
     let visibleMemoryFields = $derived.by(() => (
         isAuthenticated ? memoryFields : memoryFields.filter(hasGuestExamples)
     ));
+
+    let calendarCapabilityOptions = $derived(CALENDAR_CAPABILITIES.map((capability) => ({
+        id: capability,
+        label: $text(`settings.app_store.connected_accounts.capability_${capability}`),
+        description: $text(`settings.app_store.connected_accounts.capability_${capability}_description`),
+        checked: calendarCapabilitySelections[capability]
+    })));
+    let selectedCalendarCapabilities = $derived(
+        CALENDAR_CAPABILITIES.filter((capability) => calendarCapabilitySelections[capability])
+    );
+    let calendarOAuthCapabilitySummary = $derived(
+        selectedCalendarCapabilities.length
+            ? selectedCalendarCapabilities
+                .map((capability) => $text(`settings.app_store.connected_accounts.capability_${capability}`))
+                .join(', ')
+            : $text('settings.app_store.connected_accounts.no_capabilities_selected')
+    );
+
+    function updateCalendarCapability(id: string, checked: boolean) {
+        if (!CALENDAR_CAPABILITIES.includes(id as CalendarCapability)) return;
+        calendarCapabilitySelections[id as CalendarCapability] = checked;
+    }
     
     /**
      * Convert a skill to an app-like metadata object for AppStoreCard.
@@ -263,12 +294,13 @@
     }
 
     async function connectGoogleCalendar() {
+        if (selectedCalendarCapabilities.length === 0) return;
         connectedAccountAction = 'connecting';
         connectedAccountError = '';
         connectedAccountSuccess = '';
         try {
             const result = await startGoogleCalendarOAuth({
-                capabilities: ['read', 'write', 'delete'],
+                capabilities: selectedCalendarCapabilities,
                 returnPath: '/#settings/apps/calendar'
             });
             window.location.assign(result.authorization_url);
@@ -410,11 +442,22 @@
                                     {$text('settings.app_store.connected_accounts.not_connected')}
                                 {/if}
                             </p>
+                            <div data-testid="calendar-capability-toggles">
+                                <SettingsCheckboxList
+                                    options={calendarCapabilityOptions}
+                                    onChange={updateCalendarCapability}
+                                />
+                            </div>
+                            <p data-testid="calendar-oauth-capability-summary">
+                                {$text('settings.app_store.connected_accounts.oauth_summary', {
+                                    values: { capabilities: calendarOAuthCapabilitySummary }
+                                })}
+                            </p>
                         </div>
                         <SettingsButton
                             dataTestid="connect-google-calendar-button"
                             loading={connectedAccountAction === 'connecting'}
-                            disabled={connectedAccountAction !== 'idle'}
+                            disabled={connectedAccountAction !== 'idle' || selectedCalendarCapabilities.length === 0}
                             onClick={connectGoogleCalendar}
                         >
                             {$text('settings.app_store.connected_accounts.connect_button')}

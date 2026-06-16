@@ -645,6 +645,38 @@ connected_accounts.connect_button:
   context: Button label for starting Google Calendar OAuth.
   en: Connect Google Calendar
   verified_by_human: [en]
+connected_accounts.capability_read:
+  context: Label for the Google Calendar OAuth read capability checkbox.
+  en: Read events
+  verified_by_human: [en]
+connected_accounts.capability_read_description:
+  context: Description for the Google Calendar OAuth read capability checkbox.
+  en: Let OpenMates request permission before reading calendar events.
+  verified_by_human: [en]
+connected_accounts.capability_write:
+  context: Label for the Google Calendar OAuth write capability checkbox.
+  en: Write events
+  verified_by_human: [en]
+connected_accounts.capability_write_description:
+  context: Description for the Google Calendar OAuth write capability checkbox.
+  en: Let OpenMates request permission before creating or updating events.
+  verified_by_human: [en]
+connected_accounts.capability_delete:
+  context: Label for the Google Calendar OAuth delete capability checkbox.
+  en: Delete events
+  verified_by_human: [en]
+connected_accounts.capability_delete_description:
+  context: Description for the Google Calendar OAuth delete capability checkbox.
+  en: Let OpenMates request permission before deleting events.
+  verified_by_human: [en]
+connected_accounts.oauth_summary:
+  context: Summary of Google Calendar capabilities that will be requested during OAuth. The capabilities replacement is a comma-separated list.
+  en: "OAuth request: {capabilities}"
+  verified_by_human: [en]
+connected_accounts.no_capabilities_selected:
+  context: OAuth summary value shown when no Google Calendar capabilities are selected.
+  en: No access selected
+  verified_by_human: [en]
 connected_accounts.finalizing:
   context: Status while the browser is encrypting and saving a claimed OAuth handoff.
   en: Encrypting and saving your connected account...
