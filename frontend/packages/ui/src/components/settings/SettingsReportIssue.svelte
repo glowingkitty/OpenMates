@@ -41,6 +41,7 @@
     let shareChatEnabled = $state(true);
     let chatOrEmbedUrl = $state('');
     let contactEmail = $state('');
+    let issueType = $state<'bug_report' | 'feature_request'>('bug_report');
     let isSubmitting = $state(false);
     let errorMessage = $state('');
 
@@ -555,6 +556,7 @@
                     body: JSON.stringify({
                     title: sanitizedTitle,
                     description: sanitizedDescription,
+                    issue_type: issueType,
                     chat_or_embed_url: sanitizedUrl,
                     contact_email: sanitizedEmail,
                     language: currentLanguage,
@@ -641,6 +643,7 @@
                 shareChatEnabled = true;
                 chatOrEmbedUrl = '';
                 contactEmail = '';
+                issueType = 'bug_report';
                 // Reset admin toggles back to defaults (off)
                 addToLinear = false;
                 sendEmailNotification = false;
@@ -1001,6 +1004,7 @@
     function _saveFormDraft() {
         reportIssueFormDraftStore.set({
             issueTitle,
+            issueType,
             userFlow,
             expectedBehaviour,
             actualBehaviour,
@@ -1460,6 +1464,7 @@
             if ($reportIssueStore.description) userFlow = $reportIssueStore.description;
             // If a URL was passed directly (e.g. from deep link), pre-fill it
             if ($reportIssueStore.url) chatOrEmbedUrl = $reportIssueStore.url;
+            if ($reportIssueStore.issueType) issueType = $reportIssueStore.issueType;
             // If the store requests sharing the chat, enable the toggle
             if ($reportIssueStore.shareChat) shareChatEnabled = true;
             
@@ -1473,6 +1478,7 @@
         const draft = $reportIssueFormDraftStore;
         if (draft) {
             issueTitle = draft.issueTitle;
+            issueType = draft.issueType;
             userFlow = draft.userFlow;
             expectedBehaviour = draft.expectedBehaviour;
             actualBehaviour = draft.actualBehaviour;

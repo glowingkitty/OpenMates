@@ -14,6 +14,12 @@ issues:
       type: text
       note: "Issue description (cleartext for text search)"
 
+    issue_type:
+      type: string
+      length: 32
+      default_value: bug_report
+      note: "Lightweight report category: bug_report or feature_request."
+
     encrypted_chat_or_embed_url:
       type: text
       nullable: true

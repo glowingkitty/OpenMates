@@ -41,6 +41,7 @@ def send_issue_report_email(
     issue_id: Optional[str] = None,
     issue_title: str = "",
     issue_description: Optional[str] = None,
+    issue_type: str = "bug_report",
     chat_or_embed_url: Optional[str] = None,
     contact_email: Optional[str] = None,
     language: str = "en",
@@ -94,10 +95,27 @@ def send_issue_report_email(
         # Use asyncio.run() which handles loop creation and cleanup properly
         result = asyncio.run(
             _async_send_issue_report_email(
-                self, admin_email, issue_id, issue_title, issue_description,
-                chat_or_embed_url, contact_email, language, timestamp, estimated_location, device_info, console_logs,
-                indexeddb_report, last_messages_html, active_chat_sidebar_html, runtime_debug_state, action_history,
-                picked_element_html, screenshot_presigned_url, reported_by_user_id
+                task=self,
+                admin_email=admin_email,
+                issue_id=issue_id,
+                issue_title=issue_title,
+                issue_description=issue_description,
+                issue_type=issue_type,
+                chat_or_embed_url=chat_or_embed_url,
+                contact_email=contact_email,
+                language=language,
+                timestamp=timestamp,
+                estimated_location=estimated_location,
+                device_info=device_info,
+                console_logs=console_logs,
+                indexeddb_report=indexeddb_report,
+                last_messages_html=last_messages_html,
+                active_chat_sidebar_html=active_chat_sidebar_html,
+                runtime_debug_state=runtime_debug_state,
+                action_history=action_history,
+                picked_element_html=picked_element_html,
+                screenshot_presigned_url=screenshot_presigned_url,
+                reported_by_user_id=reported_by_user_id,
             )
         )
         if result:
@@ -424,6 +442,7 @@ async def _async_send_issue_report_email(
     issue_id: Optional[str] = None,
     issue_title: str = "",
     issue_description: Optional[str] = None,
+    issue_type: str = "bug_report",
     chat_or_embed_url: Optional[str] = None,
     contact_email: Optional[str] = None,
     language: str = "en",
@@ -554,6 +573,7 @@ async def _async_send_issue_report_email(
                     'report_timestamp': timestamp,
                     'title': issue_title,
                     'description': issue_description,
+                    'issue_type': issue_type,
                     'contact_email': contact_email,
                     'estimated_location': estimated_location,
                     'user_stats': user_stats
@@ -688,6 +708,7 @@ async def _async_send_issue_report_email(
             "darkmode": True,  # Default to dark mode for issue report emails
             "issue_id": issue_id,  # Include issue ID for easy admin lookup via /v1/admin/debug/issues/{issue_id}
             "issue_title": sanitized_title,
+            "issue_type": issue_type,
             "issue_description": sanitized_description,
             "chat_or_embed_url": sanitized_url,
             "contact_email": contact_email_formatted,

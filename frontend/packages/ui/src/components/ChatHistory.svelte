@@ -69,6 +69,9 @@
   import { chatDB } from '../services/db';
   import { webSocketService } from '../services/websocketService';
   import { activeChatStore } from '../stores/activeChatStore';
+  import { reportIssueStore } from '../stores/reportIssueStore';
+  import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
+  import { panelState } from '../stores/panelStateStore';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -1107,6 +1110,18 @@
 
   function handleQuickTipAction(tip: QuickTipDefinition): void {
     dispatch('quickTipAction', tip);
+  }
+
+  function openReportIssue(issueType: 'bug_report' | 'feature_request'): void {
+    reportIssueStore.set({
+      title: issueType === 'feature_request'
+        ? $text('chat.request_feature_prefill')
+        : '',
+      issueType,
+      shareChat: true,
+    });
+    settingsDeepLink.set('report_issue');
+    panelState.openSettings();
   }
   
   // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
@@ -2322,6 +2337,27 @@
                     />
                 </div>
             {/if}
+
+            {#if messages.length > 0}
+                <div class="chat-history-feedback-links" data-testid="chat-history-feedback-links">
+                    <button
+                        type="button"
+                        class="chat-history-feedback-link"
+                        data-testid="chat-history-request-feature"
+                        onclick={() => openReportIssue('feature_request')}
+                    >
+                        {$text('chat.request_feature')}
+                    </button>
+                    <button
+                        type="button"
+                        class="chat-history-feedback-link"
+                        data-testid="chat-history-report-issue"
+                        onclick={() => openReportIssue('bug_report')}
+                    >
+                        {$text('settings.report_issue')}
+                    </button>
+                </div>
+            {/if}
         </div>
     {/if}
     
@@ -2495,9 +2531,48 @@
     width: 100%;
   }
 
+  .chat-history-feedback-links {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--spacing-4);
+    padding: 0 20px 24px;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .chat-history-feedback-link {
+    all: unset;
+    cursor: pointer;
+    color: var(--color-grey-60);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    line-height: 1.35;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color var(--duration-fast) var(--easing-default);
+  }
+
+  .chat-history-feedback-link:hover,
+  .chat-history-feedback-link:focus-visible {
+    color: var(--color-grey-100);
+  }
+
+  .chat-history-feedback-link:focus-visible {
+    outline: 2px solid var(--color-grey-70);
+    outline-offset: 3px;
+    border-radius: var(--radius-3);
+  }
+
   @media (max-width: 500px) {
     .quick-tips-wrapper,
     .follow-up-suggestions-wrapper {
+      padding-inline-start: 10px;
+      padding-inline-end: 10px;
+    }
+
+    .chat-history-feedback-links {
+      justify-content: center;
       padding-inline-start: 10px;
       padding-inline-end: 10px;
     }

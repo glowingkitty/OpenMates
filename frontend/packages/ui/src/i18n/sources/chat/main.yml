@@ -22,6 +22,54 @@ new_chat:
   sv: Ny chatt
   he: "צ'אט חדש"
   verified_by_human: []
+request_feature:
+  context: Text link shown at the end of chat history to open the feature request form
+  en: Request feature
+  de: Funktion anfragen
+  zh: 请求功能
+  es: Solicitar función
+  fr: Demander une fonctionnalité
+  pt: Solicitar recurso
+  ru: Запросить функцию
+  ja: 機能をリクエスト
+  ko: 기능 요청
+  it: Richiedi funzionalità
+  tr: Özellik iste
+  vi: Yêu cầu tính năng
+  id: Minta fitur
+  pl: Poproś o funkcję
+  nl: Functie aanvragen
+  ar: طلب ميزة
+  hi: सुविधा का अनुरोध करें
+  th: ขอฟีเจอร์
+  cs: Požádat o funkci
+  sv: Begär funktion
+  he: בקשת תכונה
+  verified_by_human: []
+request_feature_prefill:
+  context: Starting text inserted into the report issue short description when requesting a feature
+  en: "Requested feature:"
+  de: "Gewünschte Funktion:"
+  zh: "请求的功能："
+  es: "Función solicitada:"
+  fr: "Fonctionnalité demandée :"
+  pt: "Recurso solicitado:"
+  ru: "Запрошенная функция:"
+  ja: "リクエストした機能："
+  ko: "요청한 기능:"
+  it: "Funzionalità richiesta:"
+  tr: "İstenen özellik:"
+  vi: "Tính năng được yêu cầu:"
+  id: "Fitur yang diminta:"
+  pl: "Proponowana funkcja:"
+  nl: "Aangevraagde functie:"
+  ar: "الميزة المطلوبة:"
+  hi: "अनुरोधित सुविधा:"
+  th: "ฟีเจอร์ที่ขอ:"
+  cs: "Požadovaná funkce:"
+  sv: "Begärd funktion:"
+  he: "התכונה המבוקשת:"
+  verified_by_human: []
 interactive_question_failed:
   context: Fallback shown when an interactive question payload cannot be parsed or displayed
   en: Failed to display question.

@@ -4,6 +4,7 @@ export interface ReportIssueTemplate {
   title?: string;
   description?: string;
   url?: string;
+  issueType?: "bug_report" | "feature_request";
   /** When true, the report issue form will default the "share chat" toggle to ON */
   shareChat?: boolean;
 }
@@ -37,6 +38,7 @@ export const submittedIssueIdStore = writable<string>("");
  */
 export interface ReportIssueFormDraft {
   issueTitle: string;
+  issueType: "bug_report" | "feature_request";
   userFlow: string;
   expectedBehaviour: string;
   actualBehaviour: string;

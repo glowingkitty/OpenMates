@@ -9,7 +9,7 @@ import hashlib
 import json
 import glob
 import pyotp
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field # Import BaseModel and Field for response models
 
@@ -2541,6 +2541,7 @@ class IssueReportRequest(BaseModel):
     """Request model for issue reporting endpoint"""
     title: str = Field(..., min_length=3, max_length=500, description="Short description of the issue (required, 3-500 characters)")
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
+    issue_type: Literal["bug_report", "feature_request"] = Field("bug_report", description="Lightweight category for the submitted report")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
     contact_email: Optional[str] = Field(None, max_length=255, description="Optional contact email address for follow-up communication")
     language: str = Field("en", max_length=10, description="ISO 639-1 language code from the client UI (used for confirmation email localisation)")
@@ -3004,6 +3005,7 @@ async def report_issue(
             issue_data_dict = {
                 "title": db_title,
                 "description": sanitized_description,
+                "issue_type": issue_data.issue_type,
                 "encrypted_chat_or_embed_url": encrypted_chat_or_embed_url,
                 "encrypted_contact_email": encrypted_contact_email,
                 "timestamp": timestamp_dt.isoformat(),
@@ -3066,6 +3068,7 @@ async def report_issue(
                     "issue_id": issue_id,  # Pass issue ID so email task can update database with S3 key
                     "issue_title": sanitized_title,
                     "issue_description": sanitized_description,
+                    "issue_type": issue_data.issue_type,
                     "chat_or_embed_url": sanitized_url,
                     "contact_email": sanitized_email,  # Use plaintext for email (not encrypted)
                     "language": sanitized_language,    # Client UI language for confirmation email localisation
@@ -3113,6 +3116,7 @@ async def report_issue(
                         "issue_id": issue_id,
                         "issue_title": sanitized_title,
                         "issue_description": sanitized_description,
+                        "issue_type": issue_data.issue_type,
                         "chat_or_embed_url": sanitized_url,
                         "is_from_admin": is_from_admin,
                         "contact_email": sanitized_email if sanitized_email else None,
