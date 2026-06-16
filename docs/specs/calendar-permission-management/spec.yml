@@ -905,9 +905,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "local-cli-unit-2026-06-16T15:59:47Z"
+        timestamp: "2026-06-16T15:59:47Z"
 
   - id: T-E2E-001
     type: playwright
