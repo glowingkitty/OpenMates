@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import sys
+import time
 import types
 from typing import Any
 
@@ -51,6 +52,86 @@ class FakeDirectus:
 class FakeCalendarEvent:
     def __init__(self, event_id: str) -> None:
         self.id = event_id
+
+
+@pytest.mark.anyio
+async def test_cancel_pending_action_marks_journal_cancelled() -> None:
+    from backend.core.api.app.routes.connected_account_actions import (
+        CancelConnectedAccountActionRequest,
+        cancel_connected_account_action,
+    )
+    from backend.core.api.app.services.connected_account_operation_journal import (
+        ConnectedAccountOperationJournalService,
+    )
+
+    encryption = FakeEncryption()
+    journal = ConnectedAccountOperationJournalService(encryption_service=encryption)
+    row = await journal.build_entry(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        app_id="calendar",
+        action="write",
+        decision="pending_cancel_window",
+        action_id="act-cancel",
+        receipt={"summary": "Pending Calendar write"},
+        expires_at=int(time.time()) + 30,
+    )
+    directus = FakeDirectus(row)
+
+    response = await cancel_connected_account_action(
+        "act-cancel",
+        CancelConnectedAccountActionRequest(chat_id="chat-1", message_id="msg-1"),
+        current_user=FakeUser(),
+        directus_service=directus,
+        encryption_service=encryption,
+        cache_service=FakeCache(),
+    )
+
+    assert response.status == "cancelled"
+    assert response.receipt["decision"] == "user_cancelled"
+    assert directus.updated is not None
+    assert directus.updated["decision"] == "user_cancelled"
+    assert directus.updated["encrypted_receipt"].startswith("vault:vault-key:")
+    assert "Pending Calendar write" not in str(directus.updated)
+
+
+@pytest.mark.anyio
+async def test_cancel_rejects_expired_cancel_window() -> None:
+    from fastapi import HTTPException
+
+    from backend.core.api.app.routes.connected_account_actions import (
+        CancelConnectedAccountActionRequest,
+        cancel_connected_account_action,
+    )
+    from backend.core.api.app.services.connected_account_operation_journal import (
+        ConnectedAccountOperationJournalService,
+    )
+
+    encryption = FakeEncryption()
+    journal = ConnectedAccountOperationJournalService(encryption_service=encryption)
+    row = await journal.build_entry(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        app_id="calendar",
+        action="delete",
+        decision="pending_cancel_window",
+        action_id="act-expired",
+        expires_at=int(time.time()) - 1,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await cancel_connected_account_action(
+            "act-expired",
+            CancelConnectedAccountActionRequest(chat_id="chat-1", message_id="msg-1"),
+            current_user=FakeUser(),
+            directus_service=FakeDirectus(row),
+            encryption_service=encryption,
+            cache_service=FakeCache(),
+        )
+
+    assert exc_info.value.status_code == 409
 
 
 @pytest.mark.anyio

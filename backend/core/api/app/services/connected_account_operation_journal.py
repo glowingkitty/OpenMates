@@ -158,6 +158,32 @@ class ConnectedAccountOperationJournalService:
             raise RuntimeError("failed to mark connected-account operation as undone")
         return updated
 
+    async def mark_cancelled(
+        self,
+        *,
+        directus_service: Any,
+        entry: dict[str, Any],
+        receipt: dict[str, Any],
+        user_vault_key_id: str,
+    ) -> dict[str, Any]:
+        """Mark a pending operation as user-cancelled with an encrypted receipt."""
+
+        _reject_forbidden_fields({"receipt": receipt})
+        encrypted_receipt = await self._encrypt_optional(receipt, user_vault_key_id)
+        payload = {
+            "decision": "user_cancelled",
+            "encrypted_receipt": encrypted_receipt,
+            "cancelled_at": int(time.time()),
+        }
+        updated = await directus_service.update_item(
+            "connected_account_operation_journal",
+            str(entry["id"]),
+            payload,
+        )
+        if not updated:
+            raise RuntimeError("failed to mark connected-account operation as cancelled")
+        return updated
+
     async def _encrypt_optional(self, value: dict[str, Any] | None, key_id: str) -> str | None:
         if not value:
             return None

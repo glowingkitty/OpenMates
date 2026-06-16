@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from typing import Any
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
@@ -33,6 +34,13 @@ class UndoConnectedAccountActionRequest(BaseModel):
     message_id: str = Field(min_length=1)
 
 
+class CancelConnectedAccountActionRequest(BaseModel):
+    """Client-mediated cancel request for an auto-approved mutation window."""
+
+    chat_id: str = Field(min_length=1)
+    message_id: str = Field(min_length=1)
+
+
 class UndoConnectedAccountActionResponse(BaseModel):
     """Safe undo result returned to web, CLI, and Apple clients."""
 
@@ -40,6 +48,14 @@ class UndoConnectedAccountActionResponse(BaseModel):
     status: str
     undo_type: str
     events: list[dict[str, str]]
+    receipt: dict[str, Any]
+
+
+class CancelConnectedAccountActionResponse(BaseModel):
+    """Safe cancel result returned to web, CLI, and Apple clients."""
+
+    action_id: str
+    status: str
     receipt: dict[str, Any]
 
 
@@ -82,6 +98,62 @@ def _require_vault_key_id(current_user: Any) -> str:
     if not vault_key_id:
         raise HTTPException(status_code=403, detail="User vault key is required for connected-account undo")
     return str(vault_key_id)
+
+
+@router.post("/{action_id}/cancel", response_model=CancelConnectedAccountActionResponse)
+async def cancel_connected_account_action(
+    action_id: str,
+    body: CancelConnectedAccountActionRequest,
+    current_user: Any = Depends(get_current_user_lazy),
+    directus_service: Any = Depends(get_directus_service),
+    encryption_service: Any = Depends(get_encryption_service),
+    cache_service: Any = Depends(get_cache_service),
+) -> CancelConnectedAccountActionResponse:
+    """Cancel a pending auto-approved Calendar mutation before provider execution starts."""
+
+    vault_key_id = _require_vault_key_id(current_user)
+    journal = ConnectedAccountOperationJournalService(encryption_service=encryption_service)
+    entry = await journal.load_owned_action(
+        directus_service=directus_service,
+        user_id=current_user.id,
+        action_id=action_id,
+    )
+    if not entry:
+        raise HTTPException(status_code=403, detail="Connected-account action not found for current user")
+    if entry.get("app_id_hash") != _sha256("calendar"):
+        raise HTTPException(status_code=422, detail="Connected-account action has no cancel implementation")
+    if entry.get("decision") == "user_cancelled":
+        raise HTTPException(status_code=409, detail="Connected-account action was already cancelled")
+    if entry.get("decision") != "pending_cancel_window":
+        raise HTTPException(status_code=409, detail="Connected-account action already started")
+
+    expires_at = int(entry.get("expires_at") or 0)
+    if expires_at <= int(time.time()):
+        raise HTTPException(status_code=409, detail="Connected-account cancel window expired")
+
+    receipt = {
+        "action_id": action_id,
+        "app_id": "calendar",
+        "action": str(entry.get("action") or "unknown"),
+        "decision": "user_cancelled",
+    }
+    await journal.mark_cancelled(
+        directus_service=directus_service,
+        entry=entry,
+        receipt=receipt,
+        user_vault_key_id=vault_key_id,
+    )
+    await publish_connected_account_action_receipt(
+        cache_service=cache_service,
+        user_id=current_user.id,
+        payload={
+            "chat_id": body.chat_id,
+            "message_id": body.message_id,
+            "action_id": action_id,
+            "receipt": receipt,
+        },
+    )
+    return CancelConnectedAccountActionResponse(action_id=action_id, status="cancelled", receipt=receipt)
 
 
 @router.post("/{action_id}/undo", response_model=UndoConnectedAccountActionResponse)
