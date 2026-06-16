@@ -36,6 +36,8 @@ GOOGLE_CALENDAR_STATE_PREFIX = "connected_account:oauth_state:google_calendar:"
 GOOGLE_CALENDAR_STATE_TTL_SECONDS = 10 * 60
 CALENDAR_READ_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
 CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+DEFAULT_DEV_WEBAPP_URL = "https://app.dev.openmates.org"
+DEFAULT_PROD_WEBAPP_URL = "https://openmates.org"
 
 
 class GoogleCalendarOAuthStartRequest(BaseModel):
@@ -67,16 +69,38 @@ def _redirect_uri(request: Request) -> str:
     )
 
 
-def _webapp_url() -> str:
-    configured = os.getenv("WEBAPP_URL") or os.getenv("PRODUCTION_URL")
+def _normalize_origin(value: str | None) -> str | None:
+    if not value:
+        return None
+    parsed = urlsplit(value.strip())
+    if parsed.scheme not in {"https", "http"} or not parsed.netloc:
+        return None
+    return urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
+
+
+def _allowed_webapp_origins(request: Request) -> set[str]:
+    configured = getattr(request.app.state, "allowed_origins", None)
     if configured:
-        return configured.rstrip("/")
-    frontend_urls = os.getenv("FRONTEND_URLS", "").split(",")
-    for url in frontend_urls:
-        clean = url.strip()
-        if clean.startswith("https://") or clean.startswith("http://"):
-            return clean.rstrip("/")
-    return "https://app.dev.openmates.org"
+        return {origin for origin in (_normalize_origin(str(item)) for item in configured) if origin}
+
+    is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() != "production"
+    origins_str = os.getenv("FRONTEND_URLS") if is_dev else os.getenv("PRODUCTION_URL")
+    default_origins = [DEFAULT_DEV_WEBAPP_URL] if is_dev else [DEFAULT_PROD_WEBAPP_URL]
+    candidates = [origin.strip() for origin in (origins_str or "").split(",") if origin.strip()]
+    return {origin for origin in (_normalize_origin(item) for item in candidates + default_origins) if origin}
+
+
+def _webapp_url(request: Request) -> str:
+    allowed_origins = _allowed_webapp_origins(request)
+    request_origin = _normalize_origin(request.headers.get("origin"))
+    if request_origin in allowed_origins:
+        return str(request_origin)
+
+    for origin in sorted(allowed_origins):
+        host = urlsplit(origin).hostname or ""
+        if origin.startswith("https://") and host not in {"localhost", "127.0.0.1", "0.0.0.0"}:
+            return origin
+    return DEFAULT_DEV_WEBAPP_URL
 
 
 def _sanitize_return_path(return_path: str | None) -> str:
@@ -138,6 +162,7 @@ async def start_google_calendar_oauth(
         "scopes": scopes,
         "redirect_uri": redirect_uri,
         "return_path": _sanitize_return_path(body.return_path),
+        "webapp_url": _webapp_url(request),
         "expires_at": expires_at,
     }
     ok = await cache_service.set(
@@ -224,7 +249,7 @@ async def google_calendar_oauth_callback(
 
     return RedirectResponse(
         url=_append_handoff_query(
-            _webapp_url(),
+            str(state_payload.get("webapp_url") or _webapp_url(request)),
             str(state_payload.get("return_path") or "/#settings/apps/calendar"),
             handoff.handoff_id,
         ),

@@ -93,9 +93,11 @@ def make_client(cache: FakeCache, encryption: FakeEncryption | None = None):
 
 
 def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
+    monkeypatch.setenv("WEBAPP_URL", "http://localhost:5173")
     monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_REDIRECT_URI", "https://api.dev.openmates.org/v1/provider-oauth/google/calendar/callback")
     cache = FakeCache()
     client, route = make_client(cache)
+    client.app.state.allowed_origins = ["http://localhost:5173", "https://app.dev.openmates.org"]
 
     async def fake_get_google_oauth_credentials():
         return "vault-client-id", "vault-client-secret"
@@ -105,6 +107,7 @@ def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
     response = client.post(
         "/v1/provider-oauth/google/calendar/start",
         json={"capabilities": ["read"], "return_path": "/#settings/apps/calendar"},
+        headers={"Origin": "https://app.dev.openmates.org"},
     )
 
     assert response.status_code == 200
@@ -121,6 +124,7 @@ def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
     state_key = route._state_key(state)
     assert cache.values[state_key]["user_id"] == "user-1"
     assert cache.values[state_key]["scopes"] == [route.CALENDAR_READ_SCOPE]
+    assert cache.values[state_key]["webapp_url"] == "https://app.dev.openmates.org"
 
 
 @pytest.mark.anyio
@@ -179,7 +183,7 @@ def test_google_calendar_start_uses_events_scope_for_write_or_delete(monkeypatch
 
 @pytest.mark.anyio
 async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(monkeypatch) -> None:
-    monkeypatch.setenv("WEBAPP_URL", "https://app.dev.openmates.org")
+    monkeypatch.setenv("WEBAPP_URL", "http://localhost:5173")
     cache = FakeCache()
     encryption = FakeEncryption()
     client, route = make_client(cache, encryption)
@@ -202,6 +206,7 @@ async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(
             "scopes": [route.CALENDAR_READ_SCOPE],
             "redirect_uri": "https://api.dev.openmates.org/oauth/google/calendar/callback",
             "return_path": "/#settings/apps/calendar",
+            "webapp_url": "https://app.dev.openmates.org",
             "expires_at": 999,
         },
         ttl=600,
