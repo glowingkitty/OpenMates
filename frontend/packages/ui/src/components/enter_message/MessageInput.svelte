@@ -4473,7 +4473,17 @@
 
 
     // --- Public API ---
-    export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
+    export function focus() {
+        if (!editor || editor.isDestroyed) return;
+
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        isFocused = true;
+        editor.commands.focus('end');
+    }
     export function sendCurrentMessage() { handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
