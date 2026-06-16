@@ -935,8 +935,8 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "27630212819"
-        timestamp: "2026-06-16T15:54:49Z"
+        run_id: "27654640662"
+        timestamp: "2026-06-16T23:23:02Z"
 
   - id: T-E2E-002
     type: playwright
@@ -984,8 +984,8 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "27621396136"
-        timestamp: "2026-06-16T13:36:09Z"
+        run_id: "27654362908"
+        timestamp: "2026-06-16T23:15:57Z"
 
   - id: T-E2E-004
     type: playwright
@@ -1012,8 +1012,8 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "27561882136"
-        timestamp: "2026-06-15T16:49:42Z"
+        run_id: "27654947473"
+        timestamp: "2026-06-16T23:30:22Z"
 
   - id: T-LIVE-001
     type: pytest
