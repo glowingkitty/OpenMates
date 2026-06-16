@@ -12,6 +12,32 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
 
+function anonymousActiveServerStatusBody() {
+	return {
+		is_self_hosted: false,
+		payment_enabled: true,
+		server_edition: 'development',
+		domain: 'app.dev.openmates.org',
+		ai_models_configured: true,
+		anonymous_free_usage: {
+			active: true,
+			reason: null,
+			reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+			cta: 'Create an account to keep using OpenMates.'
+		}
+	};
+}
+
+async function mockAnonymousActiveServerStatus(page: any) {
+	await page.route('**/v1/settings/server-status', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify(anonymousActiveServerStatusBody())
+		});
+	});
+}
+
 test.describe('Anonymous free chat', () => {
 	test('anonymous text chat shows terms reminder before send and feature notice in chat', async ({
 		page
@@ -20,6 +46,7 @@ test.describe('Anonymous free chat', () => {
 	}) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
+		await mockAnonymousActiveServerStatus(page);
 
 		const anonymousRequests: Array<Record<string, unknown>> = [];
 		await page.route('**/v1/anonymous/chat/stream', async (route: any) => {
@@ -122,6 +149,7 @@ test.describe('Anonymous free chat', () => {
 	}) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
+		await mockAnonymousActiveServerStatus(page);
 
 		const uploadRequests: string[] = [];
 		page.on('request', (request: any) => {
