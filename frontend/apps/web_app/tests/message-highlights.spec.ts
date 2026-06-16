@@ -400,14 +400,16 @@ test('message highlights: correctness, lifecycle, viewport resize', async ({ pag
 	// STEP 6 — Click commented highlight → view popover
 	// ───────────────────────────────────────────────────────────
 	logCheckpoint('Clicking commented highlight...');
-	// Find the "old bridge" mark specifically
-	let commentedMarkIdx = 0;
-	for (let i = 0; i < 2; i++) {
-		const txt = (await marks.nth(i).textContent() ?? '').trim();
-		if (txt === 'old bridge') { commentedMarkIdx = i; break; }
-	}
-	await marks.nth(commentedMarkIdx).click({ force: true });
-	await expect(popover).toBeVisible({ timeout: 5000 });
+	await expect(async () => {
+		let commentedMarkIdx = 0;
+		const markCount = await marks.count();
+		for (let i = 0; i < markCount; i++) {
+			const txt = (await marks.nth(i).textContent() ?? '').trim();
+			if (txt === 'old bridge') { commentedMarkIdx = i; break; }
+		}
+		await marks.nth(commentedMarkIdx).click({ force: true });
+		await expect(popover).toBeVisible({ timeout: 1500 });
+	}).toPass({ timeout: 15000 });
 	await expect(commentView).toHaveText(COMMENT_TEXT);
 	await expect(page.locator(SELECTORS.commentEdit)).toBeVisible();
 	await expect(page.locator(SELECTORS.commentDelete)).toBeVisible();

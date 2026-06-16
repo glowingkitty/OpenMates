@@ -217,6 +217,12 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	logCheckpoint('Verifying PII highlights in the editor...');
 
 	const piiHighlights = page.locator('[data-testid="pii-highlight"]');
+	await expect
+		.poll(async () => piiHighlights.count(), {
+			timeout: 10000,
+			message: 'PII highlights should render after detection debounce'
+		})
+		.toBe(3);
 	const highlightCount = await piiHighlights.count();
 	logCheckpoint(`Found ${highlightCount} PII highlights in the editor.`);
 
@@ -226,6 +232,19 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	// Check that specific PII types are highlighted
 	const emailHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]');
 	const phoneHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="PHONE"]');
+
+	await expect
+		.poll(async () => emailHighlight.count(), {
+			timeout: 5000,
+			message: 'Email PII highlights should render'
+		})
+		.toBe(2);
+	await expect
+		.poll(async () => phoneHighlight.count(), {
+			timeout: 5000,
+			message: 'Phone PII highlight should render'
+		})
+		.toBe(1);
 
 	const emailCount = await emailHighlight.count();
 	const phoneCount = await phoneHighlight.count();
@@ -552,9 +571,14 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	await page.waitForTimeout(1500);
 
 	// Confirm BOTH emails are detected as PII in the editor before sending
-	const preSendEmailHighlights = await page
-		.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]')
-		.count();
+	const preSendEmailHighlightLocator = page.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]');
+	await expect
+		.poll(async () => preSendEmailHighlightLocator.count(), {
+			timeout: 10000,
+			message: 'Email PII highlights should render before sending'
+		})
+		.toBeGreaterThanOrEqual(2);
+	const preSendEmailHighlights = await preSendEmailHighlightLocator.count();
 	logCheckpoint(`PII highlights in editor before send: ${preSendEmailHighlights}`);
 	expect(preSendEmailHighlights).toBeGreaterThanOrEqual(2);
 
