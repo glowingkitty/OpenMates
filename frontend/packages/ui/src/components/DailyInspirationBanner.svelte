@@ -520,10 +520,13 @@
    * Handle clicking on the banner body — start a chat from this inspiration.
    * Also marks the inspiration as viewed via WebSocket.
    */
-  function handleStartChat(_e: MouseEvent) {
-    if (suppressNextClick) {
-      _e.stopPropagation();
-      _e.preventDefault();
+  function handleStartChat(e: MouseEvent) {
+    const sourceCapabilities = (e as MouseEvent & {
+      sourceCapabilities?: { firesTouchEvents?: boolean } | null;
+    }).sourceCapabilities;
+    if (suppressNextClick && sourceCapabilities?.firesTouchEvents === true) {
+      e.stopPropagation();
+      e.preventDefault();
       suppressNextClick = false;
       return;
     }

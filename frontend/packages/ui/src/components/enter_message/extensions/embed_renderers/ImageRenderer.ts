@@ -168,6 +168,25 @@ export class ImageRenderer implements EmbedRenderer {
         // File object is no longer available (attrs.originalFile is always undefined there).
         const fileSize = parsed.file_size as number | undefined;
         const fileType = parsed.file_type as string | undefined;
+        const publicSrc = parsed.src as string | undefined;
+
+        if (publicSrc) {
+          const publicAttrs: ImageEmbedAttrs = {
+            ...attrs,
+            src: publicSrc,
+            filename: filename || undefined,
+            status: "finished",
+            aiDetection: aiDetection ?? null,
+            fileSize,
+            fileType,
+          };
+          this._renderImageComponent(content, publicAttrs);
+          console.debug(
+            "[ImageRenderer] Restored public image embed from EmbedStore:",
+            embedId,
+          );
+          return true;
+        }
 
         if (!s3Files || !aesKey || !s3BaseUrl) {
           console.warn(

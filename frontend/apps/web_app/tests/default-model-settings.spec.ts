@@ -310,9 +310,11 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	// =========================================================================
 	logCheckpoint('Phase 4: Switching back to auto-select...');
 	await navigateToAiSettings(page, logCheckpoint, takeStepScreenshot, '04');
+	const settingsMenu2 = page.locator('[data-testid="settings-menu"].visible');
+	const aiSettings2 = settingsMenu2.getByTestId('ai-settings');
 
 	// The auto-select toggle should be OFF now. Toggle it back ON.
-	const autoSelectRow2 = aiSettings.getByTestId('setting-row').first();
+	const autoSelectRow2 = aiSettings2.getByTestId('setting-row').first();
 	await expect(autoSelectRow2).toBeVisible({ timeout: 5000 });
 
 	const toggleInput2 = autoSelectRow2.locator('input[type="checkbox"]');
@@ -339,7 +341,7 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	await page.waitForTimeout(3000);
 
 	// Verify the dropdowns are no longer visible (auto-select is ON)
-	const simpleDropdown2 = aiSettings.locator('#default-simple-select');
+	const simpleDropdown2 = aiSettings2.locator('#default-simple-select');
 	await expect(simpleDropdown2).not.toBeVisible({ timeout: 3000 });
 	logCheckpoint('Dropdowns hidden - auto-select is ON.');
 

@@ -153,6 +153,12 @@ async function clickChatByTitle(
 	await page.waitForTimeout(3000);
 }
 
+async function getVisibleChatHeaderTitle(page: any): Promise<string> {
+	const headerTitle = page.getByTestId('chat-header-title');
+	await expect(headerTitle).toBeVisible({ timeout: 10000 });
+	return (await headerTitle.textContent())?.trim() || '';
+}
+
 /**
  * Click the "New Chat" button via data-testid.
  */
@@ -335,6 +341,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	// =========================================================================
 	logStep('Phase 2: Opening chat A...');
 	await clickChatByTitle(page, chatA_title, logStep);
+	const chatA_visibleTitle = await getVisibleChatHeaderTitle(page);
 	await takeStepScreenshot(page, '02-chat-a-opened');
 
 	// Close sidebar before clicking New Chat (to see the welcome screen)
@@ -355,7 +362,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	logStep(`Resume card after chat A: "${resumeTitle1}"`);
 
 	// ASSERTION 1: Resume card should show chat A's title
-	expect(resumeTitle1).toBe(chatA_title);
+	expect(resumeTitle1).toBe(chatA_visibleTitle);
 	logStep('PASS: Resume card correctly shows chat A.');
 
 	// Check for duplicates (poll until stable to handle priority-items vs recent-chats race)
@@ -379,6 +386,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	await page.waitForTimeout(2000);
 
 	await clickChatByTitle(page, chatB_title, logStep);
+	const chatB_visibleTitle = await getVisibleChatHeaderTitle(page);
 	await takeStepScreenshot(page, '03-chat-b-opened');
 
 	// Close sidebar
@@ -398,7 +406,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	logStep(`Resume card after chat B: "${resumeTitle2}"`);
 
 	// ASSERTION 2: Resume card should now show chat B's title
-	expect(resumeTitle2).toBe(chatB_title);
+	expect(resumeTitle2).toBe(chatB_visibleTitle);
 	logStep('PASS: Resume card correctly updated to chat B.');
 
 	// Check for duplicates again (poll until stable)

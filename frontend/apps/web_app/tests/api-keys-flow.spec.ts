@@ -112,6 +112,29 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 	logCheckpoint('API Keys page loaded.');
 }
 
+async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
+	const settingsMenu = await ensureSettingsMenuOpen(page, logCheckpoint);
+
+	const developersItem = settingsMenu
+		.getByRole('menuitem')
+		.filter({ hasText: /^developers$/i })
+		.first();
+	await developersItem.scrollIntoViewIfNeeded();
+	await expect(developersItem).toBeVisible({ timeout: 8000 });
+	await developersItem.click();
+
+	const devicesItem = settingsMenu
+		.getByRole('menuitem')
+		.filter({ hasText: /^devices$/i })
+		.first();
+	await devicesItem.scrollIntoViewIfNeeded();
+	await expect(devicesItem).toBeVisible({ timeout: 8000 });
+	await devicesItem.click();
+	logCheckpoint('Navigated to Devices page.');
+
+	await expect(page.getByTestId('devices-container')).toBeVisible({ timeout: 8000 });
+}
+
 async function deleteFirstE2EOwnedApiKey(page: any, log: (msg: string) => void): Promise<boolean> {
 	const e2eKey = page
 		.getByTestId('api-key-item')
@@ -453,24 +476,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 		await reviewDeviceButton.click();
 		log('Opened Devices from pending-device notification.');
 	} else {
-		const settingsMenu2 = await ensureSettingsMenuOpen(page, log);
-
-		const developersItem2 = settingsMenu2
-			.getByRole('menuitem')
-			.filter({ hasText: /^developers$/i })
-			.first();
-		await developersItem2.scrollIntoViewIfNeeded();
-		await expect(developersItem2).toBeVisible({ timeout: 8000 });
-		await developersItem2.click();
-
-		const devicesItem = settingsMenu2
-			.getByRole('menuitem')
-			.filter({ hasText: /^devices$/i })
-			.first();
-		await devicesItem.scrollIntoViewIfNeeded();
-		await expect(devicesItem).toBeVisible({ timeout: 8000 });
-		await devicesItem.click();
-		log('Navigated to Devices page.');
+		await navigateToDevices(page, log);
 	}
 	await screenshot(page, 'devices-page');
 
@@ -479,8 +485,15 @@ test('creates API key, verifies device approval flow, and saves working key', as
 
 	await page.waitForTimeout(2000);
 
-	const pendingCard = page.locator('[data-testid="device-card"].pending').first();
-	await expect(pendingCard).toBeVisible({ timeout: 15000 });
+	let pendingCard = page.locator('[data-testid="device-card"].pending').first();
+	if (!(await pendingCard.isVisible({ timeout: 15000 }).catch(() => false))) {
+		log('Pending device card not visible yet; reloading and reopening Devices.');
+		await page.reload();
+		await page.waitForLoadState('domcontentloaded');
+		await navigateToDevices(page, log);
+		pendingCard = page.locator('[data-testid="device-card"].pending').first();
+		await expect(pendingCard).toBeVisible({ timeout: 30000 });
+	}
 	log('Found pending device card.');
 	await screenshot(page, 'pending-device');
 

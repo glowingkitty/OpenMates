@@ -2971,9 +2971,13 @@
             void chatSyncService.sendCancelAiTask(taskIdToCancel, chatIdForCancel ?? undefined);
         }
 
-        if (activeAITaskId) {
-            pendingNewChatDraftRestore = null;
-        }
+    }
+
+    function dispatchPendingNewChatCancellation() {
+        if (!pendingNewChatDraftRestore) return;
+
+        dispatch('newChatCreationCancelled', pendingNewChatDraftRestore);
+        pendingNewChatDraftRestore = null;
     }
 
     /**
@@ -3013,15 +3017,13 @@
                 clearTimeout(awaitingAITaskTimeoutId);
                 awaitingAITaskTimeoutId = null;
             }
-            if (pendingNewChatDraftRestore) {
-                dispatch('newChatCreationCancelled', pendingNewChatDraftRestore);
-                pendingNewChatDraftRestore = null;
-            }
+            dispatchPendingNewChatCancellation();
             return;
         }
 
         if (activeAITaskId && currentChatId) {
             const taskId = activeAITaskId;
+            const chatId = currentChatId;
             console.info(`[MessageInput] Requesting cancellation for AI task: ${taskId}`);
             
             // Optimistic UI update: immediately hide the stop button
@@ -3030,10 +3032,10 @@
             
             // Optimistic state update: clear activeAITasks Map to prevent new messages from being queued
             // This ensures the frontend state matches what we're trying to do (cancel the task)
-            if (chatSyncService && currentChatId) {
-                const taskInfo = chatSyncService.activeAITasks.get(currentChatId);
+            if (chatSyncService && chatId) {
+                const taskInfo = chatSyncService.activeAITasks.get(chatId);
                 if (taskInfo && taskInfo.taskId === taskId) {
-                    chatSyncService.activeAITasks.delete(currentChatId);
+                    chatSyncService.activeAITasks.delete(chatId);
                     console.debug('[MessageInput] Optimistically cleared activeAITasks entry on cancel');
                 }
             }
@@ -3042,13 +3044,14 @@
             // Use clearTypingForChat since we only have taskId, not message_id
             // (aiMessageId in the store is set to message_id, not task_id)
             if (currentTypingStatus?.isTyping && 
-                currentTypingStatus.chatId === currentChatId) {
-                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel for chat', currentChatId);
-                aiTypingStore.clearTypingForChat(currentChatId);
+                currentTypingStatus.chatId === chatId) {
+                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel for chat', chatId);
+                aiTypingStore.clearTypingForChat(chatId);
             }
             
             // Clear any queued message text
             queuedMessageText = null;
+            dispatchPendingNewChatCancellation();
             
             // OPTIMISTIC: Immediately cancel all processing embed cards for this chat.
             // Without this, embed cards stay stuck on "Processing..." until the server
@@ -3057,21 +3060,21 @@
             // right away so the user sees "Canceled" instantly instead of waiting.
             try {
                 const { embedStore } = await import('../../services/embedStore');
-                const cancelledEmbedIds = embedStore.cancelProcessingEmbeds(currentChatId);
+                const cancelledEmbedIds = embedStore.cancelProcessingEmbeds(chatId);
                 // Dispatch embedUpdated events for each cancelled embed so UnifiedEmbedPreview re-renders
                 for (const embedId of cancelledEmbedIds) {
                     chatSyncService.dispatchEvent(
                         new CustomEvent('embedUpdated', {
                             detail: {
                                 embed_id: embedId,
-                                chat_id: currentChatId,
+                                chat_id: chatId,
                                 status: 'cancelled',
                             },
                         }),
                     );
                 }
                 if (cancelledEmbedIds.length > 0) {
-                    console.info(`[MessageInput] Optimistically cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${currentChatId}`);
+                    console.info(`[MessageInput] Optimistically cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${chatId}`);
                 }
             } catch (err) {
                 console.warn('[MessageInput] Failed to optimistically cancel processing embeds:', err);
@@ -3084,7 +3087,7 @@
             chatSyncService.dispatchEvent(
                 new CustomEvent('aiTaskEnded', {
                     detail: {
-                        chatId: currentChatId,
+                        chatId,
                         taskId: taskId,
                         status: 'cancelled',
                     },
@@ -3094,8 +3097,8 @@
             
             // Send cancellation request to backend
             // The backend will confirm via 'aiTaskEnded' event, which will trigger final cleanup
-            // Pass currentChatId so server can clear active task marker immediately
-            await chatSyncService.sendCancelAiTask(taskId, currentChatId);
+            // Pass chatId so server can clear active task marker immediately
+            await chatSyncService.sendCancelAiTask(taskId, chatId);
         }
     }
     
@@ -4514,6 +4517,16 @@
             } else {
                 originalMarkdown = ''; // Clear markdown tracking for chats with no draft
             }
+
+            detectedPII = [];
+            currentPIIDecorations = [];
+            lastPIIText = '';
+            rebuildDecorationSet(editor);
+
+            void tick().then(() => {
+                if (!editor || editor.isDestroyed || editor.getText().trim().length === 0) return;
+                runPIIDetectionImmediate(editor);
+            });
             
             // Only focus if explicitly requested - default is false to prevent unwanted auto-focus
             // Users should manually click on the input field when they want to type

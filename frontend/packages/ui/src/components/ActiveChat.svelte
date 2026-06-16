@@ -5171,7 +5171,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
                 targetMessage.role = 'system';
                 targetMessage.status = 'waiting_for_user';
-            } else if (targetMessage.status !== 'streaming' && !chunk.rejection_reason) {
+            } else if (targetMessage.status !== 'streaming' && targetMessage.status !== 'synced' && !chunk.rejection_reason) {
                 targetMessage.status = 'streaming';
             }
             // Update model_name if we have a new value and current value is missing or undefined
