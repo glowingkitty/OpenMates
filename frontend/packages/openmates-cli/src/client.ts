@@ -41,6 +41,8 @@ import {
   saveSyncCache,
   clearSyncCache,
   isSyncCacheFresh,
+  loadAnonymousId,
+  saveAnonymousId,
 } from "./storage.js";
 import { loadServerConfig } from "./serverConfig.js";
 import {
@@ -1251,6 +1253,69 @@ export class OpenMatesClient {
 
   hasSession(): boolean {
     return this.session !== null;
+  }
+
+  async sendAnonymousMessage(params: { message: string }): Promise<{
+    status: "completed";
+    chatId: string;
+    messageId: string;
+    assistant: string;
+    category: string | null;
+    modelName: string | null;
+    mateName: string | null;
+    followUpSuggestions: string[];
+    subChatEvents: SubChatEvent[];
+    appSettingsMemoryRequests: Array<{
+      requestId: string | null;
+      requestedKeys: string[];
+      approvedKeys: string[];
+      entryCount: number;
+    }>;
+  }> {
+    let anonymousId = loadAnonymousId();
+    if (!anonymousId) {
+      anonymousId = randomUUID();
+      saveAnonymousId(anonymousId);
+    }
+    const chatId = `anonymous-${randomUUID()}`;
+    const messageId = `anonymous-message-${randomUUID()}`;
+    const response = await this.http.post<{
+      status?: string;
+      chatId?: string;
+      messageId?: string;
+      assistant?: string;
+      category?: string | null;
+      modelName?: string | null;
+      followUpSuggestions?: string[];
+      detail?: { code?: string; message?: string } | string;
+    }>("/v1/anonymous/chat/stream", {
+      anonymous_id: anonymousId,
+      client_chat_id: chatId,
+      client_message_id: messageId,
+      plaintext_message: params.message,
+      message_history: [],
+    });
+    if (!response.ok) {
+      const detail = response.data.detail;
+      const message = typeof detail === "object" && detail?.message
+        ? detail.message
+        : typeof detail === "string"
+          ? detail
+          : `Anonymous chat failed with HTTP ${response.status}`;
+      throw new Error(message);
+    }
+    return {
+      status: "completed",
+      chatId: response.data.chatId ?? chatId,
+      messageId: response.data.messageId ?? messageId,
+      assistant: response.data.assistant ?? "",
+      category: response.data.category ?? null,
+      modelName: response.data.modelName ?? null,
+      mateName: null,
+      followUpSuggestions: response.data.followUpSuggestions ?? [],
+      subChatEvents: [],
+      appSettingsMemoryRequests: [],
+    };
   }
 
   async createTurnTokenRefs(params: {

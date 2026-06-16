@@ -163,6 +163,47 @@ async function withCodeRunMockApi<T>(
   }
 }
 
+async function withAnonymousMockApi<T>(
+  run: (params: { apiUrl: string; requests: Record<string, unknown>[]; tempHome: string }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Record<string, unknown>[] = [];
+  const tempHome = join(tmpdir(), `openmates-cli-anonymous-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  mkdirSync(tempHome, { recursive: true });
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "POST" && request.url === "/v1/anonymous/chat/stream") {
+        const body = await readJsonBody(request);
+        requests.push(body);
+        writeJson(response, {
+          status: "completed",
+          chatId: body.client_chat_id,
+          messageId: body.client_message_id,
+          assistant: "anonymous inference ok",
+          category: "general_knowledge",
+          modelName: "test-model",
+          followUpSuggestions: [],
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 async function withEmbedVersionsMockApi<T>(
   run: (params: { apiUrl: string; requests: string[] }) => T | Promise<T>,
 ): Promise<T> {
@@ -1608,6 +1649,21 @@ describe("unauthenticated example chats", () => {
     assert.equal(parsed.status, "signup_required");
     assert.equal(parsed.reason, "file_upload_requires_signup");
     assert.equal(parsed.signup_required, true);
+  });
+
+  it("sends anonymous text chat through the anonymous API without a session", async () => {
+    await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
+      const output = await runCliAsync(
+        ["chats", "new", "Reply with exactly: anonymous inference ok", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as { status?: string; assistant?: string };
+      assert.equal(parsed.status, "completed");
+      assert.equal(parsed.assistant, "anonymous inference ok");
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].plaintext_message, "Reply with exactly: anonymous inference ok");
+      assert.equal(typeof requests[0].anonymous_id, "string");
+    });
   });
 });
 

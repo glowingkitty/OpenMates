@@ -47,6 +47,11 @@ export interface OpenMatesSession {
   autoLogoutMinutes: number | null;
 }
 
+interface AnonymousStateOnDisk {
+  anonymousId: string;
+  createdAt: number;
+}
+
 /**
  * On-disk session — master key may be absent if stored externally.
  * masterKeyStorage indicates where the key lives.
@@ -108,6 +113,22 @@ function writeJsonFile(filePath: string, data: unknown): void {
     mode: 0o600,
   });
   chmodSync(filePath, 0o600);
+}
+
+export function loadAnonymousId(): string | null {
+  const filePath = join(getStateDir(), "anonymous.json");
+  const data = readJsonFile<AnonymousStateOnDisk>(filePath);
+  return typeof data?.anonymousId === "string" && data.anonymousId.length > 0
+    ? data.anonymousId
+    : null;
+}
+
+export function saveAnonymousId(anonymousId: string): void {
+  const filePath = join(ensureStateDir(), "anonymous.json");
+  writeJsonFile(filePath, {
+    anonymousId,
+    createdAt: Math.floor(Date.now() / 1000),
+  } satisfies AnonymousStateOnDisk);
 }
 
 // ---------------------------------------------------------------------------

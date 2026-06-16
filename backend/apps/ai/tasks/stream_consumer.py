@@ -2026,7 +2026,13 @@ async def _handle_normal_billing(
         "tool_inference_iterations": tool_inference_iterations,
     }
 
-    await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
+    if getattr(request_data, "is_anonymous", False):
+        logger.info(
+            f"{log_prefix} Anonymous free-usage request calculated {credits_charged} credits. "
+            "Skipping user-balance charge; caller will finalize the shared anonymous budget."
+        )
+    else:
+        await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
     
     return {
         "prompt_tokens": input_tokens,

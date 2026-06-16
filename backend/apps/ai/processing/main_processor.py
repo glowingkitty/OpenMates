@@ -996,6 +996,13 @@ async def _charge_skill_credits(
             Used to count only successful requests for billing (failed requests are not charged).
     """
     try:
+        if getattr(request_data, "is_anonymous", False):
+            logger.info(
+                f"{log_prefix} Anonymous free-usage request used skill '{app_id}.{skill_id}'. "
+                "Skipping user-balance skill billing; shared budget is reconciled by the anonymous API route."
+            )
+            return
+
         # Get skill definition from app metadata
         app_metadata = discovered_apps_metadata.get(app_id)
         if not app_metadata:

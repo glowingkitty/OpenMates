@@ -1192,7 +1192,9 @@ async def handle_preprocessing(
     
     payment_enabled = is_payment_enabled()
     
-    if payment_enabled:
+    if payment_enabled and getattr(request_data, "is_anonymous", False):
+        logger.info(f"{log_prefix} Anonymous free-usage request. Skipping user credit precheck; shared budget is enforced by the anonymous API route.")
+    elif payment_enabled:
         MINIMUM_REQUEST_COST = 1
         logger.info(f"{log_prefix} Performing credit check for user_id: {request_data.user_id}. Minimum cost: {MINIMUM_REQUEST_COST}")
         

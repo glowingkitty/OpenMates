@@ -645,7 +645,9 @@ async def _async_process_ai_skill_ask_task(
     # We ALWAYS need the user record and credits for the pre-processing credit check.
     # Credits are encrypted, so the vault_key_id is mandatory for all billable requests.
     user_vault_key_id: Optional[str] = None
-    if cache_service_instance and request_data.user_id:
+    if getattr(request_data, "is_anonymous", False):
+        logger.info(f"[Task ID: {task_id}] Anonymous free-usage request. Skipping Directus user cache warmup and vault-key lookup.")
+    elif cache_service_instance and request_data.user_id:
         cached_user_data = await cache_service_instance.get_user_by_id(request_data.user_id)
         
         if not cached_user_data:

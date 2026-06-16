@@ -3778,6 +3778,22 @@ async function sendMessageStreaming(
     }
   }
 
+  if (!client.hasSession()) {
+    const result = await client.sendAnonymousMessage({ message: finalMessage });
+    clearTyping();
+    if (!params.json) {
+      const mateBlock = ansiMateBlock(result.category, result.mateName);
+      const modelSuffix = result.modelName
+        ? `  \x1b[2m${result.modelName}\x1b[0m`
+        : "";
+      process.stdout.write(`${SEP}\n`);
+      process.stdout.write(`${mateBlock}${modelSuffix}\n`);
+      process.stdout.write(`${SEP}\n`);
+      process.stdout.write(`${result.assistant}\n`);
+    }
+    return result;
+  }
+
   const urlResult = prepareUrlEmbeds(finalMessage);
   finalMessage = urlResult.message;
   preparedEmbeds.push(...urlResult.embeds);
