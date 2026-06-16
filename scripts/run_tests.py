@@ -1020,9 +1020,10 @@ class BatchRunner:
         duration = time.time() - suite_start
         tests = [self._spec_result_to_dict(r) for r in all_results]
         has_failures = any(_is_problem_status(r.status) for r in all_results)
+        all_skipped = bool(all_results) and all(r.status == "skipped" for r in all_results)
 
         return SuiteResult(
-            status="failed" if has_failures else "passed",
+            status="skipped" if all_skipped else "failed" if has_failures else "passed",
             tests=tests,
             duration_seconds=round(duration, 1),
         )
@@ -1115,10 +1116,17 @@ class BatchRunner:
                 if not pw_json.is_file():
                     pw_json = art_path / "test-results" / "playwright.json"
                 if pw_json.is_file():
-                    extracted_err, pw_errors, pw_steps = (
+                    extracted_err, pw_errors, pw_steps, pw_result_statuses = (
                         self._extract_structured_data_from_playwright_json(pw_json)
                     )
                     account_email = self._extract_account_email_from_playwright_json(pw_json)
+                    if status == "passed" and pw_result_statuses:
+                        if all(result_status == "skipped" for result_status in pw_result_statuses):
+                            status = "skipped"
+                            error = "Playwright spec skipped all tests"
+                        elif any(result_status != "passed" for result_status in pw_result_statuses):
+                            status = "failed"
+                            error = extracted_err or "Playwright JSON reported a non-passing result"
                     if extracted_err and status == "failed":
                         error = extracted_err
 
@@ -1171,7 +1179,7 @@ class BatchRunner:
     @staticmethod
     def _extract_structured_data_from_playwright_json(
         pw_json: Path,
-    ) -> tuple[Optional[str], list[dict], list[dict]]:
+    ) -> tuple[Optional[str], list[dict], list[dict], list[str]]:
         """Extract error message, structured errors, and step data from Playwright JSON.
 
         Handles nested suites (suites can contain both specs and child suites).
@@ -1182,9 +1190,13 @@ class BatchRunner:
         first_error: Optional[str] = None
         errors: list[dict] = []
         steps: list[dict] = []
+        result_statuses: list[str] = []
 
         def _process_result(result: dict) -> None:
             nonlocal first_error
+            result_status = str(result.get("status", ""))
+            if result_status:
+                result_statuses.append(result_status)
             # Extract steps with pass/fail status
             for step in result.get("steps", []):
                 step_entry: dict = {
@@ -1259,7 +1271,7 @@ class BatchRunner:
         except Exception as e:
             _log(f"Failed to parse playwright.json: {e}", "WARN")
 
-        return first_error, errors, steps
+        return first_error, errors, steps, result_statuses
 
     @staticmethod
     def _extract_account_email_from_playwright_json(pw_json: Path) -> Optional[str]:

@@ -121,6 +121,12 @@ jobs:
           GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
           GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
           GMAIL_TEST_ADDRESS: ${{ secrets.GMAIL_TEST_ADDRESS }}
+          GOOGLE_CALENDAR_TEST_EMAIL: ${{ secrets.GOOGLE_CALENDAR_TEST_EMAIL }}
+          GOOGLE_CALENDAR_TEST_PASSWORD: ${{ secrets.GOOGLE_CALENDAR_TEST_PASSWORD }}
+          GOOGLE_CALENDAR_TEST_TOTP_KEY: ${{ secrets.GOOGLE_CALENDAR_TEST_TOTP_KEY }}
+          GOOGLE_TEST_EMAIL: ${{ secrets.GOOGLE_TEST_EMAIL }}
+          GOOGLE_TEST_PASSWORD: ${{ secrets.GOOGLE_TEST_PASSWORD }}
+          GOOGLE_TEST_TOTP_KEY: ${{ secrets.GOOGLE_TEST_TOTP_KEY }}
           E2E_USE_MOCKS: ${{ github.event.inputs.use_mocks == 'true' && '1' || '' }}
           E2E_RECORD_FIXTURES: ${{ github.event.inputs.record_fixtures == 'true' && '1' || '' }}
           E2E_USE_LIVE_MOCKS: ${{ github.event.inputs.use_live_mocks == 'true' && '1' || '' }}
