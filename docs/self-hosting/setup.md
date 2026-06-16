@@ -179,11 +179,16 @@ openmates server logs --path ~/openmates --tail 200
 openmates server logs --path ~/openmates --container api --follow
 openmates server restart --path ~/openmates
 openmates server stop --path ~/openmates
+openmates server update --path ~/openmates --dry-run
 openmates server update --path ~/openmates
+openmates server update --path ~/openmates --image-tag v0.12.0-alpha.1
+openmates server update --path ~/openmates --channel dev
 openmates server uninstall --path ~/openmates --yes
 ```
 
-For image-mode installs, `openmates server update` pulls newer images and restarts the stack. For source-mode installs, it runs `git pull --ff-only`, rebuilds images, and restarts containers.
+For image-mode installs, `openmates server update` refreshes the runtime Compose template, updates `OPENMATES_IMAGE_TAG`, pulls prebuilt images, restarts the stack, and waits for API and web health checks. If you installed with a version tag, updating the CLI first and then running `openmates server update` moves the server to the CLI's image tag. Use `--image-tag <tag>` for a specific image tag, or `--channel stable|main|dev` for mutable channel tags. `stable` maps to the published `main` image tag.
+
+For source-mode installs, `openmates server update` keeps the Git workflow: it runs `git pull --ff-only`, rebuilds images, restarts containers, and waits for health checks. Image options such as `--image-tag` and `--channel` are intentionally rejected for source-mode installs.
 
 See [CLI server management](../user-guide/cli/server-management.md) for the full command reference.
 

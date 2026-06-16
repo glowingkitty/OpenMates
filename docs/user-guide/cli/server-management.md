@@ -155,10 +155,23 @@ openmates server logs --tail 200
 
 ```
 openmates server update
+openmates server update --dry-run
+openmates server update --image-tag v0.12.0-alpha.1
+openmates server update --channel stable
+openmates server update --channel dev
 openmates server update --force
 ```
 
-Image-mode installs run `docker compose pull` and restart the stack. Source-mode installs run `git pull --ff-only`, rebuild containers, and restart. The `--force` flag only applies to source-mode Git updates.
+Image-mode installs refresh the runtime Compose template, update `OPENMATES_IMAGE_TAG`, run `docker compose pull`, restart the stack, and wait for API and web health checks. By default, version-pinned installs target the current CLI version tag, so update the CLI first when you want the newest released self-host images. Installs already using a channel tag keep that channel unless you pass a different target.
+
+Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and wait for health checks. The `--force` flag only applies to source-mode Git updates.
+
+| Option | Applies to | Description |
+|--------|------------|-------------|
+| `--dry-run` | Both modes | Print the update plan without changing files or containers |
+| `--image-tag <tag>` | Image mode | Update to a specific prebuilt image tag |
+| `--channel stable|main|dev` | Image mode | Update using a mutable channel tag. `stable` maps to the published `main` tag. |
+| `--force` | Source mode | Stash local Git changes before `git pull --ff-only` |
 
 ## Granting Admin Privileges
 

@@ -309,6 +309,9 @@ tests:
       - self-host smoke runs source-mode timing baseline
       - self-host smoke runs image-mode timing comparison
       - timing artifact includes install_s, start_s, health_wait_s, total_s, mode, and image tag
+      - source-mode smoke runs openmates server update --dry-run and reports source mode
+      - source-mode smoke rejects image-only update options
+      - image-mode smoke runs openmates server update --dry-run and openmates server update with a local image tag
       - workflow summary shows source vs image mode setup duration
     red_phase:
       required: true

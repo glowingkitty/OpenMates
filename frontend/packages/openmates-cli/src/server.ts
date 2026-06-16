@@ -33,7 +33,16 @@ const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
 const DEV_BRANCH = "dev";
+const MAIN_BRANCH = "main";
 const DEFAULT_IMAGE_REGISTRY = "ghcr.io/glowingkitty";
+const UPDATE_HEALTH_TIMEOUT_MS = 120_000;
+const UPDATE_HEALTH_INTERVAL_MS = 5_000;
+const HEALTH_REQUEST_TIMEOUT_MS = 5_000;
+const IMAGE_CHANNEL_TAGS = {
+  stable: MAIN_BRANCH,
+  main: MAIN_BRANCH,
+  dev: DEV_BRANCH,
+} as const;
 const MINIMAL_ENV_TEMPLATE = `# OpenMates self-host image-mode environment
 SECRET__MISTRAL_AI__API_KEY=
 SECRET__CEREBRAS__API_KEY=
@@ -200,13 +209,62 @@ function getPackageVersion(): string {
   }
 }
 
+export function getDefaultImageTagForVersion(version: string): string {
+  return version ? `v${version}` : DEV_BRANCH;
+}
+
 function getDefaultImageTag(): string {
   const version = getPackageVersion();
-  return version ? `v${version}` : "dev";
+  return getDefaultImageTagForVersion(version);
 }
 
 function defaultTemplateRefForVersion(version: string): string {
   return /-(alpha|beta|rc)(\.|\d|$)/.test(version) ? DEV_BRANCH : `v${version}`;
+}
+
+export function templateRefForImageTag(imageTag: string, packageVersion = ""): string {
+  const channelTag = IMAGE_CHANNEL_TAGS[imageTag as keyof typeof IMAGE_CHANNEL_TAGS];
+  if (channelTag) return channelTag;
+  if (imageTag.startsWith("v")) return defaultTemplateRefForVersion(imageTag.slice(1));
+  if (!imageTag && packageVersion) return defaultTemplateRefForVersion(packageVersion);
+  return DEV_BRANCH;
+}
+
+export function resolveTargetImageTag(
+  flags: Record<string, string | boolean>,
+  currentTag: string,
+  packageVersion: string,
+): { tag: string; channel?: "dev" | "main" } {
+  const imageTag = flags["image-tag"];
+  const channel = flags.channel;
+  if (imageTag === true) {
+    throw new Error("Provide an image tag value: --image-tag <tag>.");
+  }
+  if (channel === true) {
+    throw new Error("Provide an update channel value: --channel stable, --channel main, or --channel dev.");
+  }
+  if (typeof imageTag === "string" && typeof channel === "string") {
+    throw new Error("Use either --image-tag or --channel, not both.");
+  }
+
+  if (typeof imageTag === "string") {
+    const trimmed = imageTag.trim();
+    if (!trimmed) throw new Error("--image-tag cannot be empty.");
+    return { tag: trimmed };
+  }
+
+  if (typeof channel === "string") {
+    const normalized = channel.trim().toLowerCase();
+    const tag = IMAGE_CHANNEL_TAGS[normalized as keyof typeof IMAGE_CHANNEL_TAGS];
+    if (!tag) {
+      throw new Error("Unsupported update channel. Use --channel stable, --channel main, or --channel dev.");
+    }
+    return { tag, channel: tag };
+  }
+
+  const installedChannel = IMAGE_CHANNEL_TAGS[currentTag as keyof typeof IMAGE_CHANNEL_TAGS];
+  if (installedChannel) return { tag: installedChannel, channel: installedChannel };
+  return { tag: getDefaultImageTagForVersion(packageVersion) };
 }
 
 function randomHex(bytes: number): string {
@@ -256,7 +314,7 @@ async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
-async function loadSelfHostComposeTemplate(version: string): Promise<string> {
+async function loadSelfHostComposeTemplate(templateRef: string): Promise<string> {
   const templateDir = process.env.OPENMATES_SELFHOST_TEMPLATE_DIR;
   if (templateDir) {
     return readFileSync(join(resolve(templateDir), IMAGE_COMPOSE_FILE), "utf-8");
@@ -267,9 +325,8 @@ async function loadSelfHostComposeTemplate(version: string): Promise<string> {
     return fetchText(overrideUrl);
   }
 
-  const ref = defaultTemplateRefForVersion(version);
   return fetchText(
-    `https://raw.githubusercontent.com/glowingkitty/OpenMates/${ref}/backend/core/docker-compose.selfhost.yml`,
+    `https://raw.githubusercontent.com/glowingkitty/OpenMates/${templateRef}/backend/core/docker-compose.selfhost.yml`,
   );
 }
 
@@ -277,7 +334,7 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string)
   const coreDir = join(installPath, "backend", "core");
   const vaultConfigDir = join(coreDir, "vault", "config");
   mkdirSync(vaultConfigDir, { recursive: true });
-  writeFileSync(join(coreDir, "docker-compose.selfhost.yml"), await loadSelfHostComposeTemplate(getPackageVersion()));
+  writeFileSync(join(coreDir, "docker-compose.selfhost.yml"), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion())));
   writeFileSync(join(vaultConfigDir, "vault.hcl"), VAULT_CONFIG_TEMPLATE);
 
   const envPath = join(installPath, ".env");
@@ -294,6 +351,56 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string)
   envContent = setEnvVar(envContent, "OPENMATES_IMAGE_REGISTRY", DEFAULT_IMAGE_REGISTRY);
   envContent = setEnvVar(envContent, "GIT_WORK_DIR", installPath);
   writeFileSync(envPath, envContent.endsWith("\n") ? envContent : `${envContent}\n`);
+}
+
+function getImageTagFromEnv(installPath: string, config: ServerConfig | null): string {
+  const envPath = join(installPath, ".env");
+  if (existsSync(envPath)) {
+    const envTag = getEnvVar(readFileSync(envPath, "utf-8"), "OPENMATES_IMAGE_TAG");
+    if (envTag) return envTag;
+  }
+  return config?.imageTag ?? "";
+}
+
+function trailingSlashTrimmed(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+}
+
+async function checkUrl(url: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HEALTH_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function waitForServerHealth(installPath: string): Promise<void> {
+  const envPath = join(installPath, ".env");
+  const envContent = existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
+  const urls = deriveSelfHostCliUrls(envContent);
+  const apiHealthUrl = `${trailingSlashTrimmed(urls.apiUrl)}/health`;
+  const appUrl = trailingSlashTrimmed(urls.appUrl);
+  const deadline = Date.now() + UPDATE_HEALTH_TIMEOUT_MS;
+
+  while (Date.now() < deadline) {
+    const [apiOk, appOk] = await Promise.all([checkUrl(apiHealthUrl), checkUrl(appUrl)]);
+    if (apiOk && appOk) return;
+    await sleep(UPDATE_HEALTH_INTERVAL_MS);
+  }
+
+  throw new Error(
+    "Updated containers started, but health checks did not pass in time. " +
+    `Check 'openmates server status' and 'openmates server logs --tail 200'. Tried ${apiHealthUrl} and ${appUrl}.`,
+  );
 }
 
 export function defaultCloneBranchForVersion(version: string): string | null {
@@ -661,30 +768,98 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
 }
 
 async function serverUpdate(flags: Record<string, string | boolean>): Promise<void> {
-  requireDocker();
   const installPath = resolveServerPath(flags);
-  ensureGitWorkDirEnv(installPath);
-
-  console.error("Updating OpenMates...");
+  const dryRun = flags["dry-run"] === true;
+  if (!dryRun) ensureGitWorkDirEnv(installPath);
 
   const config = loadConfigForInstallPath(installPath);
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
 
+  if (installMode === "source" && (flags["image-tag"] !== undefined || flags.channel !== undefined)) {
+    throw new Error("--image-tag and --channel only apply to image-mode installs. Source-mode installs update from Git.");
+  }
+
+  if (!dryRun) requireDocker();
+
+  console.error("Updating OpenMates...");
+
   if (installMode === "image") {
+    const currentTag = getImageTagFromEnv(installPath, config);
+    const target = resolveTargetImageTag(flags, currentTag, getPackageVersion());
+    const templateRef = templateRefForImageTag(target.tag, getPackageVersion());
+    const plan = {
+      command: "update",
+      path: installPath,
+      mode: "image",
+      currentImageTag: currentTag || null,
+      targetImageTag: target.tag,
+      channel: target.channel ?? null,
+      templateRef,
+      dryRun,
+    };
+
+    if (dryRun) {
+      if (flags.json === true) {
+        printJson({ ...plan, status: "planned" });
+      } else {
+        console.log("Update plan:");
+        console.log(`  Mode:          image`);
+        console.log(`  Current tag:   ${currentTag || "unknown"}`);
+        console.log(`  Target tag:    ${target.tag}`);
+        console.log(`  Template ref:  ${templateRef}`);
+        console.log("  Commands:      refresh compose, docker compose pull, docker compose up -d, health checks");
+      }
+      return;
+    }
+
+    console.error(`Mode: image`);
+    console.error(`Current image tag: ${currentTag || "unknown"}`);
+    console.error(`Target image tag: ${target.tag}`);
+    console.error(`Refreshing self-host runtime files from ${templateRef}...`);
+    await writeImageModeRuntimeFiles(installPath, target.tag);
+
     const pullArgs = [...composeArgs(installPath, withOverrides, installMode), "pull"];
-    console.error("Pulling prebuilt images...");
-    let code = await runInteractive("docker", pullArgs, installPath);
-    if (code !== 0) process.exit(code);
+    let code = 0;
+    if (shouldPullImages()) {
+      console.error("Pulling prebuilt images...");
+      code = await runInteractive("docker", pullArgs, installPath);
+      if (code !== 0) process.exit(code);
+    } else {
+      console.error("Skipping image pull because OPENMATES_SKIP_IMAGE_PULL=1.");
+    }
 
     const upArgs = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) process.exit(code);
 
+    console.error("Waiting for API and web health checks...");
+    try {
+      await waitForServerHealth(installPath);
+    } catch (error) {
+      await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode), "ps"], installPath);
+      throw error;
+    }
+
+    if (config) {
+      saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
+    }
+
     if (flags.json === true) {
-      printJson({ command: "update", status: "success", path: installPath, mode: "image" });
+      printJson({ ...plan, status: "success", dryRun: false });
     } else {
-      console.log("Server images pulled and containers restarted.");
+      console.log("Server images updated, containers restarted, and health checks passed.");
+    }
+    return;
+  }
+
+  if (dryRun) {
+    if (flags.json === true) {
+      printJson({ command: "update", status: "planned", path: installPath, mode: "source", dryRun: true });
+    } else {
+      console.log("Update plan:");
+      console.log("  Mode:     source");
+      console.log("  Commands: git pull --ff-only, docker compose build, docker compose up -d, health checks");
     }
     return;
   }
@@ -700,7 +875,7 @@ async function serverUpdate(flags: Record<string, string | boolean>): Promise<vo
   try {
     const pullOutput = exec("git pull --ff-only", installPath);
     console.error(pullOutput || "Already up to date.");
-  } catch (e: unknown) {
+  } catch {
     if (flags.force === true) {
       // Restore stash before throwing
       try { exec("git stash pop", installPath); } catch { /* no stash */ }
@@ -725,10 +900,18 @@ async function serverUpdate(flags: Record<string, string | boolean>): Promise<vo
   code = await runInteractive("docker", upArgs, installPath);
   if (code !== 0) process.exit(code);
 
+  console.error("Waiting for API and web health checks...");
+  try {
+    await waitForServerHealth(installPath);
+  } catch (error) {
+    await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode), "ps"], installPath);
+    throw error;
+  }
+
   if (flags.json === true) {
-    printJson({ command: "update", status: "success", path: installPath });
+    printJson({ command: "update", status: "success", path: installPath, mode: "source" });
   } else {
-    console.log("Server updated and restarted.");
+    console.log("Server updated, restarted, and health checks passed.");
   }
 }
 
@@ -954,7 +1137,10 @@ Command Options:
     --tail <n>          Number of lines to show (default: 100)
 
   update:
-    --force             Stash local changes before pulling
+    --dry-run           Show update plan without changing files or containers
+    --image-tag <tag>   Image mode: update to a specific prebuilt image tag
+    --channel <name>    Image mode: update using stable/main or dev channel tags
+    --force             Source mode: stash local changes before pulling
 
   reset:
     --delete-user-data-only   Only delete database and cache (preserve config)
@@ -973,6 +1159,9 @@ Examples:
   openmates server logs --container api --follow
   openmates server make-admin user@example.com
   openmates server update
+  openmates server update --dry-run
+  openmates server update --image-tag v0.12.0-alpha.1
+  openmates server update --channel dev
   openmates server restart --rebuild
 `.trim());
 }
