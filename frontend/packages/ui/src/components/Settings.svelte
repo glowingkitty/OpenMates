@@ -337,7 +337,7 @@ changes to the documentation (to keep the documentation up to date).
             // Apps and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key.startsWith('interface/') ||
-                    key === 'privacy' ||
+                    key === 'privacy' || key === 'privacy/connected-accounts' ||
                     key === 'ai' || key.startsWith('ai/') ||
                     key === 'settings_memories' ||
                     key === 'apps' || key.startsWith('apps/') ||
@@ -1511,6 +1511,8 @@ changes to the documentation (to keep the documentation up to date).
             } else if (settingsPath === 'server/software-update') {
                 // Software update page — use the existing root-level key (not settings.server.software_update)
                 activeSubMenuTitleKey = 'settings.software_updates';
+            } else if (settingsPath === 'privacy/connected-accounts') {
+                activeSubMenuTitleKey = 'settings.privacy.connected_accounts.title';
             } else if (settingsPath.startsWith('account/storage/')) {
                 // Storage category sub-pages: account/storage/<category>
                 // Use the storage category label keys (e.g. storage_category_images)
