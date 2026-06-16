@@ -181,6 +181,51 @@ def test_google_calendar_start_uses_events_scope_for_write_or_delete(monkeypatch
     assert response.json()["scopes"] == [route.CALENDAR_EVENTS_SCOPE]
 
 
+def test_google_calendar_start_uses_custom_webapp_origin_for_self_host(monkeypatch) -> None:
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    monkeypatch.setenv("WEBAPP_URL", "http://localhost:5173")
+    monkeypatch.setenv("PRODUCTION_URL", "https://chat.example.test")
+    cache = FakeCache()
+    client, route = make_client(cache)
+
+    async def fake_get_google_oauth_credentials():
+        return "vault-client-id", "vault-client-secret"
+
+    monkeypatch.setattr(route, "get_google_oauth_credentials", fake_get_google_oauth_credentials)
+
+    response = client.post(
+        "/v1/provider-oauth/google/calendar/start",
+        json={"capabilities": ["read"], "return_path": "/#settings/apps/calendar"},
+        headers={"Origin": "https://chat.example.test"},
+    )
+
+    assert response.status_code == 200
+    state = parse_qs(urlparse(response.json()["authorization_url"]).query)["state"][0]
+    assert cache.values[route._state_key(state)]["webapp_url"] == "https://chat.example.test"
+
+
+def test_google_calendar_start_uses_openmates_org_for_production_without_origin(monkeypatch) -> None:
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    monkeypatch.delenv("PRODUCTION_URL", raising=False)
+    monkeypatch.setenv("WEBAPP_URL", "http://localhost:5173")
+    cache = FakeCache()
+    client, route = make_client(cache)
+
+    async def fake_get_google_oauth_credentials():
+        return "vault-client-id", "vault-client-secret"
+
+    monkeypatch.setattr(route, "get_google_oauth_credentials", fake_get_google_oauth_credentials)
+
+    response = client.post(
+        "/v1/provider-oauth/google/calendar/start",
+        json={"capabilities": ["read"], "return_path": "/#settings/apps/calendar"},
+    )
+
+    assert response.status_code == 200
+    state = parse_qs(urlparse(response.json()["authorization_url"]).query)["state"][0]
+    assert cache.values[route._state_key(state)]["webapp_url"] == "https://openmates.org"
+
+
 @pytest.mark.anyio
 async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(monkeypatch) -> None:
     monkeypatch.setenv("WEBAPP_URL", "http://localhost:5173")
