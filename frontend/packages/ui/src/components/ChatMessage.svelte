@@ -125,6 +125,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     receipt?: {
       action?: string;
       decision?: string;
+      cancel_expires_at?: number;
       undo_type?: string;
       undo_available?: boolean;
     };
@@ -963,6 +964,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     if (receipt.receipt?.decision === 'user_cancelled') {
       return $text('chat.connected_account_receipts.cancelled', { values: { action } });
     }
+    if (receipt.receipt?.decision === 'pending_cancel_window') {
+      return $text('chat.connected_account_receipts.pending_cancel', { values: { action } });
+    }
     if (receipt.receipt?.decision === 'undo_failed' || receipt.receipt?.decision === 'technical_block' || receipt.receipt?.decision === 'failed') {
       return $text('chat.connected_account_receipts.failed', { values: { action } });
     }
@@ -981,6 +985,14 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   let connectedAccountReceipt = $derived.by(() => parseConnectedAccountReceipt(systemRawContent()));
   let connectedAccountUndoLoading = $state(false);
   let connectedAccountUndoError = $state('');
+  let connectedAccountCancelLoading = $state(false);
+  let connectedAccountCancelError = $state('');
+  let canCancelConnectedAccountReceipt = $derived(
+    !!connectedAccountReceipt?.action_id &&
+    connectedAccountReceipt.receipt?.decision === 'pending_cancel_window' &&
+    typeof connectedAccountReceipt.receipt?.cancel_expires_at === 'number' &&
+    connectedAccountReceipt.receipt.cancel_expires_at > Math.floor(Date.now() / 1000)
+  );
   let canUndoConnectedAccountReceipt = $derived(
     !!connectedAccountReceipt?.action_id &&
     connectedAccountReceipt.receipt?.undo_available === true &&
@@ -1010,6 +1022,31 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       connectedAccountUndoError = $text('chat.connected_account_receipts.undo_failed');
     } finally {
       connectedAccountUndoLoading = false;
+    }
+  }
+
+  async function handleConnectedAccountCancel(): Promise<void> {
+    const receipt = connectedAccountReceipt;
+    const chatId = original_message?.chat_id;
+    const sourceMessageId = receipt?.user_message_id || userMessageId || original_message?.user_message_id || messageId || original_message?.message_id;
+    if (!receipt?.action_id || !chatId || !sourceMessageId || connectedAccountCancelLoading) return;
+
+    connectedAccountCancelLoading = true;
+    connectedAccountCancelError = '';
+    try {
+      const { cancelConnectedAccountAction } = await import('../services/connectedAccountActionService');
+      await cancelConnectedAccountAction({
+        actionId: receipt.action_id,
+        chatId,
+        messageId: sourceMessageId
+      });
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.success($text('chat.connected_account_receipts.cancel_started'));
+    } catch (error) {
+      console.error('[ChatMessage] Connected-account cancel failed:', error);
+      connectedAccountCancelError = $text('chat.connected_account_receipts.cancel_failed');
+    } finally {
+      connectedAccountCancelLoading = false;
     }
   }
 
@@ -2967,6 +3004,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
         <span class="system-message-text" data-testid="system-message-text">{systemMessageText}</span>
+        {#if canCancelConnectedAccountReceipt}
+          <button
+            class="system-message-action-btn"
+            data-testid="connected-account-cancel-button"
+            disabled={connectedAccountCancelLoading}
+            onclick={handleConnectedAccountCancel}
+          >
+            {connectedAccountCancelLoading ? $text('chat.connected_account_receipts.cancelling') : $text('chat.connected_account_receipts.press_to_cancel')}
+          </button>
+        {/if}
         {#if canUndoConnectedAccountReceipt}
           <button
             class="system-message-action-btn"
@@ -2979,6 +3026,9 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         {/if}
         {#if connectedAccountUndoError}
           <span class="system-message-text system-message-error">{connectedAccountUndoError}</span>
+        {/if}
+        {#if connectedAccountCancelError}
+          <span class="system-message-text system-message-error">{connectedAccountCancelError}</span>
         {/if}
         {#if status === 'waiting_for_user'}
           <!-- Credit rejection: show a button to navigate to billing/buy-credits -->

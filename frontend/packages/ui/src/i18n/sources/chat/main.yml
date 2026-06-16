@@ -433,6 +433,10 @@ connected_account_receipts.cancelled:
   context: System receipt shown after the user cancels a connected-account action. The action replacement is a localized action label.
   en: "{action} cancelled."
   verified_by_human: [en]
+connected_account_receipts.pending_cancel:
+  context: System receipt shown while an auto-approved connected-account action is waiting during its short cancel window. The action replacement is a localized action label.
+  en: "{action} auto-approved. Press to cancel before it starts."
+  verified_by_human: [en]
 connected_account_receipts.failed:
   context: System receipt shown after a connected-account action fails or is technically blocked. The action replacement is a localized action label.
   en: "{action} could not be completed."
@@ -452,6 +456,22 @@ connected_account_receipts.undo_started:
 connected_account_receipts.undo_failed:
   context: Inline error shown when a connected-account undo request fails.
   en: Could not undo this action.
+  verified_by_human: [en]
+connected_account_receipts.press_to_cancel:
+  context: Button label that cancels an auto-approved connected-account action during its short cancel window.
+  en: Press to cancel
+  verified_by_human: [en]
+connected_account_receipts.cancelling:
+  context: Button/status label while a connected-account cancel request is in progress.
+  en: Cancelling...
+  verified_by_human: [en]
+connected_account_receipts.cancel_started:
+  context: Toast shown after a connected-account cancel request has been accepted.
+  en: Action cancelled
+  verified_by_human: [en]
+connected_account_receipts.cancel_failed:
+  context: Inline error shown when a connected-account cancel request fails.
+  en: Could not cancel this action.
   verified_by_human: [en]
 connected_account_receipts.undo_available:
   context: Short sentence appended to a connected-account receipt when undo is available.
