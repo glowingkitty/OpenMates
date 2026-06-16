@@ -17,7 +17,7 @@
  */
 
 import { SecretRegistry } from "./registry.ts";
-import { SECRET_PATTERNS, generatePlaceholder } from "./patterns.ts";
+import { GENERAL_PII_PATTERNS, SECRET_PATTERNS, generatePlaceholder } from "./patterns.ts";
 import type {
   SecretMapping,
   RedactResult,
@@ -125,6 +125,7 @@ export class SecretScanner {
 
     const allMappings: SecretMapping[] = [];
     const coveredRanges: Array<{ start: number; end: number }> = [];
+    const urlExclusionZones = getUrlExclusionZones(text);
 
     // Phase 1: Registry-based scan (Aho-Corasick)
     if (this.options.enableRegistryDetection && this.registry.size > 0) {
@@ -151,7 +152,7 @@ export class SecretScanner {
     const typeCounts: Record<string, number> = {};
 
     if (this.options.enablePatternDetection) {
-      for (const pattern of SECRET_PATTERNS) {
+      for (const pattern of [...SECRET_PATTERNS, ...GENERAL_PII_PATTERNS]) {
         pattern.regex.lastIndex = 0;
         let match;
 
@@ -159,6 +160,10 @@ export class SecretScanner {
           const matchText = match[0];
           const startIndex = match.index;
           const endIndex = startIndex + matchText.length;
+
+          // Match web composer behavior: URL path segments often false-positive
+          // as phone numbers, IBANs, etc., so skip matches fully inside URLs.
+          if (isInsideAnyRange(startIndex, endIndex, urlExclusionZones)) continue;
 
           // Skip if overlapping with a registry match (registry takes priority)
           const overlaps = coveredRanges.some(
@@ -262,4 +267,24 @@ export class SecretScanner {
  */
 function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getUrlExclusionZones(text: string): Array<{ start: number; end: number }> {
+  const urlExclusionRegex = /https?:\/\/[^\s]+/g;
+  const zones: Array<{ start: number; end: number }> = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = urlExclusionRegex.exec(text)) !== null) {
+    zones.push({ start: match.index, end: match.index + match[0].length });
+  }
+
+  return zones;
+}
+
+function isInsideAnyRange(
+  startIndex: number,
+  endIndex: number,
+  ranges: Array<{ start: number; end: number }>,
+): boolean {
+  return ranges.some((range) => startIndex >= range.start && endIndex <= range.end);
 }

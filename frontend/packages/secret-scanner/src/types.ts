@@ -46,6 +46,9 @@ export type SecretType =
   | "GENERIC_SECRET"
   | "PRIVATE_KEY"
   | "JWT"
+  // General PII patterns shared with the web composer
+  | "EMAIL"
+  | "PHONE"
   // Personal data (from Memories)
   | "PERSONAL_DATA"
   // Environment variable (known from registry, not pattern-matched)

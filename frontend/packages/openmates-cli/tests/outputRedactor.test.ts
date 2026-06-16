@@ -138,6 +138,29 @@ describe("OutputRedactor", () => {
       assert.ok(!result.includes("sk-proj-abc123def456ghi789"));
       assert.ok(result.includes("[OPENAI_KEY_"));
     });
+
+    it("detects web composer email and phone PII patterns", () => {
+      redactor.initializeFromMemories([]);
+
+      const text = "Email sarah@example.com or call +1 (555) 123-4567.";
+      const result = redactor.redact(text);
+
+      assert.ok(!result.includes("sarah@example.com"));
+      assert.ok(!result.includes("+1 (555) 123-4567"));
+      assert.ok(result.includes("[EMAIL_1_com]"));
+      assert.ok(result.includes("[PHONE_1_567]"));
+    });
+
+    it("does not redact phone-like URL path segments", () => {
+      redactor.initializeFromMemories([]);
+
+      const text = "Read https://example.com/2025/1/6/24337399 then call +1 (555) 123-4567.";
+      const result = redactor.redact(text);
+
+      assert.ok(result.includes("https://example.com/2025/1/6/24337399"));
+      assert.ok(!result.includes("+1 (555) 123-4567"));
+      assert.ok(result.includes("[PHONE_1_567]"));
+    });
   });
 
   describe("redactWithMappings", () => {

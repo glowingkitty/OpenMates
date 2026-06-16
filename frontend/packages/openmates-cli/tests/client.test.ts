@@ -12,6 +12,7 @@ import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -53,6 +54,9 @@ function writeLegacySession(apiUrl = sessionApiUrl): void {
 
 writeLegacySession();
 
+const require = createRequire(import.meta.url);
+const { WebSocketServer } = require("ws");
+
 const {
   OpenMatesClient,
   MEMORY_TYPE_REGISTRY,
@@ -64,7 +68,7 @@ const {
   buildTurnTokenRefsRequestPayload,
   getClientMessagesVersionForSync,
 } = await import("../src/client.ts");
-const { decryptWithAesGcmCombined } = await import("../src/crypto.ts");
+const { decryptBytesWithAesGcm, decryptWithAesGcmCombined } = await import("../src/crypto.ts");
 
 after(() => {
   if (originalHome === undefined) {
@@ -392,6 +396,117 @@ describe("memory request system messages", () => {
     assert.deepEqual(payload.categories, [
       { appId: "books", itemType: "currently_reading", entryCount: 2 },
     ]);
+  });
+});
+
+describe("CLI chat PII redaction payloads", () => {
+  it("sends redacted user content and encrypted PII mappings", async () => {
+    const captured: {
+      messagePayload?: Record<string, unknown>;
+      metadataPayload?: Record<string, unknown>;
+    } = {};
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false"
+      ) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          if (frame.type === "chat_message_added") {
+            captured.messagePayload = frame.payload;
+            const message = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({
+              type: "chat_message_confirmed",
+              payload: {
+                chat_id: frame.payload.chat_id,
+                message_id: message.message_id,
+              },
+            }));
+          }
+          if (frame.type === "encrypted_chat_metadata") {
+            captured.metadataPayload = frame.payload;
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "ai_background_response_completed",
+                payload: {
+                  chat_id: frame.payload.chat_id,
+                  user_message_id: frame.payload.message_id,
+                  message_id: "assistant-message-id",
+                  full_content: "ok",
+                  category: "general_knowledge",
+                  model_name: "test-model",
+                },
+              }));
+              ws.send(JSON.stringify({
+                type: "post_processing_metadata",
+                payload: { chat_id: frame.payload.chat_id },
+              }));
+            }, 10);
+          }
+          if (frame.type === "ai_response_completed") {
+            const message = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({
+              type: "ai_response_storage_confirmed",
+              payload: { message_id: message.message_id },
+            }));
+          }
+        });
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await client.sendMessage({
+        message: "Email [EMAIL_1_com] or call [PHONE_1_567].",
+        piiMappings: [
+          { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
+          { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
+        ],
+      });
+
+      const userMessage = captured.messagePayload?.message as Record<string, unknown> | undefined;
+      assert.equal(userMessage?.content, "Email [EMAIL_1_com] or call [PHONE_1_567].");
+      assert.equal(JSON.stringify(captured.messagePayload).includes("sarah@example.com"), false);
+      assert.equal(JSON.stringify(captured.messagePayload).includes("+1 (555) 123-4567"), false);
+
+      assert.equal(typeof captured.metadataPayload?.encrypted_pii_mappings, "string");
+      const masterKey = Buffer.alloc(32);
+      const encryptedChatKey = String(captured.metadataPayload?.encrypted_chat_key);
+      const chatKey = await decryptBytesWithAesGcm(encryptedChatKey, masterKey);
+      assert.ok(chatKey);
+      const mappingsJson = await decryptWithAesGcmCombined(
+        String(captured.metadataPayload?.encrypted_pii_mappings),
+        chatKey,
+      );
+      assert.deepEqual(JSON.parse(mappingsJson ?? "[]"), [
+        { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
+        { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
+      ]);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });
 
