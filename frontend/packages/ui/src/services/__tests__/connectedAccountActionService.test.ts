@@ -27,7 +27,11 @@ vi.mock('../connectedAccountTokenBrokerService', () => ({
 	createConnectedAccountTurnTokenRefs: mocks.createConnectedAccountTurnTokenRefs
 }));
 
-import { connectedAccountUndoBrokerAction, undoConnectedAccountAction } from '../connectedAccountActionService';
+import {
+	cancelConnectedAccountAction,
+	connectedAccountUndoBrokerAction,
+	undoConnectedAccountAction
+} from '../connectedAccountActionService';
 
 describe('connectedAccountActionService', () => {
 	beforeEach(() => {
@@ -69,6 +73,25 @@ describe('connectedAccountActionService', () => {
 		expect(fetch).toHaveBeenCalledWith(
 			'https://api.test/v1/connected-accounts/actions/act-1/undo',
 			expect.objectContaining({ method: 'POST', credentials: 'include' })
+		);
+	});
+
+	it('cancels pending actions without creating token refs', async () => {
+		await cancelConnectedAccountAction({
+			actionId: 'act-cancel',
+			chatId: 'chat-1',
+			messageId: 'msg-1'
+		});
+
+		expect(mocks.listConnectedAccounts).not.toHaveBeenCalled();
+		expect(mocks.createConnectedAccountTurnTokenRefs).not.toHaveBeenCalled();
+		expect(fetch).toHaveBeenCalledWith(
+			'https://api.test/v1/connected-accounts/actions/act-cancel/cancel',
+			expect.objectContaining({
+				method: 'POST',
+				credentials: 'include',
+				body: JSON.stringify({ chat_id: 'chat-1', message_id: 'msg-1' })
+			})
 		);
 	});
 });

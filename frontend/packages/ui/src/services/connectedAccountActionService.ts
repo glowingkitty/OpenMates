@@ -19,6 +19,12 @@ interface UndoConnectedAccountActionResult {
 	receipt: Record<string, unknown>;
 }
 
+interface CancelConnectedAccountActionResult {
+	action_id: string;
+	status: string;
+	receipt: Record<string, unknown>;
+}
+
 export type ConnectedAccountUndoType = 'delete_created_event' | 'restore_updated_event' | 'recreate_deleted_event' | string;
 
 export async function undoConnectedAccountAction(params: {
@@ -74,6 +80,29 @@ export async function undoConnectedAccountAction(params: {
 	}
 
 	throw lastError ?? new Error('Connected-account undo failed');
+}
+
+export async function cancelConnectedAccountAction(params: {
+	actionId: string;
+	chatId: string;
+	messageId: string;
+}): Promise<CancelConnectedAccountActionResult> {
+	const response = await fetch(
+		getApiEndpoint(`/v1/connected-accounts/actions/${encodeURIComponent(params.actionId)}/cancel`),
+		{
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				chat_id: params.chatId,
+				message_id: params.messageId
+			})
+		}
+	);
+	if (response.ok) {
+		return (await response.json()) as CancelConnectedAccountActionResult;
+	}
+	throw new Error(`Connected-account cancel failed (HTTP ${response.status})`);
 }
 
 export function connectedAccountUndoBrokerAction(undoType: ConnectedAccountUndoType | undefined): 'delete' | 'update' | 'write' {
