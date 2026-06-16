@@ -17,7 +17,7 @@
     import AppStoreCard from './AppStoreCard.svelte';
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
-    import { SettingsButton, SettingsCard, SettingsCheckboxList, SettingsInfoBox, SettingsSectionHeading } from './elements';
+    import { SettingsButton, SettingsCard, SettingsConsentToggle, SettingsDetailRow, SettingsInfoBox, SettingsSectionHeading } from './elements';
     import type { AppMetadata, MemoryFieldMetadata, SkillMetadata } from '../../types/apps';
     import { CONTENT_EMBED_CATALOG, type ContentEmbedCatalogItem } from '../../data/embedRegistry.generated';
     import { createEventDispatcher } from 'svelte';
@@ -99,6 +99,17 @@
                 .join(', ')
             : $text('settings.app_store.connected_accounts.no_capabilities_selected')
     );
+    let calendarConnectionStatus = $derived.by(() => {
+        if (connectedAccountsLoading) {
+            return $text('settings.app_store.connected_accounts.loading');
+        }
+        if (connectedCalendarAccounts.length > 0) {
+            return $text('settings.app_store.connected_accounts.connected_count', {
+                values: { count: String(connectedCalendarAccounts.length) }
+            });
+        }
+        return $text('settings.app_store.connected_accounts.not_connected');
+    });
 
     function updateCalendarCapability(id: string, checked: boolean) {
         if (!CALENDAR_CAPABILITIES.includes(id as CalendarCapability)) return;
@@ -446,39 +457,38 @@
                 <p class="section-description">{$text('settings.app_store.connected_accounts.description')}</p>
 
                 <SettingsCard>
-                    <div class="connected-account-card">
-                        <div>
-                            <h3>{$text('settings.app_store.connected_accounts.google_calendar_title')}</h3>
-                            <p>
-                                {#if connectedAccountsLoading}
-                                    {$text('settings.app_store.connected_accounts.loading')}
-                                {:else if connectedCalendarAccounts.length > 0}
-                                    {$text('settings.app_store.connected_accounts.connected_count', { values: { count: String(connectedCalendarAccounts.length) } })}
-                                {:else}
-                                    {$text('settings.app_store.connected_accounts.not_connected')}
-                                {/if}
-                            </p>
-                            <div data-testid="calendar-capability-toggles">
-                                <SettingsCheckboxList
-                                    options={calendarCapabilityOptions}
-                                    onChange={updateCalendarCapability}
-                                />
-                            </div>
-                            <p data-testid="calendar-oauth-capability-summary">
-                                {$text('settings.app_store.connected_accounts.oauth_summary', {
-                                    values: { capabilities: calendarOAuthCapabilitySummary }
-                                })}
-                            </p>
-                        </div>
-                        <SettingsButton
-                            dataTestid="connect-google-calendar-button"
-                            loading={connectedAccountAction === 'connecting'}
-                            disabled={connectedAccountAction !== 'idle' || selectedCalendarCapabilities.length === 0}
-                            onClick={connectGoogleCalendar}
-                        >
-                            {$text('settings.app_store.connected_accounts.connect_button')}
-                        </SettingsButton>
+                    <SettingsDetailRow
+                        label={$text('settings.app_store.connected_accounts.google_calendar_title')}
+                        value={calendarConnectionStatus}
+                    />
+                    <div data-testid="calendar-capability-toggles">
+                        {#each calendarCapabilityOptions as capability (capability.id)}
+                            <SettingsConsentToggle
+                                checked={capability.checked}
+                                consentText={`${capability.label}: ${capability.description}`}
+                                highlightedParts={[capability.label]}
+                                ariaLabel={capability.label}
+                                dataTestid={`calendar-capability-toggle-${capability.id}`}
+                                onChange={(checked) => updateCalendarCapability(capability.id, checked)}
+                            />
+                        {/each}
                     </div>
+                    <SettingsInfoBox type="info">
+                        <p data-testid="calendar-oauth-capability-summary">
+                            {$text('settings.app_store.connected_accounts.oauth_summary', {
+                                values: { capabilities: calendarOAuthCapabilitySummary }
+                            })}
+                        </p>
+                    </SettingsInfoBox>
+                    <SettingsButton
+                        dataTestid="connect-google-calendar-button"
+                        fullWidth={true}
+                        loading={connectedAccountAction === 'connecting'}
+                        disabled={connectedAccountAction !== 'idle' || selectedCalendarCapabilities.length === 0}
+                        onClick={connectGoogleCalendar}
+                    >
+                        {$text('settings.app_store.connected_accounts.connect_button')}
+                    </SettingsButton>
                 </SettingsCard>
 
                 {#if connectedCalendarAccountSummaries.length > 0}
@@ -578,33 +588,6 @@
         background: var(--color-grey-10);
         border-radius: var(--radius-3);
         border: 1px solid var(--color-grey-20);
-    }
-
-    .connected-account-card {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    }
-
-    .connected-account-card h3 {
-        margin: 0 0 0.25rem 0;
-        font-size: var(--font-size-p, 0.875rem);
-        color: var(--color-font-primary);
-    }
-
-    .connected-account-card p {
-        margin: 0;
-        color: var(--color-font-secondary);
-        font-size: 0.875rem;
-        line-height: 1.4;
-    }
-
-    @media (max-width: 640px) {
-        .connected-account-card {
-            align-items: stretch;
-            flex-direction: column;
-        }
     }
 
     .error {

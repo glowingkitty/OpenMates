@@ -18,6 +18,7 @@
         highlightedParts = [],
         disabled = false,
         ariaLabel = '',
+        dataTestid = '',
         onChange = undefined,
     }: {
         checked?: boolean;
@@ -25,6 +26,7 @@
         highlightedParts?: string[];
         disabled?: boolean;
         ariaLabel?: string;
+        dataTestid?: string;
         onChange?: ((checked: boolean) => void) | undefined;
     } = $props();
 
@@ -113,6 +115,7 @@
     role="checkbox"
     aria-checked={checked}
     aria-label={ariaLabel || consentText}
+    data-testid={dataTestid || undefined}
     tabindex="-1"
 >
     {@render toggleContent()}
@@ -125,6 +128,7 @@
     role="checkbox"
     aria-checked={checked}
     aria-label={ariaLabel || consentText}
+    data-testid={dataTestid || undefined}
     tabindex="0"
 >
     {@render toggleContent()}
