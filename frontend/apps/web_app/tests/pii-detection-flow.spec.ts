@@ -564,7 +564,7 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	const senderEmail = 'max@posteo.de';
 	const receiverEmail = 'sarah@proton.com';
 	const draftPrompt =
-		`Write an email draft from ${senderEmail} to ${receiverEmail} to ask for an update about the broken heater in the house.`;
+		`Only draft a short email from ${senderEmail} to ${receiverEmail} asking for an update about our meeting tomorrow. Do not search the web or use research tools.`;
 
 	logCheckpoint('Typing mail draft prompt with two PII emails…');
 	await insertComposerText(page, messageEditor, draftPrompt, [senderEmail, receiverEmail]);
