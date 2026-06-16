@@ -256,6 +256,93 @@ describe("connected account payload builders", () => {
     assert.equal(request.refs[0]?.refresh_token_envelope.refresh_token, "refresh-secret");
     assert.equal(JSON.stringify(directory).includes("refresh-secret"), false);
   });
+
+  it("posts connected-account cancel requests without token refs", async () => {
+    let requestBody = "";
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/connected-accounts/actions/action-1/cancel");
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        requestBody += chunk;
+      });
+      request.on("end", () => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ action_id: "action-1", status: "cancelled", receipt: {} }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.cancelConnectedAccountAction({
+        actionId: "action-1",
+        chatId: "chat-1",
+        messageId: "message-1",
+      });
+
+      assert.deepEqual(JSON.parse(requestBody), { chat_id: "chat-1", message_id: "message-1" });
+      assert.equal(JSON.stringify(requestBody).includes("refresh"), false);
+      assert.deepEqual(result, { action_id: "action-1", status: "cancelled", receipt: {} });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("posts connected-account undo requests with only the opaque turn token ref", async () => {
+    let requestBody = "";
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/connected-accounts/actions/action-1/undo");
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        requestBody += chunk;
+      });
+      request.on("end", () => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(
+          JSON.stringify({
+            action_id: "action-1",
+            status: "undone",
+            undo_type: "delete_created_event",
+            events: [],
+            receipt: {},
+          }),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.undoConnectedAccountAction({
+        actionId: "action-1",
+        chatId: "chat-1",
+        messageId: "message-1",
+        turnTokenRef: "turn-ref-1",
+      });
+
+      assert.deepEqual(JSON.parse(requestBody), {
+        chat_id: "chat-1",
+        message_id: "message-1",
+        turn_token_ref: "turn-ref-1",
+      });
+      assert.equal(JSON.stringify(requestBody).includes("refresh"), false);
+      assert.deepEqual(result, {
+        action_id: "action-1",
+        status: "undone",
+        undo_type: "delete_created_event",
+        events: [],
+        receipt: {},
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
 
 describe("memory request system messages", () => {

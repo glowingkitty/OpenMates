@@ -1289,6 +1289,46 @@ export class OpenMatesClient {
     });
   }
 
+  async cancelConnectedAccountAction(params: {
+    actionId: string;
+    chatId: string;
+    messageId: string;
+  }): Promise<Record<string, unknown>> {
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/connected-accounts/actions/${encodeURIComponent(params.actionId)}/cancel`,
+      {
+        chat_id: params.chatId,
+        message_id: params.messageId,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to cancel connected-account action (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async undoConnectedAccountAction(params: {
+    actionId: string;
+    chatId: string;
+    messageId: string;
+    turnTokenRef: string;
+  }): Promise<Record<string, unknown>> {
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/connected-accounts/actions/${encodeURIComponent(params.actionId)}/undo`,
+      {
+        chat_id: params.chatId,
+        message_id: params.messageId,
+        turn_token_ref: params.turnTokenRef,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to undo connected-account action (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
   // -------------------------------------------------------------------------
   // Auth
   // -------------------------------------------------------------------------
