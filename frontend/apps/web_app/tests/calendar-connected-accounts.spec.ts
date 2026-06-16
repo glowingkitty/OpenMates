@@ -255,7 +255,11 @@ test.describe('Calendar connected accounts', () => {
 		expect(JSON.stringify(patchRequestBody)).not.toContain('secret-write-refresh-token');
 		expect(JSON.stringify(patchRequestBody)).not.toContain('work@example.test');
 
-		await page.goto(getE2EDebugUrl('/#settings/privacy/connected-accounts'), { waitUntil: 'domcontentloaded' });
+		await page.evaluate(() => {
+			window.dispatchEvent(new CustomEvent('openSettingsMenu', {
+				detail: { returnTo: 'privacy/connected-accounts' }
+			}));
+		});
 		const updatedPrivacySettingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="privacy/connected-accounts"]');
 		await expect(updatedPrivacySettingsMenu).toBeVisible({ timeout: 15000 });
 		const updatedDetails = updatedPrivacySettingsMenu.getByTestId('privacy-connected-account-detail');
