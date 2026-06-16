@@ -157,10 +157,10 @@ test('completes signup and EU card purchase from Settings billing', async ({
 
 	// Alpha disclaimer: verify outbound links exist and continue.
 	// Use href-based locators because link accessible names can vary by locale.
-	const githubLink = page.locator('a[href*="github.com"]');
-	const instagramLink = page.locator('a[href*="instagram.com"]');
-	await expect(githubLink.first()).toBeVisible();
-	await expect(instagramLink.first()).toBeVisible();
+	const githubLink = page.getByTestId('signup-alpha-github-link');
+	const instagramLink = page.getByTestId('signup-alpha-instagram-link');
+	await expect(githubLink).toBeVisible();
+	await expect(instagramLink).toBeVisible();
 
 	await page.getByRole('button', { name: /continue/i }).click();
 	await takeStepScreenshot(page, 'basics-step');
@@ -218,7 +218,9 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	logSignupCheckpoint('Received email confirmation code.');
 
 	const confirmEmailInput = page.locator('input[inputmode="numeric"][maxlength="6"]');
-	await confirmEmailInput.fill(emailCode);
+	await expect(confirmEmailInput).toBeVisible({ timeout: 10000 });
+	await confirmEmailInput.click();
+	await confirmEmailInput.pressSequentially(emailCode);
 
 	// Secure account step: choose password-based setup.
 	const passwordOption = page.locator('#signup-password-option');

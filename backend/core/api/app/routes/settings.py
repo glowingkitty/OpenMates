@@ -3233,6 +3233,22 @@ class DeleteAccountPreviewResponse(BaseModel):
     auto_refunds: Dict[str, Any]  # Details about the refund (amount, invoices, etc.)
 
 
+def _empty_delete_account_preview(total_credits: int = 0) -> DeleteAccountPreviewResponse:
+    """Build a deletion preview for accounts with no refundable credit history."""
+    return DeleteAccountPreviewResponse(
+        total_credits=max(0, total_credits),
+        refundable_credits=0,
+        credits_from_gift_cards=0,
+        has_refundable_credits=False,
+        auto_refunds={
+            "total_refund_amount_cents": 0,
+            "total_refund_currency": "eur",
+            "eligible_invoices": [],
+            "gift_card_purchases": [],
+        },
+    )
+
+
 # ============================================================================
 # Action verification models — email OTP for sensitive actions
 # Used by password-only users (no 2FA/passkey) who need to verify identity
@@ -3494,16 +3510,23 @@ async def _calculate_delete_account_preview(
     4. Calculate refundable credits = total credits - gift card credits
     5. Calculate proportional refund amount based on invoices
     """
-    # Step 1: Get user's current total credits from cache
+    # Step 1: Get user's current total credits from cache, falling back to Directus.
     user_data = await cache_service.get_user_by_id(user_id)
     if not user_data:
         logger.warning(f"User not found in cache for deletion preview: {user_id}")
-        total_credits = 0
+        user_fields = await directus_service.get_user_fields_direct(user_id, ["credits"])
+        total_credits = int((user_fields or {}).get("credits") or 0)
+        if user_fields:
+            await cache_service.update_user(user_id, {"credits": total_credits})
     else:
-        total_credits = int(user_data.get("credits", 0))
+        total_credits = int(user_data.get("credits") or 0)
     
     logger.debug(f"[DeletePreview] User {user_id} has {total_credits} total credits")
-    
+
+    if total_credits <= 0:
+        logger.debug(f"[DeletePreview] Skipping refund aggregation for zero-balance user {user_id}")
+        return _empty_delete_account_preview(total_credits)
+
     # Step 2: Get all non-refunded invoices for the user
     # We need all invoices to calculate the refund proportionally
     invoices_data = await directus_service.get_items(

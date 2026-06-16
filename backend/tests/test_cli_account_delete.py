@@ -28,6 +28,25 @@ class FakeDeleteCache:
         return None
 
 
+class FakePreviewCache:
+    updated_user = None
+
+    async def get_user_by_id(self, user_id):
+        return None
+
+    async def update_user(self, user_id, data):
+        self.updated_user = (user_id, data)
+        return True
+
+
+class FakePreviewDirectus:
+    async def get_user_fields_direct(self, user_id, fields):
+        return {"credits": "0"}
+
+    async def get_items(self, collection, params):
+        raise AssertionError("Zero-balance delete previews must not query refund collections")
+
+
 @pytest.mark.anyio
 async def test_cli_delete_requires_verified_email_code_before_auth(monkeypatch):
     async def fake_preview(**kwargs):
@@ -57,3 +76,22 @@ async def test_cli_delete_requires_verified_email_code_before_auth(monkeypatch):
 
     assert exc_info.value.status_code == 401
     assert exc_info.value.detail == "Email verification required"
+
+
+@pytest.mark.anyio
+async def test_delete_preview_zero_balance_skips_refund_collection_queries():
+    cache = FakePreviewCache()
+
+    preview = await settings._calculate_delete_account_preview(
+        user_id="user-1",
+        user_id_hash="hash-1",
+        vault_key_id="vault-key-1",
+        directus_service=FakePreviewDirectus(),
+        encryption_service=SimpleNamespace(),
+        cache_service=cache,
+    )
+
+    assert preview.total_credits == 0
+    assert preview.has_refundable_credits is False
+    assert preview.auto_refunds["eligible_invoices"] == []
+    assert cache.updated_user == ("user-1", {"credits": 0})
