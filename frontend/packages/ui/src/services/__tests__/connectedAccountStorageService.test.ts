@@ -18,6 +18,7 @@ import {
 	buildConnectedAccountSendContext,
 	createConnectedAccount,
 	listConnectedAccounts,
+	summarizeConnectedAccountRows,
 	updateConnectedAccount
 } from '../connectedAccountStorageService';
 
@@ -141,6 +142,38 @@ describe('connectedAccountStorageService', () => {
 			refresh_token_envelope: { refresh_token: 'secret-refresh', provider: 'google' },
 			action_scope: { calendar_id: 'primary' }
 		});
+	});
+
+	it('summarizes connected account rows without decrypting refresh token envelopes', async () => {
+		const summaries = await summarizeConnectedAccountRows([
+			{
+				...encryptedRow,
+				hashed_user_id: 'hash:user-1',
+				encrypted_provider_type: 'enc:google_calendar',
+				encrypted_account_label: 'enc:"Work calendar"',
+				encrypted_capabilities: 'enc:["read"]',
+				encrypted_app_permissions: 'enc:{"app_id":"calendar","allowed_actions":["read"]}',
+				encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}',
+				encrypted_account_directory_hint:
+					'enc:{"account_ref":"calendar-work","label":"Work","capabilities":["read"],"runtime_modes":{"read":"allow_automatically"}}'
+			}
+		]);
+
+		expect(summaries).toEqual([
+			{
+				id: 'acct-1',
+				provider_id: 'google_calendar',
+				app_id: 'calendar',
+				account_ref: 'calendar-work',
+				label: 'Work',
+				capabilities: ['read'],
+				runtime_modes: { read: 'allow_automatically' },
+				updated_at: undefined
+			}
+		]);
+		expect(vi.mocked(decryptWithMasterKey)).not.toHaveBeenCalledWith(
+			'enc:{"refresh_token":"secret-refresh","provider":"google"}'
+		);
 	});
 
 	it('pre-submits token refs only for auto runtime modes during normal sends', async () => {

@@ -139,4 +139,43 @@ describe('connectedAccountOAuthService', () => {
 		expect(storageCall[0]).toBe('https://api.test/v1/connected-accounts');
 		expect(JSON.stringify(storageCall[1])).not.toContain('secret-refresh');
 	});
+
+	it('finalizes an account update with a PATCH and merged capability envelope', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch')
+			.mockResolvedValueOnce(
+				new Response(
+					JSON.stringify({
+						provider_id: 'google_calendar',
+						refresh_token_bundle: { refresh_token: 'secret-refresh' },
+						account_hint: { capabilities: ['write'], label: 'Work Calendar' },
+						expires_at: 1760000000
+					}),
+					{ status: 200, headers: { 'Content-Type': 'application/json' } }
+				)
+			)
+			.mockResolvedValueOnce(
+				new Response(JSON.stringify({ id: 'acct-1', sync_version: 1760000002 }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				})
+			);
+
+		await expect(
+			finalizeOAuthHandoffAsConnectedAccount({
+				userId: 'user-1',
+				handoffId: 'oauth_handoff_update',
+				connectedAccountId: 'acct-1',
+				updateExisting: true,
+				capabilitiesOverride: ['read', 'write']
+			})
+		).resolves.toEqual({ id: 'acct-1', sync_version: 1760000002 });
+
+		const storageCall = fetchMock.mock.calls[1];
+		expect(storageCall[0]).toBe('https://api.test/v1/connected-accounts/acct-1');
+		expect(storageCall[1]).toMatchObject({ method: 'PATCH' });
+		expect(vi.mocked(encryptWithMasterKey)).toHaveBeenCalledWith(
+			expect.stringContaining('["read","write"]')
+		);
+		expect(JSON.stringify(storageCall[1])).not.toContain('secret-refresh');
+	});
 });

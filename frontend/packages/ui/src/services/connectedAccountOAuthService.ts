@@ -13,6 +13,7 @@ import { encryptWithMasterKey } from './cryptoService';
 import {
 	assertNoPlaintextConnectedAccountFields,
 	createConnectedAccount,
+	updateConnectedAccount,
 	type ConnectedAccountWriteResponse,
 	type EncryptedConnectedAccountCreateInput
 } from './connectedAccountStorageService';
@@ -28,6 +29,8 @@ export interface FinalizeOAuthHandoffParams {
 	userId: string;
 	handoffId: string;
 	connectedAccountId?: string;
+	updateExisting?: boolean;
+	capabilitiesOverride?: string[];
 }
 
 export async function startGoogleCalendarOAuth(params: {
@@ -73,17 +76,27 @@ export async function finalizeOAuthHandoffAsConnectedAccount(
 	const handoff = await claimOAuthHandoff(params.handoffId);
 	const row = await buildEncryptedConnectedAccountRow({
 		connectedAccountId: params.connectedAccountId ?? crypto.randomUUID(),
-		handoff
+		handoff,
+		capabilitiesOverride: params.capabilitiesOverride
 	});
+	if (params.connectedAccountId && params.updateExisting) {
+		return updateConnectedAccount({
+			accountId: params.connectedAccountId,
+			patch: row
+		});
+	}
 	return createConnectedAccount({ userId: params.userId, row });
 }
 
 export async function buildEncryptedConnectedAccountRow(params: {
 	connectedAccountId: string;
 	handoff: OAuthHandoffClaimResponse;
+	capabilitiesOverride?: string[];
 }): Promise<EncryptedConnectedAccountCreateInput> {
 	const providerId = params.handoff.provider_id;
-	const capabilities = normalizeCapabilities(params.handoff.account_hint.capabilities);
+	const capabilities = normalizeCapabilities(
+		params.capabilitiesOverride ?? params.handoff.account_hint.capabilities
+	);
 	const label = typeof params.handoff.account_hint.label === 'string'
 		? params.handoff.account_hint.label
 		: defaultProviderLabel(providerId);

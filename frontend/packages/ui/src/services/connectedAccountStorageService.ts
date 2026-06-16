@@ -78,6 +78,17 @@ interface ConnectedAccountPermissionsEnvelope {
 	action_scope?: Record<string, unknown>;
 }
 
+export interface ConnectedAccountSummary {
+	id: string;
+	provider_id: string;
+	app_id: string;
+	account_ref: string;
+	label: string;
+	capabilities: string[];
+	runtime_modes: Record<string, string>;
+	updated_at?: number;
+}
+
 export async function computeConnectedAccountUserHash(userId: string): Promise<string> {
 	if (!userId) {
 		throw new Error('Connected-account storage requires a user id');
@@ -209,6 +220,53 @@ export async function buildConnectedAccountSendContext(params: {
 
 	assertNoConnectedAccountSecretLeak(directory);
 	return { directory, tokenRefInputs };
+}
+
+export async function summarizeConnectedAccountRows(
+	rows: EncryptedConnectedAccountRow[]
+): Promise<ConnectedAccountSummary[]> {
+	const summaries: ConnectedAccountSummary[] = [];
+	for (const row of rows) {
+		assertNoPlaintextConnectedAccountFields(row);
+		const [providerId, label, capabilities, permissions, directoryHint] = await Promise.all([
+			decryptConnectedAccountValue<string>(row.encrypted_provider_type, 'encrypted_provider_type'),
+			decryptConnectedAccountValue<string>(row.encrypted_account_label, 'encrypted_account_label'),
+			decryptConnectedAccountValue<string[] | { capabilities?: string[] }>(
+				row.encrypted_capabilities,
+				'encrypted_capabilities'
+			),
+			decryptConnectedAccountValue<ConnectedAccountPermissionsEnvelope>(
+				row.encrypted_app_permissions,
+				'encrypted_app_permissions'
+			),
+			row.encrypted_account_directory_hint
+				? decryptConnectedAccountValue<ConnectedAccountDirectoryHint>(
+						row.encrypted_account_directory_hint,
+						'encrypted_account_directory_hint'
+					)
+				: Promise.resolve(undefined)
+		]);
+		const capabilityList = Array.isArray(capabilities)
+			? capabilities
+			: capabilities.capabilities ?? [];
+		summaries.push({
+			id: row.id,
+			provider_id: providerId,
+			app_id: permissions.app_id ?? appIdForProvider(providerId),
+			account_ref: directoryHint?.account_ref ?? row.id,
+			label: directoryHint?.label ?? label,
+			capabilities: directoryHint?.capabilities ?? capabilityList,
+			runtime_modes: directoryHint?.runtime_modes ?? {},
+			updated_at: row.updated_at
+		});
+	}
+	assertNoConnectedAccountSecretLeak(summaries);
+	return summaries;
+}
+
+function appIdForProvider(providerId: string): string {
+	if (providerId === 'google_calendar') return 'calendar';
+	return providerId;
 }
 
 function preauthorizedActions(

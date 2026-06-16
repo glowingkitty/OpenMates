@@ -645,6 +645,10 @@ connected_accounts.connect_button:
   context: Button label for starting Google Calendar OAuth.
   en: Connect Google Calendar
   verified_by_human: [en]
+connected_accounts.manage_account:
+  context: Button label in Calendar app settings that opens the canonical connected-account details page. The label replacement is the encrypted account label.
+  en: "Manage {label}"
+  verified_by_human: [en]
 connected_accounts.capability_read:
   context: Label for the Google Calendar OAuth read capability checkbox.
   en: Read events

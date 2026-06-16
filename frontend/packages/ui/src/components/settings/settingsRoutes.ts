@@ -30,6 +30,7 @@ import SettingsBackupReminders from "./notifications/SettingsBackupReminders.sve
 // Privacy
 import SettingsPrivacy from "./SettingsPrivacy.svelte";
 import SettingsHidePersonalData from "./privacy/SettingsHidePersonalData.svelte";
+import SettingsConnectedAccounts from "./privacy/SettingsConnectedAccounts.svelte";
 import SettingsAddName from "./privacy/SettingsAddName.svelte";
 import SettingsAddAddress from "./privacy/SettingsAddAddress.svelte";
 import SettingsAddBirthday from "./privacy/SettingsAddBirthday.svelte";
@@ -143,6 +144,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   settings_memories: SettingsMemoriesHub,
   // Privacy settings — anonymization, device permissions, auto deletion
   privacy: SettingsPrivacy,
+  "privacy/connected-accounts": SettingsConnectedAccounts,
   "privacy/hide-personal-data": SettingsHidePersonalData,
   "privacy/hide-personal-data/add-name": SettingsAddName,
   "privacy/hide-personal-data/add-address": SettingsAddAddress,

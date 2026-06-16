@@ -23,7 +23,12 @@
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { computeSHA256 } from '../../message_parsing/utils';
-    import { listConnectedAccounts, type EncryptedConnectedAccountRow } from '../../services/connectedAccountStorageService';
+    import {
+        listConnectedAccounts,
+        summarizeConnectedAccountRows,
+        type ConnectedAccountSummary,
+        type EncryptedConnectedAccountRow
+    } from '../../services/connectedAccountStorageService';
     import { finalizeOAuthHandoffAsConnectedAccount, startGoogleCalendarOAuth } from '../../services/connectedAccountOAuthService';
     
     // Create event dispatcher for navigation
@@ -52,6 +57,7 @@
     let focusModes = $derived(app?.focus_modes || []);
     let memoryFields = $derived(app?.settings_and_memories || []);
     let connectedCalendarAccounts = $state<EncryptedConnectedAccountRow[]>([]);
+    let connectedCalendarAccountSummaries = $state<ConnectedAccountSummary[]>([]);
     let connectedAccountsLoading = $state(false);
     let connectedAccountAction = $state<'idle' | 'connecting' | 'finalizing'>('idle');
     let connectedAccountError = $state('');
@@ -247,6 +253,7 @@
             const providerHash = await computeSHA256('google_calendar');
             const rows = await listConnectedAccounts();
             connectedCalendarAccounts = rows.filter((row) => row.provider_type_hash === providerHash);
+            connectedCalendarAccountSummaries = await summarizeConnectedAccountRows(connectedCalendarAccounts);
         } catch (error) {
             console.warn('[AppDetails] Failed to load Calendar connected accounts:', error);
             connectedAccountError = $text('settings.app_store.connected_accounts.load_error');
@@ -309,6 +316,15 @@
             connectedAccountAction = 'idle';
             connectedAccountError = $text('settings.app_store.connected_accounts.start_error');
         }
+    }
+
+    function openConnectedAccountsSettings() {
+        dispatch('openSettings', {
+            settingsPath: 'privacy/connected-accounts',
+            direction: 'forward',
+            icon: 'privacy',
+            title: $text('settings.privacy.connected_accounts.title')
+        });
     }
 </script>
 
@@ -464,6 +480,25 @@
                         </SettingsButton>
                     </div>
                 </SettingsCard>
+
+                {#if connectedCalendarAccountSummaries.length > 0}
+                    <SettingsCard>
+                        {#each connectedCalendarAccountSummaries as account (account.id)}
+                            <div data-testid="calendar-connected-account-detail-link">
+                                <SettingsButton
+                                    variant="ghost"
+                                    fullWidth={true}
+                                    dataTestid={`calendar-connected-account-detail-${account.id}`}
+                                    onClick={openConnectedAccountsSettings}
+                                >
+                                    {$text('settings.app_store.connected_accounts.manage_account', {
+                                        values: { label: account.label }
+                                    })}
+                                </SettingsButton>
+                            </div>
+                        {/each}
+                    </SettingsCard>
+                {/if}
 
                 {#if connectedAccountAction === 'finalizing'}
                     <SettingsInfoBox type="info">

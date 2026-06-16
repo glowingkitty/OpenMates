@@ -57,6 +57,20 @@ Based on Figma design: settings/privacy (node 1895:20576)
         });
     }
 
+    function navigateToConnectedAccounts() {
+        if (!$authStore.isAuthenticated) {
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
+        dispatch('openSettings', {
+            settingsPath: 'privacy/connected-accounts',
+            direction: 'forward',
+            icon: 'privacy',
+            title: $text('settings.privacy.connected_accounts.title')
+        });
+    }
+
     // ─── Ephemeral Log Forwarding Opt-out ──────────────────────────────────
     // Anonymized console logs forwarded to help diagnose production errors.
     // ON by default (legitimate interest, GDPR Art. 6(1)(f)), user can opt out.
@@ -171,6 +185,14 @@ Based on Figma design: settings/privacy (node 1895:20576)
     hasToggle={true}
     checked={hidePersonalDataEnabled}
     onClick={navigateToHidePersonalData}
+/>
+
+<SettingsItem
+    type="subsubmenu"
+    icon="privacy"
+    subtitleTop={$text('settings.privacy.connected_accounts.subtitle')}
+    title={$text('settings.privacy.connected_accounts.title')}
+    onClick={navigateToConnectedAccounts}
 />
 
 <!-- Nearby by default (Maps/Location) -->
