@@ -2397,6 +2397,8 @@ export class OpenMatesClient {
     encryptedEmbeds?: EncryptedEmbed[];
     /** Prepared embeds to encrypt after the real chat/message IDs are known. */
     preparedEmbeds?: PreparedEmbed[];
+    /** Placeholder-to-original PII mappings created before sending the user message. */
+    piiMappings?: Array<{ placeholder: string; original: string; type: string }>;
     /** Redacted connected-account directory for AI-visible account selection. */
     connectedAccountDirectory?: ConnectedAccountDirectoryEntry[];
     /** Refresh-token envelopes to convert into short-lived token refs before send. */
@@ -2482,6 +2484,8 @@ export class OpenMatesClient {
 
     // ── Phase 1: Plaintext message for AI processing ──
     // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
+    const piiMappings = params.piiMappings ?? [];
+
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
       is_incognito: Boolean(params.incognito),
@@ -2629,6 +2633,13 @@ export class OpenMatesClient {
           last_edited_overall_timestamp: createdAt,
         },
       };
+
+      if (piiMappings.length > 0) {
+        metadataPayload.encrypted_pii_mappings = await encryptWithAesGcmCombined(
+          JSON.stringify(piiMappings),
+          chatKeyBytes,
+        );
+      }
 
       ws.send("encrypted_chat_metadata", metadataPayload);
     }

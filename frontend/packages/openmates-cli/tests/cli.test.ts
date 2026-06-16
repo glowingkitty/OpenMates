@@ -1665,6 +1665,51 @@ describe("unauthenticated example chats", () => {
       assert.equal(typeof requests[0].anonymous_id, "string");
     });
   });
+
+  it("redacts PII in anonymous chat by default", async () => {
+    await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
+      await runCliAsync(
+        [
+          "chats",
+          "new",
+          "Email sarah@example.com or call +1 (555) 123-4567.",
+          "--json",
+          "--api-url",
+          apiUrl,
+        ],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.equal(requests.length, 1);
+      assert.equal(
+        requests[0].plaintext_message,
+        "Email [EMAIL_1_com] or call [PHONE_1_567].",
+      );
+    });
+  });
+
+  it("keeps raw PII when anonymous chat opts out", async () => {
+    await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
+      await runCliAsync(
+        [
+          "chats",
+          "new",
+          "Email sarah@example.com or call +1 (555) 123-4567.",
+          "--json",
+          "--api-url",
+          apiUrl,
+          "--no-pii-detection",
+        ],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.equal(requests.length, 1);
+      assert.equal(
+        requests[0].plaintext_message,
+        "Email sarah@example.com or call +1 (555) 123-4567.",
+      );
+    });
+  });
 });
 
 describe("documented CLI command reference", () => {

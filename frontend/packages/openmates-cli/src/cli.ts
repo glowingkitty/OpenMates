@@ -84,12 +84,14 @@ async function main(): Promise<void> {
   });
 
   const redactor = new OutputRedactor();
-  if (client.hasSession() && shouldInitializeRedactor(command, subcommand)) {
+  const piiDetectionEnabled = parsed.flags["no-pii-detection"] !== true;
+  if (piiDetectionEnabled && shouldInitializeRedactor(command, subcommand)) {
     try {
-      const memories = await client.listMemories();
+      const memories = client.hasSession() ? await client.listMemories() : [];
       redactor.initializeFromMemories(memories);
     } catch {
-      // Not logged in or decryption error — proceed without redaction
+      // Keep high-confidence pattern detection active even if memory loading fails.
+      redactor.initializeFromMemories([]);
     }
   }
 
@@ -309,6 +311,7 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        piiDetection: flags["no-pii-detection"] !== true,
       },
       redactor,
     );
@@ -401,6 +404,7 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        piiDetection: flags["no-pii-detection"] !== true,
       },
       redactor,
     );
@@ -422,6 +426,7 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        piiDetection: flags["no-pii-detection"] !== true,
       },
       redactor,
     );
@@ -3397,6 +3402,7 @@ async function sendMessageStreaming(
     json?: boolean;
     autoApproveSubChats?: boolean;
     autoApproveMemories?: boolean;
+    piiDetection?: boolean;
   },
   redactor?: OutputRedactor,
 ): Promise<{
@@ -3778,6 +3784,11 @@ async function sendMessageStreaming(
     }
   }
 
+  const piiResult = params.piiDetection !== false && redactor?.isInitialized
+    ? redactor.redactWithMappings(finalMessage)
+    : { redacted: finalMessage, mappings: [] };
+  finalMessage = piiResult.redacted;
+
   if (!client.hasSession()) {
     const result = await client.sendAnonymousMessage({ message: finalMessage });
     clearTyping();
@@ -3808,6 +3819,11 @@ async function sendMessageStreaming(
     autoApproveSubChats: params.autoApproveSubChats,
     autoApproveMemories: params.autoApproveMemories,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
+    piiMappings: piiResult.mappings.map((mapping) => ({
+      placeholder: mapping.placeholder,
+      original: mapping.original,
+      type: mapping.type,
+    })),
   });
 
   clearTyping();
@@ -5610,13 +5626,13 @@ function printChatsHelp(): void {
   openmates chats show <chat-id> [--raw] [--json]
   openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--json] [--auto-approve] [--auto-approve-memories]
-  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories]
+  openmates chats new <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
+  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
   openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
-  openmates chats incognito <message> [--json]
+  openmates chats incognito <message> [--json] [--no-pii-detection]
   openmates chats incognito-history [--json]      Deprecated: incognito stores no history
   openmates chats incognito-clear                 Deprecated: incognito stores no history
 
@@ -5645,8 +5661,10 @@ Options for 'new', 'send', and 'incognito':
   --auto-approve           Automatically approve server-requested sub-chat batches.
                            Without this, the CLI prompts in the terminal like the web app.
   --auto-approve-memories  Explicitly approve server-requested memory categories.
-                           Memories are never approved by default.
-                           Use only for trusted non-interactive runs.
+                            Memories are never approved by default.
+                            Use only for trusted non-interactive runs.
+  --no-pii-detection       Send the message exactly as typed. By default, the CLI
+                            replaces detected PII with placeholders before send.
 
 Options for 'download':
   --output <path>  Target directory (default: current directory)
