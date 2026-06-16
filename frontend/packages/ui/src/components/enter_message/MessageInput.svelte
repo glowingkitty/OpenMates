@@ -31,6 +31,7 @@
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
     import { demoMode } from '../../stores/demoModeStore';
+    import { anonymousFreeUsageStatus } from '../../stores/serverStatusStore';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -491,6 +492,7 @@
     // True when the user is authenticated but has zero or negative credits.
     // Checked client-side against the synced userProfile store — no server request needed.
     let demoVisualAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
+    let anonymousTextSendEnabled = $derived(!$authStore.isAuthenticated && $anonymousFreeUsageStatus?.active === true && !anonymousFileAttachmentPending);
     let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
@@ -5169,7 +5171,7 @@
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasContent}
-                    isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
+                    isAuthenticated={anonymousTextSendEnabled || (anonymousFileAttachmentPending ? false : demoVisualAuthenticated)}
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
                     forceUnauthenticatedCta={anonymousFileAttachmentPending}

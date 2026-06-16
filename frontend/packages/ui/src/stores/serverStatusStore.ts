@@ -29,6 +29,13 @@ interface ServerStatus {
         active: boolean;
         grant_credits: number;
     } | null;
+    /** Safe public anonymous free usage availability metadata. */
+    anonymous_free_usage?: {
+        active: boolean;
+        reason?: string | null;
+        reset_at?: string | null;
+        cta?: string | null;
+    } | null;
 }
 
 interface ServerStatusState {
@@ -112,6 +119,11 @@ export const serverEdition = derived(
 export const freeTestingCreditsPromotion = derived(
     serverStatusStore,
     ($state) => $state.status?.free_testing_credits ?? null
+);
+
+export const anonymousFreeUsageStatus = derived(
+    serverStatusStore,
+    ($state) => $state.status?.anonymous_free_usage ?? null
 );
 
 export const signupFreeTestingCreditsPromotion = derived(
@@ -228,7 +240,8 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
             server_edition: data.server_edition ?? null,
             domain: data.domain ?? null,
             ai_models_configured: data.ai_models_configured ?? true,
-            free_testing_credits: data.free_testing_credits ?? null
+            free_testing_credits: data.free_testing_credits ?? null,
+            anonymous_free_usage: data.anonymous_free_usage ?? null
         };
         
         console.debug('[ServerStatusStore] Server status fetched:', status);
