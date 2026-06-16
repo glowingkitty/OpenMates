@@ -484,7 +484,7 @@
                 {#if connectedCalendarAccountSummaries.length > 0}
                     <SettingsCard>
                         {#each connectedCalendarAccountSummaries as account (account.id)}
-                            <div data-testid="calendar-connected-account-detail-link">
+                            <div data-testid="calendar-connected-account-link">
                                 <SettingsButton
                                     variant="ghost"
                                     fullWidth={true}
