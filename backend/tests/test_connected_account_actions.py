@@ -48,7 +48,12 @@ class FakeDirectus:
         return self.row | payload
 
 
-@pytest.mark.asyncio
+class FakeCalendarEvent:
+    def __init__(self, event_id: str) -> None:
+        self.id = event_id
+
+
+@pytest.mark.anyio
 async def test_undo_create_event_deletes_created_event_and_marks_journal(monkeypatch) -> None:
     from backend.core.api.app.routes import connected_account_actions
     from backend.core.api.app.routes.connected_account_actions import (
@@ -136,7 +141,171 @@ async def test_undo_create_event_deletes_created_event_and_marks_journal(monkeyp
     assert "refresh-secret" not in str(directus.updated)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
+async def test_undo_update_restores_previous_event_snapshot(monkeypatch) -> None:
+    from backend.core.api.app.routes import connected_account_actions
+    from backend.core.api.app.routes.connected_account_actions import (
+        UndoConnectedAccountActionRequest,
+        undo_connected_account_action,
+    )
+    from backend.core.api.app.services.connected_account_operation_journal import (
+        ConnectedAccountOperationJournalService,
+    )
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    updated_events: list[dict[str, Any]] = []
+
+    async def exchange(refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
+        return {"access_token": f"access-for-{refresh_token}"}
+
+    class FakeCalendarClient:
+        def __init__(self, *, access_token: str) -> None:
+            assert access_token == "access-for-refresh-secret"
+
+        async def update_event(self, **kwargs) -> FakeCalendarEvent:
+            updated_events.append(kwargs)
+            return FakeCalendarEvent(kwargs["event_id"])
+
+    monkeypatch.setattr(connected_account_actions, "exchange_google_refresh_token", exchange)
+    monkeypatch.setattr(connected_account_actions, "GoogleCalendarClient", FakeCalendarClient)
+
+    encryption = FakeEncryption()
+    journal = ConnectedAccountOperationJournalService(encryption_service=encryption)
+    row = await journal.build_entry(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        app_id="calendar",
+        action="update",
+        decision="completed",
+        action_id="act-update",
+        undo_payload={
+            "events": [
+                {
+                    "undo_type": "restore_updated_event",
+                    "calendar_id": "primary",
+                    "event_id": "event-1",
+                    "snapshot": {
+                        "title": "Original title",
+                        "start": "2026-06-15T10:00:00Z",
+                        "end": "2026-06-15T11:00:00Z",
+                    },
+                }
+            ]
+        },
+    )
+    cache = FakeCache()
+    broker = TokenBrokerService(cache_service=cache, encryption_service=encryption, exchange_refresh_token=exchange)
+    ref = await broker.create_turn_token_ref(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        chat_id="chat-1",
+        message_id="msg-1",
+        app_id="calendar",
+        allowed_actions=["update"],
+        refresh_token_envelope={"refresh_token": "refresh-secret"},
+        action_scope={"calendar_id": "primary", "event_id": "event-1"},
+    )
+
+    response = await undo_connected_account_action(
+        "act-update",
+        UndoConnectedAccountActionRequest(turn_token_ref=ref.turn_token_ref, chat_id="chat-1", message_id="msg-1"),
+        current_user=FakeUser(),
+        directus_service=FakeDirectus(row),
+        cache_service=cache,
+        encryption_service=encryption,
+    )
+
+    assert response.status == "undone"
+    assert response.undo_type == "restore_updated_event"
+    assert response.events == [{"calendar_id": "primary", "event_id": "event-1", "status": "restored"}]
+    assert updated_events[0]["title"] == "Original title"
+
+
+@pytest.mark.anyio
+async def test_undo_delete_recreates_deleted_event_snapshot(monkeypatch) -> None:
+    from backend.core.api.app.routes import connected_account_actions
+    from backend.core.api.app.routes.connected_account_actions import (
+        UndoConnectedAccountActionRequest,
+        undo_connected_account_action,
+    )
+    from backend.core.api.app.services.connected_account_operation_journal import (
+        ConnectedAccountOperationJournalService,
+    )
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    created_events: list[dict[str, Any]] = []
+
+    async def exchange(refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
+        return {"access_token": f"access-for-{refresh_token}"}
+
+    class FakeCalendarClient:
+        def __init__(self, *, access_token: str) -> None:
+            assert access_token == "access-for-refresh-secret"
+
+        async def create_event(self, **kwargs) -> FakeCalendarEvent:
+            created_events.append(kwargs)
+            return FakeCalendarEvent("event-recreated")
+
+    monkeypatch.setattr(connected_account_actions, "exchange_google_refresh_token", exchange)
+    monkeypatch.setattr(connected_account_actions, "GoogleCalendarClient", FakeCalendarClient)
+
+    encryption = FakeEncryption()
+    journal = ConnectedAccountOperationJournalService(encryption_service=encryption)
+    row = await journal.build_entry(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        app_id="calendar",
+        action="delete",
+        decision="completed",
+        action_id="act-delete",
+        undo_payload={
+            "events": [
+                {
+                    "undo_type": "recreate_deleted_event",
+                    "calendar_id": "primary",
+                    "event_id": "event-1",
+                    "snapshot": {
+                        "title": "Deleted title",
+                        "start": "2026-06-15T10:00:00Z",
+                        "end": "2026-06-15T11:00:00Z",
+                    },
+                }
+            ]
+        },
+    )
+    cache = FakeCache()
+    broker = TokenBrokerService(cache_service=cache, encryption_service=encryption, exchange_refresh_token=exchange)
+    ref = await broker.create_turn_token_ref(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        chat_id="chat-1",
+        message_id="msg-1",
+        app_id="calendar",
+        allowed_actions=["write"],
+        refresh_token_envelope={"refresh_token": "refresh-secret"},
+        action_scope={"calendar_id": "primary", "event_id": "event-1"},
+    )
+
+    response = await undo_connected_account_action(
+        "act-delete",
+        UndoConnectedAccountActionRequest(turn_token_ref=ref.turn_token_ref, chat_id="chat-1", message_id="msg-1"),
+        current_user=FakeUser(),
+        directus_service=FakeDirectus(row),
+        cache_service=cache,
+        encryption_service=encryption,
+    )
+
+    assert response.status == "undone"
+    assert response.undo_type == "recreate_deleted_event"
+    assert response.events == [{"calendar_id": "primary", "event_id": "event-recreated", "status": "recreated"}]
+    assert created_events[0]["title"] == "Deleted title"
+
+
+@pytest.mark.anyio
 async def test_undo_rejects_already_undone_action() -> None:
     from fastapi import HTTPException
 
@@ -178,7 +347,7 @@ async def test_undo_rejects_already_undone_action() -> None:
     assert exc_info.value.status_code == 409
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_undo_rejects_token_ref_for_different_connected_account() -> None:
     from fastapi import HTTPException
 

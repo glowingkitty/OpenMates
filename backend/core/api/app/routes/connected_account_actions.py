@@ -114,7 +114,7 @@ async def undo_connected_account_action(
     if not events:
         raise HTTPException(status_code=422, detail="Connected-account action has no undo implementation")
 
-    deleted_events: list[dict[str, str]] = []
+    undone_events: list[dict[str, str]] = []
     broker = TokenBrokerService(
         cache_service=cache_service,
         encryption_service=encryption_service,
@@ -130,13 +130,15 @@ async def undo_connected_account_action(
     access_token_handle: str | None = None
     try:
         for event in events:
-            if not isinstance(event, dict) or event.get("undo_type") != "delete_created_event":
+            if not isinstance(event, dict):
                 raise HTTPException(status_code=422, detail="Connected-account action has unsupported undo payload")
             calendar_id = str(event.get("calendar_id") or "")
             event_id = str(event.get("event_id") or "")
             if not calendar_id or not event_id:
                 raise HTTPException(status_code=422, detail="Connected-account undo payload is incomplete")
 
+            undo_type = str(event.get("undo_type") or "")
+            broker_action = _broker_action_for_undo_type(undo_type)
             action_scope = {"calendar_id": calendar_id, "event_id": event_id}
             handle = await broker.exchange_turn_token_ref(
                 turn_token_ref=body.turn_token_ref,
@@ -145,7 +147,7 @@ async def undo_connected_account_action(
                 chat_id=body.chat_id,
                 message_id=body.message_id,
                 app_id="calendar",
-                action="delete",
+                action=broker_action,
                 action_scope=action_scope,
             )
             access_token_handle = handle.access_token_handle
@@ -156,14 +158,16 @@ async def undo_connected_account_action(
                 chat_id=body.chat_id,
                 message_id=body.message_id,
                 app_id="calendar",
-                action="delete",
+                action=broker_action,
                 action_scope=action_scope,
             )
-            await GoogleCalendarClient(access_token=access_token).delete_event(
+            event_result = await _execute_calendar_undo_event(
+                calendar_client=GoogleCalendarClient(access_token=access_token),
+                event=event,
                 calendar_id=calendar_id,
                 event_id=event_id,
             )
-            deleted_events.append({"calendar_id": calendar_id, "event_id": event_id, "status": "deleted"})
+            undone_events.append(event_result)
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     finally:
@@ -177,8 +181,8 @@ async def undo_connected_account_action(
         "app_id": "calendar",
         "action": "undo",
         "decision": "undo_success",
-        "undo_type": "delete_created_event",
-        "event_count": len(deleted_events),
+        "undo_type": _receipt_undo_type(events),
+        "event_count": len(undone_events),
     }
     await journal.mark_undone(
         directus_service=directus_service,
@@ -199,11 +203,75 @@ async def undo_connected_account_action(
     return UndoConnectedAccountActionResponse(
         action_id=action_id,
         status="undone",
-        undo_type="delete_created_event",
-        events=deleted_events,
+        undo_type=str(receipt["undo_type"]),
+        events=undone_events,
         receipt=receipt,
     )
 
 
 def _sha256(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _broker_action_for_undo_type(undo_type: str) -> str:
+    if undo_type == "delete_created_event":
+        return "delete"
+    if undo_type == "restore_updated_event":
+        return "update"
+    if undo_type == "recreate_deleted_event":
+        return "write"
+    raise HTTPException(status_code=422, detail="Connected-account action has unsupported undo payload")
+
+
+async def _execute_calendar_undo_event(
+    *,
+    calendar_client: GoogleCalendarClient,
+    event: dict[str, Any],
+    calendar_id: str,
+    event_id: str,
+) -> dict[str, str]:
+    undo_type = str(event.get("undo_type") or "")
+    if undo_type == "delete_created_event":
+        await calendar_client.delete_event(calendar_id=calendar_id, event_id=event_id)
+        return {"calendar_id": calendar_id, "event_id": event_id, "status": "deleted"}
+
+    snapshot = event.get("snapshot") if isinstance(event.get("snapshot"), dict) else {}
+    title = str(snapshot.get("title") or snapshot.get("summary") or "")
+    start = str(snapshot.get("start") or "")
+    end = str(snapshot.get("end") or "")
+    if not title or not start or not end:
+        raise HTTPException(status_code=422, detail="Connected-account undo snapshot is incomplete")
+
+    if undo_type == "restore_updated_event":
+        updated = await calendar_client.update_event(
+            calendar_id=calendar_id,
+            event_id=event_id,
+            title=title,
+            start=start,
+            end=end,
+            location=snapshot.get("location"),
+            description=snapshot.get("description"),
+            attendees=snapshot.get("attendees") if isinstance(snapshot.get("attendees"), list) else None,
+        )
+        return {"calendar_id": calendar_id, "event_id": updated.id or event_id, "status": "restored"}
+
+    if undo_type == "recreate_deleted_event":
+        recreated = await calendar_client.create_event(
+            calendar_id=calendar_id,
+            title=title,
+            start=start,
+            end=end,
+            location=snapshot.get("location"),
+            description=snapshot.get("description"),
+            attendees=snapshot.get("attendees") if isinstance(snapshot.get("attendees"), list) else None,
+        )
+        return {"calendar_id": calendar_id, "event_id": recreated.id or event_id, "status": "recreated"}
+
+    raise HTTPException(status_code=422, detail="Connected-account action has unsupported undo payload")
+
+
+def _receipt_undo_type(events: list[Any]) -> str:
+    undo_types = sorted({str(event.get("undo_type") or "") for event in events if isinstance(event, dict)})
+    if len(undo_types) == 1:
+        return undo_types[0]
+    return "mixed"

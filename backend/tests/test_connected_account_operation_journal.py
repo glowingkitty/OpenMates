@@ -15,7 +15,7 @@ import pytest
 from backend.tests.test_token_broker_refs import FakeEncryption
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_operation_journal_encrypts_receipts_and_hashes_identifiers() -> None:
     from backend.core.api.app.services.connected_account_operation_journal import (
         ConnectedAccountOperationJournalService,
@@ -43,7 +43,7 @@ async def test_operation_journal_encrypts_receipts_and_hashes_identifiers() -> N
     assert entry["encrypted_receipt"].startswith("vault:vault-key:")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_operation_journal_rejects_provider_tokens() -> None:
     from backend.core.api.app.services.connected_account_operation_journal import (
         ConnectedAccountOperationJournalService,
@@ -62,7 +62,7 @@ async def test_operation_journal_rejects_provider_tokens() -> None:
         )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_operation_journal_persists_entry_to_directus() -> None:
     from backend.core.api.app.services.connected_account_operation_journal import (
         ConnectedAccountOperationJournalService,

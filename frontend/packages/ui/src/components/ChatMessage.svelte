@@ -125,6 +125,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     receipt?: {
       action?: string;
       decision?: string;
+      undo_type?: string;
       undo_available?: boolean;
     };
   }
@@ -999,7 +1000,8 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
       await undoConnectedAccountAction({
         actionId: receipt.action_id,
         chatId,
-        messageId: sourceMessageId
+        messageId: sourceMessageId,
+        undoType: receipt.receipt?.undo_type
       });
       const { notificationStore } = await import('../stores/notificationStore');
       notificationStore.success($text('chat.connected_account_receipts.undo_started'));

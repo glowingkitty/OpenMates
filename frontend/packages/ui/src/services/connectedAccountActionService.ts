@@ -19,16 +19,19 @@ interface UndoConnectedAccountActionResult {
 	receipt: Record<string, unknown>;
 }
 
+export type ConnectedAccountUndoType = 'delete_created_event' | 'restore_updated_event' | 'recreate_deleted_event' | string;
+
 export async function undoConnectedAccountAction(params: {
 	actionId: string;
 	chatId: string;
 	messageId: string;
+	undoType?: ConnectedAccountUndoType;
 }): Promise<UndoConnectedAccountActionResult> {
 	const rows = await listConnectedAccounts();
 	const context = await buildConnectedAccountSendContext({
 		rows,
 		appId: 'calendar',
-		allowedActionsOverride: ['delete'],
+		allowedActionsOverride: [connectedAccountUndoBrokerAction(params.undoType)],
 		includeActionScope: false
 	});
 	if (!context?.tokenRefInputs?.length) {
@@ -71,4 +74,10 @@ export async function undoConnectedAccountAction(params: {
 	}
 
 	throw lastError ?? new Error('Connected-account undo failed');
+}
+
+export function connectedAccountUndoBrokerAction(undoType: ConnectedAccountUndoType | undefined): 'delete' | 'update' | 'write' {
+	if (undoType === 'restore_updated_event') return 'update';
+	if (undoType === 'recreate_deleted_event') return 'write';
+	return 'delete';
 }
