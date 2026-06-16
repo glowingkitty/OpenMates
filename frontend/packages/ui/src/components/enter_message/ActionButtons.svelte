@@ -29,6 +29,8 @@
         showSendButton?: boolean;
         isRecordButtonPressed?: boolean;
         isAuthenticated?: boolean;
+        /** Allow signed-out text sends when anonymous free usage is active. */
+        allowAnonymousTextSend?: boolean;
         /**
          * When true, the user is signed in but has zero credits.
          * The send button is replaced with a "Buy credits" button.
@@ -52,6 +54,7 @@
         showSendButton = false,
         isRecordButtonPressed = false,
         isAuthenticated = true,
+        allowAnonymousTextSend = false,
         hasNoCredits = false,
         micPermissionState = 'unknown',
         highlightPressHold = false,
@@ -96,6 +99,7 @@
     let showPressHoldLabel = $derived(
         highlightPressHold && micPermissionState === 'granted'
     );
+    let canSendMessage = $derived(isAuthenticated || allowAnonymousTextSend);
 </script>
 
 <div class="action-buttons" data-testid="action-buttons">
@@ -162,7 +166,7 @@
                 >
                    {$text('enter_message.buy_credits')}
                 </button>
-            {:else if isAuthenticated && !forceUnauthenticatedCta}
+            {:else if canSendMessage && !forceUnauthenticatedCta}
                 <button
                     class="send-button"
                     data-action="send-message"
