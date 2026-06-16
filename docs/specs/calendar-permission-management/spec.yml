@@ -934,9 +934,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27620956821"
+        timestamp: "2026-06-16T13:28:53Z"
 
   - id: T-E2E-002
     type: playwright
@@ -983,9 +983,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27621396136"
+        timestamp: "2026-06-16T13:36:09Z"
 
   - id: T-E2E-004
     type: playwright
