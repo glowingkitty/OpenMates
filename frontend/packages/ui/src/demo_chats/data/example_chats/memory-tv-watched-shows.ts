@@ -23,6 +23,18 @@ export const memoryTvWatchedShowsChat: ExampleChat = {
         "created_at": 1781280553
     },
     {
+        "id": "e54287c0-54dc-4961-93f1-0caed8596ba7-memory-response",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"e54287c0-54dc-4961-93f1-0caed8596ba7\",\"action\":\"included\",\"categories\":[{\"appId\":\"tv\",\"itemType\":\"watched_tv_shows\",\"entryCount\":2}]}",
+        "created_at": 1781280554
+    },
+    {
+        "id": "e54287c0-54dc-4961-93f1-0caed8596ba7-memory-request",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"e54287c0-54dc-4961-93f1-0caed8596ba7\",\"request_id\":\"e54287c0-54dc-4961-93f1-0caed8596ba7-memory-request\",\"requested_keys\":[\"tv-watched_tv_shows\"],\"categories\":[{\"appId\":\"tv\",\"itemType\":\"watched_tv_shows\",\"entryCount\":0}]}",
+        "created_at": 1781280554
+    },
+    {
         "id": "7cf4ba64-2134-4341-9a65-ac3ef207349e",
         "role": "assistant",
         "content": "example_chats.memory_tv_watched_shows.message_2",

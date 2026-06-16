@@ -10,6 +10,8 @@ import logging
 import re
 from typing import Optional, TYPE_CHECKING
 
+from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span, start_ws_handler_span
+
 if TYPE_CHECKING:
     from backend.core.api.app.routes.connection_manager import ConnectionManager
     from backend.core.api.app.services.cache import CacheService
@@ -79,30 +81,41 @@ async def handle_set_active_chat(
     user_id: str,
     device_fingerprint_hash: str,
     active_chat_id: Optional[str],
+    user_otel_attrs: dict | None = None,
 ) -> None:
-    manager.set_active_chat(user_id, device_fingerprint_hash, active_chat_id)
-    logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Set active chat to '{active_chat_id}'.")
-
-    # Acknowledge before persistence so the WebSocket receive loop can process an
-    # immediately following chat_message_added from a newly-created chat.
-    await manager.send_personal_message(
-        {"type": "active_chat_set_ack", "payload": {"chat_id": active_chat_id}},
+    payload = {"chat_id": active_chat_id}
+    _otel_span, _otel_token = start_ws_handler_span(
+        "set_active_chat",
         user_id,
-        device_fingerprint_hash,
+        payload,
+        user_otel_attrs,
     )
+    try:
+        manager.set_active_chat(user_id, device_fingerprint_hash, active_chat_id)
+        logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Set active chat to '{active_chat_id}'.")
 
-    if _is_real_chat_id(active_chat_id):
-        asyncio.create_task(
-            _persist_active_chat_selection(
-                manager,
-                cache_service,
-                directus_service,
-                user_id,
-                device_fingerprint_hash,
-                active_chat_id,
-            )
+        # Acknowledge before persistence so the WebSocket receive loop can process an
+        # immediately following chat_message_added from a newly-created chat.
+        await manager.send_personal_message(
+            {"type": "active_chat_set_ack", "payload": {"chat_id": active_chat_id}},
+            user_id,
+            device_fingerprint_hash,
         )
-    elif active_chat_id:
-        logger.debug(f"User {user_id}: Skipping last_opened update for non-real chat ID: {active_chat_id}")
-    else:
-        logger.debug(f"User {user_id}: Skipping last_opened update (no active chat)")
+
+        if _is_real_chat_id(active_chat_id):
+            asyncio.create_task(
+                _persist_active_chat_selection(
+                    manager,
+                    cache_service,
+                    directus_service,
+                    user_id,
+                    device_fingerprint_hash,
+                    active_chat_id,
+                )
+            )
+        elif active_chat_id:
+            logger.debug(f"User {user_id}: Skipping last_opened update for non-real chat ID: {active_chat_id}")
+        else:
+            logger.debug(f"User {user_id}: Skipping last_opened update (no active chat)")
+    finally:
+        end_ws_handler_span(_otel_span, _otel_token)

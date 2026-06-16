@@ -23,6 +23,18 @@ export const memoryWebBookmarksChat: ExampleChat = {
         "created_at": 1781280634
     },
     {
+        "id": "9a448c41-309c-49ef-a90d-ae00b16b1e10-memory-response",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"9a448c41-309c-49ef-a90d-ae00b16b1e10\",\"action\":\"included\",\"categories\":[{\"appId\":\"web\",\"itemType\":\"bookmarks\",\"entryCount\":2}]}",
+        "created_at": 1781280635
+    },
+    {
+        "id": "9a448c41-309c-49ef-a90d-ae00b16b1e10-memory-request",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"9a448c41-309c-49ef-a90d-ae00b16b1e10\",\"request_id\":\"9a448c41-309c-49ef-a90d-ae00b16b1e10-memory-request\",\"requested_keys\":[\"web-bookmarks\"],\"categories\":[{\"appId\":\"web\",\"itemType\":\"bookmarks\",\"entryCount\":0}]}",
+        "created_at": 1781280635
+    },
+    {
         "id": "f3be11d8-e466-4649-8078-ee5f6ad7920e",
         "role": "assistant",
         "content": "example_chats.memory_web_bookmarks.message_2",

@@ -23,6 +23,18 @@ export const memoryWebReadLaterChat: ExampleChat = {
         "created_at": 1781280720
     },
     {
+        "id": "7365e817-390f-4e70-a020-fa4eef5f637c-memory-response",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"7365e817-390f-4e70-a020-fa4eef5f637c\",\"action\":\"included\",\"categories\":[{\"appId\":\"web\",\"itemType\":\"read_later\",\"entryCount\":2}]}",
+        "created_at": 1781280721
+    },
+    {
+        "id": "7365e817-390f-4e70-a020-fa4eef5f637c-memory-request",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"7365e817-390f-4e70-a020-fa4eef5f637c\",\"request_id\":\"7365e817-390f-4e70-a020-fa4eef5f637c-memory-request\",\"requested_keys\":[\"web-read_later\"],\"categories\":[{\"appId\":\"web\",\"itemType\":\"read_later\",\"entryCount\":0}]}",
+        "created_at": 1781280721
+    },
+    {
         "id": "b1bdbb77-38e4-4974-ac51-4fff6ea5c6fd",
         "role": "assistant",
         "content": "example_chats.memory_web_read_later.message_2",

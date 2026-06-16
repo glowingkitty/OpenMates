@@ -143,13 +143,26 @@ code_execution.collect_direct_code_run_files = collect_direct_code_run_files
 code_execution._collect_code_files = _collect_code_files
 code_execution._get_embed_metadata = _get_embed_metadata
 code_execution.start_code_run_execution = start_code_run_execution
-sys.modules.setdefault("backend.core.api.app.routes.code_execution", code_execution)
 
 User = importlib.import_module("backend.core.api.app.models.user").User
 apps_api = importlib.import_module("backend.core.api.app.routes.apps_api")
 get_current_user_or_api_key = importlib.import_module(
     "backend.core.api.app.routes.auth_routes.auth_dependencies"
 ).get_current_user_or_api_key
+
+for module_name, stub in (
+    ("backend.core.api.app.services.limiter", limiter_stub),
+    ("googleapiclient", googleapiclient_stub),
+    ("googleapiclient.discovery", googleapiclient_discovery_stub),
+    ("googleapiclient.errors", googleapiclient_errors_stub),
+    ("backend.core.api.app.tasks", tasks_stub),
+    ("backend.core.api.app.tasks.celery_config", celery_config_stub),
+    ("backend.core.api.app.services.cache", cache_stub),
+    ("backend.core.api.app.services.directus", directus_stub),
+    ("backend.core.api.app.utils.encryption", encryption_stub),
+):
+    if sys.modules.get(module_name) is stub:
+        sys.modules.pop(module_name)
 
 
 def _b64(value: str) -> str:
@@ -170,6 +183,7 @@ def test_code_run_app_skill_route_starts_direct_run(monkeypatch) -> None:
 
     user = User(id="user-1", username="alice", vault_key_id="vault-1", credits=10)
     app = FastAPI()
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.code_execution", code_execution)
     app.dependency_overrides[get_current_user_or_api_key] = lambda: user
     app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
     app.dependency_overrides[apps_api.get_directus_service] = lambda: object()

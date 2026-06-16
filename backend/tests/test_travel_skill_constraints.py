@@ -6,6 +6,8 @@ live flight/hotel provider data cannot make the quality contract flaky.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import yaml
 
 from backend.apps.travel.skills.search_connections import SearchConnectionsSkill
@@ -32,7 +34,8 @@ def test_search_connections_filters_max_stops_and_price() -> None:
 
 
 def test_travel_app_schema_exposes_supported_flight_constraints() -> None:
-    with open("backend/apps/travel/app.yml", "r", encoding="utf-8") as handle:
+    app_yml = Path(__file__).resolve().parents[1] / "apps" / "travel" / "app.yml"
+    with app_yml.open("r", encoding="utf-8") as handle:
         app_config = yaml.safe_load(handle)
     search_connections = next(skill for skill in app_config["skills"] if skill["id"] == "search_connections")
     request_props = search_connections["tool_schema"]["properties"]["requests"]["items"]["properties"]

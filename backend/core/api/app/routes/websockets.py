@@ -2319,6 +2319,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     active_chat_id=active_chat_id,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "cancel_ai_task":
                 await handle_cancel_ai_task(

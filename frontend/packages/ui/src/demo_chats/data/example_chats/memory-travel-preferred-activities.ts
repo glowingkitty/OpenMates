@@ -23,6 +23,18 @@ export const memoryTravelPreferredActivitiesChat: ExampleChat = {
         "created_at": 1781280434
     },
     {
+        "id": "b59b7592-a869-4bda-ab68-e87a1663ed11-memory-response",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"b59b7592-a869-4bda-ab68-e87a1663ed11\",\"action\":\"included\",\"categories\":[{\"appId\":\"travel\",\"itemType\":\"preferred_activities\",\"entryCount\":2}]}",
+        "created_at": 1781280435
+    },
+    {
+        "id": "b59b7592-a869-4bda-ab68-e87a1663ed11-memory-request",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"b59b7592-a869-4bda-ab68-e87a1663ed11\",\"request_id\":\"b59b7592-a869-4bda-ab68-e87a1663ed11-memory-request\",\"requested_keys\":[\"travel-preferred_activities\"],\"categories\":[{\"appId\":\"travel\",\"itemType\":\"preferred_activities\",\"entryCount\":0}]}",
+        "created_at": 1781280435
+    },
+    {
         "id": "5dfa7876-6b55-47f8-a472-fd542e19589d",
         "role": "assistant",
         "content": "example_chats.memory_travel_preferred_activities.message_2",
