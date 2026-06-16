@@ -935,8 +935,8 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "27620956821"
-        timestamp: "2026-06-16T13:28:53Z"
+        run_id: "27630212819"
+        timestamp: "2026-06-16T15:54:49Z"
 
   - id: T-E2E-002
     type: playwright
