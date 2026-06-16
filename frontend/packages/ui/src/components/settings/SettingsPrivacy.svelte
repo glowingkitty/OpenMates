@@ -13,12 +13,20 @@ Based on Figma design: settings/privacy (node 1895:20576)
     import { personalDataStore } from '../../stores/personalDataStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
 
+    const CALENDAR_UPDATE_ACCOUNT_KEY = 'openmates_calendar_update_account_id';
+
     const dispatch = createEventDispatcher();
 
     // ─── Load from encrypted storage on mount ────────────────────────────────
 
     onMount(() => {
         personalDataStore.loadFromStorage();
+    });
+
+    $effect(() => {
+        if ($authStore.isAuthenticated && hasPendingConnectedAccountOAuthUpdate()) {
+            navigateToConnectedAccounts();
+        }
     });
 
     // ─── PII Detection Settings (Anonymization section) ──────────────────────
@@ -69,6 +77,12 @@ Based on Figma design: settings/privacy (node 1895:20576)
             icon: 'privacy',
             title: $text('settings.privacy.connected_accounts.title')
         });
+    }
+
+    function hasPendingConnectedAccountOAuthUpdate(): boolean {
+        if (typeof window === 'undefined') return false;
+        const hasHandoff = new URLSearchParams(window.location.search).has('oauth_handoff_id');
+        return hasHandoff && Boolean(sessionStorage.getItem(CALENDAR_UPDATE_ACCOUNT_KEY));
     }
 
     // ─── Ephemeral Log Forwarding Opt-out ──────────────────────────────────
