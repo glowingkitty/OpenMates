@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import { getInitialContent } from '../../components/enter_message/utils'; // Adjusted path
+import { getInitialContent, isContentEmptyExceptMention } from '../../components/enter_message/utils'; // Adjusted path
 import { draftEditorUIState, initialDraftEditorState } from './draftState'; // Renamed import
 import type { DraftEditorState } from './draftTypes'; // Renamed type
 import { registerWebSocketHandlers, unregisterWebSocketHandlers } from './draftWebsocket'; // Will be created next
@@ -89,14 +89,25 @@ export async function setCurrentChatContext(
 
 	// Set content in the editor
 	if (editorInstance) {
-		// Ensure content is not null/undefined before setting
-		const contentToSet = draftContent ?? getInitialContent();
-		console.debug('[DraftService] Setting editor content:', contentToSet);
-		// Use different methods to avoid triggering 'update' event which calls triggerSaveDraft
-		editorInstance.chain().setContent(contentToSet, { emitUpdate: false }).run();
-		// Do NOT auto-focus the editor - user must manually click to focus
-		// This prevents unwanted focus when switching between chats
-		console.debug('[DraftService] Skipped auto-focus - user must click to focus');
+		const hasUserTypedContent = !isContentEmptyExceptMention(editorInstance);
+		const sameOrPendingContext = !currentState.currentChatId || currentState.currentChatId === chatId;
+		const shouldPreserveTypedContent = draftContent == null && hasUserTypedContent && sameOrPendingContext;
+
+		if (shouldPreserveTypedContent) {
+			console.debug('[DraftService] Preserving typed composer content during delayed empty draft restore', {
+				chatId,
+				previousChatId: currentState.currentChatId,
+			});
+		} else {
+			// Ensure content is not null/undefined before setting
+			const contentToSet = draftContent ?? getInitialContent();
+			console.debug('[DraftService] Setting editor content:', contentToSet);
+			// Use different methods to avoid triggering 'update' event which calls triggerSaveDraft
+			editorInstance.chain().setContent(contentToSet, { emitUpdate: false }).run();
+			// Do NOT auto-focus the editor - user must manually click to focus
+			// This prevents unwanted focus when switching between chats
+			console.debug('[DraftService] Skipped auto-focus - user must click to focus');
+		}
 	} else {
 		console.error('[DraftService] Editor instance not available to set content.');
 	}
