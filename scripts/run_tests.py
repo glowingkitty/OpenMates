@@ -744,7 +744,7 @@ class GitHubActionsClient:
              "-f", f"spec={spec}",
              "-f", f"account={account}",
              "-f", f"use_mocks={'true' if use_mocks else 'false'}",
-             "-f", "use_live_mocks=true",
+             "-f", f"use_live_mocks={'true' if use_mocks else 'false'}",
              "-f", "record_live_fixtures=false",
              "-f", f"dispatch_token={dispatch_token}"],
             capture_output=True, text=True,
