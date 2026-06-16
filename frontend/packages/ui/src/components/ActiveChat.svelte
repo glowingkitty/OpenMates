@@ -3994,6 +3994,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let messageInputMapsOpen = $state(false);
     let anonymousFileAttachmentPending = $state(false);
     let showAnonymousUploadSignupPrompt = $derived(anonymousFileAttachmentPending && !$authStore.isAuthenticated);
+
+    async function removeAnonymousUploadSignupPrompt() {
+        anonymousFileAttachmentPending = false;
+        await tick();
+        messageInputFieldRef?.focus();
+    }
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
     // Initialize to false to prevent MessageInput from appearing expanded on initial load
@@ -11367,7 +11373,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                       class="anonymous-upload-signup-remove"
                                       type="button"
                                       data-testid="anonymous-upload-signup-remove"
-                                      onclick={() => { anonymousFileAttachmentPending = false; }}
+                                      onclick={removeAnonymousUploadSignupPrompt}
                                   >
                                       {$text('enter_message.attachments.remove_pending_file')}
                                   </button>
