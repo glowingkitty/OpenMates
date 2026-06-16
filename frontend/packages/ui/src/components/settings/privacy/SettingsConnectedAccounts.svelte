@@ -153,6 +153,9 @@
         if (typeof window === 'undefined') return;
         const url = new URL(window.location.href);
         url.searchParams.delete('oauth_handoff_id');
+        if (!url.hash) {
+            url.hash = 'settings/privacy/connected-accounts';
+        }
         window.history.replaceState({}, '', url.toString());
     }
 

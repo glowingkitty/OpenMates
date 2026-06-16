@@ -2456,7 +2456,9 @@ changes to the documentation (to keep the documentation up to date).
                 let translationKey;
                 if (cleanPath === 'shared/share') {
                     translationKey = 'settings.share';
-            } else if (cleanPath === 'incognito/info') {
+                } else if (cleanPath === 'privacy/connected-accounts') {
+                    translationKey = 'settings.privacy.connected_accounts.title';
+                } else if (cleanPath === 'incognito/info') {
                 // Incognito info page: use the incognito icon and the top-level "Incognito" title.
                 // The path 'incognito/info' would otherwise auto-generate 'settings.incognito.info'
                 // which does not exist in translations.
