@@ -147,6 +147,17 @@ async def test_calendar_mutation_skills_execute_provider_with_hidden_access_toke
             calls.append(("create", self.access_token, kwargs))
             return CalendarEvent(id="created-1", title=kwargs["title"])
 
+        async def get_event(self, **kwargs):
+            calls.append(("get", self.access_token, kwargs))
+            return CalendarEvent(
+                id=kwargs["event_id"],
+                title="Original Demo",
+                start="2026-06-15T09:00:00Z",
+                end="2026-06-15T09:30:00Z",
+                location="Original room",
+                etag="etag-original",
+            )
+
         async def update_event(self, **kwargs):
             calls.append(("update", self.access_token, kwargs))
             return CalendarEvent(id=kwargs["event_id"], title=kwargs["title"])
@@ -193,12 +204,97 @@ async def test_calendar_mutation_skills_execute_provider_with_hidden_access_toke
         calendar_client_factory=FakeCalendarClient,
     )
 
-    assert [call[0] for call in calls] == ["create", "update", "delete"]
+    assert [call[0] for call in calls] == ["create", "get", "update", "get", "delete"]
     assert all(call[1] == "access-secret" for call in calls)
     assert create_response.results[0]["event"]["id"] == "created-1"
     assert update_response.results[0]["event"]["title"] == "Demo updated"
+    assert update_response.results[0]["previous_event"]["title"] == "Original Demo"
     assert delete_response.results[0] == {
         "calendar_id": "primary",
+        "deleted_event": {
+            "id": "created-1",
+            "title": "Original Demo",
+            "start": "2026-06-15T09:00:00Z",
+            "end": "2026-06-15T09:30:00Z",
+            "location": "Original room",
+            "description": None,
+            "attendees": [],
+            "html_link": None,
+            "etag": "etag-original",
+        },
         "status": "deleted",
         "event_id": "created-1",
+    }
+
+
+def test_calendar_update_delete_journal_payloads_include_undo_snapshots() -> None:
+    from backend.apps.ai.processing.main_processor import _calendar_undo_payload
+
+    update_payload = _calendar_undo_payload(
+        "update-event",
+        [
+            {
+                "calendar_id": "primary",
+                "event": {
+                    "id": "event-1",
+                    "title": "Updated",
+                    "start": "2026-06-15T11:00:00Z",
+                    "end": "2026-06-15T11:30:00Z",
+                },
+                "previous_event": {
+                    "id": "event-1",
+                    "title": "Original",
+                    "start": "2026-06-15T10:00:00Z",
+                    "end": "2026-06-15T10:30:00Z",
+                    "etag": "etag-original",
+                },
+            }
+        ],
+    )
+    delete_payload = _calendar_undo_payload(
+        "delete-event",
+        [
+            {
+                "calendar_id": "primary",
+                "event_id": "event-1",
+                "deleted_event": {
+                    "id": "event-1",
+                    "title": "Deleted",
+                    "start": "2026-06-15T10:00:00Z",
+                    "end": "2026-06-15T10:30:00Z",
+                    "etag": "etag-deleted",
+                },
+            }
+        ],
+    )
+
+    assert update_payload == {
+        "events": [
+            {
+                "undo_type": "restore_updated_event",
+                "calendar_id": "primary",
+                "event_id": "event-1",
+                "etag": "etag-original",
+                "snapshot": {
+                    "title": "Original",
+                    "start": "2026-06-15T10:00:00Z",
+                    "end": "2026-06-15T10:30:00Z",
+                },
+            }
+        ]
+    }
+    assert delete_payload == {
+        "events": [
+            {
+                "undo_type": "recreate_deleted_event",
+                "calendar_id": "primary",
+                "event_id": "event-1",
+                "etag": "etag-deleted",
+                "snapshot": {
+                    "title": "Deleted",
+                    "start": "2026-06-15T10:00:00Z",
+                    "end": "2026-06-15T10:30:00Z",
+                },
+            }
+        ]
     }

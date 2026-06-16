@@ -77,6 +77,10 @@ class UpdateEventSkill(BaseSkill):
             )
             client_factory = calendar_client_factory or GoogleCalendarClient
             client = client_factory(access_token=access_token)
+            previous_event = await client.get_event(
+                calendar_id=request.calendar_id,
+                event_id=request.event_id,
+            )
             event = await client.update_event(
                 calendar_id=request.calendar_id,
                 event_id=request.event_id,
@@ -87,7 +91,13 @@ class UpdateEventSkill(BaseSkill):
                 description=request.description,
                 attendees=request.attendees,
             )
-            results.append({"calendar_id": request.calendar_id, "event": event.model_dump()})
+            results.append(
+                {
+                    "calendar_id": request.calendar_id,
+                    "event": event.model_dump(),
+                    "previous_event": previous_event.model_dump(),
+                }
+            )
         return UpdateEventResponse(results=results)
 
 

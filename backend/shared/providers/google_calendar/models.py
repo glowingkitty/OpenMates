@@ -50,5 +50,7 @@ class CalendarEvent(BaseModel):
     start: str | None = None
     end: str | None = None
     location: str | None = None
+    description: str | None = None
+    attendees: list[str] = Field(default_factory=list)
     html_link: str | None = None
     etag: str | None = None

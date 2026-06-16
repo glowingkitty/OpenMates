@@ -63,11 +63,21 @@ class DeleteEventSkill(BaseSkill):
             )
             client_factory = calendar_client_factory or GoogleCalendarClient
             client = client_factory(access_token=access_token)
+            deleted_event = await client.get_event(
+                calendar_id=request.calendar_id,
+                event_id=request.event_id,
+            )
             result = await client.delete_event(
                 calendar_id=request.calendar_id,
                 event_id=request.event_id,
             )
-            results.append({"calendar_id": request.calendar_id, **result})
+            results.append(
+                {
+                    "calendar_id": request.calendar_id,
+                    "deleted_event": deleted_event.model_dump(),
+                    **result,
+                }
+            )
         return DeleteEventResponse(results=results)
 
 

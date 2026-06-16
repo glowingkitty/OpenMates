@@ -15,7 +15,7 @@ import pytest
 from backend.tests.test_connected_account_permission_request import FakeCache
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connected_account_receipt_is_published_without_secrets() -> None:
     from backend.apps.ai.processing.connected_account_receipts import (
         publish_connected_account_action_receipt,
@@ -47,7 +47,7 @@ async def test_connected_account_receipt_is_published_without_secrets() -> None:
     assert event["payload"]["action_id"] == "action-1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_connected_account_receipt_rejects_secret_fields() -> None:
     from backend.apps.ai.processing.connected_account_receipts import (
         publish_connected_account_action_receipt,

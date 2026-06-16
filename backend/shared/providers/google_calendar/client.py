@@ -85,6 +85,15 @@ class GoogleCalendarClient:
             response.raise_for_status()
             return _normalize_event(response.json())
 
+    async def get_event(self, *, calendar_id: str, event_id: str) -> CalendarEvent:
+        """Get one event from a Google Calendar for mutation snapshots."""
+
+        url = f"{GOOGLE_CALENDAR_API_BASE_URL}/calendars/{_path(calendar_id)}/events/{_path(event_id)}"
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(url, headers=self._headers())
+            response.raise_for_status()
+            return _normalize_event(response.json())
+
     async def update_event(
         self,
         *,
@@ -138,6 +147,8 @@ def _normalize_event(item: dict[str, Any]) -> CalendarEvent:
         start=start.get("dateTime") or start.get("date"),
         end=end.get("dateTime") or end.get("date"),
         location=item.get("location"),
+        description=item.get("description"),
+        attendees=[str(attendee.get("email")) for attendee in item.get("attendees", []) if attendee.get("email")],
         html_link=item.get("htmlLink"),
         etag=item.get("etag"),
     )
