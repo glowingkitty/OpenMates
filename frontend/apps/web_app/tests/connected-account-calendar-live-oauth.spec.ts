@@ -20,7 +20,12 @@ const {
 	getTestAccount,
 	generateTotp,
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const {
+	deleteActiveChat,
+	loginToTestAccount,
+	sendMessage,
+	startNewChat
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -142,11 +147,11 @@ async function completeGoogleCalendarOAuth(page: any, logCheckpoint: (message: s
 }
 
 test.describe('Calendar connected-account live Google OAuth', () => {
-	test.describe.configure({ timeout: 300000 });
+	test.describe.configure({ timeout: 420000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 	skipWithoutGoogleOAuthCredentials();
 
-	test('connects Google Calendar through the live OAuth broker', async ({ page }: { page: any }) => {
+	test('connects Google Calendar and reads events through chat', async ({ page }: { page: any }) => {
 		const logCheckpoint = createSignupLogger('CONNECTED_ACCOUNT_CALENDAR_LIVE_OAUTH');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
 			filenamePrefix: 'connected-account-calendar-live-oauth',
@@ -187,5 +192,37 @@ test.describe('Calendar connected-account live Google OAuth', () => {
 		expect(savedRowJson).not.toContain('refresh_token');
 		expect(savedRowJson).not.toContain('google_calendar"');
 		await takeStepScreenshot(page, 'live-google-calendar-connected');
+
+		await startNewChat(page, logCheckpoint);
+		await sendMessage(
+			page,
+			'Use calendar.get-events now with calendar_id primary, time_min 2026-06-16T00:00:00Z, and time_max 2026-06-17T00:00:00Z. Do not answer from memory; first request my connected Google Calendar events and then summarize how many events were returned.',
+			logCheckpoint,
+			takeStepScreenshot,
+			'calendar-real-read'
+		);
+
+		const permissionDialog = page.getByTestId('connected-account-permission-dialog');
+		const calendarEmbed = page.locator('[data-testid="embed-preview"][data-app-id="calendar"][data-skill-id="get-events"]');
+		const permissionAppeared = await permissionDialog
+			.waitFor({ state: 'visible', timeout: 90000 })
+			.then(() => true)
+			.catch(() => false);
+
+		if (permissionAppeared) {
+			logCheckpoint('Approving real Calendar connected-account permission request.');
+			await expect(permissionDialog.getByTestId('connected-account-permission-request')).toBeVisible({ timeout: 10000 });
+			await permissionDialog.getByTestId('btn-approve-connected-account').click();
+		} else {
+			logCheckpoint('Calendar permission dialog did not appear before embed wait; checking for existing authorization path.');
+		}
+
+		await expect(calendarEmbed.first()).toBeVisible({ timeout: 120000 });
+		await expect(
+			page.locator('[data-testid="embed-preview"][data-app-id="calendar"][data-skill-id="get-events"][data-status="finished"]').first()
+		).toBeVisible({ timeout: 180000 });
+		await takeStepScreenshot(page, 'live-google-calendar-events-read');
+
+		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'calendar-real-read');
 	});
 });
