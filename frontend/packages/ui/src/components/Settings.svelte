@@ -87,7 +87,9 @@ changes to the documentation (to keep the documentation up to date).
     } from '../utils/categoryUtils';
     import { resolveIconName } from '../utils/iconNameResolver';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
-    
+
+    const CALENDAR_UPDATE_ACCOUNT_KEY = 'openmates_calendar_update_account_id';
+
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore, resetSettingsNavigation } from '../stores/settingsNavigationStore';
     
@@ -810,6 +812,32 @@ changes to the documentation (to keep the documentation up to date).
     
     // Reactive translation of the submenu title — falls back to raw title when no key
     let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : activeSubMenuTitleRaw);
+    let routedPendingConnectedAccountOAuth = $state(false);
+
+    $effect(() => {
+        if (!$authStore.isAuthenticated || !hasPendingConnectedAccountOAuthUpdate()) {
+            routedPendingConnectedAccountOAuth = false;
+            return;
+        }
+        if (routedPendingConnectedAccountOAuth && activeSettingsView === 'privacy/connected-accounts') {
+            return;
+        }
+        routedPendingConnectedAccountOAuth = true;
+        void handleOpenSettings(new CustomEvent('openSettings', {
+            detail: {
+                settingsPath: 'privacy/connected-accounts',
+                direction: 'forward',
+                icon: 'privacy',
+                title: $text('settings.privacy.connected_accounts.title')
+            }
+        }));
+    });
+
+    function hasPendingConnectedAccountOAuthUpdate(): boolean {
+        if (typeof window === 'undefined') return false;
+        const hasHandoff = new URLSearchParams(window.location.search).has('oauth_handoff_id');
+        return hasHandoff && Boolean(sessionStorage.getItem(CALENDAR_UPDATE_ACCOUNT_KEY));
+    }
     
     // True when the header should show a provider icon (model or provider detail pages)
     // NOTE: Top-level AI settings model/provider detail pages (`ai/model/*`,
