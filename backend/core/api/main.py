@@ -33,6 +33,7 @@ from typing import Dict, List, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, referrals, websockets  # noqa: E402
+from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
@@ -1307,6 +1308,7 @@ def create_app() -> FastAPI:
     
     # Internal/web app routers - excluded from API schema (web app only, not for API access)
     app.include_router(auth.router, include_in_schema=False)  # Auth endpoints - web app only
+    app.include_router(anonymous.router, include_in_schema=False)  # Anonymous free usage routes - official cloud only
     app.include_router(email.router, include_in_schema=False)  # Email endpoints - web app only
     
     # Conditionally register payment-related routers (only if payment is enabled)

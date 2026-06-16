@@ -190,6 +190,8 @@
         isNewChatContext?: boolean;
         /** Compact single-line mode to match adjacent button height (~48px). Expands on focus/content. */
         inlineCompact?: boolean;
+        /** True after an unauthenticated user tried to attach a file and must sign up first. */
+        anonymousFileAttachmentPending?: boolean;
     }
     let { 
         currentChatId = undefined,
@@ -209,7 +211,8 @@
         placeholderText = undefined,
         startNewChatOnClick = false,
         isNewChatContext = false,
-        inlineCompact = false
+        inlineCompact = false,
+        anonymousFileAttachmentPending = $bindable(false)
     }: Props = $props();
 
     // --- Refs ---
@@ -1613,7 +1616,7 @@
     let lastAuthMethod = $state<LastAuthMethod | null>(null);
     let unauthenticatedCtaOpensLogin = $derived(!!lastAuthMethod);
     let unauthenticatedCtaLabel = $derived(
-        unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
+        anonymousFileAttachmentPending ? $text('signup.sign_up') : unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
     );
 
     $effect(() => {
@@ -3222,7 +3225,35 @@
         });
     }
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
+    function setPendingAnonymousFileAttachment(value: boolean) {
+        if (anonymousFileAttachmentPending === value) return;
+        anonymousFileAttachmentPending = value;
+        dispatch('anonymousFileAttachmentState', { pending: value });
+    }
+
+    function hasClipboardFiles(event: ClipboardEvent): boolean {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+        for (let i = 0; i < items.length; i += 1) {
+            const item = items[i];
+            if (item.type.startsWith('image/') || item.kind === 'file') return true;
+        }
+        return false;
+    }
+
+    function blockAnonymousFileAttachment(event?: Event) {
+        event?.preventDefault();
+        event?.stopPropagation();
+        setPendingAnonymousFileAttachment(true);
+        isMessageFieldFocused = true;
+        focus();
+    }
+
     async function handlePaste(event: ClipboardEvent) {
+        if (!$authStore.isAuthenticated && hasClipboardFiles(event)) {
+            blockAnonymousFileAttachment(event);
+            return;
+        }
         await handleFilePaste(event, editor, $authStore.isAuthenticated);
         if (!event.defaultPrevented && editor && !editor.isDestroyed) {
             const rawPasteText = event.clipboardData?.getData('text/plain');
@@ -3670,6 +3701,10 @@
 
     async function handleDrop(event: DragEvent) {
         isDragging = false; // Hide drop overlay when files are dropped
+        if (!$authStore.isAuthenticated && event.dataTransfer?.files?.length) {
+            blockAnonymousFileAttachment(event);
+            return;
+        }
         await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
@@ -3687,6 +3722,12 @@
         handleFileDragLeave(event, editorElement);
     }
     async function onFileSelected(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (!$authStore.isAuthenticated && input.files?.length) {
+            blockAnonymousFileAttachment(event);
+            input.value = '';
+            return;
+        }
         await handleFileSelectedEvent(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
@@ -3695,6 +3736,10 @@
         });
     }
     function handleCameraClick() {
+        if (!$authStore.isAuthenticated) {
+            blockAnonymousFileAttachment();
+            return;
+        }
         const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
         if (isMobile) cameraInput?.click(); else showCamera = true;
     }
@@ -3706,6 +3751,11 @@
      * so we skip the redundant blob URL and let it generate fresh URLs from the file.
      */
     async function handlePhotoCaptured(event: CustomEvent<{ blob: Blob, previewUrl?: string }>) {
+        if (!$authStore.isAuthenticated) {
+            showCamera = false;
+            blockAnonymousFileAttachment();
+            return;
+        }
         const { blob } = event.detail;
         // Use the blob's MIME type to preserve PNG/JPEG/HEIC from native camera
         const mimeType = blob.type || 'image/jpeg';
@@ -3794,6 +3844,10 @@
 
     /** Open the sketch canvas overlay. */
     function handleSketchClick() {
+        if (!$authStore.isAuthenticated) {
+            blockAnonymousFileAttachment();
+            return;
+        }
         showSketch = true;
     }
 
@@ -3807,6 +3861,11 @@
      * and edit the drawing later.
      */
     async function handleSketchCaptured(event: CustomEvent<{ blob: Blob }>) {
+        if (!$authStore.isAuthenticated) {
+            showSketch = false;
+            blockAnonymousFileAttachment();
+            return;
+        }
         const { blob } = event.detail;
         const file = new File([blob], `sketch_${Date.now()}.jpg`, { type: 'image/jpeg' });
         showSketch = false;
@@ -4207,10 +4266,12 @@
     }
 
     async function handleSignUpClick() {
+        const authEvent = anonymousFileAttachmentPending ? 'openSignupInterface' : unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface';
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
             // Still open the auth interface even if draft can't be saved.
-            window.dispatchEvent(new CustomEvent(unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
+            setPendingAnonymousFileAttachment(false);
+            window.dispatchEvent(new CustomEvent(authEvent));
             return;
         }
 
@@ -4245,6 +4306,7 @@
         originalMarkdown = ''; // Clear markdown tracking
         lastEditorUpdateText = ''; // Reset text-change guard
         hasContent = false; // Update content state
+        setPendingAnonymousFileAttachment(false);
         
         // Manually dispatch textchange event with empty text to clear liveInputText in ActiveChat
         // This ensures follow-up suggestions show properly when user returns from signup flow
@@ -4258,7 +4320,7 @@
         
         console.debug('[MessageInput] Cleared editor content after saving draft for sign-up');
 
-        window.dispatchEvent(new CustomEvent(unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
+        window.dispatchEvent(new CustomEvent(authEvent));
     }
 
     function _handleInsertSpace() {
@@ -5038,7 +5100,7 @@
         {/if}
 
         <!-- Supported: images, PDFs (authenticated only — server-side OCR pipeline), and code/text files. Extensions mirror isCodeOrTextFile() in utils/fileHelpers.ts. -->
-        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
+        <input bind:this={fileInput} data-testid="message-file-input" type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
         <!-- Video capture disabled: video upload not yet supported. Remove video/* when re-enabling. -->
         <input bind:this={cameraInput} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
@@ -5088,9 +5150,10 @@
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasContent}
-                    isAuthenticated={demoVisualAuthenticated}
+                    isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
+                    forceUnauthenticatedCta={anonymousFileAttachmentPending}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}

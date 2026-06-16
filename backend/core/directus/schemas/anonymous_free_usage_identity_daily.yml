@@ -1,0 +1,36 @@
+# backend/core/directus/schemas/anonymous_free_usage_identity_daily.yml
+# Short-lived daily abuse-prevention counters for anonymous free usage. Identity
+# values are HMACs of local anonymous IDs or request IPs; raw values are never
+# stored.
+anonymous_free_usage_identity_daily:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      note: "Primary key for the daily identity counter."
+
+    identity_hash:
+      type: string
+      length: 128
+      note: "Server-secret HMAC of anonymous local ID or IP address."
+
+    window_date:
+      type: string
+      length: 16
+      note: "UTC date key for this daily counter."
+
+    used_credits:
+      type: integer
+      default: 0
+      note: "Reserved/finalized credits consumed by this pseudonymous identity today."
+
+    created_at:
+      type: datetime
+      nullable: true
+      note: "ISO timestamp when the counter row was created."
+
+    updated_at:
+      type: datetime
+      nullable: true
+      note: "ISO timestamp when the counter row was last changed."

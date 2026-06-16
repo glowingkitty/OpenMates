@@ -1,0 +1,63 @@
+# backend/core/directus/schemas/anonymous_free_usage_budget.yml
+# Stores the singleton official-cloud anonymous free usage budget.
+# Public clients only receive active/reset/CTA metadata; exact budget totals and
+# counters remain admin-only.
+anonymous_free_usage_budget:
+  type: collection
+  fields:
+    id:
+      type: string
+      length: 64
+      primary: true
+      note: "Singleton key. The application uses 'default'."
+
+    enabled:
+      type: boolean
+      default: false
+      note: "Whether anonymous free usage is enabled."
+
+    monthly_budget_credits:
+      type: integer
+      default: 0
+      note: "Monthly anonymous free usage budget configured by the server admin."
+
+    daily_hard_cap_percent:
+      type: integer
+      default: 5
+      note: "Percent of monthly budget that may be consumed in a UTC day."
+
+    weekly_cap_percent:
+      type: integer
+      default: 25
+      note: "Percent of monthly budget that may be consumed in a UTC week."
+
+    per_identity_daily_cap_credits:
+      type: integer
+      default: 400
+      note: "Daily cap per HMAC anonymous local ID or HMAC IP identity."
+
+    daily_used_credits:
+      type: integer
+      default: 0
+      note: "Reserved/finalized anonymous credits consumed in the current UTC day."
+
+    weekly_used_credits:
+      type: integer
+      default: 0
+      note: "Reserved/finalized anonymous credits consumed in the current UTC week."
+
+    updated_by_admin_user_id:
+      type: string
+      length: 128
+      nullable: true
+      note: "Admin user ID that last changed the budget."
+
+    created_at:
+      type: datetime
+      nullable: true
+      note: "ISO timestamp when the budget row was created."
+
+    updated_at:
+      type: datetime
+      nullable: true
+      note: "ISO timestamp when the budget row was last changed."

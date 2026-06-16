@@ -45,6 +45,8 @@
         isSketchOpen?: boolean;
         /** Label for the unauthenticated CTA shown instead of the send button. */
         unauthenticatedCtaLabel?: string;
+        /** Show the auth CTA even when the editor only has a blocked pending upload. */
+        forceUnauthenticatedCta?: boolean;
     }
     let {
         showSendButton = false,
@@ -54,7 +56,8 @@
         micPermissionState = 'unknown',
         highlightPressHold = false,
         isSketchOpen = false,
-        unauthenticatedCtaLabel = $text('signup.sign_up')
+        unauthenticatedCtaLabel = $text('signup.sign_up'),
+        forceUnauthenticatedCta = false
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -145,7 +148,7 @@
             use:tooltip
         ></button>
 
-        {#if showSendButton || (isAuthenticated && hasNoCredits)}
+        {#if showSendButton || forceUnauthenticatedCta || (isAuthenticated && hasNoCredits)}
             <!-- fly in from right (x: 40) so camera/record buttons shift smoothly -->
             {#if isAuthenticated && hasNoCredits}
                 <!-- Signed-in user with zero credits: show "Buy credits" button -->
@@ -159,7 +162,7 @@
                 >
                    {$text('enter_message.buy_credits')}
                 </button>
-            {:else if isAuthenticated}
+            {:else if isAuthenticated && !forceUnauthenticatedCta}
                 <button
                     class="send-button"
                     data-action="send-message"

@@ -61,6 +61,13 @@ import {
   type WaitingForUserResult,
 } from "./interactiveQuestions.js";
 
+type SignupRequiredResult = {
+  status: "signup_required";
+  reason: "file_upload_requires_signup";
+  signup_required: true;
+  message: string;
+};
+
 type CliArgs = {
   positionals: string[];
   flags: Record<string, string | boolean>;
@@ -3408,7 +3415,7 @@ async function sendMessageStreaming(
     approvedKeys: string[];
     entryCount: number;
   }>;
-} | WaitingForUserResult> {
+} | WaitingForUserResult | SignupRequiredResult> {
   let headerPrinted = false;
   let typingShown = false;
   // Track which embed IDs we've already rendered during streaming
@@ -3583,6 +3590,20 @@ async function sendMessageStreaming(
 
       // Process file @path references into proper encrypted embeds
       if (parsed.filePaths.length > 0) {
+        if (!client.hasSession()) {
+          clearTyping();
+          const result: SignupRequiredResult = {
+            status: "signup_required",
+            reason: "file_upload_requires_signup",
+            signup_required: true,
+            message: "File uploads require signup. Your message text can be kept as a draft, but files must be attached after creating an account.",
+          };
+          if (!params.json) {
+            process.stderr.write(`${result.message}\n`);
+          }
+          return result;
+        }
+
         const fileResult = processFiles(parsed.filePaths, redactor ?? null);
 
         // Report blocked files

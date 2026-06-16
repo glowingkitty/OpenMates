@@ -9,7 +9,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { execFile, execFileSync } from "node:child_process";
+import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -45,6 +45,22 @@ function runCliWithoutSession(args: string[]): string {
   mkdirSync(tempHome, { recursive: true });
   try {
     return runCli(args, { HOME: tempHome, USERPROFILE: tempHome });
+  } finally {
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+function runCliWithoutSessionResult(args: string[]): { status: number | null; stdout: string; stderr: string } {
+  const tempHome = join(tmpdir(), `openmates-cli-no-session-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  mkdirSync(tempHome, { recursive: true });
+  try {
+    const result = spawnSync("node", ["dist/cli.js", ...args], {
+      cwd: PACKAGE_ROOT,
+      encoding: "utf-8",
+      env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome },
+      timeout: 15_000,
+    });
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr };
   } finally {
     rmSync(tempHome, { recursive: true, force: true });
   }
@@ -1578,6 +1594,20 @@ describe("unauthenticated example chats", () => {
     assert.ok(output.includes("EXAMPLE CHAT"));
     assert.ok(output.includes("Gigantic airplanes for transporting rocket and airplane parts"));
     assert.ok(output.includes("This is a public example chat"));
+  });
+
+  it("returns signup_required before reading anonymous file references", () => {
+    const result = runCliWithoutSessionResult([
+      "chats",
+      "new",
+      "summarize @/tmp/openmates-anonymous-file-that-must-not-be-read.txt",
+      "--json",
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    const parsed = JSON.parse(result.stdout) as { status?: string; reason?: string; signup_required?: boolean };
+    assert.equal(parsed.status, "signup_required");
+    assert.equal(parsed.reason, "file_upload_requires_signup");
+    assert.equal(parsed.signup_required, true);
   });
 });
 

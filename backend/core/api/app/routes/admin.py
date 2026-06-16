@@ -17,6 +17,7 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
+from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.tasks.celery_config import app as celery_app
 from backend.core.api.app.utils.server_mode import validate_request_domain
@@ -133,6 +134,36 @@ class FreeTestingBudgetResponse(BaseModel):
     updated_at: Optional[str] = None
 
 
+class AnonymousFreeUsageBudgetRequest(BaseModel):
+    """Admin request for configuring anonymous free usage."""
+
+    enabled: bool = Field(default=False)
+    monthly_budget_credits: int = Field(default=0, ge=0, le=100_000_000)
+    daily_hard_cap_percent: int = Field(default=5, ge=0, le=100)
+    weekly_cap_percent: int = Field(default=25, ge=0, le=100)
+    per_identity_daily_cap_credits: int = Field(default=400, ge=0, le=1_000_000)
+
+
+class AnonymousFreeUsageBudgetResponse(BaseModel):
+    """Admin-visible anonymous free usage budget state."""
+
+    enabled: bool
+    monthly_budget_credits: int
+    daily_hard_cap_percent: int
+    daily_hard_cap_credits: int
+    weekly_cap_percent: int
+    weekly_cap_credits: int
+    per_identity_daily_cap_credits: int
+    daily_used_credits: int
+    weekly_used_credits: int
+    daily_remaining_credits: int
+    weekly_remaining_credits: int
+    active: bool
+    reason: Optional[str] = None
+    reset_at: str
+    updated_at: Optional[str] = None
+
+
 def _free_testing_budget_response(status) -> FreeTestingBudgetResponse:
     return FreeTestingBudgetResponse(
         enabled=status.enabled,
@@ -143,6 +174,26 @@ def _free_testing_budget_response(status) -> FreeTestingBudgetResponse:
         active=status.active,
         exhausted=status.exhausted,
         exhausted_email_sent_at=status.exhausted_email_sent_at,
+        updated_at=status.updated_at,
+    )
+
+
+def _anonymous_free_usage_budget_response(status) -> AnonymousFreeUsageBudgetResponse:
+    return AnonymousFreeUsageBudgetResponse(
+        enabled=status.enabled,
+        monthly_budget_credits=status.monthly_budget_credits,
+        daily_hard_cap_percent=status.daily_hard_cap_percent,
+        daily_hard_cap_credits=status.daily_hard_cap_credits,
+        weekly_cap_percent=status.weekly_cap_percent,
+        weekly_cap_credits=status.weekly_cap_credits,
+        per_identity_daily_cap_credits=status.per_identity_daily_cap_credits,
+        daily_used_credits=status.daily_used_credits,
+        weekly_used_credits=status.weekly_used_credits,
+        daily_remaining_credits=status.daily_remaining_credits,
+        weekly_remaining_credits=status.weekly_remaining_credits,
+        active=status.active,
+        reason=status.reason,
+        reset_at=status.reset_at,
         updated_at=status.updated_at,
     )
 
@@ -159,6 +210,12 @@ def _build_free_testing_service(
         websocket_manager=ws_manager,
         celery_app=celery_app,
     )
+
+
+def _build_anonymous_free_usage_service(
+    directus_service: DirectusService,
+) -> AnonymousFreeUsageService:
+    return AnonymousFreeUsageService(directus_service=directus_service)
 
 
 def _require_official_cloud(request: Request) -> None:
@@ -332,6 +389,44 @@ async def update_free_testing_credits_budget(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _free_testing_budget_response(status)
+
+
+@router.get("/anonymous-free-usage-budget", response_model=AnonymousFreeUsageBudgetResponse)
+@limiter.limit("30/minute")
+async def get_anonymous_free_usage_budget(
+    request: Request,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> AnonymousFreeUsageBudgetResponse:
+    """Return admin-visible anonymous free usage budget state."""
+    _require_official_cloud(request)
+    service = _build_anonymous_free_usage_service(directus_service)
+    return _anonymous_free_usage_budget_response(await service.get_budget_status())
+
+
+@router.put("/anonymous-free-usage-budget", response_model=AnonymousFreeUsageBudgetResponse)
+@limiter.limit("10/minute")
+async def update_anonymous_free_usage_budget(
+    request: Request,
+    payload: AnonymousFreeUsageBudgetRequest,
+    admin_user: User = Depends(require_admin),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> AnonymousFreeUsageBudgetResponse:
+    """Create or update the anonymous free usage budget."""
+    _require_official_cloud(request)
+    service = _build_anonymous_free_usage_service(directus_service)
+    try:
+        status = await service.save_budget(
+            enabled=payload.enabled,
+            monthly_budget_credits=payload.monthly_budget_credits,
+            daily_hard_cap_percent=payload.daily_hard_cap_percent,
+            weekly_cap_percent=payload.weekly_cap_percent,
+            per_identity_daily_cap_credits=payload.per_identity_daily_cap_credits,
+            admin_user_id=admin_user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _anonymous_free_usage_budget_response(status)
 
 
 # --- Gift Card Code Generation ---

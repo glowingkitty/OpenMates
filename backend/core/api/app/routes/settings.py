@@ -30,6 +30,7 @@ from backend.core.api.app.schemas.settings import UsernameUpdateRequest, Languag
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
+from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -2416,6 +2417,10 @@ class ServerStatusResponse(BaseModel):
         default=None,
         description="Safe public Free testing promotion metadata for signup UI.",
     )
+    anonymous_free_usage: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Safe public anonymous free usage availability metadata.",
+    )
 
 
 @router.get(
@@ -2471,6 +2476,7 @@ async def get_server_status(
         
         ai_models_configured = await _are_ai_models_configured(request)
         free_testing_credits = None
+        anonymous_free_usage = None
         directus_service = getattr(request.app.state, "directus_service", None)
         cache_service = getattr(request.app.state, "cache_service", None)
         encryption_service = getattr(request.app.state, "encryption_service", None)
@@ -2484,6 +2490,14 @@ async def get_server_status(
                 free_testing_credits = await free_testing_service.get_public_promotion()
             except Exception as promo_err:
                 logger.error("Failed to load free testing promotion metadata: %s", promo_err, exc_info=True)
+        if not is_self_hosted and directus_service:
+            try:
+                anonymous_free_usage_service = AnonymousFreeUsageService(
+                    directus_service=directus_service,
+                )
+                anonymous_free_usage = await anonymous_free_usage_service.get_public_status()
+            except Exception as anonymous_err:
+                logger.error("Failed to load anonymous free usage metadata: %s", anonymous_err, exc_info=True)
 
         # Get server edition (for backward compatibility)
         server_edition = get_server_edition()
@@ -2511,6 +2525,7 @@ async def get_server_status(
             domain=request_domain,
             ai_models_configured=ai_models_configured,
             free_testing_credits=free_testing_credits,
+            anonymous_free_usage=anonymous_free_usage,
         )
         
     except Exception as e:

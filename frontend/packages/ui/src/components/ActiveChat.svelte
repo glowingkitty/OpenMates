@@ -3992,6 +3992,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track whether the map location selector is open in MessageInput.
     // When true, NewChatSuggestions must be hidden (per UX requirement).
     let messageInputMapsOpen = $state(false);
+    let anonymousFileAttachmentPending = $state(false);
+    let showAnonymousUploadSignupPrompt = $derived(anonymousFileAttachmentPending && !$authStore.isAuthenticated);
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
     // Initialize to false to prevent MessageInput from appearing expanded on initial load
@@ -11355,8 +11357,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               is focused — at which point the welcome content is also hidden
                               (hideWelcomeForKeyboard), giving the suggestions room to breathe.
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
-                         {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
-                              <NewChatSuggestions
+                         {#if showAnonymousUploadSignupPrompt}
+                              <div class="anonymous-upload-signup-banner" data-testid="anonymous-upload-signup-banner" transition:fade={{ duration: 200 }}>
+                                  <div class="anonymous-upload-signup-copy">
+                                      <span class="anonymous-upload-signup-title">{$text('enter_message.attachments.signup_required_title')}</span>
+                                      <span class="anonymous-upload-signup-body">{$text('enter_message.attachments.signup_required_body')}</span>
+                                  </div>
+                                  <button
+                                      class="anonymous-upload-signup-remove"
+                                      type="button"
+                                      data-testid="anonymous-upload-signup-remove"
+                                      onclick={() => { anonymousFileAttachmentPending = false; }}
+                                  >
+                                      {$text('enter_message.attachments.remove_pending_file')}
+                                  </button>
+                              </div>
+                         {:else if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
+                               <NewChatSuggestions
                                   messageInputContent={activeSuggestionSearchText}
                                   onSuggestionClick={handleSuggestionClick}
                                   onChatNavigate={handleChatNavigate}
@@ -11406,7 +11423,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Chat search suggestions — shown when typing in an open chat's message input.
                              Searches existing chats and shows matching results as horizontal cards.
                              Hidden entirely when no results found (unlike NewChatSuggestions which shows defaults). -->
-                        {#if !showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused}
+                        {#if !showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && !showAnonymousUploadSignupPrompt}
                             <ChatSearchSuggestions
                                 messageInputContent={activeSuggestionSearchText}
                                 onChatNavigate={handleChatNavigate}
@@ -11497,6 +11514,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     bind:hasContent={messageInputHasContent}
                                     bind:isFocused={messageInputFocused}
                                     bind:isMapsOpen={messageInputMapsOpen}
+                                    bind:anonymousFileAttachmentPending
                                     {containerRect}
                                 />
                             </div>
@@ -13258,6 +13276,65 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         color: var(--color-grey-70);
         line-height: 1.4;
         flex: 1;
+    }
+
+    .anonymous-upload-signup-banner {
+        width: 100%;
+        max-width: 629px;
+        min-height: 48px;
+        box-sizing: border-box;
+        background-color: var(--color-grey-15);
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--radius-6);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--spacing-5);
+        padding: var(--spacing-5) var(--spacing-6);
+        margin-bottom: var(--spacing-5);
+    }
+
+    .anonymous-upload-signup-copy {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-1);
+        min-width: 0;
+    }
+
+    .anonymous-upload-signup-title {
+        color: var(--color-font-primary);
+        font-size: var(--font-size-small);
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .anonymous-upload-signup-body {
+        color: var(--color-grey-70);
+        font-size: var(--font-size-xs);
+        line-height: 1.35;
+    }
+
+    .anonymous-upload-signup-remove {
+        flex: 0 0 auto;
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--radius-full);
+        background: var(--color-grey-0);
+        color: var(--color-font-primary);
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        padding: var(--spacing-3) var(--spacing-5);
+        cursor: pointer;
+    }
+
+    .anonymous-upload-signup-remove:hover {
+        background: var(--color-grey-10);
+    }
+
+    @media (max-width: 560px) {
+        .anonymous-upload-signup-banner {
+            align-items: flex-start;
+            flex-direction: column;
+        }
     }
 
     .chat-wrapper {

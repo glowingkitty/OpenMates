@@ -146,6 +146,20 @@ def test_self_host_server_status_omits_payment_enabled():
     assert "payment_enabled" not in response.model_dump(exclude_none=True)
 
 
+def test_self_host_server_status_omits_anonymous_free_usage_model_field_when_none():
+    response_model = _server_status_response_model()
+
+    response = response_model(
+        is_self_hosted=True,
+        is_development=False,
+        server_edition="self_hosted",
+        domain=None,
+        ai_models_configured=False,
+    )
+
+    assert "anonymous_free_usage" not in response.model_dump(exclude_none=True)
+
+
 def test_cloud_server_status_can_include_payment_enabled():
     response_model = _server_status_response_model()
 
@@ -167,6 +181,7 @@ async def test_self_host_server_status_omits_free_testing_credits(monkeypatch):
     try:
         server_mode = importlib.import_module("backend.core.api.app.utils.server_mode")
         promo_service_calls = 0
+        anonymous_service_calls = 0
 
         class PromoService:
             def __init__(self, **_kwargs):
@@ -176,10 +191,19 @@ async def test_self_host_server_status_omits_free_testing_credits(monkeypatch):
             async def get_public_promotion(self):
                 raise AssertionError("self-hosted status must not load cloud-only promotion metadata")
 
+        class AnonymousService:
+            def __init__(self, **_kwargs):
+                nonlocal anonymous_service_calls
+                anonymous_service_calls += 1
+
+            async def get_public_status(self):
+                raise AssertionError("self-hosted status must not load anonymous free usage metadata")
+
         async def no_ai_models(_request):
             return False
 
         monkeypatch.setattr(settings_module, "FreeTestingCreditsService", PromoService)
+        monkeypatch.setattr(settings_module, "AnonymousFreeUsageService", AnonymousService)
         monkeypatch.setattr(settings_module, "_are_ai_models_configured", no_ai_models)
         monkeypatch.setattr(
             server_mode,
@@ -194,7 +218,9 @@ async def test_self_host_server_status_omits_free_testing_credits(monkeypatch):
         assert payload["is_self_hosted"] is True
         assert "payment_enabled" not in payload
         assert "free_testing_credits" not in payload
+        assert "anonymous_free_usage" not in payload
         assert promo_service_calls == 0
+        assert anonymous_service_calls == 0
     finally:
         _restore_modules(previous_modules)
 
@@ -212,10 +238,18 @@ async def test_cloud_server_status_includes_safe_free_testing_credits(monkeypatc
             async def get_public_promotion(self):
                 return {"active": True, "grant_credits": 1000}
 
+        class AnonymousService:
+            def __init__(self, **_kwargs):
+                pass
+
+            async def get_public_status(self):
+                return {"active": True, "reason": None, "reset_at": "2026-06-17T00:00:00+00:00", "cta": "Sign up"}
+
         async def has_ai_models(_request):
             return True
 
         monkeypatch.setattr(settings_module, "FreeTestingCreditsService", PromoService)
+        monkeypatch.setattr(settings_module, "AnonymousFreeUsageService", AnonymousService)
         monkeypatch.setattr(settings_module, "_are_ai_models_configured", has_ai_models)
         monkeypatch.setattr(
             server_mode,
@@ -231,5 +265,12 @@ async def test_cloud_server_status_includes_safe_free_testing_credits(monkeypatc
         assert payload["is_self_hosted"] is False
         assert payload["payment_enabled"] is True
         assert payload["free_testing_credits"] == {"active": True, "grant_credits": 1000}
+        assert payload["anonymous_free_usage"] == {
+            "active": True,
+            "reason": None,
+            "reset_at": "2026-06-17T00:00:00+00:00",
+            "cta": "Sign up",
+        }
+        assert "daily_remaining_credits" not in payload["anonymous_free_usage"]
     finally:
         _restore_modules(previous_modules)
