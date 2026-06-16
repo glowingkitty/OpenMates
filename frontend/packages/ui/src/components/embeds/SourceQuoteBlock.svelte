@@ -91,13 +91,12 @@
     e.preventDefault();
     e.stopPropagation();
 
-    let resolvedEmbedId = await embedStore.resolveByRefDeep(embedRef);
-    if (!resolvedEmbedId) {
-      const renderedEmbedId = findRenderedVideoEmbedId(e.currentTarget);
-      if (renderedEmbedId) {
-        embedStore.registerEmbedRef(embedRef, renderedEmbedId, 'videos');
-        resolvedEmbedId = renderedEmbedId;
-      }
+    const renderedVideoEmbedId = findRenderedVideoEmbedId(e.currentTarget);
+    let resolvedEmbedId = renderedVideoEmbedId;
+    if (renderedVideoEmbedId) {
+      embedStore.registerEmbedRef(embedRef, renderedVideoEmbedId, 'videos');
+    } else {
+      resolvedEmbedId = await embedStore.resolveByRefDeep(embedRef);
     }
 
     if (!resolvedEmbedId) {
