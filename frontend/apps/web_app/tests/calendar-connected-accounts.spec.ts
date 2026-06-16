@@ -254,9 +254,14 @@ test.describe('Calendar connected accounts', () => {
 		}).not.toBeNull();
 		expect(JSON.stringify(patchRequestBody)).not.toContain('secret-write-refresh-token');
 		expect(JSON.stringify(patchRequestBody)).not.toContain('work@example.test');
-		await expect(privacySettingsMenu).toContainText('Connected account updated.', { timeout: 15000 });
-		await expect(details).toContainText('Write events', { timeout: 15000 });
-		await expect(privacySettingsMenu.getByTestId('privacy-connected-account-add-write-button')).toHaveCount(0);
+
+		await page.goto(getE2EDebugUrl('/#settings/privacy/connected-accounts'), { waitUntil: 'domcontentloaded' });
+		const updatedPrivacySettingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="privacy/connected-accounts"]');
+		await expect(updatedPrivacySettingsMenu).toBeVisible({ timeout: 15000 });
+		const updatedDetails = updatedPrivacySettingsMenu.getByTestId('privacy-connected-account-detail');
+		await expect(updatedDetails).toContainText('Read events', { timeout: 15000 });
+		await expect(updatedDetails).toContainText('Write events', { timeout: 15000 });
+		await expect(updatedPrivacySettingsMenu.getByTestId('privacy-connected-account-add-write-button')).toHaveCount(0);
 		await takeStepScreenshot(page, 'privacy-connected-account-updated');
 	});
 });
