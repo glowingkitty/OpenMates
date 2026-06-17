@@ -85,6 +85,8 @@ async function typeMessageText(page: any, text: string) {
 			const active = document.activeElement;
 			return !!active && (active.getAttribute('data-testid') === 'message-editor' || !!active.closest?.('[data-testid="message-editor"]'));
 		});
+		await page.keyboard.press('Control+A');
+		await page.keyboard.press('Backspace');
 		await editable.pressSequentially(text);
 		try {
 			await expect(editor).toContainText(text, { timeout: 2000 });
