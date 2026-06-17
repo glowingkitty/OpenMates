@@ -2213,10 +2213,10 @@ export class ChatSynchronizationService extends EventTarget {
   // and storage helpers (storeRecentChats, storeAllChats, etc.) are in chatSyncServiceHandlersPhasedSync.ts
 
   /**
-   * Clean up messages stuck in 'streaming' or 'processing' status across ALL chats.
-   * This handles the case where the WebSocket disconnected during an AI stream,
-   * leaving messages in intermediate states. The subsequent phased sync will
-   * deliver the server-persisted (complete) version.
+   * Detect messages stuck in 'streaming' or 'processing' status across ALL chats.
+   * This handles the case where the WebSocket disconnected during an AI stream.
+   * Do not finalize them locally: reconnect pending delivery or phased sync must
+   * replace the partial row with the server-completed version.
    */
   private async _cleanupOrphanedStreamingMessages(): Promise<void> {
     try {
@@ -2230,36 +2230,8 @@ export class ChatSynchronizationService extends EventTarget {
       if (orphaned.length === 0) return;
 
       console.warn(
-        `[ChatSyncService] Found ${orphaned.length} orphaned streaming/processing message(s) - finalizing to synced`,
+        `[ChatSyncService] Found ${orphaned.length} orphaned streaming/processing message(s) - waiting for pending delivery or phased sync`,
       );
-
-      for (const msg of orphaned) {
-        try {
-          // CRITICAL FIX: Use updateMessageStatus() instead of saveMessage().
-          //
-          // The naive `{ ...msg, status: "synced" } → saveMessage()` approach triggers
-          // encryptMessageFields() which calls getOrGenerateChatKey(). If the chat key
-          // has been evicted from the in-memory cache (a real race condition during
-          // WebSocket reconnect on a new-chat flow), a NEW random key is generated and
-          // the message is silently re-encrypted with it — while encrypted_chat_key on
-          // the chat still holds the original key. Subsequent decryption attempts fail
-          // with "[Content decryption failed]". This is the same class of bug fixed for
-          // the handleChatMessageConfirmedImpl path in commit 65780674.
-          //
-          // updateMessageStatus() reads the raw (still-encrypted) IndexedDB record,
-          // patches ONLY the status field, and writes it back — no encryption, no key
-          // operations, no risk.
-          await chatDB.updateMessageStatus(msg.message_id, "synced");
-          console.warn(
-            `[ChatSyncService] Finalized orphaned ${msg.status} message ${msg.message_id} in chat ${msg.chat_id}`,
-          );
-        } catch (error) {
-          console.error(
-            `[ChatSyncService] Error finalizing orphaned message ${msg.message_id}:`,
-            error,
-          );
-        }
-      }
     } catch (error) {
       console.error(
         "[ChatSyncService] Error in _cleanupOrphanedStreamingMessages:",

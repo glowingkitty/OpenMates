@@ -1508,6 +1508,16 @@ class ChatDatabase {
     return messageOps.saveMessage(this, message, transaction);
   }
 
+  async replaceMessageById(
+    message: Message,
+    options?: {
+      allowedExistingStatuses?: Message["status"][];
+      expectedExistingRole?: Message["role"];
+    },
+  ): Promise<boolean> {
+    return messageOps.replaceMessageById(this, message, options);
+  }
+
   async batchSaveMessages(messages: Message[]): Promise<void> {
     return messageOps.batchSaveMessages(this, messages);
   }

@@ -175,7 +175,7 @@ const STATUS_PRIORITY: Record<string, number> = {
  *   server-side storage status), but the client must keep 'waiting_for_user' so
  *   the Buy Credits button, header banner, and typing indicator suppression remain
  *   correct after a tab reload.
- * - Otherwise, allow updates only when status priority increases.
+ * - Otherwise, allow updates when status priority increases.
  */
 export function shouldUpdateMessage(
   existing: Message,
@@ -204,7 +204,11 @@ export function shouldUpdateMessage(
   const existingPriority = STATUS_PRIORITY[existing.status] ?? 0;
   const incomingPriority = STATUS_PRIORITY[incoming.status] ?? 0;
 
-  return incomingPriority > existingPriority;
+  if (incomingPriority > existingPriority) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -986,6 +990,93 @@ export async function saveMessage(
   };
 
   await saveWithRetry();
+}
+
+/**
+ * Overwrite a message by primary key after encrypting it with the normal chat key path.
+ * Use only when a same-ID local placeholder is known stale and the incoming message is
+ * authoritative; regular saves should keep duplicate/status protection.
+ */
+export async function replaceMessageById(
+  dbInstance: ChatDatabaseInstance,
+  message: Message,
+  options: {
+    allowedExistingStatuses?: Message["status"][];
+    expectedExistingRole?: Message["role"];
+  } = {},
+): Promise<boolean> {
+  await dbInstance.init();
+
+  message = JSON.parse(JSON.stringify(message)) as Message;
+
+  if (!message.message_id) {
+    throw new Error("Message must have a message_id");
+  }
+  if (!message.chat_id) {
+    throw new Error("Message must have a chat_id");
+  }
+
+  chatKeyManager.acquireCriticalOp();
+  let encryptedMessage: Message;
+  try {
+    encryptedMessage = await dbInstance.encryptMessageFields(
+      message,
+      message.chat_id,
+    );
+  } finally {
+    chatKeyManager.releaseCriticalOp();
+  }
+
+  const transaction = await dbInstance.getTransaction(
+    MESSAGES_STORE_NAME,
+    "readwrite",
+  );
+  return new Promise<boolean>((resolve, reject) => {
+    const store = transaction.objectStore(MESSAGES_STORE_NAME);
+    const getRequest = store.get(message.message_id);
+    let replaced = false;
+
+    getRequest.onsuccess = () => {
+      const current = getRequest.result as Message | undefined;
+      const statusAllowed =
+        !current ||
+        !options.allowedExistingStatuses ||
+        options.allowedExistingStatuses.includes(current.status);
+      const roleAllowed =
+        !current ||
+        !options.expectedExistingRole ||
+        current.role === options.expectedExistingRole;
+
+      if (!statusAllowed || !roleAllowed) {
+        console.warn(
+          `[ChatDatabase] replaceMessageById skipped ${message.message_id}: current row no longer matches replacement guard`,
+        );
+        return;
+      }
+
+      const putRequest = store.put(encryptedMessage);
+      putRequest.onsuccess = () => {
+        replaced = true;
+      };
+      putRequest.onerror = () => {
+        reject(putRequest.error);
+      };
+    };
+    getRequest.onerror = () => {
+      reject(getRequest.error);
+    };
+    transaction.oncomplete = () => {
+      resolve(replaced);
+    };
+    transaction.onerror = () => {
+      reject(transaction.error);
+    };
+    transaction.onabort = () => {
+      reject(
+        new Error(`Transaction aborted for replaceMessageById(${message.message_id})`),
+      );
+    };
+  });
 }
 
 /**

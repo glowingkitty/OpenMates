@@ -7,7 +7,11 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { Message } from "../../../types/chat";
-import { getMessageWindowForChat, isContentDuplicate } from "../messageOperations";
+import {
+  getMessageWindowForChat,
+  isContentDuplicate,
+  shouldUpdateMessage,
+} from "../messageOperations";
 
 type CursorDirection = "next" | "prev";
 
@@ -158,6 +162,93 @@ describe("isContentDuplicate", () => {
     } as Message;
 
     expect(isContentDuplicate(existing, incoming)).toBe(true);
+  });
+});
+
+describe("shouldUpdateMessage", () => {
+  it("updates an interrupted streaming assistant message when batch sync delivers it", () => {
+    const existing = {
+      message_id: "ai-task-1",
+      chat_id: "chat-1",
+      role: "assistant",
+      created_at: 10,
+      status: "streaming",
+      encrypted_content: "encrypted-partial",
+    } as Message;
+    const incoming = {
+      ...existing,
+      status: "delivered",
+      encrypted_content: "encrypted-complete",
+    } as Message;
+
+    expect(shouldUpdateMessage(existing, incoming)).toBe(true);
+  });
+
+  it("does not update a same-id synced assistant message just because plaintext differs", () => {
+    const existing = {
+      message_id: "ai-task-1",
+      chat_id: "chat-1",
+      role: "assistant",
+      content: "Partial response",
+      created_at: 10,
+      status: "synced",
+    } as Message;
+    const incoming = {
+      ...existing,
+      content: "Partial response with the final paragraph",
+      status: "synced",
+    } as Message;
+
+    expect(shouldUpdateMessage(existing, incoming)).toBe(false);
+  });
+
+  it("does not update a same-id user message just because plaintext differs", () => {
+    const existing = {
+      message_id: "user-message-1",
+      chat_id: "chat-1",
+      role: "user",
+      content: "Original user message",
+      created_at: 10,
+      status: "synced",
+    } as Message;
+    const incoming = {
+      ...existing,
+      content: "Different user message",
+    } as Message;
+
+    expect(shouldUpdateMessage(existing, incoming)).toBe(false);
+  });
+
+  it("preserves waiting_for_user even when sync delivers completed content", () => {
+    const existing = {
+      message_id: "ai-task-1",
+      chat_id: "chat-1",
+      role: "assistant",
+      content: "Buy credits to continue",
+      created_at: 10,
+      status: "waiting_for_user",
+    } as Message;
+    const incoming = {
+      ...existing,
+      content: "Completed response",
+      status: "synced",
+    } as Message;
+
+    expect(shouldUpdateMessage(existing, incoming)).toBe(false);
+  });
+
+  it("does not update a completed duplicate when content already matches", () => {
+    const existing = {
+      message_id: "ai-task-1",
+      chat_id: "chat-1",
+      role: "assistant",
+      content: "Complete response",
+      created_at: 10,
+      status: "synced",
+    } as Message;
+    const incoming = { ...existing } as Message;
+
+    expect(shouldUpdateMessage(existing, incoming)).toBe(false);
   });
 });
 
