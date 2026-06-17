@@ -4214,22 +4214,33 @@
                 text: editor.getText()
             }
             : null;
-        // Optimistically show stop button immediately after sending
-        awaitingAITaskStart = true;
-        cancelRequestedWhileAwaiting = false;
-        if (awaitingAITaskTimeoutId) {
-            clearTimeout(awaitingAITaskTimeoutId);
-        }
-        // If the backend never starts a task (e.g., network issues), don't leave stop button stuck
-        awaitingAITaskTimeoutId = setTimeout(() => {
-            if (awaitingAITaskStart && !activeAITaskId) {
-                console.warn('[MessageInput] Timed out waiting for AI task to start; hiding stop button');
-                awaitingAITaskStart = false;
-                cancelRequestedWhileAwaiting = false;
-                cancelRequestedChatId = null;
+        // Anonymous sends use a direct local request, not the cancellable WebSocket AI task lifecycle.
+        // Do not show the optimistic stop button because no aiTaskStarted/aiTaskEnded events will arrive.
+        if ($authStore.isAuthenticated) {
+            awaitingAITaskStart = true;
+            cancelRequestedWhileAwaiting = false;
+            if (awaitingAITaskTimeoutId) {
+                clearTimeout(awaitingAITaskTimeoutId);
             }
-            awaitingAITaskTimeoutId = null;
-        }, 15000);
+            // If the backend never starts a task (e.g., network issues), don't leave stop button stuck
+            awaitingAITaskTimeoutId = setTimeout(() => {
+                if (awaitingAITaskStart && !activeAITaskId) {
+                    console.warn('[MessageInput] Timed out waiting for AI task to start; hiding stop button');
+                    awaitingAITaskStart = false;
+                    cancelRequestedWhileAwaiting = false;
+                    cancelRequestedChatId = null;
+                }
+                awaitingAITaskTimeoutId = null;
+            }, 15000);
+        } else {
+            awaitingAITaskStart = false;
+            cancelRequestedWhileAwaiting = false;
+            cancelRequestedChatId = null;
+            if (awaitingAITaskTimeoutId) {
+                clearTimeout(awaitingAITaskTimeoutId);
+                awaitingAITaskTimeoutId = null;
+            }
+        }
 
         // If a draft audio UUID was pre-allocated for this new chat, clear the "unsent draft"
         // marker now that the user is sending. The chat UUID is about to become a real chat,

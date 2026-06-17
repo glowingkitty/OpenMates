@@ -6053,6 +6053,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatListCache.setLastMessage(chat.chat_id, assistantMessage);
         updateNavFromCache(chat.chat_id);
         window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chat.chat_id } }));
+        messageInputFieldRef?.setDraftContent(chat.chat_id, null, chat.draft_v ?? 0, false);
         chatHistoryRef?.updateMessages(currentMessages);
     }
 
