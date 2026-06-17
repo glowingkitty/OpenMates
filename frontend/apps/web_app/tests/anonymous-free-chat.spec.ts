@@ -12,12 +12,6 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
 
-const CORS_HEADERS = {
-	'access-control-allow-origin': '*',
-	'access-control-allow-methods': 'POST, OPTIONS',
-	'access-control-allow-headers': 'content-type'
-};
-
 function anonymousActiveServerStatusBody() {
 	return {
 		is_self_hosted: false,
@@ -44,6 +38,41 @@ async function mockAnonymousActiveServerStatus(page: any) {
 	});
 }
 
+async function mockAnonymousChatStream(page: any, anonymousRequests: Array<Record<string, unknown>>) {
+	await page.exposeFunction('recordAnonymousChatStreamRequest', (body: Record<string, unknown>) => {
+		anonymousRequests.push(body);
+		return anonymousRequests.length;
+	});
+	await page.addInitScript(() => {
+		const originalFetch = window.fetch.bind(window);
+		window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+			if (url.includes('/v1/anonymous/chat/stream')) {
+				const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+				const responseNumber = await (
+					window as typeof window & {
+						recordAnonymousChatStreamRequest: (body: Record<string, unknown>) => Promise<number>;
+					}
+				).recordAnonymousChatStreamRequest(body);
+				return new Response(
+					JSON.stringify({
+						status: 'completed',
+						messageId: `anonymous-assistant-${responseNumber}`,
+						assistant: `Anonymous answer ${responseNumber}`,
+						category: 'ai',
+						modelName: 'test-model'
+					}),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' }
+					}
+				);
+			}
+			return originalFetch(input, init);
+		};
+	});
+}
+
 test.describe('Anonymous free chat', () => {
 	test('anonymous text chat shows terms reminder before send and feature notice in chat', async ({
 		page
@@ -55,30 +84,7 @@ test.describe('Anonymous free chat', () => {
 		await mockAnonymousActiveServerStatus(page);
 
 		const anonymousRequests: Array<Record<string, unknown>> = [];
-		await page.route('**/v1/anonymous/chat/stream', async (route: any) => {
-			if (route.request().method() === 'OPTIONS') {
-				await route.fulfill({
-					status: 204,
-					headers: CORS_HEADERS
-				});
-				return;
-			}
-			const body = JSON.parse(route.request().postData() || '{}') as Record<string, unknown>;
-			anonymousRequests.push(body);
-			const responseNumber = anonymousRequests.length;
-			await route.fulfill({
-				status: 200,
-				headers: CORS_HEADERS,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					status: 'completed',
-					messageId: `anonymous-assistant-${responseNumber}`,
-					assistant: `Anonymous answer ${responseNumber}`,
-					category: 'ai',
-					modelName: 'test-model'
-				})
-			});
-		});
+		await mockAnonymousChatStream(page, anonymousRequests);
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
