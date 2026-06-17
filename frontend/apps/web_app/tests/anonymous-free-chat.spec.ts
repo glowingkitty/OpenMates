@@ -75,13 +75,15 @@ async function mockAnonymousChatStream(page: any, anonymousRequests: Array<Recor
 
 async function typeMessageText(page: any, text: string) {
 	const editor = page.getByTestId('message-editor');
+	const editable = editor.locator('[contenteditable="true"]').first();
 	await expect(editor).toBeVisible({ timeout: 10000 });
 	await editor.click();
 	await page.waitForFunction(() => {
 		const active = document.activeElement;
 		return !!active && (active.getAttribute('data-testid') === 'message-editor' || !!active.closest?.('[data-testid="message-editor"]'));
 	});
-	await editor.fill(text);
+	await expect(editable).toBeVisible({ timeout: 5000 });
+	await editable.fill(text);
 	await expect(editor).toContainText(text, { timeout: 5000 });
 	return editor;
 }
