@@ -6043,7 +6043,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return [];
         });
         if (storedMessages.length > 0) {
-            currentMessages = storedMessages.map(normalizeAnonymousMessage);
+            const mergedMessages = [...storedMessages];
+            if (!mergedMessages.some(m => m.message_id === userMessage.message_id)) {
+                mergedMessages.push(userMessage);
+            }
+            if (!mergedMessages.some(m => m.message_id === assistantMessage.message_id)) {
+                mergedMessages.push(assistantMessage);
+            }
+            currentMessages = mergedMessages.map(normalizeAnonymousMessage);
         } else {
             const existingWithoutUser = currentMessages.filter(m => m.message_id !== userMessage.message_id);
             const existingWithoutAssistant = existingWithoutUser.filter(m => m.message_id !== assistantMessage.message_id);

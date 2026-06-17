@@ -143,6 +143,10 @@ test.describe('Anonymous free chat', () => {
 			timeout: 15000
 		});
 		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await expect(page.getByTestId('new-chat-cta-fullwidth')).toHaveCount(0, { timeout: 10000 });
+		await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeVisible({
+			timeout: 10000
+		});
 
 		await typeMessageText(page, 'Hello anonymous text');
 		const termsReminder = page.getByTestId('anonymous-terms-reminder');
