@@ -184,6 +184,7 @@ export async function buildConnectedAccountSendContext(params: {
 		const capabilityList = Array.isArray(capabilities)
 			? capabilities
 			: capabilities.capabilities ?? [];
+		const appId = normalizeConnectedAccountAppId(permissions.app_id ?? params.appId);
 		const allowedActions = params.allowedActionsOverride
 			?? preauthorizedActions(
 				permissions.allowed_actions ?? params.defaultAllowedActions ?? [],
@@ -194,7 +195,7 @@ export async function buildConnectedAccountSendContext(params: {
 			: [permissions.action_scope].filter((scope): scope is Record<string, unknown> => Boolean(scope));
 		directory.push({
 			connected_account_id: row.id,
-			app_id: permissions.app_id ?? params.appId,
+			app_id: appId,
 			account_ref: directoryHint?.account_ref ?? row.id,
 			label: directoryHint?.label ?? label,
 			capabilities: directoryHint?.capabilities ?? capabilityList,
@@ -209,7 +210,7 @@ export async function buildConnectedAccountSendContext(params: {
 			for (const actionScope of scopes) {
 				tokenRefInputs.push({
 					connected_account_id: row.id,
-					app_id: permissions.app_id ?? params.appId,
+					app_id: appId,
 					allowed_actions: allowedActions,
 					refresh_token_envelope: refreshTokenEnvelope,
 					...(actionScope ? { action_scope: actionScope } : {})
@@ -252,7 +253,7 @@ export async function summarizeConnectedAccountRows(
 		summaries.push({
 			id: row.id,
 			provider_id: providerId,
-			app_id: permissions.app_id ?? appIdForProvider(providerId),
+			app_id: normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId)),
 			account_ref: directoryHint?.account_ref ?? row.id,
 			label: directoryHint?.label ?? label,
 			capabilities: directoryHint?.capabilities ?? capabilityList,
@@ -267,6 +268,11 @@ export async function summarizeConnectedAccountRows(
 function appIdForProvider(providerId: string): string {
 	if (providerId === 'google_calendar') return 'calendar';
 	return providerId;
+}
+
+function normalizeConnectedAccountAppId(appId: string): string {
+	if (appId === 'google_calendar') return 'calendar';
+	return appId;
 }
 
 function preauthorizedActions(

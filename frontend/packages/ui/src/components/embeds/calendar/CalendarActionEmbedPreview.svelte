@@ -96,7 +96,7 @@
   {id}
   appId="calendar"
   skillId={localSkillId}
-  skillIconName="calendar"
+  skillIconName="search"
   status={localStatus}
   {skillName}
   {taskId}

@@ -387,6 +387,14 @@
   :global(.icon_rounded.weather::after) {
     background-image: url('@openmates/ui/static/icons/weather.svg');
   }
+
+  :global(.icon_rounded.calendar) {
+    background: var(--color-app-calendar);
+  }
+
+  :global(.icon_rounded.calendar::after) {
+    background-image: url('@openmates/ui/static/icons/calendar.svg');
+  }
   
   /* Skill icon: 29x29px with color-grey-70, dynamically set icon via data attribute */
   .basic-infos-bar.desktop .skill-icon {

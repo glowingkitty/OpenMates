@@ -144,6 +144,33 @@ describe('connectedAccountStorageService', () => {
 		});
 	});
 
+	it('normalizes legacy google_calendar app ids in send context', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:["read"]',
+					encrypted_app_permissions: 'enc:{"app_id":"google_calendar","allowed_actions":["read"]}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}',
+					encrypted_account_directory_hint:
+						'enc:{"account_ref":"calendar-work","label":"Work","capabilities":["read"],"runtime_modes":{"read":"allow_automatically"}}'
+				}
+			]
+		});
+
+		expect(context?.directory?.[0]).toMatchObject({
+			app_id: 'calendar',
+			capabilities: ['read']
+		});
+		expect(context?.tokenRefInputs?.[0]).toMatchObject({
+			app_id: 'calendar',
+			allowed_actions: ['read']
+		});
+	});
+
 	it('summarizes connected account rows without decrypting refresh token envelopes', async () => {
 		const summaries = await summarizeConnectedAccountRows([
 			{

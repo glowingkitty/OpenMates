@@ -93,6 +93,10 @@ test.describe('Calendar permission flow', () => {
 			'[data-testid="embed-preview"][data-app-id="calendar"][data-skill-id="get-events"]'
 		);
 		await expect(calendarSkillEmbed.first()).toBeVisible({ timeout: 15000 });
+		await expect(
+			calendarSkillEmbed.first().locator('[data-testid="app-icon-circle"][data-app-icon="calendar"]')
+		).toBeVisible();
+		await expect(calendarSkillEmbed.first().locator('[data-skill-icon="search"]')).toBeVisible();
 		await expect(page.getByTestId('message-assistant').first()).not.toContainText('"type":"app_skill_use"');
 		await expect(page.getByTestId('message-assistant').first()).not.toContainText('calendar | get-events');
 
