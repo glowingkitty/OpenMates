@@ -264,11 +264,14 @@ export function isContentDuplicate(
     existing.role === "assistant" && incoming.role === "assistant";
   const timeThreshold = isAssistantMessage ? 60 : 300; // 1 minute for assistant, 5 minutes for user
 
-  // Check if content is similar (for encrypted content, we compare the encrypted strings)
-  // CRITICAL: encrypted_content comparison is the most reliable way to detect duplicates
-  // since it's based on the actual encrypted content, not plaintext which might have embed references
-  const contentMatch =
-    existing.encrypted_content === incoming.encrypted_content;
+  // Prefer encrypted content when both records have it. When this function is
+  // called after getMessagesForChat(), records may already be decrypted and
+  // encrypted_content is intentionally absent; two missing encrypted fields are
+  // not evidence of duplicate content.
+  const hasEncryptedContent = !!existing.encrypted_content && !!incoming.encrypted_content;
+  const contentMatch = hasEncryptedContent
+    ? existing.encrypted_content === incoming.encrypted_content
+    : !!existing.content && !!incoming.content && existing.content === incoming.content;
 
   // Check if timestamps are close (within threshold) - messages from different sync sources
   const timeDiff = Math.abs(existing.created_at - incoming.created_at);

@@ -7,7 +7,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { Message } from "../../../types/chat";
-import { getMessageWindowForChat } from "../messageOperations";
+import { getMessageWindowForChat, isContentDuplicate } from "../messageOperations";
 
 type CursorDirection = "next" | "prev";
 
@@ -114,6 +114,52 @@ function makeDb(messages: Message[]) {
     })),
   };
 }
+
+describe("isContentDuplicate", () => {
+  it("does not treat two decrypted messages with missing encrypted content as duplicates", () => {
+    const existing = {
+      message_id: "message-1",
+      chat_id: "chat-1",
+      role: "user",
+      content: "First message",
+      created_at: 10,
+      status: "synced",
+      sender_name: "user",
+    } as Message;
+    const incoming = {
+      message_id: "message-2",
+      chat_id: "chat-1",
+      role: "user",
+      content: "Second message",
+      created_at: 11,
+      status: "sending",
+      sender_name: "user",
+    } as Message;
+
+    expect(isContentDuplicate(existing, incoming)).toBe(false);
+  });
+
+  it("matches decrypted duplicate content when encrypted content is unavailable", () => {
+    const existing = {
+      message_id: "message-1",
+      chat_id: "chat-1",
+      role: "assistant",
+      content: "Same response",
+      created_at: 10,
+      status: "synced",
+    } as Message;
+    const incoming = {
+      message_id: "message-2",
+      chat_id: "chat-1",
+      role: "assistant",
+      content: "Same response",
+      created_at: 11,
+      status: "synced",
+    } as Message;
+
+    expect(isContentDuplicate(existing, incoming)).toBe(true);
+  });
+});
 
 describe("getMessageWindowForChat", () => {
   it("returns a bounded latest window without decrypting the whole chat", async () => {
