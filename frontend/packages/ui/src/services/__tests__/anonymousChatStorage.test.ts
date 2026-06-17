@@ -205,6 +205,28 @@ describe("anonymousChatStorage", () => {
     expect(JSON.stringify(secondRequest.message_history)).not.toContain(FEATURE_NOTICE);
   });
 
+  it("orders same-second anonymous request history by conversation turn", async () => {
+    const fetchMock = mockAnonymousFetch({ messageId: "assistant-message", assistant: "First answer" });
+    const storage = await loadStorage();
+    const first = await storage.sendTextMessage({ markdown: "First question" });
+    const storedMessages = mockDbState.messages.get(first.chat.chat_id) ?? [];
+    const systemMessage = storedMessages.find((message) => message.role === "system");
+    const userMessage = storedMessages.find((message) => message.role === "user");
+    const assistantMessage = storedMessages.find((message) => message.role === "assistant");
+    expect(systemMessage).toBeTruthy();
+    expect(userMessage).toBeTruthy();
+    expect(assistantMessage).toBeTruthy();
+    mockDbState.messages.set(first.chat.chat_id, [assistantMessage!, userMessage!, systemMessage!]);
+
+    await storage.sendTextMessage({ markdown: "Second question", currentChatId: first.chat.chat_id });
+
+    const secondRequest = requestBody(fetchMock, 1);
+    expect(secondRequest.message_history).toEqual([
+      expect.objectContaining({ role: "user", content: "First question" }),
+      expect.objectContaining({ role: "assistant", content: "First answer" }),
+    ]);
+  });
+
   it("purges anonymous chat rows when the tab session key is missing", async () => {
     mockDbState.chats.set("anonymous-stale", {
       chat_id: "anonymous-stale",

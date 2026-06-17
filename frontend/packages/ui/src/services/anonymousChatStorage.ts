@@ -29,6 +29,11 @@ const ANONYMOUS_CHAT_PREFIX = "anonymous-";
 const ANONYMOUS_FEATURE_NOTICE_KEY = "chat.anonymous_free_usage.feature_notice";
 const DEFAULT_ANONYMOUS_CATEGORY = "ai";
 const DEFAULT_ANONYMOUS_ICON = "sparkles";
+const MESSAGE_ROLE_ORDER: Record<string, number> = {
+  system: 0,
+  user: 1,
+  assistant: 2,
+};
 
 interface AnonymousChatResponse {
   status?: string;
@@ -86,6 +91,18 @@ function isConversationMessage(message: Message): boolean {
   );
 }
 
+function sortAnonymousMessages(messages: Message[]): Message[] {
+  return [...messages].sort((a, b) => {
+    if (a.message_id === b.user_message_id) return -1;
+    if (a.user_message_id === b.message_id) return 1;
+    const createdDiff = (a.created_at ?? 0) - (b.created_at ?? 0);
+    if (createdDiff !== 0) return createdDiff;
+    const roleDiff = (MESSAGE_ROLE_ORDER[a.role] ?? 99) - (MESSAGE_ROLE_ORDER[b.role] ?? 99);
+    if (roleDiff !== 0) return roleDiff;
+    return a.message_id.localeCompare(b.message_id);
+  });
+}
+
 function stripPlainChatFields(chat: Chat): Chat {
   const chatToStore = { ...chat };
   delete chatToStore.title;
@@ -141,7 +158,7 @@ class AnonymousChatStorage {
     const chat = await chatDB.getChat(chatId);
     if (!chat?.is_anonymous) return [];
     await this.ensureAnonymousChatKey(chat);
-    return chatDB.getMessagesForChat(chatId);
+    return sortAnonymousMessages(await chatDB.getMessagesForChat(chatId));
   }
 
   async storeMessages(chatId: string, messages: Message[]): Promise<void> {

@@ -74,18 +74,26 @@ async function mockAnonymousChatStream(page: any, anonymousRequests: Array<Recor
 }
 
 async function typeMessageText(page: any, text: string) {
-	await page.getByTestId('message-field').click();
 	const editor = page.getByTestId('message-editor');
 	const editable = editor.locator('[contenteditable="true"]').first();
-	await expect(editor).toBeVisible({ timeout: 10000 });
-	await editable.click();
-	await page.waitForFunction(() => {
-		const active = document.activeElement;
-		return !!active && (active.getAttribute('data-testid') === 'message-editor' || !!active.closest?.('[data-testid="message-editor"]'));
-	});
-	await expect(editable).toBeVisible({ timeout: 5000 });
-	await page.keyboard.insertText(text);
-	await expect(editor).toContainText(text, { timeout: 5000 });
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		await page.getByTestId('message-field').click();
+		await expect(editor).toBeVisible({ timeout: 10000 });
+		await expect(editable).toBeVisible({ timeout: 5000 });
+		await editable.click();
+		await page.waitForFunction(() => {
+			const active = document.activeElement;
+			return !!active && (active.getAttribute('data-testid') === 'message-editor' || !!active.closest?.('[data-testid="message-editor"]'));
+		});
+		await editable.pressSequentially(text);
+		try {
+			await expect(editor).toContainText(text, { timeout: 2000 });
+			return editor;
+		} catch (error) {
+			if (attempt === 2) throw error;
+			await page.waitForTimeout(250);
+		}
+	}
 	return editor;
 }
 
