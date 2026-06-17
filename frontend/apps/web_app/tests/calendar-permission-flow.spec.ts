@@ -111,6 +111,60 @@ async function seedCalendarPermissionChat(page: any): Promise<void> {
 				}
 			]
 		});
+
+		const openDB = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve(request.result);
+		});
+		const putMessage = (db: IDBDatabase, item: Record<string, unknown>): Promise<void> => new Promise((resolve, reject) => {
+			const tx = db.transaction('messages', 'readwrite');
+			const request = tx.objectStore('messages').put(item);
+			request.onerror = () => reject(request.error);
+			request.onsuccess = () => resolve();
+		});
+		const db = await openDB();
+		await putMessage(db, {
+			message_id: 'e2e-calendar-cancel-receipt',
+			chat_id: chatId,
+			role: 'system',
+			created_at: now + 1,
+			status: 'synced',
+			content: JSON.stringify({
+				type: 'connected_account_action_receipt',
+				action_id: 'action-cancel',
+				user_message_id: userMessageId,
+				receipt: {
+					app_id: 'calendar',
+					skill_id: 'delete-event',
+					action: 'delete',
+					decision: 'pending_cancel_window',
+					cancel_expires_at: cancelExpiresAt,
+					undo_available: false
+				}
+			})
+		});
+		await putMessage(db, {
+			message_id: 'e2e-calendar-undo-receipt',
+			chat_id: chatId,
+			role: 'system',
+			created_at: now + 2,
+			status: 'synced',
+			content: JSON.stringify({
+				type: 'connected_account_action_receipt',
+				action_id: 'action-undo',
+				user_message_id: userMessageId,
+				receipt: {
+					app_id: 'calendar',
+					skill_id: 'create-event',
+					action: 'write',
+					decision: 'explicit_approval',
+					undo_available: true,
+					undo_type: 'delete_created_event'
+				}
+			})
+		});
+		db.close();
 	}, { chatId: CHAT_ID, userMessageId: USER_MESSAGE_ID });
 }
 
