@@ -38,6 +38,7 @@ const WEBSITE_SOURCE_QUOTE =
 const SHARED_CHAT_WITH_VIDEO_QUOTE = 'https://app.dev.openmates.org/s/Is8cygIa#fBhhCJ';
 const VIDEO_SOURCE_QUOTE =
 	'LLMs can get you 80% there, but the other 20%, man, if you’re not an expert, you are gonna have a hard time.';
+const VIDEO_SOURCE_LABEL = '"I had Fable build several projects for me. I\'m disturbed by what I saw." by Mo Bitar';
 
 test.describe('Source quote verification', () => {
 	test.setTimeout(240_000);
@@ -118,7 +119,7 @@ test.describe('Source quote verification', () => {
 
 		const sourceQuote = page.getByTestId('source-quote-block').filter({ hasText: VIDEO_SOURCE_QUOTE }).first();
 		await expect(sourceQuote).toBeVisible({ timeout: 30_000 });
-		await expect(sourceQuote).toContainText('YouTube Video Transcript');
+		await expect(sourceQuote).toContainText(VIDEO_SOURCE_LABEL);
 		await expect(sourceQuote).not.toContainText('vS-gfLhxYDg');
 
 		await sourceQuote.click();
@@ -133,11 +134,11 @@ test.describe('Source quote verification', () => {
 			elements
 				.map((element) => element.textContent || '')
 				.join(' ')
-				.replace(/\b\d{1,2}:\d{2}:\d{2}(?:\.\d+)?\b/g, ' ')
 				.replace(/\s+/g, ' ')
 				.trim()
 		);
 		expect(highlightedText).toContain('LLMs can get you 80% there');
+		expect(highlightedText).not.toMatch(/\b\d{1,2}:\d{2}:\d{2}(?:\.\d+)?\b/);
 	});
 
 });

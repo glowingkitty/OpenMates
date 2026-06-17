@@ -28,6 +28,8 @@
   }
 
   let { quoteText, embedRef, appId = null }: Props = $props();
+  let quoteBlockEl = $state<HTMLElement | null>(null);
+  let renderedSourceLabel = $state<string | null>(null);
 
   // Reactively resolve the effective appId (same pattern as EmbedInlineLink).
   // Reading $embedRefIndexVersion registers it as a reactive dependency so
@@ -55,10 +57,51 @@
   // Display a readable source label. Source quotes can reference provider-native
   // IDs (for example YouTube video IDs), which should not leak into the UI.
   let sourceLabel = $derived(
-    YOUTUBE_VIDEO_ID_RE.test(embedRef) && effectiveAppId === 'videos'
+    renderedSourceLabel
+      ? renderedSourceLabel
+      : YOUTUBE_VIDEO_ID_RE.test(embedRef) && effectiveAppId === 'videos'
       ? 'YouTube Video Transcript'
       : embedRef.replace(/-[a-zA-Z0-9]{3}$/, '') || embedRef,
   );
+
+  $effect(() => {
+    void $embedRefIndexVersion;
+    void effectiveAppId;
+    if (!quoteBlockEl || !YOUTUBE_VIDEO_ID_RE.test(embedRef)) {
+      renderedSourceLabel = null;
+      return;
+    }
+
+    const candidate = findRenderedVideoCandidate(quoteBlockEl);
+    if (!candidate) {
+      renderedSourceLabel = null;
+      return;
+    }
+
+    const updateLabel = () => {
+      renderedSourceLabel = getRenderedVideoSourceLabel(candidate);
+    };
+
+    const raf = requestAnimationFrame(updateLabel);
+    const observer = new MutationObserver(updateLabel);
+    observer.observe(candidate, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
+  });
+
+  function getRenderedVideoSourceLabel(candidate: HTMLElement): string | null {
+    const title = candidate.querySelector<HTMLElement>('[data-testid="transcript-title"]')?.textContent?.trim();
+    const creator = candidate.querySelector<HTMLImageElement>('img.channel-thumbnail')?.alt?.trim();
+    if (!title || title === 'YouTube Video') return null;
+    return creator ? `"${title}" by ${creator}` : title;
+  }
 
   function extractEmbedIdFromRenderedCandidate(candidate: HTMLElement): string | null {
     const embedId = candidate.getAttribute('data-embed-id');
@@ -68,21 +111,26 @@
     return contentRef?.startsWith('embed:') ? contentRef.slice('embed:'.length) : null;
   }
 
-  function findRenderedVideoEmbedId(target: EventTarget | null): string | null {
+  function findRenderedVideoCandidate(target: EventTarget | null): HTMLElement | null {
     if (!YOUTUBE_VIDEO_ID_RE.test(embedRef)) return null;
 
     const currentElement = target instanceof HTMLElement ? target : null;
     const messageRoot = currentElement?.closest('[data-message-id]') ?? null;
     const selector = `[data-testid="embed-full-width-wrapper"][data-video-id="${embedRef}"][data-content-ref^="embed:"]`;
     const scopedCandidate = messageRoot?.querySelector<HTMLElement>(selector);
-    if (scopedCandidate) return extractEmbedIdFromRenderedCandidate(scopedCandidate);
+    if (scopedCandidate) return scopedCandidate;
 
     const documentCandidates = Array.from(document.querySelectorAll<HTMLElement>(selector));
     if (documentCandidates.length === 1) {
-      return extractEmbedIdFromRenderedCandidate(documentCandidates[0]);
+      return documentCandidates[0];
     }
 
     return null;
+  }
+
+  function findRenderedVideoEmbedId(target: EventTarget | null): string | null {
+    const candidate = findRenderedVideoCandidate(target);
+    return candidate ? extractEmbedIdFromRenderedCandidate(candidate) : null;
   }
 
   /**
@@ -135,6 +183,7 @@
 <!-- Source quote block — distinct from plain blockquotes.
      Uses <button> for proper semantic click handling + keyboard accessibility. -->
 <button
+  bind:this={quoteBlockEl}
   class="source-quote-block"
   data-testid="source-quote-block"
   style={accentStyle}

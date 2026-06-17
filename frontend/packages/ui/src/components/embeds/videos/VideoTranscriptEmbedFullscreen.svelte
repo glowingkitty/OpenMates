@@ -252,7 +252,7 @@
       if (match.index > cursor) {
         parts.push({ text: segment.slice(cursor, match.index), kind: 'text', highlighted });
       }
-      parts.push({ text: match[1], kind: 'timestamp', highlighted });
+      parts.push({ text: match[1], kind: 'timestamp', highlighted: false });
       cursor = match.index + match[0].length;
     }
 
