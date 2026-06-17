@@ -52,10 +52,12 @@
       : 'background: var(--color-grey-30);',
   );
 
-  // Display the embed_ref as the source label — strip the random suffix for readability.
-  // e.g. "wikipedia.org-k8D" → "wikipedia.org"
+  // Display a readable source label. Source quotes can reference provider-native
+  // IDs (for example YouTube video IDs), which should not leak into the UI.
   let sourceLabel = $derived(
-    embedRef.replace(/-[a-zA-Z0-9]{3}$/, '') || embedRef,
+    YOUTUBE_VIDEO_ID_RE.test(embedRef) && effectiveAppId === 'videos'
+      ? 'YouTube Video Transcript'
+      : embedRef.replace(/-[a-zA-Z0-9]{3}$/, '') || embedRef,
   );
 
   function extractEmbedIdFromRenderedCandidate(candidate: HTMLElement): string | null {
