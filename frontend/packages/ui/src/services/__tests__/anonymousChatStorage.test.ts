@@ -107,6 +107,20 @@ function mockAnonymousFetch(response: Record<string, unknown>, ok = true, status
   return fetchMock;
 }
 
+function createStorageMock(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: vi.fn(() => values.clear()),
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    key: vi.fn((index: number) => Array.from(values.keys())[index] ?? null),
+    removeItem: vi.fn((key: string) => values.delete(key)),
+    setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+  };
+}
+
 function requestBody(fetchMock: ReturnType<typeof mockAnonymousFetch>, index: number) {
   const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
   return JSON.parse(calls[index][1].body as string) as Record<string, unknown>;
@@ -116,13 +130,21 @@ describe("anonymousChatStorage", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
+    const localStorageMock = createStorageMock();
+    const sessionStorageMock = createStorageMock();
+    Object.defineProperty(globalThis, "localStorage", { value: localStorageMock, configurable: true });
+    Object.defineProperty(globalThis, "sessionStorage", { value: sessionStorageMock, configurable: true });
+    Object.assign(window, {
+      localStorage: localStorageMock,
+      sessionStorage: sessionStorageMock,
+      dispatchEvent: vi.fn(),
+    });
     localStorage.clear();
     sessionStorage.clear();
     mockDbState.chats.clear();
     mockDbState.messages.clear();
     mockKeyState.keys.clear();
     mockKeyState.hasAnonymousSession = false;
-    Object.assign(window, { dispatchEvent: vi.fn() });
   });
 
   it("stores anonymous chats in normal chatDB rows, not the legacy localStorage payload", async () => {
