@@ -46,6 +46,18 @@
     onShowChat?: () => void;
   }
 
+  type ExtendedVideoTranscriptResult = VideoTranscriptResult & {
+    formatted_transcript?: string;
+    text?: string;
+    content?: string;
+  };
+
+  type TranscriptPart = {
+    text: string;
+    kind: 'text' | 'timestamp';
+    highlighted: boolean;
+  };
+
   let {
     data,
     onClose,
@@ -135,6 +147,8 @@
   
   // Get video ID from first result
   let videoId = $derived(firstResult?.video_id || '');
+  let highlightQuoteText = $derived(data.highlightQuoteText ?? null);
+  let transcriptContentEl = $state<HTMLElement | null>(null);
   
   // Get metadata from first result for VideoEmbedPreview
   // Maps the transcript metadata format to VideoEmbedPreview props
@@ -184,7 +198,7 @@
     }
     
     // Try to get transcript from first result
-    const result = results[0] as any;
+    const result = results[0] as ExtendedVideoTranscriptResult;
     
     // Check various possible field names for transcript
     if (result?.transcript) {
@@ -214,33 +228,117 @@
     return '';
   });
   
-  /**
-   * Parse transcript text into HTML with styled timestamps.
-   * Timestamps like [00:00:00.240] are wrapped in span.timestamp (without brackets).
-   * Regular text keeps its formatting.
-   * Newlines are preserved with CSS white-space: pre-wrap.
-   */
-  function parseTranscriptToHtml(text: string): string {
-    if (!text) return '';
-    
-    // Escape HTML special characters to prevent XSS
-    let escaped = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-    
-    // Match timestamps like [00:00:00.240] or [00:00:05.123] or [0:00:00.000]
-    // Replace with styled spans - timestamp without brackets
-    return escaped.replace(
-      /\[(\d{1,2}:\d{2}:\d{2}(?:\.\d+)?)\]/g,
-      '<span class="timestamp">$1</span>'
-    );
+  function parseTranscriptToParts(text: string, quote: string | null): TranscriptPart[] {
+    if (!text) return [];
+
+    const trimmedQuote = quote?.trim();
+    const match = trimmedQuote ? findSourceQuoteMatch(text, trimmedQuote) : null;
+    if (!match) return splitTranscriptSegment(text, false);
+
+    return [
+      ...splitTranscriptSegment(text.slice(0, match.start), false),
+      ...splitTranscriptSegment(text.slice(match.start, match.end), true),
+      ...splitTranscriptSegment(text.slice(match.end), false),
+    ];
   }
-  
-  // Parsed transcript HTML for styled rendering
-  let parsedTranscriptHtml = $derived(parseTranscriptToHtml(transcriptText));
+
+  function splitTranscriptSegment(segment: string, highlighted: boolean): TranscriptPart[] {
+    const parts: TranscriptPart[] = [];
+    const timestampPattern = /\[(\d{1,2}:\d{2}:\d{2}(?:\.\d+)?)\]/g;
+    let cursor = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = timestampPattern.exec(segment)) !== null) {
+      if (match.index > cursor) {
+        parts.push({ text: segment.slice(cursor, match.index), kind: 'text', highlighted });
+      }
+      parts.push({ text: match[1], kind: 'timestamp', highlighted });
+      cursor = match.index + match[0].length;
+    }
+
+    if (cursor < segment.length) {
+      parts.push({ text: segment.slice(cursor), kind: 'text', highlighted });
+    }
+
+    return parts.filter((part) => part.text.length > 0);
+  }
+
+  function getTranscriptText(result: VideoTranscriptResult): string {
+    const extended = result as ExtendedVideoTranscriptResult;
+    return extended.transcript || extended.formatted_transcript || extended.text || extended.content || '';
+  }
+
+  let transcriptParts = $derived(parseTranscriptToParts(transcriptText, highlightQuoteText));
+
+  $effect(() => {
+    void transcriptParts;
+    void transcriptText;
+    if (!highlightQuoteText?.trim() || !transcriptContentEl) return;
+
+    const raf = requestAnimationFrame(() => {
+      transcriptContentEl
+        ?.querySelector('mark.embed-source-text-highlight')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    });
+    return () => cancelAnimationFrame(raf);
+  });
+
+  function findSourceQuoteMatch(fullText: string, quote: string): { start: number; end: number } | null {
+    const exactIndex = fullText.toLowerCase().indexOf(quote.toLowerCase());
+    if (exactIndex !== -1) return { start: exactIndex, end: exactIndex + quote.length };
+
+    const normalizedFull = normalizeForQuoteMatch(fullText);
+    const normalizedQuote = normalizeForQuoteMatch(quote);
+    const fullQuoteMatch = resolveNormalizedQuoteMatch(normalizedFull, normalizedQuote.text);
+    if (fullQuoteMatch) return fullQuoteMatch;
+
+    const quoteWords = normalizedQuote.text.split(' ').filter(Boolean);
+    for (let wordCount = quoteWords.length - 1; wordCount >= 6; wordCount -= 1) {
+      const prefixMatch = resolveNormalizedQuoteMatch(normalizedFull, quoteWords.slice(0, wordCount).join(' '));
+      if (prefixMatch) return prefixMatch;
+
+      const suffixMatch = resolveNormalizedQuoteMatch(normalizedFull, quoteWords.slice(-wordCount).join(' '));
+      if (suffixMatch) return suffixMatch;
+    }
+
+    return null;
+  }
+
+  function resolveNormalizedQuoteMatch(
+    normalizedFull: { text: string; indexMap: number[] },
+    normalizedQuoteText: string,
+  ): { start: number; end: number } | null {
+    if (!normalizedQuoteText) return null;
+    const normalizedIndex = normalizedFull.text.indexOf(normalizedQuoteText);
+    if (normalizedIndex === -1) return null;
+
+    const start = normalizedFull.indexMap[normalizedIndex];
+    const endMapIndex = normalizedIndex + normalizedQuoteText.length - 1;
+    const end = (normalizedFull.indexMap[endMapIndex] ?? start) + 1;
+    return { start, end };
+  }
+
+  function normalizeForQuoteMatch(value: string): { text: string; indexMap: number[] } {
+    let text = '';
+    const indexMap: number[] = [];
+    let previousWasSpace = false;
+    for (let i = 0; i < value.length; i += 1) {
+      const char = value[i];
+      if (/\s/.test(char)) {
+        if (!previousWasSpace) {
+          text += ' ';
+          indexMap.push(i);
+          previousWasSpace = true;
+        }
+      } else {
+        text += char.toLowerCase();
+        indexMap.push(i);
+        previousWasSpace = false;
+      }
+    }
+    return { text: text.trim(), indexMap };
+  }
+
   
   // Handle opening video embed in fullscreen mode
   // Called by VideoEmbedPreview's onFullscreen callback with the fetched metadata
@@ -408,7 +506,7 @@
       };
 
       // Store embed context for SettingsShare
-      (window as any).__embedShareContext = embedContext;
+      (window as Window & { __embedShareContext?: typeof embedContext }).__embedShareContext = embedContext;
 
       // Navigate to share settings
       navigateToSettings('shared/share', $text('settings.share.share_transcript'), 'share', 'settings.share.share_transcript');
@@ -449,6 +547,7 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  skipInitialScrollReset={!!highlightQuoteText}
 >
   {#snippet content()}
     {#if results.length === 0}
@@ -488,21 +587,51 @@
         {/if}
 
         <!-- Transcript content box with styled timestamps -->
-        <div class="transcript-box" data-testid="transcript-box">
-          {#if parsedTranscriptHtml}
-            <!-- Render transcript with styled timestamps using @html -->
-            <div class="transcript-content">{@html parsedTranscriptHtml}</div>
+        <div class="transcript-box" data-testid="transcript-box" bind:this={transcriptContentEl}>
+          {#if transcriptParts.length > 0}
+            <div class="transcript-content">
+              {#each transcriptParts as part}
+                {#if part.highlighted}
+                  <mark class="embed-source-text-highlight" data-testid="embed-source-text-highlight">
+                    {#if part.kind === 'timestamp'}
+                      <span class="timestamp">{part.text}</span>
+                    {:else}
+                      {part.text}
+                    {/if}
+                  </mark>
+                {:else if part.kind === 'timestamp'}
+                  <span class="timestamp">{part.text}</span>
+                {:else}
+                  {part.text}
+                {/if}
+              {/each}
+            </div>
           {:else if transcriptText}
             <!-- Fallback: render plain text if parsing failed -->
             <div class="transcript-content">{transcriptText}</div>
           {:else}
             <!-- Try to render each result's transcript -->
             {#each results as result}
-              {@const resultAny = result as any}
-              {#if result.transcript}
-                <div class="transcript-content">{@html parseTranscriptToHtml(result.transcript)}</div>
-              {:else if resultAny.formatted_transcript}
-                <div class="transcript-content">{@html parseTranscriptToHtml(resultAny.formatted_transcript)}</div>
+              {@const resultTranscript = getTranscriptText(result)}
+              {@const resultParts = parseTranscriptToParts(resultTranscript, highlightQuoteText)}
+              {#if resultParts.length > 0}
+                <div class="transcript-content">
+                  {#each resultParts as part}
+                    {#if part.highlighted}
+                      <mark class="embed-source-text-highlight" data-testid="embed-source-text-highlight">
+                        {#if part.kind === 'timestamp'}
+                          <span class="timestamp">{part.text}</span>
+                        {:else}
+                          {part.text}
+                        {/if}
+                      </mark>
+                    {:else if part.kind === 'timestamp'}
+                      <span class="timestamp">{part.text}</span>
+                    {:else}
+                      {part.text}
+                    {/if}
+                  {/each}
+                </div>
               {:else if result.error}
                 <div class="error-section">
                   <p class="error-message">Failed to fetch transcript: {result.error}</p>
@@ -605,6 +734,19 @@
     font-family: monospace;
     margin-right: var(--spacing-5);
   }
+
+  .transcript-content :global(.embed-source-text-highlight) {
+    background: none;
+    background-color: rgba(255, 213, 0, 0.4);
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: unset;
+    color: inherit;
+    font-weight: inherit;
+    border-radius: 2px;
+    padding: 1px 0;
+    box-shadow: 0 0 0 2px rgba(255, 213, 0, 0.18);
+  }
   
   /* Error section */
   .error-section {
@@ -631,4 +773,3 @@
     mask-image: url('@openmates/ui/static/icons/transcript.svg');
   }
 </style>
-
