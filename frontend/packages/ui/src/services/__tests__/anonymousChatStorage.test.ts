@@ -145,6 +145,11 @@ describe("anonymousChatStorage", () => {
     mockDbState.messages.clear();
     mockKeyState.keys.clear();
     mockKeyState.hasAnonymousSession = false;
+    let uuidCounter = 0;
+    vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
+      uuidCounter += 1;
+      return `00000000-0000-4000-8000-${String(uuidCounter).padStart(12, "0")}` as ReturnType<Crypto["randomUUID"]>;
+    });
   });
 
   it("stores anonymous chats in normal chatDB rows, not the legacy localStorage payload", async () => {
