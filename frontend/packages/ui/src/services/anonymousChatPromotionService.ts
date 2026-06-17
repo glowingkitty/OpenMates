@@ -1,18 +1,16 @@
 // frontend/packages/ui/src/services/anonymousChatPromotionService.ts
-// Promotes completed anonymous free-usage chats into normal authenticated chat
-// storage after signup. The service intentionally uses the normal chat key,
-// IndexedDB, and encrypted metadata WebSocket paths so promoted chats become
-// regular zero-knowledge chats without adding a parallel server contract.
+// Promotes anonymous free-usage chats after signup without re-keying them.
+// Anonymous chats already live in normal IndexedDB chat/message stores with
+// normal per-chat keys. Promotion wraps those existing chat keys with the new
+// account master key, uploads encrypted history via the normal WebSocket path,
+// then clears local anonymous-only markers.
 
 import { anonymousChatStorage } from "./anonymousChatStorage";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { webSocketService } from "./websocketService";
-import { encryptWithChatKey } from "./cryptoService";
+import { encryptChatKeyWithMasterKey } from "./cryptoService";
 import type { Chat, Message } from "../types/chat";
-
-const DEFAULT_ANONYMOUS_CATEGORY = "ai";
-const DEFAULT_ANONYMOUS_ICON = "sparkles";
 
 export interface AnonymousPromotionResult {
   promotedCount: number;
@@ -32,28 +30,20 @@ type EncryptedHistoryMessage = Pick<
   | "encrypted_pii_mappings"
 >;
 
-function clonePlainMessageForPromotion(message: Message, chatId: string): Message | null {
-  if (message.status === "failed") return null;
-  if (message.role === "system") return null;
-  if (typeof message.content !== "string" || !message.content.trim()) return null;
-  return {
-    message_id: `${chatId.slice(-10)}-${crypto.randomUUID()}`,
-    chat_id: chatId,
-    role: message.role,
-    content: message.content,
-    status: "synced",
-    created_at: message.created_at,
-    sender_name: message.sender_name ?? message.role,
-    category: message.category ?? undefined,
-    model_name: message.model_name ?? undefined,
-    pii_mappings: message.pii_mappings,
-  };
+function isPromotableMessage(message: Message): boolean {
+  return (
+    message.status !== "failed" &&
+    message.role !== "system" &&
+    typeof message.content === "string" &&
+    message.content.trim().length > 0
+  );
 }
 
 async function buildEncryptedHistory(messages: Message[], chatId: string): Promise<EncryptedHistoryMessage[]> {
   const encryptedMessages: EncryptedHistoryMessage[] = [];
-  for (const message of messages) {
-    const encrypted = await chatDB.encryptMessageFields(message, chatId);
+  for (const message of messages.filter(isPromotableMessage)) {
+    const syncedMessage: Message = { ...message, status: "synced" };
+    const encrypted = await chatDB.encryptMessageFields(syncedMessage, chatId);
     if (!encrypted.encrypted_content) continue;
     encryptedMessages.push({
       message_id: encrypted.message_id,
@@ -87,6 +77,38 @@ async function dispatchPromotedChat(chat: Chat, encryptedHistory: EncryptedHisto
   });
 }
 
+async function markChatPromoted(chat: Chat, encryptedChatKey: string, messages: Message[]): Promise<Chat> {
+  const promotableMessages = messages.filter(isPromotableMessage);
+  const firstCreatedAt = promotableMessages[0]?.created_at ?? chat.created_at;
+  const lastEditedAt = promotableMessages[promotableMessages.length - 1]?.created_at ?? chat.updated_at;
+  const promotedChat: Chat = {
+    ...chat,
+    encrypted_chat_key: encryptedChatKey,
+    anonymous_encrypted_chat_key: null,
+    is_anonymous: false,
+    messages_v: promotableMessages.length,
+    created_at: chat.created_at ?? firstCreatedAt,
+    updated_at: lastEditedAt,
+    last_edited_overall_timestamp: lastEditedAt,
+    waiting_for_metadata: false,
+    processing_metadata: false,
+  };
+  delete promotedChat.title;
+  delete promotedChat.category;
+  delete promotedChat.icon;
+  await chatDB.updateChat(promotedChat);
+
+  for (const message of messages) {
+    if (message.role === "system") {
+      await chatDB.deleteMessage(message.message_id);
+    } else if (isPromotableMessage(message) && message.status !== "synced") {
+      await chatDB.saveMessage({ ...message, status: "synced" });
+    }
+  }
+
+  return promotedChat;
+}
+
 export async function promoteAnonymousChatsAfterSignup(): Promise<AnonymousPromotionResult> {
   const anonymousChats = await anonymousChatStorage.getAllChats();
   if (anonymousChats.length === 0) {
@@ -95,71 +117,46 @@ export async function promoteAnonymousChatsAfterSignup(): Promise<AnonymousPromo
 
   await chatDB.init();
   const promotedChatIds: string[] = [];
-  const locallySavedChatIds: string[] = [];
-  try {
-    for (const anonymousChat of anonymousChats) {
-      const anonymousMessages = await anonymousChatStorage.getMessagesForChat(anonymousChat.chat_id);
-      const chatId = crypto.randomUUID();
-      const promotableMessages = anonymousMessages
-        .map((message) => clonePlainMessageForPromotion(message, chatId))
-        .filter((message): message is Message => message !== null);
 
-      if (promotableMessages.length === 0) continue;
+  for (const anonymousChat of anonymousChats) {
+    const anonymousMessages = await anonymousChatStorage.getMessagesForChat(anonymousChat.chat_id);
+    if (!anonymousMessages.some(isPromotableMessage)) continue;
 
-      const { chatKey, encryptedChatKey } = await chatKeyManager.createAndPersistKey(chatId);
-      const firstCreatedAt = promotableMessages[0]?.created_at ?? Math.floor(Date.now() / 1000);
-      const lastEditedAt = promotableMessages[promotableMessages.length - 1]?.created_at ?? firstCreatedAt;
-      const title = typeof anonymousChat.title === "string" && anonymousChat.title.trim()
-        ? anonymousChat.title.trim()
-        : "Anonymous chat";
-      const category = anonymousChat.category || DEFAULT_ANONYMOUS_CATEGORY;
-      const icon = anonymousChat.icon || DEFAULT_ANONYMOUS_ICON;
-      const promotedChat: Chat = {
-        chat_id: chatId,
-        encrypted_title: await encryptWithChatKey(title, chatKey),
-        encrypted_category: await encryptWithChatKey(category, chatKey),
-        encrypted_icon: await encryptWithChatKey(icon, chatKey),
-        encrypted_chat_key: encryptedChatKey,
-        messages_v: promotableMessages.length,
-        title_v: 1,
-        draft_v: 0,
-        encrypted_draft_md: null,
-        encrypted_draft_preview: null,
-        last_edited_overall_timestamp: lastEditedAt,
-        unread_count: 0,
-        created_at: anonymousChat.created_at ?? firstCreatedAt,
-        updated_at: lastEditedAt,
-        processing_metadata: false,
-        waiting_for_metadata: false,
-        source_demo_id: anonymousChat.source_demo_id ?? null,
-      };
-      const encryptedHistory = await buildEncryptedHistory(promotableMessages, chatId);
-
-      await chatDB.addChat(promotedChat);
-      for (const message of promotableMessages) {
-        await chatDB.saveMessage(message);
-      }
-      locallySavedChatIds.push(chatId);
-      await dispatchPromotedChat(promotedChat, encryptedHistory);
-      promotedChatIds.push(chatId);
+    const chatKey = await chatKeyManager.getKey(anonymousChat.chat_id);
+    if (!chatKey) {
+      throw new Error(`[AnonymousChatPromotion] Missing chat key for ${anonymousChat.chat_id}`);
     }
 
-    if (promotedChatIds.length > 0) {
-      await anonymousChatStorage.clearAll();
-      window.dispatchEvent(new CustomEvent("localChatListChanged", {
-        detail: { chat_id: promotedChatIds[0], autoOpen: true },
-      }));
+    const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
+    if (!encryptedChatKey) {
+      throw new Error(`[AnonymousChatPromotion] Failed to wrap chat key for ${anonymousChat.chat_id}`);
     }
 
-    return { promotedCount: promotedChatIds.length, promotedChatIds };
-  } catch (error) {
-    for (const chatId of locallySavedChatIds) {
-      try {
-        await chatDB.deleteChat(chatId);
-      } catch (rollbackError) {
-        console.error("[AnonymousChatPromotion] Failed to roll back promoted chat", { chatId, rollbackError });
-      }
-    }
-    throw error;
+    const encryptedHistory = await buildEncryptedHistory(anonymousMessages, anonymousChat.chat_id);
+    const uploadChat: Chat = {
+      ...anonymousChat,
+      encrypted_chat_key: encryptedChatKey,
+      is_anonymous: false,
+      anonymous_encrypted_chat_key: null,
+      messages_v: encryptedHistory.length,
+      waiting_for_metadata: false,
+      processing_metadata: false,
+    };
+    delete uploadChat.title;
+    delete uploadChat.category;
+    delete uploadChat.icon;
+
+    await dispatchPromotedChat(uploadChat, encryptedHistory);
+    await markChatPromoted(anonymousChat, encryptedChatKey, anonymousMessages);
+    promotedChatIds.push(anonymousChat.chat_id);
   }
+
+  if (promotedChatIds.length > 0) {
+    await anonymousChatStorage.clearAll();
+    window.dispatchEvent(new CustomEvent("localChatListChanged", {
+      detail: { chat_id: promotedChatIds[0], autoOpen: true },
+    }));
+  }
+
+  return { promotedCount: promotedChatIds.length, promotedChatIds };
 }

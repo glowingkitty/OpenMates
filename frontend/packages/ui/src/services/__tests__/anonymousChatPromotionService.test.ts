@@ -1,7 +1,7 @@
 // frontend/packages/ui/src/services/__tests__/anonymousChatPromotionService.test.ts
-// Unit tests for anonymous chat signup promotion. The real service touches
-// IndexedDB, chat-key persistence, WebSocket dispatch, and encrypted metadata,
-// so these tests mock those boundaries and verify the promotion contract.
+// Unit tests for anonymous chat signup promotion. Promotion must re-wrap the
+// existing anonymous per-chat key with the new account master key and upload the
+// existing encrypted chat/messages through the normal WebSocket sync path.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,13 +14,13 @@ const mockAnonymousStorage = vi.hoisted(() => ({
 const mockChatDB = vi.hoisted(() => ({
   init: vi.fn(),
   encryptMessageFields: vi.fn(),
-  addChat: vi.fn(),
+  updateChat: vi.fn(),
   saveMessage: vi.fn(),
-  deleteChat: vi.fn(),
+  deleteMessage: vi.fn(),
 }));
 
 const mockChatKeyManager = vi.hoisted(() => ({
-  createAndPersistKey: vi.fn(),
+  getKey: vi.fn(),
 }));
 
 const mockWebSocketService = vi.hoisted(() => ({
@@ -32,17 +32,25 @@ vi.mock("../db", () => ({ chatDB: mockChatDB }));
 vi.mock("../encryption/ChatKeyManager", () => ({ chatKeyManager: mockChatKeyManager }));
 vi.mock("../websocketService", () => ({ webSocketService: mockWebSocketService }));
 vi.mock("../cryptoService", () => ({
-  encryptWithChatKey: vi.fn(async (value: string) => `encrypted:${value}`),
+  encryptChatKeyWithMasterKey: vi.fn(async () => "master-wrapped-existing-key"),
 }));
 
 function seedAnonymousChat() {
   mockAnonymousStorage.getAllChats.mockResolvedValue([
     {
       chat_id: "anonymous-source",
-      title: "Anonymous title",
-      category: "ai",
-      icon: "bot",
+      encrypted_title: "encrypted-title-with-existing-key",
+      encrypted_category: "encrypted-category-with-existing-key",
+      encrypted_icon: "encrypted-icon-with-existing-key",
+      anonymous_encrypted_chat_key: "anonymous-wrapped-existing-key",
+      is_anonymous: true,
+      messages_v: 3,
+      title_v: 1,
+      draft_v: 0,
+      unread_count: 0,
       created_at: 10,
+      updated_at: 12,
+      last_edited_overall_timestamp: 12,
       source_demo_id: null,
     },
   ]);
@@ -82,14 +90,7 @@ describe("promoteAnonymousChatsAfterSignup", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    vi.spyOn(crypto, "randomUUID")
-      .mockReturnValueOnce("promoted-chat-id")
-      .mockReturnValueOnce("promoted-user-message")
-      .mockReturnValueOnce("promoted-assistant-message");
-    mockChatKeyManager.createAndPersistKey.mockResolvedValue({
-      chatKey: new Uint8Array([1, 2, 3]),
-      encryptedChatKey: "wrapped-chat-key",
-    });
+    mockChatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
     mockChatDB.encryptMessageFields.mockImplementation(async (message) => ({
       ...message,
       content: undefined,
@@ -99,42 +100,47 @@ describe("promoteAnonymousChatsAfterSignup", () => {
       encrypted_sender_name: `encrypted-sender:${message.sender_name}`,
       encrypted_model_name: message.model_name ? `encrypted-model:${message.model_name}` : undefined,
     }));
+    Object.assign(window, { dispatchEvent: vi.fn() });
   });
 
-  it("saves promoted chats, uploads encrypted history, and clears anonymous storage", async () => {
+  it("uploads the existing anonymous chat and clears anonymous markers after success", async () => {
     seedAnonymousChat();
     const { promoteAnonymousChatsAfterSignup } = await import("../anonymousChatPromotionService");
 
     const result = await promoteAnonymousChatsAfterSignup();
 
-    expect(result).toEqual({ promotedCount: 1, promotedChatIds: ["promoted-chat-id"] });
-    expect(mockChatDB.addChat).toHaveBeenCalledWith(expect.objectContaining({
-      chat_id: "promoted-chat-id",
-      encrypted_title: "encrypted:Anonymous title",
-      encrypted_chat_key: "wrapped-chat-key",
-      messages_v: 2,
-      title_v: 1,
-    }));
-    expect(mockChatDB.saveMessage).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ promotedCount: 1, promotedChatIds: ["anonymous-source"] });
+    expect(mockChatKeyManager.getKey).toHaveBeenCalledWith("anonymous-source");
     expect(mockWebSocketService.sendMessage).toHaveBeenCalledWith("encrypted_chat_metadata", expect.objectContaining({
-      chat_id: "promoted-chat-id",
-      encrypted_chat_key: "wrapped-chat-key",
+      chat_id: "anonymous-source",
+      encrypted_title: "encrypted-title-with-existing-key",
+      encrypted_chat_key: "master-wrapped-existing-key",
       message_history: [
-        expect.objectContaining({ role: "user", encrypted_content: "encrypted-content:Hello" }),
-        expect.objectContaining({ role: "assistant", encrypted_content: "encrypted-content:Hi there" }),
+        expect.objectContaining({ message_id: "anonymous-user", role: "user", encrypted_content: "encrypted-content:Hello" }),
+        expect.objectContaining({ message_id: "anonymous-assistant", role: "assistant", encrypted_content: "encrypted-content:Hi there" }),
       ],
     }));
+    expect(JSON.stringify(mockWebSocketService.sendMessage.mock.calls[0])).not.toContain("anonymous-local-notice");
+    expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
+      chat_id: "anonymous-source",
+      encrypted_chat_key: "master-wrapped-existing-key",
+      anonymous_encrypted_chat_key: null,
+      is_anonymous: false,
+      messages_v: 2,
+    }));
+    expect(mockChatDB.deleteMessage).toHaveBeenCalledWith("anonymous-local-notice");
     expect(mockAnonymousStorage.clearAll).toHaveBeenCalledTimes(1);
   });
 
-  it("rolls back local promoted chats and preserves anonymous storage when upload fails", async () => {
+  it("preserves anonymous storage when upload fails", async () => {
     seedAnonymousChat();
     mockWebSocketService.sendMessage.mockRejectedValueOnce(new Error("offline"));
     const { promoteAnonymousChatsAfterSignup } = await import("../anonymousChatPromotionService");
 
     await expect(promoteAnonymousChatsAfterSignup()).rejects.toThrow("offline");
 
-    expect(mockChatDB.deleteChat).toHaveBeenCalledWith("promoted-chat-id");
+    expect(mockChatDB.updateChat).not.toHaveBeenCalled();
+    expect(mockChatDB.deleteMessage).not.toHaveBeenCalled();
     expect(mockAnonymousStorage.clearAll).not.toHaveBeenCalled();
   });
 });

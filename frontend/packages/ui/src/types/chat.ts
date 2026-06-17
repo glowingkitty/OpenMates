@@ -333,6 +333,7 @@ export interface Chat {
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
   encrypted_quick_tip_slugs?: string | null; // Encrypted array of product quick tip slugs selected during post-processing
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
+  anonymous_encrypted_chat_key?: string | null; // Local-only anonymous wrapper for pre-signup chat keys
   candidate_encrypted_keys?: string[] | null; // Fallback encrypted_chat_key blobs rejected by injectKey (multi-tab race survivors). Tried in order when primary decryption fails.
   key_version?: number | null; // Monotonic version counter — incremented on key rotation. Used to match messages to the key that encrypted them.
   key_fingerprint?: string | null; // FNV-1a fingerprint of the raw chat key (not cryptographic). Stored server-side for decryption failure diagnosis.

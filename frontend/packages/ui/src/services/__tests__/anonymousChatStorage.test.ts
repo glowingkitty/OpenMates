@@ -1,10 +1,10 @@
 // frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
-// Unit tests for anonymous free-usage chat local storage.
-// Anonymous chats are privacy-sensitive because logged-out text must stay local,
-// encrypted in localStorage, and recover only while the tab session key exists.
-// The server receives only the current plaintext turn and local message history.
+// Unit tests for anonymous free-usage chat storage. Anonymous chats must use
+// normal chat/message IndexedDB operations with per-chat keys, not a parallel
+// localStorage chat database. The server receives only plaintext turn history.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Chat, Message } from "../../types/chat";
 
 vi.mock("../../config/api", () => ({
   getApiEndpoint: (path: string) => `https://api.test${path}`,
@@ -19,6 +19,77 @@ vi.mock("../../i18n/translations", () => ({
       return () => undefined;
     },
   },
+}));
+
+const mockDbState = vi.hoisted(() => ({
+  chats: new Map<string, Chat>(),
+  messages: new Map<string, Message[]>(),
+}));
+
+const mockKeyState = vi.hoisted(() => ({
+  hasAnonymousSession: false,
+  keys: new Map<string, Uint8Array>(),
+}));
+
+const mockChatDB = vi.hoisted(() => ({
+  enableSkipOrphanDetection: vi.fn(),
+  disableSkipOrphanDetection: vi.fn(),
+  init: vi.fn(),
+  getAllChats: vi.fn(async () => Array.from(mockDbState.chats.values())),
+  getChat: vi.fn(async (chatId: string) => mockDbState.chats.get(chatId) ?? null),
+  getMessagesForChat: vi.fn(async (chatId: string) => mockDbState.messages.get(chatId) ?? []),
+  addChat: vi.fn(async (chat: Chat) => {
+    mockDbState.chats.set(chat.chat_id, { ...chat });
+  }),
+  saveMessage: vi.fn(async (message: Message) => {
+    const messages = mockDbState.messages.get(message.chat_id) ?? [];
+    const index = messages.findIndex((candidate) => candidate.message_id === message.message_id);
+    if (index >= 0) {
+      messages[index] = { ...message };
+    } else {
+      messages.push({ ...message });
+    }
+    mockDbState.messages.set(message.chat_id, messages);
+  }),
+  deleteChat: vi.fn(async (chatId: string) => {
+    mockDbState.chats.delete(chatId);
+    mockDbState.messages.delete(chatId);
+  }),
+}));
+
+const mockChatKeyManager = vi.hoisted(() => ({
+  createKeyForNewChat: vi.fn((chatId: string) => {
+    const key = new Uint8Array([1, 2, 3, chatId.length]);
+    mockKeyState.keys.set(chatId, key);
+    return key;
+  }),
+  getKeySync: vi.fn((chatId: string) => mockKeyState.keys.get(chatId) ?? null),
+  getKey: vi.fn(async (chatId: string) => mockKeyState.keys.get(chatId) ?? null),
+  injectKey: vi.fn((chatId: string, key: Uint8Array) => {
+    mockKeyState.keys.set(chatId, key);
+    return true;
+  }),
+}));
+
+vi.mock("../db", () => ({ chatDB: mockChatDB }));
+vi.mock("../encryption/ChatKeyManager", () => ({ chatKeyManager: mockChatKeyManager }));
+vi.mock("../cryptoService", () => ({
+  encryptWithChatKey: vi.fn(async (value: string) => `encrypted:${value}`),
+  decryptWithChatKey: vi.fn(async (value: string) => value.replace(/^encrypted:/, "")),
+}));
+vi.mock("../anonymousChatKeyWrapping", () => ({
+  hasAnonymousSessionKey: vi.fn(() => mockKeyState.hasAnonymousSession),
+  ensureAnonymousSessionKey: vi.fn(async () => {
+    mockKeyState.hasAnonymousSession = true;
+  }),
+  clearAnonymousSessionKey: vi.fn(() => {
+    mockKeyState.hasAnonymousSession = false;
+  }),
+  wrapAnonymousChatKey: vi.fn(async (key: Uint8Array) => `anonymous:${Array.from(key).join(",")}`),
+  unwrapAnonymousChatKey: vi.fn(async (wrapped: string | null | undefined) => {
+    if (!mockKeyState.hasAnonymousSession || !wrapped?.startsWith("anonymous:")) return null;
+    return new Uint8Array(wrapped.slice("anonymous:".length).split(",").map(Number));
+  }),
 }));
 
 async function loadStorage() {
@@ -36,15 +107,25 @@ function mockAnonymousFetch(response: Record<string, unknown>, ok = true, status
   return fetchMock;
 }
 
+function requestBody(fetchMock: ReturnType<typeof mockAnonymousFetch>, index: number) {
+  const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+  return JSON.parse(calls[index][1].body as string) as Record<string, unknown>;
+}
+
 describe("anonymousChatStorage", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
     localStorage.clear();
     sessionStorage.clear();
+    mockDbState.chats.clear();
+    mockDbState.messages.clear();
+    mockKeyState.keys.clear();
+    mockKeyState.hasAnonymousSession = false;
+    Object.assign(window, { dispatchEvent: vi.fn() });
   });
 
-  it("encrypts anonymous chats locally and reloads them while the session key exists", async () => {
+  it("stores anonymous chats in normal chatDB rows, not the legacy localStorage payload", async () => {
     const fetchMock = mockAnonymousFetch({
       messageId: "assistant-message",
       assistant: "Hello from anonymous chat",
@@ -57,16 +138,17 @@ describe("anonymousChatStorage", () => {
 
     expect(result.chat.is_anonymous).toBe(true);
     expect(result.assistantMessage.content).toBe("Hello from anonymous chat");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const request = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(localStorage.getItem("openmates_anonymous_chats_v1")).toBeNull();
+    expect(mockChatDB.addChat).toHaveBeenCalled();
+    const storedChat = mockDbState.chats.get(result.chat.chat_id);
+    expect(storedChat?.is_anonymous).toBe(true);
+    expect(storedChat?.anonymous_encrypted_chat_key).toMatch(/^anonymous:/);
+    expect(storedChat?.title).toBeUndefined();
+    expect(storedChat?.encrypted_title).toBe("encrypted:Hello anonymously");
+
+    const request = requestBody(fetchMock, 0);
     expect(request.plaintext_message).toBe("Hello anonymously");
     expect(request.message_history).toEqual([]);
-
-    const encryptedPayload = localStorage.getItem("openmates_anonymous_chats_v1");
-    expect(encryptedPayload).toBeTruthy();
-    expect(encryptedPayload).not.toContain("Hello anonymously");
-    expect(encryptedPayload).not.toContain("Hello from anonymous chat");
-    expect(encryptedPayload).not.toContain(FEATURE_NOTICE);
 
     vi.resetModules();
     const reloadedStorage = await loadStorage();
@@ -76,7 +158,6 @@ describe("anonymousChatStorage", () => {
       "Hello anonymously",
       "Hello from anonymous chat",
     ]);
-    expect(messages[0].role).toBe("system");
   });
 
   it("keeps the feature notice out of anonymous request history", async () => {
@@ -87,7 +168,7 @@ describe("anonymousChatStorage", () => {
     await storage.sendTextMessage({ markdown: "Second question", currentChatId: first.chat.chat_id });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const secondRequest = JSON.parse((fetchMock.mock.calls[1][1] as RequestInit).body as string);
+    const secondRequest = requestBody(fetchMock, 1);
     expect(secondRequest.message_history).toEqual([
       expect.objectContaining({ role: "user", content: "First question" }),
       expect.objectContaining({ role: "assistant", content: "First answer" }),
@@ -95,7 +176,19 @@ describe("anonymousChatStorage", () => {
     expect(JSON.stringify(secondRequest.message_history)).not.toContain(FEATURE_NOTICE);
   });
 
-  it("purges anonymous ciphertext when the tab session key is missing", async () => {
+  it("purges anonymous chat rows when the tab session key is missing", async () => {
+    mockDbState.chats.set("anonymous-stale", {
+      chat_id: "anonymous-stale",
+      encrypted_title: "encrypted:Stale",
+      anonymous_encrypted_chat_key: "anonymous:1,2,3",
+      is_anonymous: true,
+      messages_v: 0,
+      title_v: 1,
+      last_edited_overall_timestamp: 1,
+      unread_count: 0,
+      created_at: 1,
+      updated_at: 1,
+    });
     localStorage.setItem("openmates_anonymous_chats_v1", JSON.stringify({ iv: "abc", data: "def" }));
     const storage = await loadStorage();
 
@@ -103,6 +196,7 @@ describe("anonymousChatStorage", () => {
 
     expect(localStorage.getItem("openmates_anonymous_chats_v1")).toBeNull();
     expect(await storage.getAllChats()).toEqual([]);
+    expect(mockDbState.chats.has("anonymous-stale")).toBe(false);
   });
 
   it("marks the local user message failed when the anonymous request is rejected", async () => {
@@ -126,7 +220,7 @@ describe("anonymousChatStorage", () => {
       json: async () => ({ messageId: "assistant-after-failure", assistant: "Recovered" }),
     });
     await storage.sendTextMessage({ markdown: "Try again", currentChatId: chat.chat_id });
-    const retryRequest = JSON.parse((fetchMock.mock.calls[1][1] as RequestInit).body as string);
+    const retryRequest = requestBody(fetchMock, 1);
     expect(retryRequest.message_history).toEqual([]);
   });
 });

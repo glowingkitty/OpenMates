@@ -24,6 +24,7 @@ import {
   clearCryptoKeyCache,
   computeKeyFingerprint4Bytes,
 } from "../cryptoService";
+import { unwrapAnonymousChatKey } from "../anonymousChatKeyWrapping";
 import { clearDecryptionFailureCache } from "../db/decryptionFailureCache";
 
 // ---------------------------------------------------------------------------
@@ -42,6 +43,7 @@ export type KeySource =
   | "shared_storage" // Loaded from openmates_shared_keys IndexedDB
   | "bulk_init" // Loaded during app init (loadChatKeysFromDatabase)
   | "hidden_chat" // Decrypted via hidden chat combined secret
+  | "anonymous_session" // Unwrapped locally for logged-out anonymous free-usage chats
   | "injected"; // Generic injection (legacy/migration path)
 
 /** Provenance record for a key — tracks how and when it was loaded */
@@ -846,6 +848,13 @@ export class ChatKeyManager {
           }
         }
 
+        const anonymousKey = await unwrapAnonymousChatKey(encryptedKey);
+        if (anonymousKey) {
+          this.setKeyWithProvenance(chatId, anonymousKey, "anonymous_session");
+          this.flushPendingOps(chatId, anonymousKey);
+          return anonymousKey;
+        }
+
         // Both primary methods failed — try candidate keys (multi-tab race survivors)
         const candidateKey = await this.tryDecryptWithCandidates(chatId);
         if (candidateKey) {
@@ -1024,6 +1033,7 @@ export class ChatKeyManager {
           created: 80,
           hidden_chat: 70,
           bulk_init: 60,
+          anonymous_session: 50,
           shared_storage: 30,
           share_link: 20,
           injected: 10,

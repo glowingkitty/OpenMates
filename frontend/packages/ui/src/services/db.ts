@@ -629,9 +629,9 @@ class ChatDatabase {
           if (chat?.parent_id) {
             console.debug(`[ChatKeyManager] Resolving key for sub-chat ${chatId} using parent chat ${chat.parent_id}`);
             const parentChat = await this.getChat(chat.parent_id);
-            return parentChat?.encrypted_chat_key || null;
+            return parentChat?.encrypted_chat_key || parentChat?.anonymous_encrypted_chat_key || null;
           }
-          return chat?.encrypted_chat_key || null;
+          return chat?.encrypted_chat_key || chat?.anonymous_encrypted_chat_key || null;
         });
 
         // Wire ChatKeyManager's key persister for atomic key creation.
