@@ -4183,7 +4183,7 @@
         const editorHasContent = !!editor && !editor.isDestroyed && !editor.isEmpty;
         if (!hasContent && !editorHasContent) return;
 
-        if ($demoMode && !$authStore.isAuthenticated) {
+        if ($demoMode && !$authStore.isAuthenticated && !anonymousTextSendEnabled) {
             console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');
             return;
         }
