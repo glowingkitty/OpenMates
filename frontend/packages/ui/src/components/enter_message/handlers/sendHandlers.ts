@@ -1202,12 +1202,12 @@ export async function handleSend(
       });
       setHasContent(false);
       resetEditorContent(editor, false);
+      await clearCurrentDraft();
       dispatch("sendMessage", {
         message: anonymousResult.userMessage,
         newChat: anonymousResult.isNewChat ? anonymousResult.chat : undefined,
       });
-      dispatch("anonymousAssistantMessage", anonymousResult);
-      await clearCurrentDraft();
+      dispatch("anonymousAssistantMessage", { result: anonymousResult });
       return;
     }
 

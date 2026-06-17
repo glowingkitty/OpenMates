@@ -6026,8 +6026,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         } as ChatMessageModel;
     }
 
-    async function handleAnonymousAssistantMessage(event: CustomEvent<AnonymousSendResult>) {
-        const { chat, userMessage, assistantMessage } = event.detail;
+    async function handleAnonymousAssistantMessage(event: CustomEvent<{ result: AnonymousSendResult }>) {
+        const { chat, userMessage, assistantMessage } = event.detail.result;
         currentChat = chat;
         activeChatStore.setActiveChat(chat.chat_id);
         activeChatDecryptedTitle = typeof chat.title === 'string' ? chat.title : activeChatDecryptedTitle;
