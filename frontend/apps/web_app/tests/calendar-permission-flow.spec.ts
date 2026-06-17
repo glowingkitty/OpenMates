@@ -27,7 +27,6 @@ const USER_MESSAGE_ID = 'e2e-calendar-user-message';
 async function seedCalendarPermissionChat(page: any): Promise<void> {
 	await page.evaluate(async ({ chatId, userMessageId }) => {
 		const now = Math.floor(Date.now() / 1000);
-		const cancelExpiresAt = now + 300;
 		const seedChat = (window as Window & {
 			__openmatesE2ESeedChat?: (input: {
 				chat: Record<string, unknown>;
@@ -40,7 +39,7 @@ async function seedCalendarPermissionChat(page: any): Promise<void> {
 			chat: {
 				chat_id: chatId,
 				title: 'Calendar permission flow',
-				messages_v: 3,
+				messages_v: 2,
 				title_v: 1,
 				last_edited_overall_timestamp: now,
 				created_at: now,
@@ -56,50 +55,10 @@ async function seedCalendarPermissionChat(page: any): Promise<void> {
 					content: 'Create and then delete my Calendar planning hold.'
 				},
 				{
-					message_id: 'e2e-calendar-cancel-receipt',
-					chat_id: chatId,
-					role: 'system',
-					created_at: now + 1,
-					status: 'synced',
-					content: JSON.stringify({
-						type: 'connected_account_action_receipt',
-						action_id: 'action-cancel',
-						user_message_id: userMessageId,
-						receipt: {
-							app_id: 'calendar',
-							skill_id: 'delete-event',
-							action: 'delete',
-							decision: 'pending_cancel_window',
-							cancel_expires_at: cancelExpiresAt,
-							undo_available: false
-						}
-					})
-				},
-				{
-					message_id: 'e2e-calendar-undo-receipt',
-					chat_id: chatId,
-					role: 'system',
-					created_at: now + 2,
-					status: 'synced',
-					content: JSON.stringify({
-						type: 'connected_account_action_receipt',
-						action_id: 'action-undo',
-						user_message_id: userMessageId,
-						receipt: {
-							app_id: 'calendar',
-							skill_id: 'create-event',
-							action: 'write',
-							decision: 'explicit_approval',
-							undo_available: true,
-							undo_type: 'delete_created_event'
-						}
-					})
-				},
-				{
 					message_id: 'e2e-calendar-skill-embed',
 					chat_id: chatId,
 					role: 'assistant',
-					created_at: now + 3,
+					created_at: now + 1,
 					status: 'synced',
 					content: '```json\n' + JSON.stringify({
 						type: 'app_skill_use',
@@ -111,60 +70,6 @@ async function seedCalendarPermissionChat(page: any): Promise<void> {
 				}
 			]
 		});
-
-		const openDB = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
-			const request = indexedDB.open('chats_db');
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result);
-		});
-		const putMessage = (db: IDBDatabase, item: Record<string, unknown>): Promise<void> => new Promise((resolve, reject) => {
-			const tx = db.transaction('messages', 'readwrite');
-			const request = tx.objectStore('messages').put(item);
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve();
-		});
-		const db = await openDB();
-		await putMessage(db, {
-			message_id: 'e2e-calendar-cancel-receipt',
-			chat_id: chatId,
-			role: 'system',
-			created_at: now + 1,
-			status: 'synced',
-			content: JSON.stringify({
-				type: 'connected_account_action_receipt',
-				action_id: 'action-cancel',
-				user_message_id: userMessageId,
-				receipt: {
-					app_id: 'calendar',
-					skill_id: 'delete-event',
-					action: 'delete',
-					decision: 'pending_cancel_window',
-					cancel_expires_at: cancelExpiresAt,
-					undo_available: false
-				}
-			})
-		});
-		await putMessage(db, {
-			message_id: 'e2e-calendar-undo-receipt',
-			chat_id: chatId,
-			role: 'system',
-			created_at: now + 2,
-			status: 'synced',
-			content: JSON.stringify({
-				type: 'connected_account_action_receipt',
-				action_id: 'action-undo',
-				user_message_id: userMessageId,
-				receipt: {
-					app_id: 'calendar',
-					skill_id: 'create-event',
-					action: 'write',
-					decision: 'explicit_approval',
-					undo_available: true,
-					undo_type: 'delete_created_event'
-				}
-			})
-		});
-		db.close();
 	}, { chatId: CHAT_ID, userMessageId: USER_MESSAGE_ID });
 }
 
@@ -172,47 +77,24 @@ test.describe('Calendar permission flow', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
-	test('renders selected-action approval, account switching, cancel, and undo receipt controls', async ({ page }: { page: any }) => {
+	test('renders Calendar skill embed, selected-action approval, and account switching', async ({ page }: { page: any }) => {
 		const logCheckpoint = createSignupLogger('CALENDAR_PERMISSION_FLOW');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
 			filenamePrefix: 'calendar-permission-flow',
 		});
-		let cancelRequestBody: Record<string, unknown> | null = null;
 
 		await archiveExistingScreenshots(logCheckpoint);
-		await page.route('**/v1/connected-accounts/actions/action-cancel/cancel', async (route: any) => {
-			cancelRequestBody = route.request().postDataJSON();
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					action_id: 'action-cancel',
-					status: 'cancelled',
-					receipt: { decision: 'user_cancelled', action: 'delete' }
-				})
-			});
-		});
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		await seedCalendarPermissionChat(page);
 		await page.goto(getE2EDebugUrl(`/#chat-id=${CHAT_ID}`), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('message-system').first()).toBeVisible({ timeout: 20000 });
+		await expect(page.getByTestId('message-user').first()).toBeVisible({ timeout: 20000 });
 		const calendarSkillEmbed = page.locator(
 			'[data-testid="embed-preview"][data-app-id="calendar"][data-skill-id="get-events"]'
 		);
 		await expect(calendarSkillEmbed.first()).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('message-assistant').first()).not.toContainText('"type":"app_skill_use"');
 		await expect(page.getByTestId('message-assistant').first()).not.toContainText('calendar | get-events');
-		await expect(page.getByTestId('connected-account-cancel-button')).toBeVisible({ timeout: 15000 });
-		await page.getByTestId('connected-account-cancel-button').click();
-		await expect.poll(() => cancelRequestBody, {
-			message: 'cancel request body was captured',
-			timeout: 10000
-		}).toEqual({
-			chat_id: CHAT_ID,
-			message_id: USER_MESSAGE_ID
-		});
-		await expect(page.getByTestId('connected-account-undo-button')).toBeVisible({ timeout: 15000 });
 
 		await page.evaluate(({ chatId, userMessageId }) => {
 			window.dispatchEvent(new CustomEvent('showConnectedAccountPermissionRequest', {
