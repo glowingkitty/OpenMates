@@ -12,6 +12,12 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
 
+const CORS_HEADERS = {
+	'access-control-allow-origin': '*',
+	'access-control-allow-methods': 'POST, OPTIONS',
+	'access-control-allow-headers': 'content-type'
+};
+
 function anonymousActiveServerStatusBody() {
 	return {
 		is_self_hosted: false,
@@ -50,11 +56,19 @@ test.describe('Anonymous free chat', () => {
 
 		const anonymousRequests: Array<Record<string, unknown>> = [];
 		await page.route('**/v1/anonymous/chat/stream', async (route: any) => {
+			if (route.request().method() === 'OPTIONS') {
+				await route.fulfill({
+					status: 204,
+					headers: CORS_HEADERS
+				});
+				return;
+			}
 			const body = JSON.parse(route.request().postData() || '{}') as Record<string, unknown>;
 			anonymousRequests.push(body);
 			const responseNumber = anonymousRequests.length;
 			await route.fulfill({
 				status: 200,
+				headers: CORS_HEADERS,
 				contentType: 'application/json',
 				body: JSON.stringify({
 					status: 'completed',
