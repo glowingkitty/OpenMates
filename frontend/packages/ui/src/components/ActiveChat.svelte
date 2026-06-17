@@ -8608,6 +8608,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Without this, the draft service might still use the previous chat's ID, causing drafts to overwrite each other
                     setTimeout(() => {
                         if (!messageInputFieldRef) return;
+                        if (messageInputFieldRef.getTextContent().trim().length > 0) {
+                            console.debug(`[ActiveChat] Skipping no-draft clear for ${currentChat.chat_id}; composer has live input`);
+                            return;
+                        }
                         // Set the draft context to the new demo chat ID, even though there's no draft content
                         // This ensures the draft service knows which chat ID to use when saving drafts
                         messageInputFieldRef.setDraftContent(currentChat.chat_id, null, 0, false);
