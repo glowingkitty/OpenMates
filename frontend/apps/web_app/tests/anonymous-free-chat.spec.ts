@@ -70,7 +70,55 @@ async function mockAnonymousChatStream(page: any, anonymousRequests: Array<Recor
 			}
 			return originalFetch(input, init);
 		};
+ });
+}
+
+async function typeMessageText(page: any, text: string) {
+	const editor = page.getByTestId('message-editor');
+	await expect(editor).toBeVisible({ timeout: 10000 });
+	await editor.click();
+	await page.waitForFunction(() => {
+		const active = document.activeElement;
+		return !!active && (active.getAttribute('data-testid') === 'message-editor' || !!active.closest?.('[data-testid="message-editor"]'));
 	});
+	await page.keyboard.insertText(text);
+	await expect(editor).toContainText(text, { timeout: 5000 });
+	return editor;
+}
+
+async function getAnonymousIndexedDbState(page: any) {
+	return page.evaluate(
+		() =>
+			new Promise<{
+				anonymousChats: Array<Record<string, unknown>>;
+				anonymousMessages: Array<Record<string, unknown>>;
+			}>((resolve, reject) => {
+				const request = indexedDB.open('chats_db');
+				request.onerror = () => reject(request.error);
+				request.onsuccess = () => {
+					const db = request.result;
+					const transaction = db.transaction(['chats', 'messages'], 'readonly');
+					const chatsRequest = transaction.objectStore('chats').getAll();
+					const messagesRequest = transaction.objectStore('messages').getAll();
+
+					transaction.onerror = () => {
+						db.close();
+						reject(transaction.error);
+					};
+					transaction.oncomplete = () => {
+						const anonymousChats = (chatsRequest.result as Array<Record<string, unknown>>).filter(
+							(chat) => chat.is_anonymous === true
+						);
+						const anonymousChatIds = new Set(anonymousChats.map((chat) => chat.chat_id));
+						const anonymousMessages = (messagesRequest.result as Array<Record<string, unknown>>).filter((message) =>
+							anonymousChatIds.has(message.chat_id)
+						);
+						db.close();
+						resolve({ anonymousChats, anonymousMessages });
+					};
+				};
+			})
+	);
 }
 
 test.describe('Anonymous free chat', () => {
@@ -93,10 +141,7 @@ test.describe('Anonymous free chat', () => {
 		});
 		await page.getByTestId('new-chat-cta-fullwidth').click();
 
-		const editor = page.getByTestId('message-editor');
-		await expect(editor).toBeVisible({ timeout: 10000 });
-		await editor.click();
-		await page.keyboard.insertText('Hello anonymous text');
+		await typeMessageText(page, 'Hello anonymous text');
 		const termsReminder = page.getByTestId('anonymous-terms-reminder');
 		await expect(termsReminder).toBeVisible({ timeout: 5000 });
 		await expect(termsReminder).toContainText(
@@ -123,8 +168,7 @@ test.describe('Anonymous free chat', () => {
 		expect(anonymousRequests[0].plaintext_message).toBe('Hello anonymous text');
 		expect(anonymousRequests[0].message_history).toEqual([]);
 
-		await editor.click();
-		await page.keyboard.insertText('Second anonymous text');
+		await typeMessageText(page, 'Second anonymous text');
 		await page.locator('[data-action="send-message"]').click();
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' })).toBeVisible({
 			timeout: 10000
@@ -142,12 +186,17 @@ test.describe('Anonymous free chat', () => {
 			expect.objectContaining({ role: 'assistant', content: 'Anonymous answer 1' })
 		]);
 
-		const encryptedPayload = await page.evaluate(() => localStorage.getItem('openmates_anonymous_chats_v1'));
-		expect(encryptedPayload).toBeTruthy();
-		expect(encryptedPayload).not.toContain('Hello anonymous text');
-		expect(encryptedPayload).not.toContain('Anonymous answer 1');
-		expect(encryptedPayload).not.toContain('By sending a message you accept the terms');
-		expect(encryptedPayload).not.toContain('You are using free anonymous credits.');
+		expect(await page.evaluate(() => localStorage.getItem('openmates_anonymous_chats_v1'))).toBeNull();
+		const anonymousState = await getAnonymousIndexedDbState(page);
+		expect(anonymousState.anonymousChats.length).toBeGreaterThanOrEqual(1);
+		expect(anonymousState.anonymousChats[0].anonymous_encrypted_chat_key).toBeTruthy();
+		expect(anonymousState.anonymousChats[0].encrypted_chat_key).toBeNull();
+		expect(anonymousState.anonymousChats[0].title).toBeUndefined();
+		const rawAnonymousJson = JSON.stringify(anonymousState);
+		expect(rawAnonymousJson).not.toContain('Hello anonymous text');
+		expect(rawAnonymousJson).not.toContain('Anonymous answer 1');
+		expect(rawAnonymousJson).not.toContain('By sending a message you accept the terms');
+		expect(rawAnonymousJson).not.toContain('You are using free anonymous credits.');
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' })).toBeVisible({
@@ -156,9 +205,8 @@ test.describe('Anonymous free chat', () => {
 
 		await page.evaluate(() => sessionStorage.removeItem('openmates_anonymous_chat_key'));
 		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect
-			.poll(() => page.evaluate(() => localStorage.getItem('openmates_anonymous_chats_v1')))
-			.toBeNull();
+		await expect.poll(async () => (await getAnonymousIndexedDbState(page)).anonymousChats.length).toBe(0);
+		expect(await page.evaluate(() => localStorage.getItem('openmates_anonymous_chats_v1'))).toBeNull();
 		await assertNoMissingTranslations(page);
 	});
 
