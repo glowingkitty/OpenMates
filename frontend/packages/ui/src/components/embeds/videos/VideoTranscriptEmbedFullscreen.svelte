@@ -323,6 +323,17 @@
     const indexMap: number[] = [];
     let previousWasSpace = false;
     for (let i = 0; i < value.length; i += 1) {
+      const timestampMatch = value.slice(i).match(/^\[\d{1,2}:\d{2}:\d{2}(?:\.\d+)?\]/);
+      if (timestampMatch) {
+        if (!previousWasSpace) {
+          text += ' ';
+          indexMap.push(i);
+          previousWasSpace = true;
+        }
+        i += timestampMatch[0].length - 1;
+        continue;
+      }
+
       const char = value[i];
       if (/\s/.test(char)) {
         if (!previousWasSpace) {
