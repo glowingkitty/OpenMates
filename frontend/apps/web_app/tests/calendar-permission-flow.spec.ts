@@ -21,7 +21,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const CHAT_ID = 'e2e-calendar-permission-chat';
+const CHAT_ID = 'legal-e2e-calendar-permission-chat';
 const USER_MESSAGE_ID = 'e2e-calendar-user-message';
 
 async function seedCalendarPermissionChat(page: any): Promise<void> {
