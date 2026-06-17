@@ -4510,7 +4510,21 @@ async def handle_main_processing(
                             if request_id:
                                 yield {"__awaiting_connected_account_permission__": True, "request_id": request_id}
                                 return
-                            raise
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps({
+                                    "status": "permission_unavailable",
+                                    "reason": (
+                                        "No connected calendar account is available for this action. "
+                                        "Ask the user to connect or select a Calendar account."
+                                    ),
+                                    "app_id": app_id,
+                                    "skill_id": skill_id,
+                                }),
+                            })
+                            continue
 
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,

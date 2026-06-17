@@ -66,6 +66,8 @@ export async function handleRequestConnectedAccountPermissionImpl(
 	const accounts = Array.isArray(payload.accounts) ? payload.accounts : [];
 	if (accounts.length === 0) {
 		console.warn('[ChatSyncService:ConnectedAccounts] Request has no approvable accounts:', payload);
+		clearConnectedAccountProcessingState(serviceInstance, chat_id, payload.message_id);
+		notificationStore.addNotification('error', 'No connected account is available for this action', 5000);
 		return;
 	}
 

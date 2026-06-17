@@ -126,7 +126,41 @@ async def test_connected_account_permission_request_rejects_secret_fields() -> N
             skill_id="get-events",
             action="read",
             skill_arguments={"requests": [{"calendar_id": "primary", "access_token_handle": "ath_secret"}]},
-            connected_account_directory=[],
+            connected_account_directory=[
+                {
+                    "connected_account_id": "acct-1",
+                    "app_id": "calendar",
+                    "account_ref": "acct-ref",
+                    "label": "Work calendar",
+                    "capabilities": ["read"],
+                }
+            ],
             reason="test",
             task_id="task-1",
         )
+
+
+@pytest.mark.anyio
+async def test_connected_account_permission_request_skips_empty_account_payload() -> None:
+    from backend.apps.ai.processing.connected_account_permission_request import create_connected_account_permission_request
+
+    cache = FakeCache()
+
+    request_id = await create_connected_account_permission_request(
+        cache_service=cache,
+        user_id="user-1",
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id_hash="hash-1",
+        app_id="calendar",
+        skill_id="get-events",
+        action="read",
+        skill_arguments={"requests": [{"calendar_id": "primary"}]},
+        connected_account_directory=[],
+        reason="No matching token ref",
+        task_id="task-1",
+    )
+
+    assert request_id is None
+    assert cache.pending == {}
+    assert cache.redis.published == []

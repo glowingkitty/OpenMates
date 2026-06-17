@@ -62,6 +62,7 @@ import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMe
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
 import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
+import CalendarActionEmbedPreview from "../../../embeds/calendar/CalendarActionEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
@@ -562,6 +563,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      if (appId === "calendar" && this.isCalendarActionSkill(skillId)) {
+        return this.renderCalendarActionComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
       // For images search, render images search preview using Svelte component
       if (appId === "images" && skillId === "search") {
         return this.renderImagesSearchComponent(
@@ -851,6 +861,81 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       attrs,
     );
     return this.renderGenericProcessingState(attrs, content);
+  }
+
+  private isCalendarActionSkill(skillId: string): boolean {
+    return ["get-events", "create-event", "update-event", "delete-event"].includes(
+      skillId,
+    );
+  }
+
+  private renderCalendarActionComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const skillId =
+      decodedContent?.skill_id ||
+      embedData?.skill_id ||
+      (attrs as any).skill_id ||
+      "get-events";
+    const taskId = decodedContent?.task_id || embedData?.task_id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(CalendarActionEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          skillId,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          taskId,
+          title: decodedContent?.title,
+          summary: decodedContent?.summary,
+          message: decodedContent?.message,
+          error: decodedContent?.error,
+          events: decodedContent?.events,
+          results: decodedContent?.results,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted CalendarActionEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting CalendarActionEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
   }
 
   /**

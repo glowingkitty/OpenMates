@@ -56,6 +56,14 @@ async def create_connected_account_permission_request(
         action=action,
         skill_arguments=skill_arguments,
     )
+    accounts = _redacted_accounts(connected_account_directory or [], app_id=app_id, action=action)
+    if not accounts:
+        logger.warning(
+            "Connected-account permission request for %s.%s has no approvable accounts",
+            app_id,
+            skill_id,
+        )
+        return None
     payload = {
         "request_id": request_id,
         "chat_id": chat_id,
@@ -64,7 +72,7 @@ async def create_connected_account_permission_request(
         "skill_id": skill_id,
         "action": action,
         "reason": reason,
-        "accounts": _redacted_accounts(connected_account_directory or [], app_id=app_id, action=action),
+        "accounts": accounts,
         "requests": action_requests,
     }
     pending_context = {
@@ -84,7 +92,7 @@ async def create_connected_account_permission_request(
     )
     if not stored:
         logger.error("Failed to store connected-account permission request %s", request_id)
-        return None
+        raise RuntimeError(f"Failed to store connected-account permission request {request_id}")
 
     published = await _publish_connected_account_permission_request(
         cache_service=cache_service,

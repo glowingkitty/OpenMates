@@ -144,6 +144,42 @@ describe('chatSyncServiceHandlersConnectedAccounts', () => {
 		});
 	});
 
+	it('clears processing state when backend sends a non-approvable request', async () => {
+		mocks.aiTypingStore.subscribe.mockImplementation(
+			(run: (value: { chatId: string | null; isTyping: boolean }) => void) => {
+				run({ chatId: 'chat-1', isTyping: true });
+				return () => undefined;
+			}
+		);
+		const service = {
+			activeAITasks: new Map([['chat-1', { taskId: 'task-1' }]]),
+			dispatchEvent: vi.fn()
+		} as unknown as ChatSynchronizationService;
+
+		await handleRequestConnectedAccountPermissionImpl(service, {
+			request_id: 'permission-1',
+			chat_id: 'chat-1',
+			message_id: 'message-1',
+			app_id: 'calendar',
+			skill_id: 'get-events',
+			action: 'read',
+			accounts: []
+		});
+
+		expect(mocks.aiTypingStore.reset).toHaveBeenCalled();
+		expect(mocks.chatDB.updateMessageStatus).toHaveBeenCalledWith(
+			'message-1',
+			'waiting_for_user'
+		);
+		expect(mocks.notificationStore.addNotification).toHaveBeenCalledWith(
+			'error',
+			'No connected account is available for this action',
+			5000
+		);
+		expect(window.dispatchEvent).not.toHaveBeenCalled();
+		expect(service.activeAITasks.has('chat-1')).toBe(false);
+	});
+
 	it('passes only selected action scopes and account choices when approving a Calendar permission request', async () => {
 		connectedAccountPermissionStore.showRequest({
 			requestId: 'permission-1',
