@@ -202,10 +202,15 @@ test.describe('Anonymous free chat', () => {
 			expect.objectContaining({ role: 'user', content: 'Hello anonymous text' }),
 			expect.objectContaining({ role: 'assistant', content: 'Anonymous answer 1' })
 		]);
+		expect(anonymousRequests[1].client_chat_id).toBe(anonymousRequests[0].client_chat_id);
 
 		expect(await page.evaluate(() => localStorage.getItem('openmates_anonymous_chats_v1'))).toBeNull();
 		const anonymousState = await getAnonymousIndexedDbState(page);
 		expect(anonymousState.anonymousChats.length).toBeGreaterThanOrEqual(1);
+		const activeAnonymousMessages = anonymousState.anonymousMessages.filter(
+			(message) => message.chat_id === anonymousRequests[0].client_chat_id
+		);
+		expect(activeAnonymousMessages).toHaveLength(5);
 		expect(anonymousState.anonymousChats[0].anonymous_encrypted_chat_key).toBeTruthy();
 		expect(anonymousState.anonymousChats[0].encrypted_chat_key).toBeNull();
 		expect(anonymousState.anonymousChats[0].title).toBeUndefined();
@@ -216,7 +221,9 @@ test.describe('Anonymous free chat', () => {
 		expect(rawAnonymousJson).not.toContain('You are using free anonymous credits.');
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' })).toBeVisible({
+		const reloadedSecondAnswer = page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' });
+		await reloadedSecondAnswer.scrollIntoViewIfNeeded({ timeout: 10000 });
+		await expect(reloadedSecondAnswer).toBeVisible({
 			timeout: 10000
 		});
 
