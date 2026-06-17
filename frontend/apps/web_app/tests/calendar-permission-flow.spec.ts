@@ -21,106 +21,96 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const CHAT_ID = 'legal-e2e-calendar-permission-chat';
+const CHAT_ID = 'e2e-calendar-permission-chat';
 const USER_MESSAGE_ID = 'e2e-calendar-user-message';
 
 async function seedCalendarPermissionChat(page: any): Promise<void> {
 	await page.evaluate(async ({ chatId, userMessageId }) => {
-		const DB_NAME = 'chats_db';
-		const CHATS_STORE = 'chats';
-		const MESSAGES_STORE = 'messages';
 		const now = Math.floor(Date.now() / 1000);
 		const cancelExpiresAt = now + 300;
+		const seedChat = (window as Window & {
+			__openmatesE2ESeedChat?: (input: {
+				chat: Record<string, unknown>;
+				messages: Record<string, unknown>[];
+			}) => Promise<unknown>;
+		}).__openmatesE2ESeedChat;
+		if (!seedChat) throw new Error('E2E chat seed helper is unavailable');
 
-		const openDB = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
-			const request = indexedDB.open(DB_NAME);
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve(request.result);
-		});
-
-		const putItem = (db: IDBDatabase, storeName: string, item: Record<string, unknown>): Promise<void> => new Promise((resolve, reject) => {
-			const tx = db.transaction(storeName, 'readwrite');
-			const store = tx.objectStore(storeName);
-			const request = store.put(item);
-			request.onerror = () => reject(request.error);
-			request.onsuccess = () => resolve();
-		});
-
-		const db = await openDB();
-		await putItem(db, CHATS_STORE, {
-			chat_id: chatId,
-			encrypted_title: 'Calendar permission flow',
-			title: 'Calendar permission flow',
-			messages_v: 3,
-			title_v: 1,
-			last_edited_overall_timestamp: now,
-			created_at: now,
-			updated_at: now
-		});
-		await putItem(db, MESSAGES_STORE, {
-			message_id: userMessageId,
-			chat_id: chatId,
-			role: 'user',
-			created_at: now,
-			status: 'synced',
-			content: 'Create and then delete my Calendar planning hold.'
-		});
-		await putItem(db, MESSAGES_STORE, {
-			message_id: 'e2e-calendar-cancel-receipt',
-			chat_id: chatId,
-			role: 'system',
-			created_at: now + 1,
-			status: 'synced',
-			content: JSON.stringify({
-				type: 'connected_account_action_receipt',
-				action_id: 'action-cancel',
-				user_message_id: userMessageId,
-				receipt: {
-					app_id: 'calendar',
-					skill_id: 'delete-event',
-					action: 'delete',
-					decision: 'pending_cancel_window',
-					cancel_expires_at: cancelExpiresAt,
-					undo_available: false
+		await seedChat({
+			chat: {
+				chat_id: chatId,
+				title: 'Calendar permission flow',
+				messages_v: 3,
+				title_v: 1,
+				last_edited_overall_timestamp: now,
+				created_at: now,
+				updated_at: now
+			},
+			messages: [
+				{
+					message_id: userMessageId,
+					chat_id: chatId,
+					role: 'user',
+					created_at: now,
+					status: 'synced',
+					content: 'Create and then delete my Calendar planning hold.'
+				},
+				{
+					message_id: 'e2e-calendar-cancel-receipt',
+					chat_id: chatId,
+					role: 'system',
+					created_at: now + 1,
+					status: 'synced',
+					content: JSON.stringify({
+						type: 'connected_account_action_receipt',
+						action_id: 'action-cancel',
+						user_message_id: userMessageId,
+						receipt: {
+							app_id: 'calendar',
+							skill_id: 'delete-event',
+							action: 'delete',
+							decision: 'pending_cancel_window',
+							cancel_expires_at: cancelExpiresAt,
+							undo_available: false
+						}
+					})
+				},
+				{
+					message_id: 'e2e-calendar-undo-receipt',
+					chat_id: chatId,
+					role: 'system',
+					created_at: now + 2,
+					status: 'synced',
+					content: JSON.stringify({
+						type: 'connected_account_action_receipt',
+						action_id: 'action-undo',
+						user_message_id: userMessageId,
+						receipt: {
+							app_id: 'calendar',
+							skill_id: 'create-event',
+							action: 'write',
+							decision: 'explicit_approval',
+							undo_available: true,
+							undo_type: 'delete_created_event'
+						}
+					})
+				},
+				{
+					message_id: 'e2e-calendar-skill-embed',
+					chat_id: chatId,
+					role: 'assistant',
+					created_at: now + 3,
+					status: 'synced',
+					content: '```json\n' + JSON.stringify({
+						type: 'app_skill_use',
+						embed_id: 'e2e-calendar-get-events-embed',
+						app_id: 'calendar',
+						skill_id: 'get-events',
+						status: 'processing'
+					}) + '\n```'
 				}
-			})
+			]
 		});
-		await putItem(db, MESSAGES_STORE, {
-			message_id: 'e2e-calendar-undo-receipt',
-			chat_id: chatId,
-			role: 'system',
-			created_at: now + 2,
-			status: 'synced',
-			content: JSON.stringify({
-				type: 'connected_account_action_receipt',
-				action_id: 'action-undo',
-				user_message_id: userMessageId,
-				receipt: {
-					app_id: 'calendar',
-					skill_id: 'create-event',
-					action: 'write',
-					decision: 'explicit_approval',
-					undo_available: true,
-					undo_type: 'delete_created_event'
-				}
-			})
-		});
-		await putItem(db, MESSAGES_STORE, {
-			message_id: 'e2e-calendar-skill-embed',
-			chat_id: chatId,
-			role: 'assistant',
-			created_at: now + 3,
-			status: 'synced',
-			content: '```json\n' + JSON.stringify({
-				type: 'app_skill_use',
-				embed_id: 'e2e-calendar-get-events-embed',
-				app_id: 'calendar',
-				skill_id: 'get-events',
-				status: 'processing'
-			}) + '\n```'
-		});
-		db.close();
-		window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chatId } }));
 	}, { chatId: CHAT_ID, userMessageId: USER_MESSAGE_ID });
 }
 
