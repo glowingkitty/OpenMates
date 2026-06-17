@@ -222,7 +222,9 @@ test.describe('Anonymous free chat', () => {
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		const reloadedSecondAnswer = page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' });
-		await reloadedSecondAnswer.scrollIntoViewIfNeeded({ timeout: 10000 });
+		await page.getByTestId('chat-history-container').evaluate((element) => {
+			element.scrollTop = element.scrollHeight;
+		});
 		await expect(reloadedSecondAnswer).toBeVisible({
 			timeout: 10000
 		});
