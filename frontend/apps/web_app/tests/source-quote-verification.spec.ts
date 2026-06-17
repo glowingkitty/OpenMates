@@ -130,7 +130,12 @@ test.describe('Source quote verification', () => {
 		const highlights = overlay.getByTestId('embed-source-text-highlight');
 		await expect(highlights.first()).toBeVisible({ timeout: 10_000 });
 		const highlightedText = await highlights.evaluateAll((elements: HTMLElement[]) =>
-			elements.map((element) => element.textContent || '').join(' ').replace(/\s+/g, ' ').trim()
+			elements
+				.map((element) => element.textContent || '')
+				.join(' ')
+				.replace(/\b\d{1,2}:\d{2}:\d{2}(?:\.\d+)?\b/g, ' ')
+				.replace(/\s+/g, ' ')
+				.trim()
 		);
 		expect(highlightedText).toContain('LLMs can get you 80% there');
 	});
