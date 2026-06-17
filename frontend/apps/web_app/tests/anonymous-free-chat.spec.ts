@@ -74,6 +74,7 @@ async function mockAnonymousChatStream(page: any, anonymousRequests: Array<Recor
 }
 
 async function typeMessageText(page: any, text: string) {
+	await page.getByTestId('message-field').click();
 	const editor = page.getByTestId('message-editor');
 	const editable = editor.locator('[contenteditable="true"]').first();
 	await expect(editor).toBeVisible({ timeout: 10000 });
