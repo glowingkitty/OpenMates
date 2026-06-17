@@ -172,11 +172,11 @@ test.describe('Anonymous free chat', () => {
 
 		await typeMessageText(page, 'Second anonymous text');
 		await page.locator('[data-action="send-message"]').click();
+		await expect.poll(() => anonymousRequests.length, { timeout: 5000 }).toBe(2);
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' })).toBeVisible({
 			timeout: 10000
 		});
 
-		expect(anonymousRequests).toHaveLength(2);
 		expect(JSON.stringify(anonymousRequests[1].message_history)).not.toContain(
 			'By sending a message you accept the terms'
 		);
