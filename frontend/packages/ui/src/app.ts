@@ -12,14 +12,11 @@ import { initConnectedAccountPermissionListener } from "./stores/connectedAccoun
 
 async function installE2ETestHooks() {
   if (typeof window === "undefined") return;
-  const hasE2EDebugToken =
-    window.location.hash.includes("e2e-debug=") &&
-    window.location.hash.includes("e2e-token=");
   const isDevHost =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname.endsWith(".dev.openmates.org");
-  if (!hasE2EDebugToken || !isDevHost) return;
+  if (!isDevHost) return;
 
   const testWindow = window as unknown as {
     __openmatesE2ESeedChat?: (input: {
@@ -36,9 +33,11 @@ async function installE2ETestHooks() {
 
     const { chatKeyManager } = await import("./services/encryption/ChatKeyManager");
     chatKeyManager.createKeyForNewChat(chatId);
-    await chatDB.addChat(chat as Parameters<typeof chatDB.addChat>[0]);
+    await chatDB.addChat(chat as unknown as Parameters<typeof chatDB.addChat>[0]);
     for (const message of messages) {
-      await chatDB.saveMessage(message as Parameters<typeof chatDB.saveMessage>[0]);
+      await chatDB.saveMessage(
+        message as unknown as Parameters<typeof chatDB.saveMessage>[0],
+      );
     }
     window.dispatchEvent(new CustomEvent("localChatListChanged", { detail: { chat_id: chatId } }));
     return { chatId, messageCount: messages.length };
