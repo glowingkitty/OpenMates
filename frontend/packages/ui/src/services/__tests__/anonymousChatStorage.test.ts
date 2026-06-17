@@ -37,7 +37,9 @@ const mockChatDB = vi.hoisted(() => ({
   init: vi.fn(),
   getAllChats: vi.fn(async () => Array.from(mockDbState.chats.values())),
   getChat: vi.fn(async (chatId: string) => mockDbState.chats.get(chatId) ?? null),
-  getMessagesForChat: vi.fn(async (chatId: string) => mockDbState.messages.get(chatId) ?? []),
+  getMessagesForChat: vi.fn(async (chatId: string) =>
+    (mockDbState.messages.get(chatId) ?? []).map((message) => ({ ...message })),
+  ),
   addChat: vi.fn(async (chat: Chat) => {
     mockDbState.chats.set(chat.chat_id, { ...chat });
   }),
