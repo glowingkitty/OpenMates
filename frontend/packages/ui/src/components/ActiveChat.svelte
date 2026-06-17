@@ -6018,6 +6018,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
     }
 
+    function normalizeAnonymousMessage(message: ChatMessageModel): ChatMessageModel {
+        return {
+            ...message,
+            id: (message as ChatMessageModel & { id?: string }).id ?? message.message_id,
+            original_message: message.original_message ?? message,
+        } as ChatMessageModel;
+    }
+
     async function handleAnonymousAssistantMessage(event: CustomEvent<AnonymousSendResult>) {
         const { chat, userMessage, assistantMessage } = event.detail;
         currentChat = chat;
@@ -6035,11 +6043,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return [];
         });
         if (storedMessages.length > 0) {
-            currentMessages = storedMessages;
+            currentMessages = storedMessages.map(normalizeAnonymousMessage);
         } else {
             const existingWithoutUser = currentMessages.filter(m => m.message_id !== userMessage.message_id);
             const existingWithoutAssistant = existingWithoutUser.filter(m => m.message_id !== assistantMessage.message_id);
-            currentMessages = [...existingWithoutAssistant, userMessage, assistantMessage];
+            currentMessages = [...existingWithoutAssistant, userMessage, assistantMessage].map(normalizeAnonymousMessage);
         }
         chatListCache.upsertChat(chat);
         chatListCache.setLastMessage(chat.chat_id, assistantMessage);
