@@ -105,6 +105,20 @@ async function seedCalendarPermissionChat(page: any): Promise<void> {
 				}
 			})
 		});
+		await putItem(db, MESSAGES_STORE, {
+			message_id: 'e2e-calendar-skill-embed',
+			chat_id: chatId,
+			role: 'assistant',
+			created_at: now + 3,
+			status: 'synced',
+			content: '```json\n' + JSON.stringify({
+				type: 'app_skill_use',
+				embed_id: 'e2e-calendar-get-events-embed',
+				app_id: 'calendar',
+				skill_id: 'get-events',
+				status: 'processing'
+			}) + '\n```'
+		});
 		db.close();
 		window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chatId } }));
 	}, { chatId: CHAT_ID, userMessageId: USER_MESSAGE_ID });
@@ -139,6 +153,12 @@ test.describe('Calendar permission flow', () => {
 		await seedCalendarPermissionChat(page);
 		await page.goto(getE2EDebugUrl(`/#chat-id=${CHAT_ID}`), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-system').first()).toBeVisible({ timeout: 20000 });
+		const calendarSkillEmbed = page.locator(
+			'[data-testid="embed-preview"][data-app-id="calendar"][data-skill-id="get-events"]'
+		);
+		await expect(calendarSkillEmbed.first()).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('message-assistant').first()).not.toContainText('"type":"app_skill_use"');
+		await expect(page.getByTestId('message-assistant').first()).not.toContainText('calendar | get-events');
 
 		await page.evaluate(({ chatId, userMessageId }) => {
 			window.dispatchEvent(new CustomEvent('showConnectedAccountPermissionRequest', {
