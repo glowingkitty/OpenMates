@@ -6018,9 +6018,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
     }
 
-    function handleAnonymousAssistantMessage(event: CustomEvent<AnonymousSendResult>) {
+    async function handleAnonymousAssistantMessage(event: CustomEvent<AnonymousSendResult>) {
         const { chat, userMessage, assistantMessage } = event.detail;
         currentChat = chat;
+        activeChatStore.setActiveChat(chat.chat_id);
         activeChatDecryptedTitle = typeof chat.title === 'string' ? chat.title : activeChatDecryptedTitle;
         activeChatDecryptedCategory = chat.category ?? assistantMessage.category ?? activeChatDecryptedCategory;
         activeChatDecryptedIcon = chat.icon ? chat.icon.split(',')[0]?.trim() || null : activeChatDecryptedIcon;
@@ -6029,11 +6030,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         isNewChatProcessing = false;
         processingPhase = null;
 
-        const existingWithoutUser = currentMessages.filter(m => m.message_id !== userMessage.message_id);
-        const existingWithoutAssistant = existingWithoutUser.filter(m => m.message_id !== assistantMessage.message_id);
-        currentMessages = [...existingWithoutAssistant, userMessage, assistantMessage];
+        const storedMessages = await anonymousChatStorage.getMessagesForChat(chat.chat_id).catch(error => {
+            console.warn('[ActiveChat] Failed to reload anonymous messages after send:', error);
+            return [];
+        });
+        if (storedMessages.length > 0) {
+            currentMessages = storedMessages;
+        } else {
+            const existingWithoutUser = currentMessages.filter(m => m.message_id !== userMessage.message_id);
+            const existingWithoutAssistant = existingWithoutUser.filter(m => m.message_id !== assistantMessage.message_id);
+            currentMessages = [...existingWithoutAssistant, userMessage, assistantMessage];
+        }
         chatListCache.upsertChat(chat);
         chatListCache.setLastMessage(chat.chat_id, assistantMessage);
+        updateNavFromCache(chat.chat_id);
         window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chat.chat_id } }));
         chatHistoryRef?.updateMessages(currentMessages);
     }
