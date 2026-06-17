@@ -81,7 +81,7 @@ async function typeMessageText(page: any, text: string) {
 		const active = document.activeElement;
 		return !!active && (active.getAttribute('data-testid') === 'message-editor' || !!active.closest?.('[data-testid="message-editor"]'));
 	});
-	await page.keyboard.insertText(text);
+	await editor.fill(text);
 	await expect(editor).toContainText(text, { timeout: 5000 });
 	return editor;
 }
