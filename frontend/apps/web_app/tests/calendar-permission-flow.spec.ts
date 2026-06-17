@@ -149,6 +149,16 @@ test.describe('Calendar permission flow', () => {
 		await expect(calendarSkillEmbed.first()).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('message-assistant').first()).not.toContainText('"type":"app_skill_use"');
 		await expect(page.getByTestId('message-assistant').first()).not.toContainText('calendar | get-events');
+		await expect(page.getByTestId('connected-account-cancel-button')).toBeVisible({ timeout: 15000 });
+		await page.getByTestId('connected-account-cancel-button').click();
+		await expect.poll(() => cancelRequestBody, {
+			message: 'cancel request body was captured',
+			timeout: 10000
+		}).toEqual({
+			chat_id: CHAT_ID,
+			message_id: USER_MESSAGE_ID
+		});
+		await expect(page.getByTestId('connected-account-undo-button')).toBeVisible({ timeout: 15000 });
 
 		await page.evaluate(({ chatId, userMessageId }) => {
 			window.dispatchEvent(new CustomEvent('showConnectedAccountPermissionRequest', {
@@ -213,17 +223,6 @@ test.describe('Calendar permission flow', () => {
 		await requestToggles.nth(0).uncheck();
 		await expect(requestToggles.nth(0)).not.toBeChecked();
 		await expect(requestToggles.nth(1)).toBeChecked();
-
-		await expect(page.getByTestId('connected-account-cancel-button')).toBeVisible({ timeout: 15000 });
-		await page.getByTestId('connected-account-cancel-button').click();
-		await expect.poll(() => cancelRequestBody, {
-			message: 'cancel request body was captured',
-			timeout: 10000
-		}).toEqual({
-			chat_id: CHAT_ID,
-			message_id: USER_MESSAGE_ID
-		});
-		await expect(page.getByTestId('connected-account-undo-button')).toBeVisible({ timeout: 15000 });
 
 		const visibleText = await page.locator('body').innerText();
 		expect(visibleText).not.toContain('secret-refresh-token');
