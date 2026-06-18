@@ -2190,7 +2190,10 @@ class ChatCacheMixin:
                 - mate_id: Selected mate ID (if any)
                 - active_focus_id: Active focus ID (if any)
                 - chat_has_title: Whether chat has a title
+                - current_chat_title: Current decrypted chat title, if available
                 - is_incognito: Whether chat is incognito
+                - user_preferences: User settings that affect model and prompt selection
+                - embed_file_path_index: Embed filename-to-ID map for tool resolution
                 - requested_keys: Keys that were requested
                 - task_id: Original task ID (for logging)
                 

@@ -115,7 +115,7 @@ async def handle_app_settings_memories_confirmed(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("app_settings_memories_confirmed", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -360,7 +360,10 @@ async def _trigger_continuation(
     mate_id = pending_context.get("mate_id")
     active_focus_id = pending_context.get("active_focus_id")
     chat_has_title = pending_context.get("chat_has_title", False)
+    current_chat_title = pending_context.get("current_chat_title")
     is_incognito = pending_context.get("is_incognito", False)
+    user_preferences = pending_context.get("user_preferences") or {}
+    embed_file_path_index = pending_context.get("embed_file_path_index")
     # Get the requested keys from the pending context
     # These will be passed as app_settings_memories_metadata so preprocessing knows what's available
     requested_keys = pending_context.get("requested_keys", [])
@@ -443,6 +446,12 @@ async def _trigger_continuation(
         logger.error(f"No user/assistant messages found in cached chat {chat_id} - cannot continue processing")
         await cache_service.delete_pending_app_settings_memories_request(chat_id, user_id=user_id)
         return
+
+    current_user_content = None
+    for history_message in reversed(message_history):
+        if history_message.get("role") == "user":
+            current_user_content = history_message.get("content")
+            break
     
     logger.info(f"Retrieved and decrypted {len(message_history)} messages from AI cache for chat {chat_id}")
     
@@ -474,10 +483,14 @@ async def _trigger_continuation(
             "user_id": user_id,
             "user_id_hash": user_id_hash,
             "message_history": message_history,
+            "current_user_content": current_user_content,
             "chat_has_title": chat_has_title,
+            "current_chat_title": current_chat_title,
             "is_incognito": is_incognito,
             "mate_id": mate_id,
             "active_focus_id": active_focus_id,
+            "user_preferences": user_preferences,
+            "embed_file_path_index": embed_file_path_index,
             # Pass the app_settings_memories_metadata so preprocessing knows what's available
             # This is CRITICAL: without this, preprocessing won't know to load the cached data
             "app_settings_memories_metadata": app_settings_memories_metadata if app_settings_memories_metadata else None,
@@ -519,4 +532,3 @@ async def _trigger_continuation(
         
     except Exception as e:
         logger.error(f"Failed to trigger continuation task for chat {chat_id}: {e}", exc_info=True)
-

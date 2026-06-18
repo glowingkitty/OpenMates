@@ -414,6 +414,31 @@ def _resolve_app_skill_model_override(
 
     return model_ref
 
+
+def _build_pending_app_settings_memories_context(
+    request_data: AskSkillRequest,
+    request_id: str,
+    missing_keys: List[str],
+    task_id: str,
+) -> Dict[str, Any]:
+    """Build the request context needed to restart after memory permission."""
+    return {
+        "request_id": request_id,
+        "chat_id": request_data.chat_id,
+        "message_id": request_data.message_id,
+        "user_id": request_data.user_id,
+        "user_id_hash": request_data.user_id_hash,
+        "mate_id": request_data.mate_id,
+        "active_focus_id": request_data.active_focus_id,
+        "chat_has_title": request_data.chat_has_title,
+        "current_chat_title": request_data.current_chat_title,
+        "is_incognito": request_data.is_incognito,
+        "user_preferences": request_data.user_preferences or {},
+        "embed_file_path_index": request_data.embed_file_path_index,
+        "requested_keys": missing_keys,
+        "task_id": task_id,
+    }
+
 # Max iterations for tool calling to prevent infinite loops
 MAX_TOOL_CALL_ITERATIONS = 5
 
@@ -1758,19 +1783,12 @@ async def handle_main_processing(
                     try:
                         # Store MINIMAL context needed to re-trigger processing
                         # Do NOT store message_history - it's already in the chat cache
-                        pending_context = {
-                            "request_id": request_id,
-                            "chat_id": request_data.chat_id,
-                            "message_id": request_data.message_id,
-                            "user_id": request_data.user_id,
-                            "user_id_hash": request_data.user_id_hash,
-                            "mate_id": request_data.mate_id,
-                            "active_focus_id": request_data.active_focus_id,
-                            "chat_has_title": request_data.chat_has_title,
-                            "is_incognito": request_data.is_incognito,
-                            "requested_keys": missing_keys,  # Keys that were requested
-                            "task_id": task_id,
-                        }
+                        pending_context = _build_pending_app_settings_memories_context(
+                            request_data=request_data,
+                            request_id=request_id,
+                            missing_keys=missing_keys,
+                            task_id=task_id,
+                        )
                         await cache_service.store_pending_app_settings_memories_request(
                             chat_id=request_data.chat_id,
                             context=pending_context,
