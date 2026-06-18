@@ -59,11 +59,11 @@
   let renderRequest = 0;
 
   let rawContent = $derived(updatedContent ?? data.decodedContent ?? data.attrs ?? {});
-  let content = $derived<MermaidDiagramContent>(normalizeMermaidContent(rawContent));
-  let subtitle = $derived(`${content.diagramKind}${content.versionNumber ? ` · v${content.versionNumber}` : ''}`);
+  let diagramContent = $derived<MermaidDiagramContent>(normalizeMermaidContent(rawContent));
+  let subtitle = $derived(`${diagramContent.diagramKind}${diagramContent.versionNumber ? ` · v${diagramContent.versionNumber}` : ''}`);
 
   $effect(() => {
-    renderDiagram(content.diagramCode);
+    renderDiagram(diagramContent.diagramCode);
   });
 
   function handleEmbedDataUpdated(update: { status: string; decodedContent: Record<string, unknown> }) {
@@ -94,17 +94,17 @@
   }
 
   async function handleCopy() {
-    const result = await copyToClipboard(content.diagramCode);
+    const result = await copyToClipboard(diagramContent.diagramCode);
     if (result.success) notificationStore.success('Mermaid source copied');
     else notificationStore.error('Could not copy Mermaid source');
   }
 
   function handleDownload() {
-    const blob = new Blob([content.diagramCode], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([diagramContent.diagramCode], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${content.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'diagram'}.mmd`;
+    link.download = `${diagramContent.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'diagram'}.mmd`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -139,7 +139,7 @@
 <UnifiedEmbedFullscreen
   appId="diagrams"
   skillId="mermaid"
-  embedHeaderTitle={content.title}
+  embedHeaderTitle={diagramContent.title}
   embedHeaderSubtitle={subtitle}
   skillIconName="diagram"
   {onClose}
@@ -171,7 +171,7 @@
           {#if renderError}
             <p class="render-error">{renderError}</p>
           {/if}
-          <pre><code>{content.diagramCode || 'No Mermaid source available.'}</code></pre>
+          <pre><code>{diagramContent.diagramCode || 'No Mermaid source available.'}</code></pre>
         </section>
       {:else}
         <section
