@@ -360,10 +360,6 @@
         $anonymousFreeUsageStatus?.can_send_text !== false &&
         !anonymousFileAttachmentPending
     );
-    let showSendActionButton = $derived(
-        hasContent &&
-        ($authStore.isAuthenticated || $demoMode || anonymousTextSendEnabled || anonymousFileAttachmentPending)
-    );
     let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent);
 
     function editorHasEmbedContent(editor: Editor): boolean {
@@ -5206,7 +5202,7 @@
         {#if shouldShowActionButtons}
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
-                    showSendButton={showSendActionButton}
+                    showSendButton={hasContent}
                     isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
                     allowAnonymousTextSend={anonymousTextSendEnabled}
                     {hasNoCredits}

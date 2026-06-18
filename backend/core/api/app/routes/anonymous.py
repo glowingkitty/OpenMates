@@ -12,7 +12,7 @@ import re
 import uuid
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
@@ -120,12 +120,13 @@ def _get_directus_service(request: Request) -> Any:
 @limiter.limit("60/minute")
 async def get_anonymous_free_usage_status(
     request: Request,
+    anonymous_id: Optional[str] = Query(default=None),
     directus_service: Any = Depends(_get_directus_service),
 ) -> AnonymousStatusResponse:
     _require_official_cloud(request)
     service = AnonymousFreeUsageService(directus_service=directus_service)
     return AnonymousStatusResponse(**(await service.get_public_status(
-        anonymous_id=request.headers.get("X-OpenMates-Anonymous-ID"),
+        anonymous_id=anonymous_id or request.headers.get("X-OpenMates-Anonymous-ID"),
         ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
     )))
 

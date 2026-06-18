@@ -280,7 +280,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
-	test('anonymous text send button stays hidden when device budget is exhausted', async ({
+	test('anonymous text send becomes signup CTA when device budget is exhausted', async ({
 		page
 	}: {
 		page: any;
@@ -305,7 +305,7 @@ test.describe('Anonymous free chat', () => {
 
 		await typeMessageText(page, 'Budget should hide send');
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
-		await expect(page.locator('[data-action="sign-up-to-send"]')).toHaveCount(0);
+		await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible();
 		expect(streamRequests).toEqual([]);
 		await assertNoMissingTranslations(page);
 	});

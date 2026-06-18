@@ -279,10 +279,9 @@ export async function refreshAnonymousFreeUsageStatus(): Promise<ServerStatus['a
             await initializeServerStatus();
         }
         const anonymousId = anonymousChatStorage.getAnonymousId();
-        const response = await fetch(getApiEndpoint('/v1/anonymous/free-usage/status'), {
-            headers: {
-                'X-OpenMates-Anonymous-ID': anonymousId
-            },
+        const url = new URL(getApiEndpoint('/v1/anonymous/free-usage/status'));
+        url.searchParams.set('anonymous_id', anonymousId);
+        const response = await fetch(url.toString(), {
             cache: 'no-store'
         });
 
