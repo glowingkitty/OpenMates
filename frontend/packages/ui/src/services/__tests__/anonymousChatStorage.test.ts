@@ -158,7 +158,7 @@ describe("anonymousChatStorage", () => {
     const fetchMock = mockAnonymousFetch({
       messageId: "assistant-message",
       assistant: "Hello from anonymous chat",
-      category: "ai",
+      category: "general_knowledge",
       modelName: "test-model",
     });
     const storage = await loadStorage();
@@ -215,7 +215,7 @@ describe("anonymousChatStorage", () => {
         json: async () => ({
           messageId: request.client_message_id,
           assistant: "Echoed ID answer",
-          category: "ai",
+          category: "general_knowledge",
           modelName: "test-model",
         }),
       };

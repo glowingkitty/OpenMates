@@ -27,7 +27,7 @@ const LEGACY_ANONYMOUS_PAYLOAD_STORAGE = "openmates_anonymous_chats_v1";
 const ANONYMOUS_ID_STORAGE = "openmates_anonymous_id";
 const ANONYMOUS_CHAT_PREFIX = "anonymous-";
 const ANONYMOUS_FEATURE_NOTICE_KEY = "chat.anonymous_free_usage.feature_notice";
-const DEFAULT_ANONYMOUS_CATEGORY = "ai";
+const DEFAULT_ANONYMOUS_CATEGORY = "general_knowledge";
 const DEFAULT_ANONYMOUS_ICON = "sparkles";
 const MESSAGE_ROLE_ORDER: Record<string, number> = {
   system: 0,

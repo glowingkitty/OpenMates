@@ -105,7 +105,7 @@ async function mockAnonymousChatStream(page: any, anonymousRequests: Array<Recor
 						status: 'completed',
 						messageId: `anonymous-assistant-${responseNumber}`,
 						assistant: `Anonymous answer ${responseNumber}`,
-						category: 'ai',
+						category: 'general_knowledge',
 						modelName: 'test-model'
 					}),
 					{
@@ -145,7 +145,7 @@ async function mockDelayedAnonymousChatStream(
 						status: 'completed',
 						messageId: body.client_message_id,
 						assistant: `Delayed anonymous answer ${responseNumber}`,
-						category: 'ai',
+						category: 'general_knowledge',
 						modelName: 'test-model'
 					}),
 					{
