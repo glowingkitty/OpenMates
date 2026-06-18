@@ -135,6 +135,7 @@ async function waitForBackgroundEmbedUpdates(page: any): Promise<void> {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 test.describe('Embed Diff-Based Editing', () => {
+	test.setTimeout(360_000);
 
 	test('code embed is patched in-place when assistant outputs diff', async ({ page }) => {
 		test.slow(); // AI inference takes 60-90s per turn
