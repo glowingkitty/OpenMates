@@ -19,6 +19,13 @@ from urllib.parse import urlparse
 DEPENDENCY_FILENAMES = {"package.json", "package-lock.json", "requirements.txt"}
 VITE_ALLOWED_HOSTS_ENV = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"
 VITE_OPENMATES_CONFIG_PATH = "vite.config.openmates.mjs"
+VITE_CONFIG_FILENAMES = {
+    "vite.config.js",
+    "vite.config.mjs",
+    "vite.config.cjs",
+    "vite.config.ts",
+    "vite.config.mts",
+}
 TAILWIND_CONFIG_FILENAMES = {
     "tailwind.config.js",
     "tailwind.config.cjs",
@@ -338,7 +345,7 @@ def _is_vite_dev_command(command: str) -> bool:
 
 
 def _write_vite_allowed_hosts_config(sandbox: Any, files: list[ApplicationPreviewFile], allowed_hosts: list[str]) -> str | None:
-    if not allowed_hosts or not _has_vite_dependency(files):
+    if not allowed_hosts or not _has_vite_dependency(files) or _has_existing_vite_config(files):
         return None
     hosts = ", ".join(repr(host) for host in allowed_hosts)
     sandbox.files.write_files([
@@ -362,6 +369,10 @@ def _has_vite_dependency(files: list[ApplicationPreviewFile]) -> bool:
         if file.path.rsplit("/", 1)[-1] == "package.json" and "vite" in file.content:
             return True
     return False
+
+
+def _has_existing_vite_config(files: list[ApplicationPreviewFile]) -> bool:
+    return any(file.path.rsplit("/", 1)[-1] in VITE_CONFIG_FILENAMES for file in files)
 
 
 def _sandbox_screenshot_url(sandbox: Any) -> str | None:

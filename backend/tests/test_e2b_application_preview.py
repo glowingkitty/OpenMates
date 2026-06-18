@@ -154,6 +154,33 @@ def test_preview_writes_generated_vite_allowed_hosts_config() -> None:
     assert "allowedHosts: ['5173-izr5goe7od08cvlqzemo8.e2b.app']" in written["data"]
 
 
+def test_preview_keeps_existing_vite_config_for_framework_plugins() -> None:
+    class FakeFiles:
+        def __init__(self) -> None:
+            self.payloads = []
+
+        def write_files(self, payload):
+            self.payloads.append(payload)
+
+    class FakeSandbox:
+        def __init__(self) -> None:
+            self.files = FakeFiles()
+
+    sandbox = FakeSandbox()
+
+    path = _write_vite_allowed_hosts_config(
+        sandbox,
+        [
+            ApplicationPreviewFile(path="package.json", content='{"devDependencies":{"vite":"^5.0.0","@sveltejs/vite-plugin-svelte":"latest"}}'),
+            ApplicationPreviewFile(path="vite.config.js", content="import { svelte } from '@sveltejs/vite-plugin-svelte';\n"),
+        ],
+        ["5173-izr5goe7od08cvlqzemo8.e2b.app"],
+    )
+
+    assert path is None
+    assert sandbox.files.payloads == []
+
+
 def test_preview_start_command_does_not_duplicate_vite_allowed_hosts_env() -> None:
     command = _with_vite_allowed_hosts(
         "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS=custom.example npm run dev",
