@@ -19,7 +19,7 @@
   } from './mermaidDiagramContent';
 
   interface Props {
-    data: EmbedFullscreenRawData;
+    data?: EmbedFullscreenRawData;
     onClose: () => void;
     embedId?: string;
     hasPreviousEmbed?: boolean;
@@ -32,7 +32,7 @@
   }
 
   let {
-    data,
+    data = {},
     onClose,
     embedId,
     hasPreviousEmbed = false,
