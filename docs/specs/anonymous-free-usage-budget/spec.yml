@@ -390,8 +390,11 @@ tests:
       - AC-16
     assertions:
       - admin budget save derives daily and weekly caps from monthly budget percentages
-      - public status exposes active/reset metadata only
+      - public status exposes active/reset/can_send_text metadata only
+      - admin budget state exposes monthly remaining credits for settings freshness
+      - budget rows are read as the newest singleton row, not only the legacy default ID
       - self-host status and endpoints omit or reject anonymous free usage
+      - enabled budgets reject a zero per-identity cap, and legacy zero-cap rows are not advertised as active
       - finalized charges decrement daily and weekly aggregate counters
       - per-identity cap rejects local ID hash or IP hash after 400 daily credits
       - concurrent reservations cannot overspend available budget

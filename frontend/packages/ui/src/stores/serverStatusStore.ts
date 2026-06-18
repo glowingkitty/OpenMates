@@ -10,6 +10,7 @@
 
 import { writable, derived, get } from 'svelte/store';
 import { getApiEndpoint } from '../config/api';
+import { anonymousChatStorage } from '../services/anonymousChatStorage';
 
 // --- Types ---
 
@@ -32,6 +33,7 @@ interface ServerStatus {
     /** Safe public anonymous free usage availability metadata. */
     anonymous_free_usage?: {
         active: boolean;
+        can_send_text?: boolean;
         reason?: string | null;
         reset_at?: string | null;
         cta?: string | null;
@@ -267,6 +269,39 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
             error: errorMessage
         }));
         
+        return null;
+    }
+}
+
+export async function refreshAnonymousFreeUsageStatus(): Promise<ServerStatus['anonymous_free_usage'] | null> {
+    try {
+        if (!get(serverStatusStore).status) {
+            await initializeServerStatus();
+        }
+        const anonymousId = anonymousChatStorage.getAnonymousId();
+        const response = await fetch(getApiEndpoint('/v1/anonymous/free-usage/status'), {
+            headers: {
+                'X-OpenMates-Anonymous-ID': anonymousId
+            },
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch anonymous free usage status: ${response.status}`);
+        }
+
+        const anonymousStatus = await response.json();
+        serverStatusStore.update(state => ({
+            ...state,
+            status: state.status
+                ? { ...state.status, anonymous_free_usage: anonymousStatus }
+                : state.status,
+            error: null
+        }));
+        return anonymousStatus;
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[ServerStatusStore] Error fetching anonymous free usage status:', errorMessage);
         return null;
     }
 }

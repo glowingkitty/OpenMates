@@ -243,7 +243,13 @@ async def test_cloud_server_status_includes_safe_free_testing_credits(monkeypatc
                 pass
 
             async def get_public_status(self):
-                return {"active": True, "reason": None, "reset_at": "2026-06-17T00:00:00+00:00", "cta": "Sign up"}
+                return {
+                    "active": True,
+                    "can_send_text": True,
+                    "reason": None,
+                    "reset_at": "2026-06-17T00:00:00+00:00",
+                    "cta": "Sign up",
+                }
 
         async def has_ai_models(_request):
             return True
@@ -267,6 +273,7 @@ async def test_cloud_server_status_includes_safe_free_testing_credits(monkeypatc
         assert payload["free_testing_credits"] == {"active": True, "grant_credits": 1000}
         assert payload["anonymous_free_usage"] == {
             "active": True,
+            "can_send_text": True,
             "reason": None,
             "reset_at": "2026-06-17T00:00:00+00:00",
             "cta": "Sign up",

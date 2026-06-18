@@ -31,7 +31,7 @@
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
     import { demoMode } from '../../stores/demoModeStore';
-    import { anonymousFreeUsageStatus } from '../../stores/serverStatusStore';
+    import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -352,7 +352,18 @@
     let suppressHeightChangeDispatch = $state(false);
     
     let hasEmbedContent = $state(false);
-    let anonymousTextSendEnabled = $derived(!$authStore.isAuthenticated && $anonymousFreeUsageStatus?.active === true && !anonymousFileAttachmentPending);
+    let anonymousStatusChecked = $state(false);
+    let anonymousTextSendEnabled = $derived(
+        anonymousStatusChecked &&
+        !$authStore.isAuthenticated &&
+        $anonymousFreeUsageStatus?.active === true &&
+        $anonymousFreeUsageStatus?.can_send_text !== false &&
+        !anonymousFileAttachmentPending
+    );
+    let showSendActionButton = $derived(
+        hasContent &&
+        ($authStore.isAuthenticated || $demoMode || anonymousTextSendEnabled || anonymousFileAttachmentPending)
+    );
     let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent);
 
     function editorHasEmbedContent(editor: Editor): boolean {
@@ -1644,6 +1655,13 @@
 
     onMount(() => {
         lastAuthMethod = getLastAuthMethod();
+        if ($authStore.isAuthenticated || $demoMode) {
+            anonymousStatusChecked = true;
+        } else {
+            void refreshAnonymousFreeUsageStatus().then((status) => {
+                anonymousStatusChecked = !!status;
+            });
+        }
 
         if (!editorElement) {
             console.error("Editor element not found on mount.");
@@ -5188,7 +5206,7 @@
         {#if shouldShowActionButtons}
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
-                    showSendButton={hasContent}
+                    showSendButton={showSendActionButton}
                     isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
                     allowAnonymousTextSend={anonymousTextSendEnabled}
                     {hasNoCredits}

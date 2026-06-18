@@ -21,7 +21,6 @@ from uuid import uuid4
 ANONYMOUS_BUDGET_COLLECTION = "anonymous_free_usage_budget"
 ANONYMOUS_IDENTITY_DAILY_COLLECTION = "anonymous_free_usage_identity_daily"
 ANONYMOUS_RESERVATIONS_COLLECTION = "anonymous_free_usage_reservations"
-ANONYMOUS_BUDGET_ID = "default"
 DEFAULT_ANONYMOUS_CTA = "Sign up to keep using OpenMates"
 
 
@@ -36,6 +35,7 @@ class AnonymousBudgetStatus:
     per_identity_daily_cap_credits: int
     daily_used_credits: int
     weekly_used_credits: int
+    monthly_remaining_credits: int
     daily_remaining_credits: int
     weekly_remaining_credits: int
     active: bool
@@ -70,11 +70,29 @@ class AnonymousFreeUsageService:
         row = await self._get_budget_row()
         return self._status_from_row(row)
 
-    async def get_public_status(self) -> dict[str, Any]:
+    async def get_public_status(
+        self,
+        *,
+        anonymous_id: str | None = None,
+        ip_address: str | None = None,
+        estimated_credits: int = 10,
+    ) -> dict[str, Any]:
         status = await self.get_budget_status()
+        active = status.active
+        reason = status.reason
+        if active and anonymous_id and ip_address and estimated_credits > 0:
+            local_hash = self._hmac_identity("local", anonymous_id)
+            ip_hash = self._hmac_identity("ip", ip_address)
+            if await self._identity_would_exceed(local_hash, estimated_credits, status.per_identity_daily_cap_credits):
+                active = False
+                reason = "per_identity_exhausted"
+            elif await self._identity_would_exceed(ip_hash, estimated_credits, status.per_identity_daily_cap_credits):
+                active = False
+                reason = "per_identity_exhausted"
         return {
-            "active": status.active,
-            "reason": status.reason,
+            "active": active,
+            "can_send_text": active,
+            "reason": reason,
             "reset_at": status.reset_at,
             "cta": DEFAULT_ANONYMOUS_CTA,
         }
@@ -97,6 +115,8 @@ class AnonymousFreeUsageService:
             raise ValueError("weekly_cap_percent must be between 0 and 100")
         if per_identity_daily_cap_credits < 0:
             raise ValueError("per_identity_daily_cap_credits must be >= 0")
+        if enabled and per_identity_daily_cap_credits < 1:
+            raise ValueError("per_identity_daily_cap_credits must be >= 1 when enabled")
 
         existing = await self._get_budget_row()
         now = _now_iso()
@@ -251,7 +271,7 @@ class AnonymousFreeUsageService:
     async def _get_budget_row(self) -> dict[str, Any] | None:
         rows = await self.directus.get_items(
             ANONYMOUS_BUDGET_COLLECTION,
-            params={"filter[id][_eq]": ANONYMOUS_BUDGET_ID, "limit": 1},
+            params={"sort": "-updated_at", "limit": 1},
             no_cache=True,
             admin_required=True,
         )
@@ -334,12 +354,16 @@ class AnonymousFreeUsageService:
         weekly_cap = monthly * weekly_percent // 100
         daily_used = _safe_int(row.get("daily_used_credits"))
         weekly_used = _safe_int(row.get("weekly_used_credits"))
+        per_identity_cap = _safe_int(row.get("per_identity_daily_cap_credits"))
+        monthly_remaining = max(0, monthly - weekly_used)
         daily_remaining = max(0, daily_cap - daily_used)
         weekly_remaining = max(0, weekly_cap - weekly_used)
         enabled = bool(row.get("enabled", False))
         reason = None
         if not enabled:
             reason = "inactive"
+        elif per_identity_cap < 1:
+            reason = "per_identity_exhausted"
         elif daily_remaining < 1:
             reason = "daily_exhausted"
         elif weekly_remaining < 1:
@@ -351,9 +375,10 @@ class AnonymousFreeUsageService:
             daily_hard_cap_credits=daily_cap,
             weekly_cap_percent=weekly_percent,
             weekly_cap_credits=weekly_cap,
-            per_identity_daily_cap_credits=_safe_int(row.get("per_identity_daily_cap_credits")),
+            per_identity_daily_cap_credits=per_identity_cap,
             daily_used_credits=daily_used,
             weekly_used_credits=weekly_used,
+            monthly_remaining_credits=monthly_remaining,
             daily_remaining_credits=daily_remaining,
             weekly_remaining_credits=weekly_remaining,
             active=reason is None,

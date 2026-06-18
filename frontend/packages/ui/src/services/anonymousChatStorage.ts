@@ -423,7 +423,7 @@ class AnonymousChatStorage {
     return data;
   }
 
-  private getAnonymousId(): string {
+  getAnonymousId(): string {
     let anonymousId = localStorage.getItem(ANONYMOUS_ID_STORAGE);
     if (!anonymousId) {
       anonymousId = crypto.randomUUID();

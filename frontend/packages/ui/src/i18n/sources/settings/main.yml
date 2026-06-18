@@ -2976,6 +2976,10 @@ server.anonymous_free_usage_budget.weekly_remaining:
   context: Label for anonymous free usage weekly remaining credits
   en: Weekly remaining
   verified_by_human: []
+server.anonymous_free_usage_budget.monthly_remaining:
+  context: Label for anonymous free usage monthly remaining credits
+  en: Monthly remaining
+  verified_by_human: []
 server.anonymous_free_usage_budget.reset_at:
   context: Label for anonymous free usage reset timestamp
   en: Daily reset
@@ -3019,6 +3023,10 @@ server.anonymous_free_usage_budget.derived_weekly_cap:
 server.anonymous_free_usage_budget.validation_percent:
   context: Validation message when anonymous free usage percentage fields are invalid
   en: Percent values must be between 0 and 100.
+  verified_by_human: []
+server.anonymous_free_usage_budget.validation_per_identity_cap:
+  context: Validation message when anonymous free usage has a positive monthly budget but no per-identity daily credits
+  en: Per-identity daily cap must be at least 1 credit when the monthly budget is above 0.
   verified_by_human: []
 server.gift_cards.title:
   context: Title shown at top of admin gift card generator page

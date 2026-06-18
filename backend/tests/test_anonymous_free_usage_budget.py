@@ -38,6 +38,9 @@ class FakeDirectus:
     ) -> list[dict[str, Any]]:
         params = params or {}
         if collection == ANONYMOUS_BUDGET_COLLECTION:
+            budget_id = params.get("filter[id][_eq]")
+            if budget_id and self.budget and self.budget.get("id") != budget_id:
+                return []
             return [self.budget] if self.budget else []
         if collection == ANONYMOUS_IDENTITY_DAILY_COLLECTION:
             identity_hash = params.get("filter[identity_hash][_eq]")
@@ -123,15 +126,87 @@ async def test_admin_budget_save_derives_caps_and_public_status_is_safe() -> Non
     assert status.daily_hard_cap_credits == 3_000
     assert status.weekly_cap_credits == 15_000
     assert status.per_identity_daily_cap_credits == 400
+    assert status.monthly_remaining_credits == 60_000
     assert status.daily_remaining_credits == 3_000
     assert status.weekly_remaining_credits == 15_000
     assert status.active is True
     assert public["active"] is True
-    assert set(public) == {"active", "reason", "reset_at", "cta"}
+    assert public["can_send_text"] is True
+    assert set(public) == {"active", "can_send_text", "reason", "reset_at", "cta"}
     assert directus.created_payloads[0][0] == ANONYMOUS_BUDGET_COLLECTION
     created_id = directus.created_payloads[0][1]["id"]
     assert created_id != "default"
     assert str(UUID(created_id)) == created_id
+
+
+@pytest.mark.asyncio
+async def test_enabled_budget_requires_positive_per_identity_cap() -> None:
+    service, _directus = make_service()
+
+    with pytest.raises(ValueError, match="per_identity_daily_cap_credits must be >= 1 when enabled"):
+        await service.save_budget(
+            enabled=True,
+            monthly_budget_credits=60_000,
+            daily_hard_cap_percent=5,
+            weekly_cap_percent=25,
+            per_identity_daily_cap_credits=0,
+            admin_user_id="admin-1",
+        )
+
+
+@pytest.mark.asyncio
+async def test_existing_zero_per_identity_cap_is_not_publicly_active() -> None:
+    service, directus = make_service()
+    directus.budget = {
+        "id": "legacy-zero-cap",
+        "enabled": True,
+        "monthly_budget_credits": 60_000,
+        "daily_hard_cap_percent": 5,
+        "weekly_cap_percent": 25,
+        "per_identity_daily_cap_credits": 0,
+        "daily_used_credits": 0,
+        "weekly_used_credits": 0,
+        "updated_at": "2026-06-18T15:31:28Z",
+    }
+
+    status = await service.get_budget_status()
+    public = await service.get_public_status()
+
+    assert status.active is False
+    assert status.reason == "per_identity_exhausted"
+    assert public["active"] is False
+    assert public["can_send_text"] is False
+    assert public["reason"] == "per_identity_exhausted"
+
+
+@pytest.mark.asyncio
+async def test_public_status_checks_per_identity_remaining_budget() -> None:
+    service, _directus = make_service()
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=60_000,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=10,
+        admin_user_id="admin-1",
+    )
+    first = await service.reserve_budget(
+        request_id="request-1",
+        anonymous_id="anon-1",
+        ip_address="203.0.113.7",
+        estimated_credits=10,
+    )
+
+    public = await service.get_public_status(
+        anonymous_id="anon-1",
+        ip_address="203.0.113.9",
+        estimated_credits=10,
+    )
+
+    assert first.accepted is True
+    assert public["active"] is False
+    assert public["can_send_text"] is False
+    assert public["reason"] == "per_identity_exhausted"
 
 
 @pytest.mark.asyncio

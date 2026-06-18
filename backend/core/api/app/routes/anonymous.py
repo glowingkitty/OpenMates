@@ -61,6 +61,7 @@ class AnonymousChatStreamRequest(BaseModel):
 
 class AnonymousStatusResponse(BaseModel):
     active: bool
+    can_send_text: bool = False
     reason: Optional[str] = None
     reset_at: str
     cta: str
@@ -123,7 +124,10 @@ async def get_anonymous_free_usage_status(
 ) -> AnonymousStatusResponse:
     _require_official_cloud(request)
     service = AnonymousFreeUsageService(directus_service=directus_service)
-    return AnonymousStatusResponse(**(await service.get_public_status()))
+    return AnonymousStatusResponse(**(await service.get_public_status(
+        anonymous_id=request.headers.get("X-OpenMates-Anonymous-ID"),
+        ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+    )))
 
 
 @router.post("/chat/stream", response_model=AnonymousChatResponse, include_in_schema=False)

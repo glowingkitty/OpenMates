@@ -18,6 +18,7 @@ import { isPublicChat } from "../../../demo_chats/convertToChat";
 import { websocketStatus } from "../../../stores/websocketStatusStore"; // Import WebSocket status store
 import { chatListCache } from "../../../services/chatListCache";
 import { anonymousChatStorage } from "../../../services/anonymousChatStorage";
+import { refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
@@ -1208,6 +1209,7 @@ export async function handleSend(
         newChat: anonymousResult.isNewChat ? anonymousResult.chat : undefined,
       });
       dispatch("anonymousAssistantMessage", { result: anonymousResult });
+      void refreshAnonymousFreeUsageStatus();
       return;
     }
 

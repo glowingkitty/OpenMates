@@ -31,6 +31,7 @@ type BudgetResponse = {
 	per_identity_daily_cap_credits: number;
 	daily_used_credits: number;
 	weekly_used_credits: number;
+	monthly_remaining_credits: number;
 	daily_remaining_credits: number;
 	weekly_remaining_credits: number;
 	active: boolean;
@@ -107,6 +108,7 @@ async function mockBudgetEndpoint(page: any) {
 		per_identity_daily_cap_credits: 400,
 		daily_used_credits: 0,
 		weekly_used_credits: 0,
+		monthly_remaining_credits: 0,
 		daily_remaining_credits: 0,
 		weekly_remaining_credits: 0,
 		active: false,
@@ -134,6 +136,7 @@ async function mockBudgetEndpoint(page: any) {
 				per_identity_daily_cap_credits: Number(lastPutBody?.per_identity_daily_cap_credits ?? 0),
 				daily_used_credits: 0,
 				weekly_used_credits: 0,
+				monthly_remaining_credits: monthly,
 				daily_remaining_credits: dailyCap,
 				weekly_remaining_credits: weeklyCap,
 				active: Boolean(lastPutBody?.enabled) && dailyCap > 0 && weeklyCap > 0,
@@ -183,12 +186,19 @@ test('admin can view and save anonymous free usage budget settings', async ({ pa
 	await expect(page.getByTestId('anonymous-free-usage-budget-settings')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByText('Anonymous free usage is currently inactive.')).toBeVisible();
 
-	const enableToggle = page.getByRole('checkbox', { name: /enable anonymous free usage/i }).first();
-	await enableToggle.click();
+	await expect(page.getByRole('checkbox', { name: /enable anonymous free usage/i })).toHaveCount(0);
 	await page.getByTestId('anonymous-free-usage-monthly-budget-input').fill('60000');
 	await page.getByTestId('anonymous-free-usage-daily-percent-input').fill('5');
 	await page.getByTestId('anonymous-free-usage-weekly-percent-input').fill('25');
+	await page.getByTestId('anonymous-free-usage-per-identity-cap-input').fill('0');
+	await expect(
+		page.getByText('Per-identity daily cap must be at least 1 credit when the monthly budget is above 0.')
+	).toBeVisible();
+	await expect(page.getByTestId('anonymous-free-usage-budget-save-button')).toBeDisabled();
 	await page.getByTestId('anonymous-free-usage-per-identity-cap-input').fill('400');
+	await expect(
+		page.getByText('Per-identity daily cap must be at least 1 credit when the monthly budget is above 0.')
+	).toHaveCount(0);
 	await expect(page.getByText('3,000')).toBeVisible();
 	await expect(page.getByText('15,000')).toBeVisible();
 	await page.getByTestId('anonymous-free-usage-budget-save-button').click();
@@ -196,6 +206,7 @@ test('admin can view and save anonymous free usage budget settings', async ({ pa
 	await expect(page.getByText('Anonymous free usage is active for new logged-out users.')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('anonymous-free-usage-budget-settings').getByText('3,000').first()).toBeVisible();
 	await expect(page.getByTestId('anonymous-free-usage-budget-settings').getByText('15,000').first()).toBeVisible();
+	await expect(page.getByTestId('anonymous-free-usage-budget-settings').getByText('60,000').first()).toBeVisible();
 	expect(budgetApi.getLastPutBody()).toMatchObject({
 		enabled: true,
 		monthly_budget_credits: 60000,

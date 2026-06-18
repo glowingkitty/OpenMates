@@ -21,6 +21,7 @@ function anonymousActiveServerStatusBody() {
 		ai_models_configured: true,
 		anonymous_free_usage: {
 			active: true,
+			can_send_text: true,
 			reason: null,
 			reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
 			cta: 'Create an account to keep using OpenMates.'
@@ -34,6 +35,51 @@ async function mockAnonymousActiveServerStatus(page: any) {
 			status: 200,
 			contentType: 'application/json',
 			body: JSON.stringify(anonymousActiveServerStatusBody())
+		});
+	});
+	await page.route('**/v1/anonymous/free-usage/status', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				active: true,
+				can_send_text: true,
+				reason: null,
+				reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+				cta: 'Create an account to keep using OpenMates.'
+			})
+		});
+	});
+}
+
+async function mockAnonymousExhaustedServerStatus(page: any) {
+	await page.route('**/v1/settings/server-status', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				...anonymousActiveServerStatusBody(),
+				anonymous_free_usage: {
+					active: false,
+					can_send_text: false,
+					reason: 'per_identity_exhausted',
+					reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+					cta: 'Create an account to keep using OpenMates.'
+				}
+			})
+		});
+	});
+	await page.route('**/v1/anonymous/free-usage/status', async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				active: false,
+				can_send_text: false,
+				reason: 'per_identity_exhausted',
+				reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+				cta: 'Create an account to keep using OpenMates.'
+			})
 		});
 	});
 }
@@ -231,6 +277,36 @@ test.describe('Anonymous free chat', () => {
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect.poll(async () => (await getAnonymousIndexedDbState(page)).anonymousChats.length).toBe(0);
 		expect(await page.evaluate(() => localStorage.getItem('openmates_anonymous_chats_v1'))).toBeNull();
+		await assertNoMissingTranslations(page);
+	});
+
+	test('anonymous text send button stays hidden when device budget is exhausted', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await mockAnonymousExhaustedServerStatus(page);
+
+		const streamRequests: string[] = [];
+		page.on('request', (request: any) => {
+			if (request.url().includes('/v1/anonymous/chat/stream')) {
+				streamRequests.push(`${request.method()} ${request.url()}`);
+			}
+		});
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+		await page.getByTestId('new-chat-cta-fullwidth').click();
+
+		await typeMessageText(page, 'Budget should hide send');
+		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
+		await expect(page.locator('[data-action="sign-up-to-send"]')).toHaveCount(0);
+		expect(streamRequests).toEqual([]);
 		await assertNoMissingTranslations(page);
 	});
 
