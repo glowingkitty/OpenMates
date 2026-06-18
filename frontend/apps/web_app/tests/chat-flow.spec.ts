@@ -922,7 +922,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await expect(newChatMessageEditor).toBeVisible({ timeout: 10000 });
 	await newChatMessageEditor.click();
 	const secondChatMessage = 'Reply with only: explicit new chat works';
-	await page.keyboard.type(secondChatMessage);
+	await page.keyboard.insertText(secondChatMessage);
 
 	const secondSendButton = page.locator('[data-action="send-message"]');
 	await expect(secondSendButton).toBeVisible({ timeout: 15000 });
