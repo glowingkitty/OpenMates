@@ -4244,13 +4244,21 @@ async def _consume_main_processing_stream(
                                 # Check if this is a Diagrams Mermaid block.
                                 is_mermaid_block = _is_mermaid_fence(current_code_language)
 
-                                # Check if this is a diff block (```diff:embed_ref)
-                                # Diff blocks patch an existing embed instead of creating a new one.
-                                # Format: language = "diff", filename = embed_ref
+                                # Check if this is a diff block (```diff:embed_ref).
+                                # Some models emit a bare ```diff fence even after
+                                # receiving a single editable embed in context; in that
+                                # case, target the first known embed_ref instead of
+                                # turning the patch into a new code embed.
+                                _diff_file_path_index = (
+                                    getattr(request_data, "embed_file_path_index", None) or {}
+                                )
                                 is_diff_block = (
                                     current_code_language and
                                     current_code_language.lower() == 'diff' and
-                                    current_code_filename is not None
+                                    (
+                                        current_code_filename is not None or
+                                        bool(_diff_file_path_index)
+                                    )
                                 )
                                 is_remotion_block = _is_remotion_video_fence(current_code_language, current_code_filename)
 
@@ -4279,7 +4287,9 @@ async def _consume_main_processing_stream(
                                     )
                                     from toon_format import decode
 
-                                    diff_embed_ref = current_code_filename  # embed_ref from fence
+                                    diff_embed_ref = current_code_filename or next(
+                                        iter(_diff_file_path_index), None
+                                    )
                                     diff_content = code_content
 
                                     logger.info(
@@ -4288,8 +4298,8 @@ async def _consume_main_processing_stream(
                                     )
 
                                     # Resolve embed_ref → embed_id via file_path_index
-                                    _fp_index = getattr(request_data, "embed_file_path_index", None) or {}
-                                    target_embed_id = _fp_index.get(diff_embed_ref)
+                                    _fp_index = _diff_file_path_index
+                                    target_embed_id = _fp_index.get(diff_embed_ref) if diff_embed_ref else None
 
                                     if not target_embed_id:
                                         logger.warning(
