@@ -62,6 +62,7 @@
 
 <div 
     class="fullscreen-overlay"
+    data-testid="code-fullscreen-overlay"
     in:scale={{
         duration: 300,
         delay: 0,
@@ -79,11 +80,11 @@
         ></button>
 
         <!-- Code content area -->
-        <div class="code-content">
+        <div class="code-content" data-testid="code-fullscreen-content">
             <div class="line-numbers-container" bind:this={lineNumbersElement}>
                 <!-- Line numbers will be inserted here by generateLineNumbers() -->
             </div>
-            <pre><code bind:this={codeElement} class="hljs language-{language}">{code}</code></pre>
+            <pre><code bind:this={codeElement} class="hljs language-{language}" data-testid="code-fullscreen-code">{code}</code></pre>
         </div>
 
         <!-- Info bar at bottom -->

@@ -206,9 +206,9 @@ test.describe('Embed Diff-Based Editing', () => {
 		await screenshot(page, '05-fullscreen-code');
 
 		// Look for the renamed function in fullscreen content
-		const fullscreenContent = page.locator('[data-testid="embed-fullscreen-content"]');
-		await expect(fullscreenContent).toBeVisible({ timeout: 5000 });
-		const codeText = await fullscreenContent.textContent();
+		const fullscreenCode = page.getByTestId('code-fullscreen-code');
+		await expect(fullscreenCode).toBeVisible({ timeout: 5000 });
+		const codeText = await fullscreenCode.textContent();
 		log(`Fullscreen code content length: ${codeText?.length || 0}`);
 		expect(codeText).toContain('compute_mean');
 		expect(codeText).toContain('-> float');
