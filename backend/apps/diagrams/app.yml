@@ -1,0 +1,61 @@
+# backend/apps/diagrams/app.yml
+#
+# Diagrams app — source-first diagram generation and rendering.
+#
+# Mermaid v1 is generated from assistant fenced blocks and rendered safely by
+# clients. The Mermaid source remains the durable encrypted embed content.
+
+app_id: diagrams
+name_translation_key: diagrams
+description_translation_key: diagrams.description
+icon_image: diagram.svg
+category: work
+last_updated: "2026-06-18"
+settings_and_memories: []
+instructions:
+  - for_embed_types:
+      - mermaid
+    instruction: |
+      **Mermaid diagram generation**
+      When the user asks for a diagram, map, flow, sequence, timeline, architecture sketch, state machine, entity relationship model, or comparable visual explanation, write a ```mermaid fenced code block.
+
+      Use Mermaid syntax directly inside the fence. Prefer `sequenceDiagram` for interactions over time, `flowchart TD` or `flowchart LR` for processes and decision trees, `stateDiagram-v2` for state machines, `erDiagram` for entity relationships, `classDiagram` for object models, `gantt` for schedules, and `timeline` for chronological explanations.
+
+      Do not wrap Mermaid in HTML, SVG, Markdown tables, JavaScript, or explanatory prose inside the fence. Keep labels readable and concise. If the user asks for a large diagram, split it into clear subgraphs rather than making a tiny unreadable diagram.
+embed_types:
+  - id: mermaid
+    category: direct
+    frontend_type: diagrams-mermaid
+    backend_type: mermaid
+    has_children: false
+    groupable: true
+    preview_component: diagrams/MermaidDiagramEmbedPreview.svelte
+    fullscreen_component: diagrams/MermaidDiagramEmbedFullscreen.svelte
+    icon: diagram
+    gradient_var: "--color-app-diagrams"
+    i18n_namespace: embeds.diagrams.mermaid
+    content_catalog:
+      enabled: true
+      content_type_id: mermaid
+      name: Mermaid Diagram
+      description: Flowcharts, sequence diagrams, timelines, and other source-first Mermaid diagrams.
+      icon: diagram
+      example_key: diagrams.mermaid
+      order: 10
+    content_fields:
+      - name: title
+        type: string
+        required: true
+      - name: diagram_kind
+        type: string
+        required: true
+      - name: diagram_code
+        type: string
+        required: true
+      - name: line_count
+        type: number
+        required: true
+skills: []
+
+marketing_discovery:
+  skills: {}

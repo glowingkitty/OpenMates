@@ -288,6 +288,7 @@ class EmbedService:
             "document": ("docs", "document"),
             "mail": ("mail", "email"),
             "math-plot": ("math", "plot"),
+            "mermaid": ("diagrams", "mermaid"),
         }
         return mapping.get(embed_type, (embed_type, embed_type))
 
@@ -1975,6 +1976,210 @@ class EmbedService:
 
         except Exception as e:
             logger.error(f"{log_prefix} Error updating math-plot embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
+    # Mermaid diagram embed methods (for ```mermaid ... ``` fenced blocks)
+    # Source-first direct embeds owned by the Diagrams app.
+    # =========================================================================
+
+    async def create_mermaid_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None,
+        diagram_kind: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a processing Diagrams/Mermaid direct embed placeholder."""
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "mermaid",
+                embed_id,
+                {"title": title, "diagram_kind": diagram_kind},
+            )
+            now = int(datetime.now().timestamp())
+            placeholder_content = {
+                "type": "mermaid",
+                "app_id": "diagrams",
+                "skill_id": "mermaid",
+                "title": title or "Mermaid Diagram",
+                "diagram_kind": diagram_kind or "mermaid",
+                "diagram_code": "",
+                "embed_ref": embed_ref,
+                "status": "processing",
+                "line_count": 0,
+                "version_number": 1,
+            }
+            placeholder_toon = encode(placeholder_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id,
+            )
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "mermaid",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "version_number": 1,
+                "created_at": now,
+                "updated_at": now,
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="mermaid",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                version_number=1,
+                created_at=now,
+                updated_at=now,
+                log_prefix=log_prefix,
+            )
+
+            logger.info(f"{log_prefix} Created processing Mermaid embed {embed_id}")
+            return {
+                "embed_id": embed_id,
+                "embed_reference": json.dumps({"type": "mermaid", "embed_id": embed_id}),
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating Mermaid embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_mermaid_embed_content(
+        self,
+        embed_id: str,
+        diagram_code: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "finished",
+        title: Optional[str] = None,
+        diagram_kind: Optional[str] = None,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        log_prefix: str = "",
+    ) -> bool:
+        """Update Mermaid source and metadata for a Diagrams direct embed."""
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Mermaid embed {embed_id} not found in cache, cannot update")
+                return False
+
+            existing_content: Dict[str, Any] = {}
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            if existing_toon:
+                try:
+                    decoded = decode(existing_toon)
+                    if isinstance(decoded, dict):
+                        existing_content = decoded
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing Mermaid content: {e}")
+
+            next_title = title if title is not None else existing_content.get("title") or "Mermaid Diagram"
+            next_diagram_kind = diagram_kind if diagram_kind is not None else existing_content.get("diagram_kind") or "mermaid"
+            next_version_number = version_number or int(cached_embed.get("version_number") or existing_content.get("version_number") or 1)
+            next_content_hash = content_hash
+            if next_content_hash is None and status == "finished":
+                next_content_hash = hashlib.sha256(diagram_code.encode("utf-8")).hexdigest()
+
+            updated_content = {
+                **existing_content,
+                "type": "mermaid",
+                "app_id": "diagrams",
+                "skill_id": "mermaid",
+                "title": next_title,
+                "diagram_kind": next_diagram_kind,
+                "diagram_code": diagram_code,
+                "embed_ref": existing_content.get("embed_ref") or self._generate_direct_embed_ref(
+                    "mermaid",
+                    embed_id,
+                    {"title": next_title, "diagram_kind": next_diagram_kind},
+                ),
+                "status": status,
+                "line_count": diagram_code.count("\n") + 1 if diagram_code else 0,
+                "version_number": next_version_number,
+            }
+            updated_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id,
+            )
+            updated_embed_data = {
+                **cached_embed,
+                "type": "mermaid",
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "version_number": next_version_number,
+                "updated_at": int(datetime.now().timestamp()),
+            }
+            if next_content_hash is not None:
+                updated_embed_data["content_hash"] = next_content_hash
+
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="mermaid",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    version_number=next_version_number,
+                    content_hash=next_content_hash,
+                    version_history_rows=version_history_rows,
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                )
+
+            logger.info(
+                f"{log_prefix} Updated Mermaid embed {embed_id} "
+                f"(kind={next_diagram_kind}, chars={len(diagram_code)}, status={status})"
+            )
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+            return True
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating Mermaid embed content: {e}", exc_info=True)
             return False
 
     # =========================================================================

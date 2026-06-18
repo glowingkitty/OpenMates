@@ -6399,6 +6399,31 @@ math.plot:
   he: שרטוט
   verified_by_human: []
 
+diagrams.mermaid:
+  context: Mermaid diagram embed label shown in BasicInfosBar
+  en: Mermaid Diagram
+  de: Mermaid-Diagramm
+  zh: Mermaid 图表
+  es: Diagrama Mermaid
+  fr: Diagramme Mermaid
+  pt: Diagrama Mermaid
+  ru: Диаграмма Mermaid
+  ja: Mermaid 図
+  ko: Mermaid 다이어그램
+  it: Diagramma Mermaid
+  tr: Mermaid Diyagramı
+  vi: Sơ đồ Mermaid
+  id: Diagram Mermaid
+  pl: Diagram Mermaid
+  nl: Mermaid-diagram
+  ar: مخطط Mermaid
+  hi: Mermaid डायग्राम
+  th: ไดอะแกรม Mermaid
+  cs: Mermaid diagram
+  sv: Mermaid-diagram
+  he: תרשים Mermaid
+  verified_by_human: []
+
 mail.email:
   context: Mail draft embed label shown in BasicInfosBar
   en: Email Draft

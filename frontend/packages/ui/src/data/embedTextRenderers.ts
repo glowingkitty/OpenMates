@@ -65,6 +65,7 @@ import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/m
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
 import { renderShoppingSearch, renderShoppingProduct } from '../components/embeds/shopping/shoppingEmbedText';
 import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
+import { renderMermaidDiagram } from '../components/embeds/diagrams/diagramsEmbedText';
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
@@ -182,6 +183,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'shopping-product': renderShoppingProduct,
 	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,
+	'diagrams-mermaid': renderMermaidDiagram,
+	'mermaid': renderMermaidDiagram,
 	'nutrition-recipe': renderNutritionRecipe,
 	'weather-day': renderWeatherDay,
 	'social-media-post': renderSocialMediaPost,
