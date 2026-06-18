@@ -32,6 +32,7 @@
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
+    import { externalLinks, getWebsiteUrl } from '../../config/links';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -356,6 +357,7 @@
     let anonymousTextSendEnabled = $derived(
         anonymousStatusChecked &&
         !$authStore.isAuthenticated &&
+        !lastAuthMethod &&
         $anonymousFreeUsageStatus?.active === true &&
         $anonymousFreeUsageStatus?.can_send_text !== false &&
         !anonymousFileAttachmentPending
@@ -5018,7 +5020,15 @@
 
     {#if showAnonymousTermsReminder}
         <div class="anonymous-terms-reminder" data-testid="anonymous-terms-reminder" transition:fade={{ duration: 160 }}>
-            {$text('enter_message.anonymous_terms_reminder')}
+            {$text('enter_message.anonymous_terms_reminder_prefix')}
+            <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
+                {$text('signup.terms_of_service')}
+            </a>
+            {$text('enter_message.anonymous_terms_reminder_connector')}
+            <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
+                {$text('signup.privacy_policy')}
+            </a>
+            {$text('enter_message.anonymous_terms_reminder_suffix')}
         </div>
     {/if}
 
@@ -5363,6 +5373,13 @@
         font-size: var(--font-size-xs);
         line-height: 1.35;
         text-align: center;
+    }
+
+    .anonymous-terms-reminder a {
+        color: inherit;
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 2px;
     }
 
     .edit-banner-close-icon {

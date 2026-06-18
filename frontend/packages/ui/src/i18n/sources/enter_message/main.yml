@@ -94,6 +94,15 @@ anonymous_terms_reminder:
   sv: Genom att skicka ett meddelande accepterar du OpenMates villkor och integritetspolicy.
   he: בשליחת הודעה אתם מאשרים את התנאים ומדיניות הפרטיות של OpenMates.
   verified_by_human: []
+anonymous_terms_reminder_prefix:
+  context: First part of the anonymous send legal reminder before linked terms and privacy policy labels
+  en: "By sending a message you accept the "
+anonymous_terms_reminder_connector:
+  context: Connector between the linked terms and privacy policy labels in the anonymous send legal reminder
+  en: " & "
+anonymous_terms_reminder_suffix:
+  context: Last part of the anonymous send legal reminder after linked terms and privacy policy labels
+  en: " of OpenMates."
 send:
   context: Button text for sending a message
   en: Send

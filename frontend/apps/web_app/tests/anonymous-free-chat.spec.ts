@@ -207,8 +207,14 @@ test.describe('Anonymous free chat', () => {
 		await typeMessageText(page, 'Hello anonymous text');
 		const termsReminder = page.getByTestId('anonymous-terms-reminder');
 		await expect(termsReminder).toBeVisible({ timeout: 5000 });
-		await expect(termsReminder).toContainText(
-			'By sending a message you accept the terms & privacy policy of OpenMates.'
+		await expect(termsReminder).toContainText('By sending a message you accept the');
+		await expect(termsReminder.getByRole('link', { name: 'Terms of service' })).toHaveAttribute(
+			'target',
+			'_blank'
+		);
+		await expect(termsReminder.getByRole('link', { name: 'Privacy policy' })).toHaveAttribute(
+			'target',
+			'_blank'
 		);
 		await page.locator('[data-action="send-message"]').click();
 
@@ -306,6 +312,41 @@ test.describe('Anonymous free chat', () => {
 		await typeMessageText(page, 'Budget should hide send');
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
 		await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible();
+		expect(streamRequests).toEqual([]);
+		await assertNoMissingTranslations(page);
+	});
+
+	test('previously authenticated devices are not eligible for anonymous text send', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.addInitScript(() => {
+			localStorage.setItem('openmates:last-auth-method', 'email');
+		});
+		await mockAnonymousActiveServerStatus(page);
+
+		const streamRequests: string[] = [];
+		page.on('request', (request: any) => {
+			if (request.url().includes('/v1/anonymous/chat/stream')) {
+				streamRequests.push(`${request.method()} ${request.url()}`);
+			}
+		});
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+		await page.getByTestId('new-chat-cta-fullwidth').click();
+
+		await typeMessageText(page, 'Previously logged in device should not get free usage');
+		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
+		await expect(page.getByTestId('anonymous-terms-reminder')).toHaveCount(0);
+		await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible();
+		await expect(page.locator('[data-action="sign-up-to-send"]')).toContainText('Login');
 		expect(streamRequests).toEqual([]);
 		await assertNoMissingTranslations(page);
 	});
