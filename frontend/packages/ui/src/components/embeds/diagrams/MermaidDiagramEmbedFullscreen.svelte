@@ -7,7 +7,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import EmbedZoomControls from '../shared/EmbedZoomControls.svelte';
   import { notificationStore } from '../../../stores/notificationStore';
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -48,7 +48,11 @@
   let renderedSvg = $state('');
   let renderError = $state<string | null>(null);
   let showSource = $state(false);
-  let zoom = $state(1);
+  const DEFAULT_ZOOM = 1.2;
+  const MIN_ZOOM = 0.25;
+  const MAX_ZOOM = 4;
+
+  let zoom = $state(DEFAULT_ZOOM);
   let offsetX = $state(0);
   let offsetY = $state(0);
   let dragging = $state(false);
@@ -56,11 +60,17 @@
   let dragStartY = 0;
   let dragOriginX = 0;
   let dragOriginY = 0;
+  let pinchStartDistance = 0;
+  let pinchStartZoom = DEFAULT_ZOOM;
+  let pinchOriginContentX = 0;
+  let pinchOriginContentY = 0;
+  const activePointers = new Map<number, { x: number; y: number }>();
   let renderRequest = 0;
 
   let rawContent = $derived(updatedContent ?? data.decodedContent ?? data.attrs ?? {});
   let diagramContent = $derived<MermaidDiagramContent>(normalizeMermaidContent(rawContent));
   let subtitle = $derived(`${diagramContent.diagramKind}${diagramContent.versionNumber ? ` · v${diagramContent.versionNumber}` : ''}`);
+  let zoomDisplayText = $derived(`${Math.round(zoom * 100)}%`);
 
   $effect(() => {
     renderDiagram(diagramContent.diagramCode);
@@ -110,29 +120,101 @@
   }
 
   function resetView() {
-    zoom = 1;
+    zoom = DEFAULT_ZOOM;
     offsetX = 0;
     offsetY = 0;
   }
 
+  function zoomIn() {
+    zoom = nextZoom(zoom, 'in');
+  }
+
+  function zoomOut() {
+    zoom = nextZoom(zoom, 'out');
+  }
+
   function handlePointerDown(event: PointerEvent) {
+    event.preventDefault();
+    activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+
+    if (activePointers.size >= 2) {
+      startPinch(event.currentTarget as HTMLElement);
+      return;
+    }
+
     dragging = true;
     dragStartX = event.clientX;
     dragStartY = event.clientY;
     dragOriginX = offsetX;
     dragOriginY = offsetY;
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }
 
   function handlePointerMove(event: PointerEvent) {
+    if (activePointers.has(event.pointerId)) {
+      activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+
+    if (activePointers.size >= 2) {
+      event.preventDefault();
+      updatePinch(event.currentTarget as HTMLElement);
+      return;
+    }
+
     if (!dragging) return;
+    event.preventDefault();
     offsetX = dragOriginX + event.clientX - dragStartX;
     offsetY = dragOriginY + event.clientY - dragStartY;
   }
 
   function handlePointerUp(event: PointerEvent) {
+    activePointers.delete(event.pointerId);
+    if (activePointers.size === 1) {
+      const remaining = [...activePointers.values()][0];
+      dragging = true;
+      dragStartX = remaining.x;
+      dragStartY = remaining.y;
+      dragOriginX = offsetX;
+      dragOriginY = offsetY;
+    } else {
+      dragging = false;
+    }
+    pinchStartDistance = 0;
+    if ((event.currentTarget as HTMLElement).hasPointerCapture(event.pointerId)) {
+      (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function startPinch(target: HTMLElement) {
     dragging = false;
-    (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    const points = [...activePointers.values()].slice(0, 2);
+    const midpoint = getLocalMidpoint(target, points);
+    pinchStartDistance = getPointerDistance(points);
+    pinchStartZoom = zoom;
+    pinchOriginContentX = (midpoint.x - offsetX) / zoom;
+    pinchOriginContentY = (midpoint.y - offsetY) / zoom;
+  }
+
+  function updatePinch(target: HTMLElement) {
+    const points = [...activePointers.values()].slice(0, 2);
+    if (points.length < 2 || pinchStartDistance <= 0) return;
+    const midpoint = getLocalMidpoint(target, points);
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchStartZoom * (getPointerDistance(points) / pinchStartDistance)));
+    zoom = Number(next.toFixed(3));
+    offsetX = midpoint.x - pinchOriginContentX * zoom;
+    offsetY = midpoint.y - pinchOriginContentY * zoom;
+  }
+
+  function getPointerDistance(points: { x: number; y: number }[]) {
+    return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+  }
+
+  function getLocalMidpoint(target: HTMLElement, points: { x: number; y: number }[]) {
+    const rect = target.getBoundingClientRect();
+    return {
+      x: ((points[0].x + points[1].x) / 2) - rect.left,
+      y: ((points[0].y + points[1].y) / 2) - rect.top
+    };
   }
 </script>
 
@@ -155,15 +237,6 @@
   {onShowChat}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
-  {#snippet embedHeaderCta()}
-    <div class="mermaid-controls" data-testid="mermaid-diagram-controls">
-      <EmbedHeaderCtaButton label="Zoom in" onclick={() => (zoom = nextZoom(zoom, 'in'))} testId="mermaid-zoom-in" />
-      <EmbedHeaderCtaButton label="Zoom out" onclick={() => (zoom = nextZoom(zoom, 'out'))} testId="mermaid-zoom-out" />
-      <EmbedHeaderCtaButton label="Fit" onclick={resetView} testId="mermaid-fit" />
-      <EmbedHeaderCtaButton label={showSource ? 'Show diagram' : 'Show source'} onclick={() => (showSource = !showSource)} testId="mermaid-toggle-source" />
-    </div>
-  {/snippet}
-
   {#snippet content()}
     <div class="mermaid-fullscreen" data-testid="mermaid-diagram-fullscreen">
       {#if showSource || !renderedSvg}
@@ -191,17 +264,31 @@
         </section>
       {/if}
     </div>
+    <div class="mermaid-diagram-controls" data-testid="mermaid-diagram-controls">
+      <EmbedZoomControls
+        zoomOut={zoomOut}
+        zoomIn={zoomIn}
+        resetZoom={resetView}
+        zoomLabel={zoomDisplayText}
+        zoomOutDisabled={zoom <= MIN_ZOOM}
+        zoomInDisabled={zoom >= MAX_ZOOM}
+        zoomOutTestId="mermaid-zoom-out"
+        zoomInTestId="mermaid-zoom-in"
+        resetTestId="mermaid-fit"
+      />
+      <button
+        class="mermaid-source-toggle"
+        type="button"
+        data-testid="mermaid-toggle-source"
+        onclick={() => (showSource = !showSource)}
+      >
+        {showSource ? 'Show diagram' : 'Show source'}
+      </button>
+    </div>
   {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
-  .mermaid-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-4);
-    justify-content: center;
-  }
-
   .mermaid-fullscreen {
     width: calc(100% - 10px);
     min-height: calc(100vh - 360px);
@@ -256,5 +343,43 @@
     margin: 0 0 var(--spacing-5);
     color: var(--color-error, var(--color-font-primary));
     font-weight: 700;
+  }
+
+  .mermaid-diagram-controls {
+    position: sticky;
+    bottom: var(--spacing-8);
+    z-index: var(--z-index-modal);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-3);
+    pointer-events: none;
+    margin-top: -72px;
+    padding-bottom: var(--spacing-6);
+  }
+
+  .mermaid-diagram-controls :global(.doc-zoom-bar) {
+    position: static;
+    margin-top: 0;
+    padding-bottom: 0;
+  }
+
+  .mermaid-source-toggle {
+    pointer-events: auto;
+    border: 1px solid var(--color-grey-20, #e5e5e5);
+    border-radius: var(--radius-7);
+    background: var(--color-grey-0, #fff);
+    color: var(--color-grey-80, #333);
+    font: inherit;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    padding: var(--spacing-2) var(--spacing-5);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .mermaid-source-toggle:hover {
+    background: var(--color-grey-10, #f0f0f0);
+    border-color: var(--color-grey-30, #ccc);
   }
 </style>

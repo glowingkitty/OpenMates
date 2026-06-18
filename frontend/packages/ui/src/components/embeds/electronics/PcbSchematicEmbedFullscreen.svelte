@@ -163,6 +163,7 @@
         <EmbedHeaderCtaButton
           label={showLogs ? $text('embeds.electronics.pcb_schematic.hide_logs') : $text('embeds.electronics.pcb_schematic.show_logs')}
           onclick={() => (showLogs = !showLogs)}
+          variant="secondary"
           testId="pcb-schematic-show-logs"
         />
       {/if}

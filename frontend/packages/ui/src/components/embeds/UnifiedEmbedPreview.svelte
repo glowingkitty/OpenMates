@@ -39,6 +39,7 @@
   import Icon from '../Icon.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../services/embedResolver';
+  import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
   import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
   
   /**
@@ -109,7 +110,7 @@
     faviconUrl,
     faviconIsCircular = false,
     customStatusText,
-    showSkillIcon = true,
+    showSkillIcon,
     hasFullWidthImage = false,
     customHeight,
     onEmbedDataUpdated,
@@ -137,6 +138,16 @@
 
   // Use local status as the source of truth (allows updates from embed events)
   let status = $derived(localStatus);
+
+  let isDirectContentEmbed = $derived.by(() => (
+    appId === skillId
+    || CONTENT_EMBED_CATALOG.some((item) => (
+      item.appId === appId
+      && (item.contentTypeId === skillId || item.skillId === skillId || item.backendType === skillId)
+    ))
+  ));
+
+  let shouldShowSkillIcon = $derived(showSkillIcon ?? !isDirectContentEmbed);
 
   let isSavedEmbed = $derived.by(() => {
     for (const appGroups of $appSettingsMemoriesStore.entriesByApp.values()) {
@@ -910,7 +921,7 @@
         {showStatus}
         {faviconUrl}
         {faviconIsCircular}
-        {showSkillIcon}
+        showSkillIcon={shouldShowSkillIcon}
         customStatusText={customStatusText}
         {titleIcon}
         {actionButton}
@@ -944,7 +955,7 @@
         {showStatus}
         {faviconUrl}
         {faviconIsCircular}
-        {showSkillIcon}
+        showSkillIcon={shouldShowSkillIcon}
         customStatusText={customStatusText}
         {titleIcon}
         {actionButton}
