@@ -2006,6 +2006,11 @@ async def handle_main_processing(
     # converts to interactive math-plot embeds rendered by function-plot on the frontend.
     if discovered_apps_metadata and "math" in discovered_apps_metadata:
         prompt_parts.append(base_instructions.get("base_plot_code_block_instruction", ""))
+    # Add Mermaid diagram instruction only when the Diagrams app is available.
+    # Teaches the LLM to emit ```mermaid``` fences that stream_consumer.py
+    # converts to Diagrams-owned direct embeds.
+    if discovered_apps_metadata and "diagrams" in discovered_apps_metadata:
+        prompt_parts.append(base_instructions.get("base_mermaid_code_block_instruction", ""))
 
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.

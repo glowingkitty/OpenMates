@@ -10,6 +10,7 @@ from pathlib import Path
 
 
 CODE_BLOCK_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instructions/base_code_block_instruction.md"
+MERMAID_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instructions/base_mermaid_code_block_instruction.md"
 
 
 def test_code_instruction_requires_application_preview_for_runnable_web_apps() -> None:
@@ -20,3 +21,12 @@ def test_code_instruction_requires_application_preview_for_runnable_web_apps() -
     assert "package.json" in instruction
     assert "src/main.ts" in instruction
     assert "Do not provide `localhost` links" in instruction
+
+
+def test_mermaid_instruction_requires_mermaid_fences_for_diagrams() -> None:
+    instruction = MERMAID_INSTRUCTION_PATH.read_text(encoding="utf-8")
+
+    assert "When the user asks for a diagram" in instruction
+    assert "```mermaid" in instruction
+    assert "Do not use a generic `code`, `json`, `text`, `markdown`" in instruction
+    assert "OpenMates can create a Diagrams embed" in instruction
