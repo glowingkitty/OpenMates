@@ -38,6 +38,10 @@ from backend.apps.ai.utils.embed_display_text import (
 from backend.apps.ai.utils.remotion_fences import (
     _is_remotion_video_fence,
 )
+from backend.apps.ai.utils.pcb_schematic_fences import (
+    _extract_pcb_schematic_metadata,
+    _is_pcb_schematic_fence,
+)
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
@@ -3997,6 +4001,9 @@ async def _consume_main_processing_stream(
                                 # Check if this is a mail block
                                 is_email_block = current_code_language.lower() == 'email' if current_code_language else False
 
+                                # Check if this is an Electronics PCB schematic block.
+                                is_pcb_schematic_block = _is_pcb_schematic_fence(current_code_language)
+
                                 # Check if this is a diff block (```diff:embed_ref)
                                 # Diff blocks patch an existing embed instead of creating a new one.
                                 # Format: language = "diff", filename = embed_ref
@@ -4281,6 +4288,52 @@ async def _consume_main_processing_stream(
                                         # Reset state
                                         in_code_block = False
                                         in_plot_block = False
+                                        current_code_language = ""
+                                        current_code_filename = None
+                                        current_code_content = ""
+                                        current_code_embed_id = None
+                                elif is_pcb_schematic_block:
+                                    pcb_metadata = _extract_pcb_schematic_metadata(
+                                        current_code_language,
+                                        current_code_filename,
+                                        code_content,
+                                    )
+                                    embed_data = await embed_service.create_pcb_schematic_embed_placeholder(
+                                        language=pcb_metadata["language"],
+                                        filename=pcb_metadata["filename"],
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=pcb_metadata["title"],
+                                        module_name=pcb_metadata["module_name"],
+                                        log_prefix=log_prefix,
+                                    )
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+                                        await embed_service.update_pcb_schematic_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            title=pcb_metadata["title"],
+                                            module_name=pcb_metadata["module_name"],
+                                            filename=pcb_metadata["filename"],
+                                            log_prefix=log_prefix,
+                                        )
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(
+                                            f"{log_prefix} Created and finalized PCB schematic embed {current_code_embed_id} "
+                                            f"for complete atopile block"
+                                        )
+
+                                        in_code_block = False
                                         current_code_language = ""
                                         current_code_filename = None
                                         current_code_content = ""

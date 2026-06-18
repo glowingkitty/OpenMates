@@ -1055,6 +1055,20 @@ export class GroupHandlerRegistry {
       ]),
     );
 
+    this.register(
+      new BaseGroupHandler("electronics-pcb-schematic", [
+        "id",
+        "type",
+        "status",
+        "contentRef",
+        "language",
+        "filename",
+        "lineCount",
+        "line_count",
+        "code",
+      ]),
+    );
+
     // Generic handlers for embed types that follow the standard grouping pattern
     this.register(
       new BaseGroupHandler("home-listing", [

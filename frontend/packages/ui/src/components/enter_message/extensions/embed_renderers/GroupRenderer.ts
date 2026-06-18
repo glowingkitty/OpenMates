@@ -45,6 +45,7 @@ import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPrev
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
+import PcbSchematicEmbedPreview from "../../../embeds/electronics/PcbSchematicEmbedPreview.svelte";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
@@ -356,6 +357,11 @@ export class GroupRenderer implements EmbedRenderer {
             decodedContent,
             content,
           ),
+      ],
+      [
+        "electronics-pcb-schematic",
+        (item, embedData, decodedContent, content) =>
+          this.renderPcbSchematicComponent(item, embedData, decodedContent, content),
       ],
       [
         "electronics-component",
@@ -681,6 +687,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderHomeListingItem(item, embedData, decodedContent);
       case "shopping-product":
         return this.renderShoppingProductItem(item, embedData, decodedContent);
+      case "electronics-pcb-schematic":
+        return this.renderPcbSchematicItem(item, embedData, decodedContent);
       case "electronics-component":
         return this.renderElectronicsComponentItem(item, embedData, decodedContent);
       case "nutrition-recipe":
@@ -5084,6 +5092,75 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render a PCB schematic embed using PcbSchematicEmbedPreview.
+   */
+  private async renderPcbSchematicComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (embedData?.status || item.status || "finished") as
+      | "processing"
+      | "finished"
+      | "error";
+    const lineCount = decodedContent?.line_count || decodedContent?.lineCount || item.lineCount || 0;
+    const codeContent = decodedContent?.code || item.code || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping PcbSchematicEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(PcbSchematicEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          language: decodedContent?.language || item.language || "atopile",
+          filename: decodedContent?.filename || item.filename || "board.ato",
+          lineCount,
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+          codeContent,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted PcbSchematicEmbedPreview:", {
+        embedId,
+        filename: decodedContent?.filename,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount PcbSchematicEmbedPreview:",
+        err,
+      );
+      const fallbackHtml = await this.renderPcbSchematicItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
    * Render an electronics component child embed using ElectronicsComponentEmbedPreview.
    */
   private async renderElectronicsComponentComponent(
@@ -5207,6 +5284,33 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${esc(String(title))}</div>
         ${brand ? `<div class="embed-text-subline">${esc(String(brand))}</div>` : ""}
         ${priceEur ? `<div class="embed-text-subline">${esc(String(priceEur))}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * HTML fallback renderer for electronics-pcb-schematic embeds.
+   */
+  private async renderPcbSchematicItem(
+    item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const filename = decodedContent?.filename || item.filename || "board.ato";
+    const lineCount = decodedContent?.line_count || decodedContent?.lineCount || item.lineCount || 0;
+    const language = decodedContent?.language || item.language || "atopile";
+    const isProcessing = item.status === "processing";
+
+    return `
+      <div class="embed-app-icon electronics">
+        <span class="icon icon_pcbdesign"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ""}
+        <div class="embed-text-line">${esc(String(filename))}</div>
+        <div class="embed-text-line">${esc(String(lineCount))} lines, ${esc(String(language))}</div>
       </div>
     `;
   }

@@ -1803,6 +1803,8 @@ async def handle_main_processing(
             relevant_previews = set(preprocessing_results.relevant_embedded_previews)
         PREVIEW_TO_EMBED_TYPE = {
             "document": "doc",
+            "pcb_schematic": "schematic",
+            "pcb-schematic": "schematic",
         }
         normalized_previews = set()
         for p in relevant_previews:

@@ -6,14 +6,62 @@
 # converter reference designs. Future providers can add categories such as
 # passives, connectors, semiconductors, JLCPCB/LCSC, Mouser, and Digi-Key.
 
+app_id: electronics
 name_translation_key: electronics
 description_translation_key: electronics.description
 icon_image: pcbdesign.svg
 category: work
 last_updated: "2026-05-23"
 settings_and_memories: []
-instructions: []
+instructions:
+  - for_embed_types:
+      - schematic
+    instruction: |
+      **PCB schematic generation with atopile**
+      atopile_version: 0.15.7
+      atopile_docs_version: 0.15.7
+      Source: official PyPI sdist `atopile-0.15.7.tar.gz` README, `.claude/skills/ato-language/SKILL.md`, `.claude/skills/domain-layer/SKILL.md`, grammar, templates, and examples.
+
+      When the user asks for a PCB schematic, write an `atopile` fenced code block. Use `module`, `interface`, and `component` blocks; instantiate with `new`; connect compatible interfaces with `~`; use `~>` only with `#pragma experiment("BRIDGE_CONNECT")` and bridgeable components. Prefer current imports such as `import Resistor` or `from "path.ato" import Thing`.
+
+      Use units, tolerances, and assertions so the solver can pick parts: `10kohm +/- 5%`, `3.0V to 3.6V`, and `assert rail.voltage within 3.0V to 3.6V`. Do not claim compile success proves electrical safety, regulatory compliance, manufacturability, or expert review.
+
+      OpenMates will compile with `atopile==0.15.7` in E2B using an `ato.yaml` containing `requires-atopile: "^0.15.7"`, `paths.src: ./`, `paths.layout: ./layouts`, and `builds.default.entry: main.ato:App`. Keep generated code as a self-contained starting point with a top-level `module App:` unless the requested module name is clear.
+
+      For complex designs, package APIs, layout reuse, manufacturing exports, or uncertain current syntax, use `code.get_docs` with official atopile docs before writing code. Atopile can generate/update KiCad projects and build artifacts, but full placement/routing is still limited and often requires KiCad/manual layout work.
 embed_types:
+  - id: schematic
+    category: direct
+    frontend_type: electronics-pcb-schematic
+    backend_type: pcb_schematic
+    has_children: false
+    groupable: true
+    preview_component: electronics/PcbSchematicEmbedPreview.svelte
+    fullscreen_component: electronics/PcbSchematicEmbedFullscreen.svelte
+    icon: pcbdesign
+    gradient_var: "--color-app-electronics"
+    i18n_namespace: embeds.electronics.pcb_schematic
+    content_fields:
+      - name: code
+        type: string
+        required: true
+      - name: language
+        type: string
+        required: true
+      - name: filename
+        type: string
+        required: true
+      - name: line_count
+        type: number
+        required: true
+      - name: title
+        type: string
+      - name: module_name
+        type: string
+      - name: compile_status
+        type: string
+      - name: artifact_manifest
+        type: object
   - id: search_components
     category: app-skill-use
     skill_id: search_components

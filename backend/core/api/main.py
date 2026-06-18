@@ -47,6 +47,7 @@ from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Im
 from backend.core.api.app.routes import e2e_api  # noqa: E402 # Import E2E test client log forwarding router (scoped HMAC auth)
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
 from backend.core.api.app.routes import code_execution  # noqa: E402 # Import Code Run web-app execution router
+from backend.core.api.app.routes import electronics_pcb_schematic  # noqa: E402 # Electronics PCB schematic compile endpoints
 from backend.core.api.app.routes import application_preview, application_preview_gateway  # noqa: E402 # Generated application live preview routers
 from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
@@ -1331,6 +1332,7 @@ def create_app() -> FastAPI:
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
+    app.include_router(electronics_pcb_schematic.router, include_in_schema=False)  # Electronics PCB schematic E2B compile - web app only
     app.include_router(application_preview.router, include_in_schema=False)  # Generated application preview sessions - web app only
     app.include_router(application_preview_gateway.router, include_in_schema=False)  # Token-gated user-content preview gateway
     app.include_router(share.router, include_in_schema=False)  # Share router - web app only

@@ -64,7 +64,7 @@ import { renderMusicGenerate } from '../components/embeds/music/musicEmbedText';
 import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/mathEmbedText';
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
 import { renderShoppingSearch, renderShoppingProduct } from '../components/embeds/shopping/shoppingEmbedText';
-import { renderElectronicsSearch, renderElectronicsComponent } from '../components/embeds/electronics/electronicsEmbedText';
+import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
@@ -180,6 +180,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'health-appointment': renderAppointment,
 	'home-listing': renderListing,
 	'shopping-product': renderShoppingProduct,
+	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,
 	'nutrition-recipe': renderNutritionRecipe,
 	'weather-day': renderWeatherDay,

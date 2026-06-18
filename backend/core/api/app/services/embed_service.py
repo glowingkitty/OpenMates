@@ -897,6 +897,213 @@ class EmbedService:
             logger.error(f"{log_prefix} Error updating code embed content: {e}", exc_info=True)
             return False
 
+    async def create_pcb_schematic_embed_placeholder(
+        self,
+        language: str,
+        filename: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None,
+        module_name: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a processing Electronics PCB schematic direct embed."""
+        try:
+            from backend.shared.providers.e2b_pcb_schematic_compiler import (
+                ATOPILE_DOCS_VERSION,
+                ATOPILE_PACKAGE_VERSION,
+            )
+
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "pcb_schematic",
+                embed_id,
+                {"filename": filename, "title": title, "module_name": module_name},
+            )
+            placeholder_content = {
+                "type": "pcb_schematic",
+                "app_id": "electronics",
+                "skill_id": "schematic",
+                "language": language or "atopile",
+                "code": "",
+                "filename": filename,
+                "title": title,
+                "module_name": module_name,
+                "embed_ref": embed_ref,
+                "status": "processing",
+                "line_count": 0,
+                "compile_id": None,
+                "compile_status": None,
+                "artifact_manifest": None,
+                "atopile_version": ATOPILE_PACKAGE_VERSION,
+                "atopile_docs_version": ATOPILE_DOCS_VERSION,
+            }
+            placeholder_toon = encode(placeholder_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id,
+            )
+            now = int(datetime.now().timestamp())
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "pcb_schematic",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": now,
+                "updated_at": now,
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="pcb_schematic",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=now,
+                updated_at=now,
+                log_prefix=log_prefix,
+            )
+            logger.info(f"{log_prefix} Created processing PCB schematic embed {embed_id}")
+            return {
+                "embed_id": embed_id,
+                "embed_reference": json.dumps({"type": "pcb_schematic", "embed_id": embed_id}),
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating PCB schematic embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_pcb_schematic_embed_content(
+        self,
+        embed_id: str,
+        code_content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "processing",
+        title: Optional[str] = None,
+        module_name: Optional[str] = None,
+        filename: Optional[str] = None,
+        compile_id: Optional[str] = None,
+        compile_status: Optional[str] = None,
+        compile_logs: Optional[str] = None,
+        artifact_manifest: Optional[Dict[str, Any]] = None,
+        log_prefix: str = "",
+    ) -> bool:
+        """Update source or compile metadata for a PCB schematic embed."""
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} PCB schematic embed {embed_id} not found in cache, cannot update")
+                return False
+
+            existing_content: Dict[str, Any] = {}
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            if existing_toon:
+                try:
+                    decoded = decode(existing_toon)
+                    if isinstance(decoded, dict):
+                        existing_content = decoded
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing PCB schematic content: {e}")
+
+            from backend.shared.providers.e2b_pcb_schematic_compiler import (
+                ATOPILE_DOCS_VERSION,
+                ATOPILE_PACKAGE_VERSION,
+            )
+
+            line_count = code_content.count('\n') + 1 if code_content else 0
+            next_title = title if title is not None else existing_content.get("title")
+            next_module_name = module_name if module_name is not None else existing_content.get("module_name")
+            next_filename = filename if filename is not None else existing_content.get("filename")
+            updated_content = {
+                **existing_content,
+                "type": "pcb_schematic",
+                "app_id": "electronics",
+                "skill_id": "schematic",
+                "language": existing_content.get("language") or "atopile",
+                "code": code_content,
+                "filename": next_filename,
+                "title": next_title,
+                "module_name": next_module_name,
+                "embed_ref": existing_content.get("embed_ref") or self._generate_direct_embed_ref(
+                    "pcb_schematic",
+                    embed_id,
+                    {"filename": next_filename, "title": next_title, "module_name": next_module_name},
+                ),
+                "status": status,
+                "line_count": line_count,
+                "compile_id": compile_id if compile_id is not None else existing_content.get("compile_id"),
+                "compile_status": compile_status if compile_status is not None else existing_content.get("compile_status"),
+                "compile_logs": compile_logs if compile_logs is not None else existing_content.get("compile_logs"),
+                "artifact_manifest": artifact_manifest if artifact_manifest is not None else existing_content.get("artifact_manifest"),
+                "atopile_version": ATOPILE_PACKAGE_VERSION,
+                "atopile_docs_version": ATOPILE_DOCS_VERSION,
+            }
+            updated_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id,
+            )
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp()),
+            }
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (status == "finished" and current_status == "finished" and compile_status is None)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="pcb_schematic",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                )
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+            return True
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating PCB schematic embed content: {e}", exc_info=True)
+            return False
+
     async def create_remotion_video_embed_placeholder(
         self,
         chat_id: str,
