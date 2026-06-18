@@ -48,7 +48,7 @@ def test_preview_planning_supports_fastapi_backend_entrypoint() -> None:
     assert plan.start_commands == [{"name": "api", "command": "uvicorn backend.main:app --host 0.0.0.0 --port 8000", "port": 8000}]
 
 
-def test_preview_planning_adds_tailwind_configs_when_generated_css_uses_directives() -> None:
+def test_preview_planning_does_not_add_hidden_tailwind_configs() -> None:
     plan = plan_application_preview_startup(
         files=[
             ApplicationPreviewFile(
@@ -64,24 +64,10 @@ def test_preview_planning_adds_tailwind_configs_when_generated_css_uses_directiv
         entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
     )
 
-    files_by_path = {file.path: file.content for file in plan.files}
-    assert "tailwind.config.cjs" in files_by_path
-    assert "postcss.config.cjs" in files_by_path
-    assert "./src/**/*.{js,ts,jsx,tsx,svelte,html}" in files_by_path["tailwind.config.cjs"]
-    assert "tailwindcss: {}" in files_by_path["postcss.config.cjs"]
-
-
-def test_preview_planning_does_not_add_tailwind_configs_for_plain_css() -> None:
-    plan = plan_application_preview_startup(
-        files=[
-            ApplicationPreviewFile(path="package.json", content='{"scripts":{"dev":"vite"},"devDependencies":{"tailwindcss":"latest"}}'),
-            ApplicationPreviewFile(path="src/index.css", content="body { background: white; }\n"),
-        ],
-        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
-    )
-
-    assert "tailwind.config.cjs" not in {file.path for file in plan.files}
+    paths = {file.path for file in plan.files}
+    assert paths == {"package.json", "index.html", "src/index.css"}
     assert "postcss.config.cjs" not in {file.path for file in plan.files}
+    assert "tailwind.config.cjs" not in paths
 
 
 def test_preview_planning_keeps_existing_tailwind_configs() -> None:
@@ -184,6 +170,21 @@ def test_preview_keeps_existing_vite_config_for_framework_plugins() -> None:
 
 def test_preview_readiness_waits_through_transient_e2b_502() -> None:
     statuses = iter([502, 502, 200])
+    sleeps: list[float] = []
+
+    _wait_for_preview_ready(
+        "https://5173-example.e2b.app/",
+        timeout_seconds=5,
+        interval_seconds=0.01,
+        fetch_status=lambda _: next(statuses),
+        sleep=sleeps.append,
+    )
+
+    assert sleeps == [0.01, 0.01]
+
+
+def test_preview_readiness_waits_through_e2b_root_404() -> None:
+    statuses = iter([404, 404, 200])
     sleeps: list[float] = []
 
     _wait_for_preview_ready(

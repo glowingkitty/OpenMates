@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import shlex
 import time
@@ -32,18 +31,6 @@ VITE_CONFIG_FILENAMES = {
     "vite.config.cjs",
     "vite.config.ts",
     "vite.config.mts",
-}
-TAILWIND_CONFIG_FILENAMES = {
-    "tailwind.config.js",
-    "tailwind.config.cjs",
-    "tailwind.config.mjs",
-    "tailwind.config.ts",
-}
-POSTCSS_CONFIG_FILENAMES = {
-    "postcss.config.js",
-    "postcss.config.cjs",
-    "postcss.config.mjs",
-    "postcss.config.ts",
 }
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
@@ -98,7 +85,7 @@ def plan_application_preview_startup(
     if not entrypoints:
         raise ApplicationPreviewPlanningError("Application preview requires at least one entrypoint")
 
-    normalized_files = _with_generated_tailwind_configs([_normalize_file(file) for file in files])
+    normalized_files = [_normalize_file(file) for file in files]
     if not normalized_files:
         raise ApplicationPreviewPlanningError("Application preview requires at least one file")
 
@@ -134,69 +121,6 @@ def _safe_application_path(path: str) -> str:
 
 def _looks_like_secret(value: str) -> bool:
     return any(pattern.search(value) for pattern in SECRET_PATTERNS)
-
-
-def _with_generated_tailwind_configs(files: list[ApplicationPreviewFile]) -> list[ApplicationPreviewFile]:
-    if not _needs_tailwind_config_fallback(files):
-        return files
-
-    paths = {file.path for file in files}
-    generated_files = list(files)
-    if not paths.intersection(TAILWIND_CONFIG_FILENAMES):
-        generated_files.append(
-            ApplicationPreviewFile(
-                path="tailwind.config.cjs",
-                content=(
-                    "/** @type {import('tailwindcss').Config} */\n"
-                    "module.exports = {\n"
-                    "  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx,svelte,html}'],\n"
-                    "  theme: { extend: {} },\n"
-                    "  plugins: [],\n"
-                    "};\n"
-                ),
-            )
-        )
-    if not paths.intersection(POSTCSS_CONFIG_FILENAMES):
-        generated_files.append(
-            ApplicationPreviewFile(
-                path="postcss.config.cjs",
-                content=(
-                    "module.exports = {\n"
-                    "  plugins: {\n"
-                    "    tailwindcss: {},\n"
-                    "    autoprefixer: {},\n"
-                    "  },\n"
-                    "};\n"
-                ),
-            )
-        )
-    return generated_files
-
-
-def _needs_tailwind_config_fallback(files: list[ApplicationPreviewFile]) -> bool:
-    return _package_declares_dependency(files, "tailwindcss") and _css_uses_tailwind_directives(files)
-
-
-def _package_declares_dependency(files: list[ApplicationPreviewFile], package_name: str) -> bool:
-    for file in files:
-        if file.path.rsplit("/", 1)[-1] != "package.json" or not file.content:
-            continue
-        try:
-            package_json = json.loads(file.content)
-        except json.JSONDecodeError:
-            return f'"{package_name}"' in file.content
-        for section in ("dependencies", "devDependencies", "peerDependencies"):
-            dependencies = package_json.get(section)
-            if isinstance(dependencies, dict) and package_name in dependencies:
-                return True
-    return False
-
-
-def _css_uses_tailwind_directives(files: list[ApplicationPreviewFile]) -> bool:
-    for file in files:
-        if file.path.endswith(".css") and file.content and re.search(r"@(tailwind|apply)\b", file.content):
-            return True
-    return False
 
 
 def _dependency_commands(files: list[ApplicationPreviewFile]) -> list[str]:
@@ -339,7 +263,7 @@ def _wait_for_preview_ready(
     while True:
         try:
             status = status_fetcher(url)
-            if status < 500:
+            if 200 <= status < 400:
                 return
             last_status = status
             last_error = None

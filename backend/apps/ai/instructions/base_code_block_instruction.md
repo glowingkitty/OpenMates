@@ -48,6 +48,8 @@ svelte:src/App.svelte
 
 Do not provide `localhost` links for these apps; OpenMates creates the runnable preview from the application block.
 
+The preview runs exactly the files in the `application_preview` block. Do not rely on hidden setup files. If you use Tailwind directives such as `@tailwind` or `@apply`, the block MUST also include working Tailwind/PostCSS config files such as `tailwind.config.js` and `postcss.config.js` plus the required dependencies in `package.json`. If you do not include those config files, use plain CSS instead and do not write Tailwind directives.
+
 **Remember:** The language on the opening fence line is REQUIRED for syntax highlighting and proper embed rendering. Never put the language on a separate line.
 
 **7. Remotion video-create fences:**

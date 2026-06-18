@@ -23,6 +23,12 @@ def test_code_instruction_requires_application_preview_for_runnable_web_apps() -
     assert "package.json" in instruction
     assert "src/main.ts" in instruction
     assert "Do not provide `localhost` links" in instruction
+    assert "preview runs exactly the files" in instruction
+    assert "Do not rely on hidden setup files" in instruction
+    assert "If you use Tailwind directives" in instruction
+    assert "tailwind.config.js" in instruction
+    assert "postcss.config.js" in instruction
+    assert "use plain CSS instead" in instruction
 
 
 def test_stream_consumer_suppresses_deferred_application_preview_chunks() -> None:
