@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from backend.apps.ai.tasks.stream_consumer import (
+    _is_edit_existing_artifact_request,
     _select_cached_code_full_replacement_target,
     _select_full_replacement_target,
     _select_history_code_full_replacement_target,
@@ -32,6 +33,34 @@ def _request(last_user_message: str, index: dict[str, str]) -> SimpleNamespace:
             _message("user", last_user_message),
         ],
     )
+
+
+def test_detects_e2e_rename_prompt_as_existing_artifact_edit() -> None:
+    request = SimpleNamespace(
+        current_user_content=None,
+        message_history=[
+            _message(
+                "user",
+                "Rename the function from calculate_average to compute_mean and add a type hint for the return value (-> float).",
+            ),
+        ],
+    )
+
+    assert _is_edit_existing_artifact_request(request) is True
+
+
+def test_detects_enum_style_user_role_as_existing_artifact_edit() -> None:
+    request = SimpleNamespace(
+        current_user_content=None,
+        message_history=[
+            SimpleNamespace(
+                role=SimpleNamespace(value="user"),
+                content="Rename the function from calculate_average to compute_mean.",
+            ),
+        ],
+    )
+
+    assert _is_edit_existing_artifact_request(request) is True
 
 
 def test_selects_single_prior_embed_for_full_replacement_edit() -> None:
