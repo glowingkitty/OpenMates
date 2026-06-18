@@ -46,6 +46,14 @@ module BuckInput:
         "line_count": 6,
     }
 
+    multi_module_source = """module Helper:
+    pass
+
+module App:
+    helper = new Helper
+"""
+    assert _extract_pcb_schematic_metadata("atopile", None, multi_module_source)["module_name"] == "App"
+
 
 def test_electronics_app_registers_pcb_schematic_with_version_matched_instructions() -> None:
     app = yaml.safe_load(ELECTRONICS_APP_YML.read_text())
@@ -68,6 +76,8 @@ def test_electronics_app_registers_pcb_schematic_with_version_matched_instructio
     assert "atopile_docs_version: 0.15.7" in text
     assert "code.get_docs" in text
     assert "requires-atopile: \"^0.15.7\"" in text
+    assert "module App:" in text
+    assert "never write `new component`" in text
 
 
 def test_pcb_schematic_provider_builds_safe_atopile_project(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -90,6 +100,7 @@ def test_pcb_schematic_provider_builds_safe_atopile_project(monkeypatch: pytest.
 
         def list(self, path: str):
             return [
+                SimpleNamespace(name=".ato", path=f"{path}/.ato", is_dir=False),
                 SimpleNamespace(name="ato.yaml", path=f"{path}/ato.yaml", is_dir=False),
                 SimpleNamespace(name="main.ato", path=f"{path}/main.ato", is_dir=False),
                 SimpleNamespace(name="board.kicad_pcb", path=f"{path}/build/default/board.kicad_pcb", is_dir=False),
@@ -144,12 +155,14 @@ def test_pcb_schematic_provider_builds_safe_atopile_project(monkeypatch: pytest.
         "allow_internet_access": True,
         "network": {"allow_public_traffic": False},
     }
-    assert any("python -m pip install atopile==0.15.7" in cmd for cmd in sandbox.commands.commands)
-    assert any("ato build" in cmd for cmd in sandbox.commands.commands)
+    assert any("uv venv --python 3.14 .venv" in cmd for cmd in sandbox.commands.commands)
+    assert any("uv pip install --python .venv/bin/python atopile==0.15.7" in cmd for cmd in sandbox.commands.commands)
+    assert any(".venv/bin/ato build" in cmd for cmd in sandbox.commands.commands)
     assert ("/home/user/openmates-pcb/ato.yaml", 'requires-atopile: "^0.15.7"\n\npaths:\n  src: ./\n  layout: ./layouts\n\nbuilds:\n  default:\n    entry: main.ato:App\n') in sandbox.files.writes
     assert result.status == "succeeded"
     assert result.sandbox_id == "sandbox-pcb"
     assert result.artifact_manifest["bundle"]["type"] == "source_bundle"
+    assert not any(item["name"] == ".ato" for item in result.artifact_manifest["files"])
     assert any(item["type"] == "kicad_pcb" for item in result.artifact_manifest["files"])
 
 

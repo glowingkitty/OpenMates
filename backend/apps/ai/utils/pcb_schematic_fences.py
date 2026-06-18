@@ -47,8 +47,10 @@ def _safe_pcb_schematic_filename(filename: Optional[str], module_name: Optional[
 
 
 def _extract_pcb_schematic_module_name(source: str) -> str | None:
-    match = re.search(r"^\s*module\s+([A-Za-z_][A-Za-z0-9_]*)\s*:", source, re.MULTILINE)
-    return match.group(1) if match else None
+    matches = re.findall(r"^\s*module\s+([A-Za-z_][A-Za-z0-9_]*)\s*:", source, re.MULTILINE)
+    if "App" in matches:
+        return "App"
+    return matches[0] if matches else None
 
 
 def _extract_pcb_schematic_metadata(

@@ -98,6 +98,8 @@ export interface ExampleChatMessage {
   role: "user" | "assistant" | "system";
   content: string; // Actual message content (markdown with embed references)
   created_at: number; // Unix timestamp
+  user_message_id?: string; // Triggering user message for assistant/system responses
+  response_credits?: number; // Total credits charged for this assistant response, including app skills
   category?: string; // Mate category for assistant messages
   model_name?: string;
   pii_mappings?: PIIMapping[];

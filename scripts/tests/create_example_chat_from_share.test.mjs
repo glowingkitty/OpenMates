@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { sanitizeEmbedContent, sanitizeExampleMessageContent } from '../create-example-chat-from-share.mjs';
+import {
+  annotateChatWithUsage,
+  sanitizeEmbedContent,
+  sanitizeExampleMessageContent,
+} from '../create-example-chat-from-share.mjs';
 
 test('normalizes compact weather rain radar embeds for public example rendering', () => {
   const compactContent = `app_id: weather
@@ -62,4 +66,51 @@ summary:
 
   assert.doesNotMatch(sanitized, /s3_base_url|aes_key|s3_key/);
   assert.match(sanitized, /^summary:\n  in_10_min: No rain$/m);
+});
+
+test('annotates assistant responses with summed source usage credits', () => {
+  const chat = {
+    chat_id: 'source-chat',
+    messages: [
+      { message_id: 'user-1', role: 'user', content: 'Search this', created_at: 1 },
+      { message_id: 'assistant-1', role: 'assistant', content: 'Done', created_at: 2, user_message_id: 'user-1' },
+      { message_id: 'user-2', role: 'user', content: 'No priced response', created_at: 3 },
+      { message_id: 'assistant-2', role: 'assistant', content: 'Free', created_at: 4 },
+    ],
+    embeds: [],
+    sub_chats: [
+      {
+        chat_id: 'source-sub-chat',
+        messages: [
+          { message_id: 'sub-user-1', role: 'user', content: 'Deep check', created_at: 5 },
+          { message_id: 'sub-assistant-1', role: 'assistant', content: 'Sub done', created_at: 6 },
+        ],
+        embeds: [],
+      },
+    ],
+  };
+
+  const annotated = annotateChatWithUsage(chat, {
+    chats: {
+      'source-chat': {
+        entries: [
+          { message_id: 'user-1', credits: 17, app_id: 'ai', skill_id: 'ask' },
+          { message_id: 'user-1', credits: 10, app_id: 'web', skill_id: 'search' },
+          { message_id: 'user-2', credits: 0, app_id: 'ai', skill_id: 'ask' },
+        ],
+      },
+      'source-sub-chat': {
+        entries: [
+          { message_id: 'sub-user-1', credits_charged: 4, app_id: 'ai', skill_id: 'ask' },
+        ],
+      },
+    },
+  });
+
+  assert.equal(annotated.messages[1].user_message_id, 'user-1');
+  assert.equal(annotated.messages[1].response_credits, 27);
+  assert.equal(annotated.messages[3].user_message_id, 'user-2');
+  assert.equal(annotated.messages[3].response_credits, undefined);
+  assert.equal(annotated.sub_chats[0].messages[1].user_message_id, 'sub-user-1');
+  assert.equal(annotated.sub_chats[0].messages[1].response_credits, 4);
 });

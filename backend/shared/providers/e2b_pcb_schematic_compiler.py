@@ -18,8 +18,9 @@ from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async, reda
 
 ATOPILE_PACKAGE_VERSION = "0.15.7"
 ATOPILE_DOCS_VERSION = "0.15.7"
+ATOPILE_PYTHON_VERSION = "3.14"
 WORKSPACE_DIR = "/home/user/openmates-pcb"
-INSTALL_TIMEOUT_SECONDS = 180
+INSTALL_TIMEOUT_SECONDS = 300
 BUILD_TIMEOUT_SECONDS = 300
 MAX_SOURCE_CHARS = 200_000
 MAX_LOG_CHARS = 120_000
@@ -117,6 +118,8 @@ def _run_command(sandbox: object, command: str, timeout_seconds: int) -> tuple[i
 
 def _artifact_type(path: str) -> ArtifactType | None:
     lower = path.lower()
+    if lower.rsplit("/", 1)[-1] == ".ato":
+        return None
     if lower.endswith(".kicad_pcb"):
         return "kicad_pcb"
     if lower.endswith(".kicad_sch"):
@@ -238,9 +241,17 @@ def compile_pcb_schematic_in_e2b(
         _write_file(sandbox.files, f"{WORKSPACE_DIR}/ato.yaml", _ato_yaml(module_name))
         _write_file(sandbox.files, f"{WORKSPACE_DIR}/{source_filename}", request.source)
 
+        install_command = (
+            "python -m pip install --upgrade uv && "
+            f"cd {shlex.quote(WORKSPACE_DIR)} && "
+            f"uv venv --python {shlex.quote(ATOPILE_PYTHON_VERSION)} .venv && "
+            f"uv pip install --python .venv/bin/python atopile=={shlex.quote(ATOPILE_PACKAGE_VERSION)}"
+        )
+        build_command = f"cd {shlex.quote(WORKSPACE_DIR)} && .venv/bin/ato build"
+
         for label, command, timeout_seconds in (
-            ("Installing atopile", f"python -m pip install atopile=={ATOPILE_PACKAGE_VERSION}", INSTALL_TIMEOUT_SECONDS),
-            ("Building PCB project", f"cd {shlex.quote(WORKSPACE_DIR)} && ato build", BUILD_TIMEOUT_SECONDS),
+            ("Installing atopile", install_command, INSTALL_TIMEOUT_SECONDS),
+            ("Building PCB project", build_command, BUILD_TIMEOUT_SECONDS),
         ):
             logs.append(f"{label}...\n")
             exit_code, output = _run_command(sandbox, command, timeout_seconds)

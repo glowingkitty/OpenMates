@@ -1,0 +1,564 @@
+title:
+  context: "Title of example chat: Berlin Morning Bike Forecast"
+  en: "Berlin Morning Bike Forecast"
+  de: Berliner Morgen-Fahrradwetter
+  zh: 柏林早间骑行天气预报
+  es: Pronóstico matutino para ir en bici en Berlín
+  fr: Prévisions vélo matinales à Berlin
+  pt: Previsão para andar de bicicleta em Berlim de manhã
+  ru: Прогноз для велопрогулки в Берлине
+  ja: ベルリンの朝のサイクリング予報
+  ko: 베를린 아침 자전거 라이딩 예보
+  it: Previsioni meteo per bici a Berlino
+  tr: Berlin Sabah Bisiklet Tahmini
+  vi: Dự báo thời tiết đạp xe buổi sáng tại Berlin
+  id: Prakiraan Bersepeda Pagi Berlin
+  pl: Poranna prognoza rowerowa dla Berlina
+  nl: Fietsweerbericht Berlijn Ochtend
+  ar: توقعات ركوب الدراجات في برلين صباحاً
+  hi: बर्लिन मॉर्निंग बाइक फ़ोरकास्ट
+  th: พยากรณ์อากาศยามเช้าสำหรับการปั่นจักรยานในเบอร์ลิน
+  cs: Ranní cyklistická předpověď pro Berlín
+  sv: Morgonens cykelprognos för Berlin
+  he: תחזית בוקר לרכיבה בברלין
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Berlin Morning Bike Forecast"
+  en: "A concise Berlin weather forecast that helps decide whether to bike to Tempelhofer Feld."
+  de: Eine kompakte Wettervorhersage für Berlin, die bei der Entscheidung hilft, ob man zum Tempelhofer Feld radeln sollte.
+  zh: 一份简洁的柏林天气预报，帮助你决定是否骑车前往滕佩尔霍夫机场。
+  es: Un pronóstico del tiempo conciso para Berlín que ayuda a decidir si ir en bici a Tempelhofer Feld.
+  fr: "Une météo concise de Berlin pour t'aider à décider si tu vas à Tempelhofer Feld à vélo."
+  pt: Uma previsão meteorológica concisa de Berlim que ajuda a decidir se deves ir de bicicleta para Tempelhofer Feld.
+  ru: Краткий прогноз погоды в Берлине, который поможет решить, стоит ли ехать на велосипеде на Темпельхофское поле.
+  ja: テンペルホーフ空港公園まで自転車で行くかどうかを決めるのに役立つ、ベルリンの簡潔な天気予報。
+  ko: 템펠호퍼 펠트까지 자전거를 타고 갈지 결정하는 데 도움이 되는 간결한 베를린 일기 예보입니다.
+  it: Una previsione meteo concisa per Berlino che aiuta a decidere se andare in bici a Tempelhofer Feld.
+  tr: "Tempelhofer Feld'e bisikletle gidip gitmemeye karar vermene yardımcı olan kısa bir Berlin hava durumu tahmini."
+  vi: Bản tin dự báo thời tiết Berlin ngắn gọn giúp bạn quyết định có nên đạp xe đến Tempelhofer Feld hay không.
+  id: Prakiraan cuaca Berlin yang ringkas untuk membantumu memutuskan apakah akan bersepeda ke Tempelhofer Feld.
+  pl: Zwięzła prognoza pogody dla Berlina, która pomoże Ci zdecydować, czy wybrać się rowerem na Tempelhofer Feld.
+  nl: Een beknopte weersverwachting voor Berlijn die helpt beslissen of je naar Tempelhofer Feld gaat fietsen.
+  ar: توقعات موجزة لطقس برلين تساعدك في اتخاذ قرار ركوب الدراجة إلى تمبلهوفر فيلد.
+  hi: बर्लिन के मौसम का एक संक्षिप्त पूर्वानुमान जो यह तय करने में मदद करता है कि टेम्पेलहोफ़र फेल्ड तक बाइक से जाना चाहिए या नहीं।
+  th: พยากรณ์อากาศเบอร์ลินแบบย่อที่ช่วยตัดสินใจว่าจะปั่นจักรยานไป Tempelhofer Feld หรือไม่
+  cs: Stručná předpověď počasí pro Berlín, která ti pomůže rozhodnout se, zda vyrazit na kole na Tempelhofer Feld.
+  sv: En kortfattad väderprognos för Berlin som hjälper dig att avgöra om du ska cykla till Tempelhofer Feld.
+  he: תחזית מזג אוויר תמציתית לברלין שעוזרת להחליט אם לרכוב על אופניים לטמפלהופר פלד.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Berlin Morning Bike Forecast. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "@skill:weather:forecast What's the weather forecast for Berlin tomorrow morning, and should I bike to Tempelhofer Feld? Keep the answer concise."
+  de: "@skill:weather:forecast Wie ist die Wettervorhersage für Berlin morgen früh und sollte ich zum Tempelhofer Feld radeln? Halte die Antwort kurz."
+  zh: "@skill:weather:forecast 柏林明天早上的天气预报如何，我应该骑车去滕佩尔霍夫机场（Tempelhofer Feld）吗？请简短回答。"
+  es: "@skill:weather:forecast ¿Cuál es el pronóstico del tiempo para Berlín mañana por la mañana y debería ir en bici a Tempelhofer Feld? Mantén la respuesta concisa."
+  fr: "@skill:weather:forecast Quelles sont les prévisions météo pour Berlin demain matin, et devrais-je aller à Tempelhofer Feld à vélo ? Sois concis."
+  pt: "@skill:weather:forecast Qual é a previsão do tempo para Berlim amanhã de manhã e devo ir de bicicleta para Tempelhofer Feld? Mantém a resposta concisa."
+  ru: "@skill:weather:forecast Какой прогноз погоды в Берлине на завтрашнее утро и стоит ли мне ехать на велосипеде на Темпельхофское поле? Ответь кратко."
+  ja: "@skill:weather:forecast 明日の朝のベルリンの天気予報を教えて。テンペルホーフ空港公園まで自転車で行っても大丈夫かな？簡潔に答えて。"
+  ko: "@skill:weather:forecast 내일 아침 베를린 날씨가 어때? 그리고 템펠호퍼 펠트까지 자전거를 타고 가도 될까? 답변은 간결하게 해줘."
+  it: "@skill:weather:forecast Quali sono le previsioni meteo per Berlino domani mattina? Mi consigli di andare in bici a Tempelhofer Feld? Sii conciso nella risposta."
+  tr: "@skill:weather:forecast Yarın sabah Berlin için hava durumu tahmini nedir ve Tempelhofer Feld'e bisikletle gitmeli miyim? Cevabı kısa tut."
+  vi: "@skill:weather:forecast Dự báo thời tiết Berlin sáng mai thế nào, và tôi có nên đạp xe đến Tempelhofer Feld không? Trả lời ngắn gọn thôi nhé."
+  id: "@skill:weather:forecast Bagaimana prakiraan cuaca untuk Berlin besok pagi, dan apakah aku sebaiknya bersepeda ke Tempelhofer Feld? Berikan jawaban yang ringkas."
+  pl: "@skill:weather:forecast Jaka jest prognoza pogody dla Berlina na jutro rano i czy warto wybrać się rowerem na Tempelhofer Feld? Odpowiedz zwięźle."
+  nl: "@skill:weather:forecast Wat is de weersverwachting voor Berlijn morgenochtend, en moet ik naar Tempelhofer Feld fietsen? Houd het antwoord beknopt."
+  ar: "@skill:weather:forecast ما هي توقعات الطقس في برلين صباح الغد، وهل تنصحني بركوب الدراجة إلى تمبلهوفر فيلد؟ اجعل الإجابة موجزة."
+  hi: "@skill:weather:forecast कल सुबह बर्लिन के मौसम का पूर्वानुमान क्या है, और क्या मुझे टेम्पेलहोफ़र फेल्ड तक बाइक से जाना चाहिए? उत्तर संक्षिप्त रखें।"
+  th: "@skill:weather:forecast พยากรณ์อากาศสำหรับเบอร์ลินเช้าวันพรุ่งนี้เป็นอย่างไร และฉันควรปั่นจักรยานไป Tempelhofer Feld ไหม? ขอคำตอบแบบกระชับ"
+  cs: "@skill:weather:forecast Jaká je předpověď počasí pro Berlín na zítřejší ráno a mám jet na kole na Tempelhofer Feld? Odpověz stručně."
+  sv: "@skill:weather:forecast Hur ser väderprognosen ut för Berlin i morgon bitti, och bör jag cykla till Tempelhofer Feld? Håll svaret kortfattat."
+  he: "@skill:weather:forecast מהי תחזית מזג האוויר לברלין מחר בבוקר, והאם כדאי לי לרכוב על אופניים לטמפלהופר פלד? שמור על תשובה תמציתית."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Berlin Morning Bike Forecast. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Tomorrow morning in [Berlin](wiki:Berlin) (Friday, June 19, 2026), the weather will be dry and partly cloudy, with temperatures starting around 18–20°C and rising quickly toward a high of 32°C.
+    
+    **Should you bike to [Tempelhofer Feld](wiki:Tempelhofer_Feld)?**
+    Yes, it's a great idea! Conditions are ideal for biking:
+    *   **Dry:** No rain expected (4% probability).
+    *   **Calm:** Wind speeds are light (approx. 11 km/h).
+    *   **Morning Window:** Biking in the morning is highly recommended to avoid the afternoon heat peak of 32°C, especially since the airfield offers very little shade.
+    
+    **What's your plan for the rest of the day?**
+    *   Would you like to find a [beer garden](wiki:Beer_garden) or cafe near Tempelhof to cool off afterward?
+    *   Do you need a more detailed [hourly forecast](/#settings/apps/weather) to time your ride perfectly?
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Morgen früh in [Berlin](wiki:Berlin) (Freitag, 19. Juni 2026) wird das Wetter trocken und teils bewölkt sein, mit Temperaturen, die bei etwa 18–20 °C beginnen und schnell auf einen Höchstwert von 32 °C steigen.
+    
+    **Solltest du zum [Tempelhofer Feld](wiki:Tempelhofer_Feld) radeln?**
+    Ja, das ist eine tolle Idee! Die Bedingungen zum Radfahren sind ideal:
+    *   **Trocken:** Kein Regen erwartet (4 % Wahrscheinlichkeit).
+    *   **Ruhig:** Die Windgeschwindigkeiten sind gering (ca. 11 km/h).
+    *   **Zeitfenster am Morgen:** Radfahren am Morgen ist sehr empfehlenswert, um die Mittagshitze von 32 °C zu vermeiden, da das Flugfeld kaum Schatten bietet.
+    
+    **Was hast du für den Rest des Tages geplant?**
+    *   Möchtest du einen [Biergarten](wiki:Beer_garden) oder ein Café in der Nähe von Tempelhof finden, um dich danach abzukühlen?
+    *   Benötigst du eine detailliertere [stündliche Vorhersage](/#settings/apps/weather), um deine Fahrt perfekt zu planen?
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    明天早上在[柏林](wiki:Berlin)（2026年6月19日，星期五），天气干燥且多云，气温从 18–20°C 左右开始，并迅速升至最高温 32°C。
+    
+    **你应该骑车去[滕佩尔霍夫机场](wiki:Tempelhofer_Feld)吗？**
+    是的，这是个好主意！天气条件非常适合骑行：
+    *   **干燥：** 预计无雨（降水概率 4%）。
+    *   **风力微弱：** 风速较小（约 11 公里/小时）。
+    *   **早间时段：** 强烈建议在早上骑行，以避开下午 32°C 的高温巅峰，尤其是因为机场跑道几乎没有遮荫处。
+    
+    **你今天剩下的时间有什么计划？**
+    *   你想在滕佩尔霍夫附近找一家[啤酒花园](wiki:Beer_garden)或咖啡馆消暑吗？
+    *   你需要更详细的[逐小时预报](/#settings/apps/weather)来完美规划你的骑行时间吗？
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Mañana por la mañana en [Berlín](wiki:Berlin) (viernes 19 de junio de 2026), el tiempo estará seco y parcialmente nublado, con temperaturas que comenzarán alrededor de los 18-20 °C y subirán rápidamente hacia una máxima de 32 °C.
+    
+    **¿Deberías ir en bici a [Tempelhofer Feld](wiki:Tempelhofer_Feld)?**
+    ¡Sí, es una gran idea! Las condiciones son ideales para ir en bici:
+    *   **Seco:** No se espera lluvia (4 % de probabilidad).
+    *   **Calma:** La velocidad del viento es leve (aprox. 11 km/h).
+    *   **Franja matutina:** Se recomienda encarecidamente ir en bici por la mañana para evitar el pico de calor de 32 °C de la tarde, especialmente porque el aeródromo ofrece muy poca sombra.
+    
+    **¿Cuál es tu plan para el resto del día?**
+    *   ¿Te gustaría buscar un [beer garden](wiki:Beer_garden) o una cafetería cerca de Tempelhof para refrescarte después?
+    *   ¿Necesitas un [pronóstico por horas](/#settings/apps/weather) más detallado para planificar tu paseo a la perfección?
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Demain matin à [Berlin](wiki:Berlin) (vendredi 19 juin 2026), le temps sera sec et partiellement nuageux, avec des températures débutant autour de 18–20°C et grimpant rapidement vers un maximum de 32°C.
+    
+    **Devrais-tu aller à [Tempelhofer Feld](wiki:Tempelhofer_Feld) à vélo ?**
+    Oui, c'est une excellente idée ! Les conditions sont idéales pour le vélo :
+    *   **Sec :** Pas de pluie prévue (probabilité de 4 %).
+    *   **Calme :** Le vent est faible (env. 11 km/h).
+    *   **Créneau matinal :** Il est fortement recommandé de faire du vélo le matin pour éviter le pic de chaleur de 32°C l'après-midi, d'autant plus que l'ancien aérodrome offre très peu d'ombre.
+    
+    **Quel est ton programme pour le reste de la journée ?**
+    *   Aimerais-tu trouver un [beer garden](wiki:Beer_garden) ou un café près de Tempelhof pour te rafraîchir après ?
+    *   As-tu besoin de [prévisions horaires](/#settings/apps/weather) plus détaillées pour planifier ton trajet au moment idéal ?
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Amanhã de manhã em [Berlim](wiki:Berlin) (sexta-feira, 19 de junho de 2026), o tempo estará seco e parcialmente nublado, com temperaturas a começar por volta dos 18–20°C e a subir rapidamente para uma máxima de 32°C.
+    
+    **Deves ir de bicicleta para [Tempelhofer Feld](wiki:Tempelhofer_Feld)?**
+    Sim, é uma excelente ideia! As condições são ideais para pedalar:
+    *   **Seco:** Não se espera chuva (4% de probabilidade).
+    *   **Calmo:** A velocidade do vento é ligeira (aprox. 11 km/h).
+    *   **Janela da Manhã:** Recomenda-se vivamente andar de bicicleta de manhã para evitar o pico de calor de 32°C da tarde, especialmente porque o aeródromo oferece muito pouca sombra.
+    
+    **Qual é o teu plano para o resto do dia?**
+    *   Gostarias de encontrar um [beer garden](wiki:Beer_garden) ou café perto de Tempelhof para te refrescares depois?
+    *   Precisas de uma [previsão horária](/#settings/apps/weather) mais detalhada para programares o teu passeio na perfeição?
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Завтра утром в [Берлине](wiki:Berlin) (пятница, 19 июня 2026 г.) будет сухо и малооблачно. Температура составит около 18–20°C и быстро поднимется до максимума в 32°C.
+    
+    **Стоит ли ехать на велосипеде на [Темпельхофское поле](wiki:Tempelhofer_Feld)?**
+    Да, это отличная идея! Условия идеальны для поездки:
+    *   **Сухо:** Осадков не ожидается (вероятность 4%).
+    *   **Спокойно:** Ветер слабый (около 11 км/ч).
+    *   **Утреннее окно:** Рекомендую ехать именно утром, чтобы избежать дневного пика жары в 32°C, так как на территории аэродрома почти нет тени.
+    
+    **Какие планы на остаток дня?**
+    *   Хочешь найти [биргартен](wiki:Beer_garden) или кафе рядом с Темпельхофом, чтобы освежиться после поездки?
+    *   Нужен более подробный [почасовой прогноз](/#settings/apps/weather), чтобы идеально рассчитать время прогулки?
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    明日（2026年6月19日金曜日）の朝の[ベルリン](wiki:Berlin)は、晴れ時々曇りで雨の心配はありません。気温は18〜20°C前後から始まり、日中の最高気温32°Cに向かって急速に上昇する見込みです。
+    
+    **[テンペルホーフ空港公園](wiki:Tempelhofer_Feld)まで自転車で行くべき？**
+    はい、おすすめです！サイクリングには理想的な条件です：
+    *   **乾燥:** 雨の心配はありません（降水確率4%）。
+    *   **穏やか:** 風は弱いです（時速約11km）。
+    *   **朝の時間帯:** 公園内は日陰が非常に少ないため、午後の最高気温32°Cを避けて、朝のうちにサイクリングを楽しむのが強く推奨されます。
+    
+    **午後の予定はどうする？**
+    *   サイクリングの後に涼める、テンペルホーフ近くの[ビアガーデン](wiki:Beer_garden)やカフェを探す？
+    *   出発時間を正確に決めるために、より詳細な[1時間ごとの予報](/#settings/apps/weather)が必要？
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    내일 아침 [베를린](wiki:Berlin)(2026년 6월 19일 금요일) 날씨는 건조하고 구름이 조금 끼겠습니다. 기온은 18~20°C 정도로 시작해 최고 기온인 32°C를 향해 빠르게 오를 것으로 보입니다.
+    
+    **[템펠호퍼 펠트](wiki:Tempelhofer_Feld)까지 자전거를 타고 가도 될까?**
+    네, 아주 좋은 생각이야! 자전거 타기에 이상적인 조건이야:
+    *   **건조함:** 비 소식 없음(확률 4%).
+    *   **잔잔함:** 풍속이 낮음(약 11km/h).
+    *   **오전 시간대:** 비행장 부지에 그늘이 거의 없으므로, 오후 최고 기온인 32°C를 피해 아침에 자전거를 타는 것을 강력히 추천해.
+    
+    **남은 하루 동안 어떤 계획이 있어?**
+    *   라이딩 후에 열기를 식힐 수 있도록 템펠호프 근처의 [비어 가든](wiki:Beer_garden)이나 카페를 찾아볼까?
+    *   라이딩 시간을 완벽하게 맞추기 위해 더 자세한 [시간별 예보](/#settings/apps/weather)가 필요해?
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Domani mattina a [Berlino](wiki:Berlin) (venerdì 19 giugno 2026), il tempo sarà asciutto e parzialmente nuvoloso, con temperature iniziali intorno ai 18–20°C che saliranno rapidamente verso una massima di 32°C.
+    
+    **Dovresti andare in bici a [Tempelhofer Feld](wiki:Tempelhofer_Feld)?**
+    Sì, è un'ottima idea! Le condizioni sono ideali per andare in bici:
+    *   **Asciutto:** Non è prevista pioggia (probabilità del 4%).
+    *   **Calmo:** I venti sono leggeri (circa 11 km/h).
+    *   **Fascia mattutina:** Andare in bici al mattino è caldamente consigliato per evitare il picco di calore pomeridiano di 32°C, specialmente perché l'aerodromo offre pochissima ombra.
+    
+    **Qual è il tuo programma per il resto della giornata?**
+    *   Vorresti trovare un [beer garden](wiki:Beer_garden) o un bar vicino a Tempelhof per rinfrescarti dopo?
+    *   Ti servono [previsioni orarie](/#settings/apps/weather) più dettagliate per pianificare al meglio la tua pedalata?
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Yarın sabah [Berlin](wiki:Berlin)'de (19 Haziran 2026 Cuma), hava kuru ve parçalı bulutlu olacak; sıcaklıklar 18–20°C civarında başlayıp hızla 32°C'ye kadar yükselecek.
+    
+    **[Tempelhofer Feld](wiki:Tempelhofer_Feld)'e bisikletle gitmeli misin?**
+    Evet, harika bir fikir! Koşullar bisiklet sürmek için ideal:
+    *   **Kuru:** Yağmur beklenmiyor (%4 olasılık).
+    *   **Sakin:** Rüzgar hızı düşük (yaklaşık 11 km/sa).
+    *   **Sabah Aralığı:** Havaalanı arazisi çok az gölge sunduğundan, öğleden sonraki 32°C'lik sıcaklık zirvesinden kaçınmak için sabah saatlerinde bisiklet sürmen şiddetle tavsiye edilir.
+    
+    **Günün geri kalanı için planın nedir?**
+    *   Sonrasında serinlemek için Tempelhof yakınlarında bir [bira bahçesi](wiki:Beer_garden) veya kafe bulmak ister misin?
+    *   Sürüşünü mükemmel şekilde zamanlamak için daha ayrıntılı bir [saatlik tahmine](/#settings/apps/weather) mi ihtiyacın var?
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Sáng mai tại [Berlin](wiki:Berlin) (Thứ Sáu, ngày 19 tháng 6 năm 2026), thời tiết sẽ khô ráo và có mây rải rác, nhiệt độ bắt đầu khoảng 18–20°C và tăng nhanh lên mức cao nhất là 32°C.
+    
+    **Bạn có nên đạp xe đến [Tempelhofer Feld](wiki:Tempelhofer_Feld) không?**
+    Có, đó là một ý tưởng tuyệt vời! Các điều kiện rất lý tưởng để đạp xe:
+    *   **Khô ráo:** Dự kiến không mưa (xác suất 4%).
+    *   **Lặng gió:** Tốc độ gió nhẹ (khoảng 11 km/h).
+    *   **Khung giờ buổi sáng:** Rất nên đạp xe vào buổi sáng để tránh cái nóng đỉnh điểm 32°C vào buổi chiều, đặc biệt là vì khu sân bay này có rất ít bóng râm.
+    
+    **Kế hoạch cho thời gian còn lại trong ngày của bạn là gì?**
+    *   Bạn có muốn tìm một [vườn bia](wiki:Beer_garden) hoặc quán cà phê gần Tempelhof để giải nhiệt sau đó không?
+    *   Bạn có cần bản [dự báo theo giờ](/#settings/apps/weather) chi tiết hơn để chọn thời điểm đạp xe hoàn hảo không?
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Besok pagi di [Berlin](wiki:Berlin) (Jumat, 19 Juni 2026), cuaca akan kering dan berawan sebagian, dengan suhu mulai sekitar 18–20°C dan naik cepat menuju titik tertinggi 32°C.
+    
+    **Haruskah kamu bersepeda ke [Tempelhofer Feld](wiki:Tempelhofer_Feld)?**
+    Ya, itu ide yang bagus! Kondisinya ideal untuk bersepeda:
+    *   **Kering:** Tidak ada hujan yang diperkirakan (probabilitas 4%).
+    *   **Tenang:** Kecepatan angin ringan (sekitar 11 km/jam).
+    *   **Waktu Pagi:** Bersepeda di pagi hari sangat disarankan untuk menghindari puncak panas sore hari sebesar 32°C, terutama karena area lapangan terbang ini sangat minim tempat berteduh.
+    
+    **Apa rencanamu untuk sisa hari itu?**
+    *   Apakah kamu ingin mencari [beer garden](wiki:Beer_garden) atau kafe di dekat Tempelhof untuk mendinginkan diri setelahnya?
+    *   Apakah kamu butuh [prakiraan per jam](/#settings/apps/weather) yang lebih detail untuk mengatur waktu perjalananmu dengan sempurna?
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Jutro rano w [Berlinie](wiki:Berlin) (piątek, 19 czerwca 2026 r.) pogoda będzie sucha i częściowo zachmurzona, z temperaturami zaczynającymi się od około 18–20°C i szybko rosnącymi do maksymalnie 32°C.
+    
+    **Czy warto wybrać się rowerem na [Tempelhofer Feld](wiki:Tempelhofer_Feld)?**
+    Tak, to świetny pomysł! Warunki do jazdy na rowerze są idealne:
+    *   **Sucho:** Brak opadów (4% prawdopodobieństwa).
+    *   **Spokojnie:** Słaby wiatr (ok. 11 km/h).
+    *   **Poranne okno:** Jazda rano jest wysoce zalecana, aby uniknąć popołudniowego upału sięgającego 32°C, zwłaszcza że na terenie lotniska jest bardzo mało cienia.
+    
+    **Jakie masz plany na resztę dnia?**
+    *   Czy chcesz znaleźć [ogródek piwny](wiki:Beer_garden) lub kawiarnię w pobliżu Tempelhof, aby się potem ochłodzić?
+    *   Czy potrzebujesz bardziej szczegółowej [prognozy godzinowej](/#settings/apps/weather), aby idealnie zaplanować czas przejażdżki?
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Morgenochtend in [Berlijn](wiki:Berlin) (vrijdag 19 juni 2026) is het weer droog en halfbewolkt, met temperaturen die beginnen rond de 18–20°C en snel oplopen naar een maximum van 32°C.
+    
+    **Moet je naar [Tempelhofer Feld](wiki:Tempelhofer_Feld) fietsen?**
+    Ja, dat is een geweldig idee! De omstandigheden zijn ideaal om te fietsen:
+    *   **Droog:** Geen regen verwacht (4% kans).
+    *   **Rustig:** De windsnelheden zijn laag (ca. 11 km/u).
+    *   **Ochtendmoment:** Fietsen in de ochtend is zeer aan te raden om de hittepiek van 32°C in de middag te vermijden, vooral omdat het vliegveld erg weinig schaduw biedt.
+    
+    **Wat is je plan voor de rest van de dag?**
+    *   Wil je een [biergarten](wiki:Beer_garden) of café in de buurt van Tempelhof zoeken om daarna af te koelen?
+    *   Heb je een gedetailleerdere [weersverwachting per uur](/#settings/apps/weather) nodig om je rit perfect te plannen?
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    صباح الغد في [برلين](wiki:Berlin) (الجمعة، 19 يونيو 2026)، سيكون الطقس جافاً وغائماً جزئياً، حيث تبدأ درجات الحرارة من حوالي 18-20 درجة مئوية وترتفع بسرعة لتصل إلى 32 درجة مئوية كحد أقصى.
+    
+    **هل يجب أن تذهب بالدراجة إلى [تمبلهوفر فيلد](wiki:Tempelhofer_Feld)؟**
+    نعم، إنها فكرة رائعة! الظروف مثالية لركوب الدراجات:
+    *   **جاف:** لا يتوقع هطول أمطار (احتمالية 4%).
+    *   **هادئ:** سرعة الرياح خفيفة (حوالي 11 كم/ساعة).
+    *   **الفترة الصباحية:** يُنصح بشدة بركوب الدراجة في الصباح لتجنب ذروة الحرارة في فترة بعد الظهر التي تصل إلى 32 درجة مئوية، خاصة وأن المطار القديم يوفر القليل جداً من الظل.
+    
+    **ما هي خطتك لبقية اليوم؟**
+    *   هل تود البحث عن [حديقة مشروبات](wiki:Beer_garden) أو مقهى بالقرب من تمبلهوف للاسترخاء بعد ذلك؟
+    *   هل تحتاج إلى [توقعات ساعية](/#settings/apps/weather) أكثر تفصيلاً لتحديد وقت جولتك بدقة؟
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    कल सुबह [बर्लिन](wiki:Berlin) में (शुक्रवार, 19 जून, 2026), मौसम शुष्क और आंशिक रूप से बादल छाए रहेंगे, तापमान लगभग 18–20°C से शुरू होकर तेजी से 32°C के अधिकतम स्तर तक बढ़ जाएगा।
+    
+    **क्या तुम्हें [टेम्पेलहोफ़र फेल्ड](wiki:Tempelhofer_Feld) तक बाइक से जाना चाहिए?**
+    हाँ, यह एक बेहतरीन विचार है! बाइक चलाने के लिए स्थितियाँ आदर्श हैं:
+    *   **शुष्क:** बारिश की कोई संभावना नहीं है (4% संभावना)।
+    *   **शांत:** हवा की गति धीमी है (लगभग 11 किमी/घंटा)।
+    *   **सुबह का समय:** दोपहर की 32°C की भीषण गर्मी से बचने के लिए सुबह बाइक चलाने की अत्यधिक सलाह दी जाती है, खासकर इसलिए क्योंकि एयरफील्ड में बहुत कम छाया मिलती है।
+    
+    **दिन के बाकी समय के लिए तुम्हारी क्या योजना है?**
+    *   क्या तुम बाद में ठंडक पाने के लिए टेम्पेलहोफ़ के पास कोई [बियर गार्डन](wiki:Beer_garden) या कैफे ढूंढना चाहोगे?
+    *   क्या तुम्हें अपनी सवारी का सही समय तय करने के लिए अधिक विस्तृत [प्रति घंटा पूर्वानुमान](/#settings/apps/weather) की आवश्यकता है?
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    เช้าวันพรุ่งนี้ใน [Berlin](wiki:Berlin) (วันศุกร์ที่ 19 มิถุนายน 2026) อากาศจะแห้งและมีเมฆบางส่วน โดยอุณหภูมิจะเริ่มต้นที่ประมาณ 18–20°C และสูงขึ้นอย่างรวดเร็วไปจนถึงจุดสูงสุดที่ 32°C
+    
+    **คุณควรปั่นจักรยานไป [Tempelhofer Feld](wiki:Tempelhofer_Feld) หรือไม่?**
+    ใช่ เป็นความคิดที่ดีมาก! สภาพอากาศเหมาะสำหรับการปั่นจักรยาน:
+    *   **แห้ง:** ไม่คาดว่าจะมีฝน (ความน่าจะเป็น 4%)
+    *   **สงบ:** ความเร็วลมต่ำ (ประมาณ 11 กม./ชม.)
+    *   **ช่วงเช้า:** แนะนำให้ปั่นจักรยานในช่วงเช้าเพื่อหลีกเลี่ยงความร้อนสูงสุดในช่วงบ่ายที่ 32°C โดยเฉพาะอย่างยิ่งเนื่องจากบริเวณสนามบินมีร่มเงาน้อยมาก
+    
+    **แผนสำหรับช่วงที่เหลือของวันคืออะไร?**
+    *   คุณต้องการหา [เบียร์การ์เด้น](wiki:Beer_garden) หรือคาเฟ่ใกล้ Tempelhof เพื่อคลายร้อนหลังจากนั้นไหม?
+    *   คุณต้องการ [พยากรณ์อากาศรายชั่วโมง](/#settings/apps/weather) ที่ละเอียดกว่านี้เพื่อกำหนดเวลาการปั่นให้สมบูรณ์แบบไหม?
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    Zítra ráno bude v [Berlíně](wiki:Berlin) (pátek 19. června 2026) sucho a polojasno, teploty se budou pohybovat kolem 18–20 °C a rychle porostou k maximu 32 °C.
+    
+    **Máš jet na kole na [Tempelhofer Feld](wiki:Tempelhofer_Feld)?**
+    Ano, je to skvělý nápad! Podmínky pro jízdu na kole jsou ideální:
+    *   **Sucho:** Déšť se neočekává (pravděpodobnost 4 %).
+    *   **Klidno:** Rychlost větru je mírná (cca 11 km/h).
+    *   **Ranní okno:** Jízda na kole ráno se důrazně doporučuje, aby ses vyhnul odpoledním vedrům s maximem 32 °C, zejména proto, že letiště nabízí jen velmi málo stínu.
+    
+    **Jaký máš plán na zbytek dne?**
+    *   Chceš najít [pivní zahrádku](wiki:Beer_garden) nebo kavárnu poblíž Tempelhofu, kde se pak zchladíš?
+    *   Potřebuješ podrobnější [hodinovou předpověď](/#settings/apps/weather), abys jízdu dokonale načasoval?
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    I morgon bitti i [Berlin](wiki:Berlin) (fredag 19 juni 2026) kommer vädret att vara torrt och växlande molnighet, med temperaturer som börjar runt 18–20 °C och stiger snabbt mot en toppnotering på 32 °C.
+    
+    **Bör du cykla till [Tempelhofer Feld](wiki:Tempelhofer_Feld)?**
+    Ja, det är en utmärkt idé! Förhållandena är idealiska för cykling:
+    *   **Torrt:** Inget regn väntas (4 % sannolikhet).
+    *   **Lugnt:** Vindhastigheterna är svaga (ca 11 km/h).
+    *   **Morgonfönster:** Att cykla på morgonen rekommenderas starkt för att undvika eftermiddagens värmetopp på 32 °C, särskilt eftersom flygfältet erbjuder väldigt lite skugga.
+    
+    **Vad är din plan för resten av dagen?**
+    *   Vill du hitta en [ölträdgård](wiki:Beer_garden) eller ett kafé nära Tempelhof för att svalka dig efteråt?
+    *   Behöver du en mer detaljerad [timprognos](/#settings/apps/weather) för att tajma din tur perfekt?
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "324eba33-3622-409c-b401-183f95d6183e", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo", "location": "Berlin"}
+    ```
+    
+    מחר בבוקר ב[ברלין](wiki:Berlin) (יום שישי, 19 ביוני 2026), מזג האוויר יהיה יבש ומעונן חלקית, עם טמפרטורות שיתחילו סביב 18–20°C ויעלו במהירות לקראת שיא של 32°C.
+    
+    **האם כדאי לרכוב על אופניים ל[טמפלהופר פלד](wiki:Tempelhofer_Feld)?**
+    כן, זה רעיון מצוין! התנאים אידיאליים לרכיבה:
+    *   **יבש:** לא צפוי גשם (4% סבירות).
+    *   **רגוע:** מהירות הרוח קלה (כ-11 קמ"ש).
+    *   **חלון הבוקר:** מומלץ מאוד לרכוב בבוקר כדי להימנע משיא החום של אחר הצהריים (32°C), במיוחד מכיוון שבשדה התעופה יש מעט מאוד צל.
+    
+    **מה התוכנית שלך להמשך היום?**
+    *   האם תרצה למצוא [גן בירה](wiki:Beer_garden) או בית קפה ליד טמפלהוף כדי להתרענן לאחר מכן?
+    *   האם דרושה לך [תחזית שעתית](/#settings/apps/weather) מפורטת יותר כדי לתזמן את הרכיבה בצורה מושלמת?
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for bike-friendly cafes near Tempelhofer Feld"
+  de: Suche nach fahrradfreundlichen Cafés am Tempelhofer Feld
+  zh: 搜索滕佩尔霍夫机场（Tempelhofer Feld）附近的自行车友好型咖啡馆
+  es: Buscar cafeterías aptas para ciclistas cerca de Tempelhofer Feld
+  fr: Chercher des cafés adaptés aux cyclistes près de Tempelhofer Feld
+  pt: Procurar cafés adequados para ciclistas perto de Tempelhofer Feld
+  ru: Найти велокафе рядом с Темпельхофским полем
+  ja: テンペルホーフ空港公園近くの自転車で行きやすいカフェを探して
+  ko: 템펠호퍼 펠트 근처의 자전거 타기 좋은 카페 검색해 줘
+  it: Cerca bar bike-friendly vicino a Tempelhofer Feld
+  tr: Tempelhofer Feld yakınlarındaki bisiklet dostu kafeleri ara
+  vi: Tìm các quán cà phê thân thiện với người đi xe đạp gần Tempelhofer Feld
+  id: Cari kafe ramah pesepeda di dekat Tempelhofer Feld
+  pl: Znajdź kawiarnie przyjazne rowerzystom w pobliżu Tempelhofer Feld
+  nl: Zoek naar fietsvriendelijke cafés in de buurt van Tempelhofer Feld
+  ar: ابحث عن مقاهٍ مناسبة لراكبي الدراجات بالقرب من تمبلهوفر فيلد
+  hi: टेम्पेलहोफ़र फेल्ड के पास बाइक-फ्रेंडली कैफे खोजें
+  th: ค้นหาคาเฟ่ที่เป็นมิตรกับนักปั่นใกล้ Tempelhofer Feld
+  cs: Najdi kavárny vhodné pro cyklisty poblíž Tempelhofer Feld
+  sv: Sök efter cykelvänliga kaféer nära Tempelhofer Feld
+  he: חיפוש בתי קפה ידידותיים לאופניים ליד טמפלהופר פלד
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "What are some must-see spots at Tempelhofer Feld?"
+  de: "Was sind die wichtigsten Sehenswürdigkeiten auf dem Tempelhofer Feld?"
+  zh: 滕佩尔霍夫机场有哪些必去景点？
+  es: "¿Cuáles son algunos lugares imprescindibles en Tempelhofer Feld?"
+  fr: "Quels sont les lieux incontournables à Tempelhofer Feld ?"
+  pt: "Quais são os locais imperdíveis em Tempelhofer Feld?"
+  ru: "Какие места стоит посетить на Темпельхофском поле?"
+  ja: テンペルホーフ空港公園の見どころは？
+  ko: "템펠호퍼 펠트에서 꼭 가봐야 할 곳은 어디야?"
+  it: "Quali sono i posti da non perdere a Tempelhofer Feld?"
+  tr: "Tempelhofer Feld'de görülmesi gereken yerler nerelerdir?"
+  vi: "Những địa điểm không thể bỏ qua tại Tempelhofer Feld là gì?"
+  id: "Apa saja tempat yang wajib dikunjungi di Tempelhofer Feld?"
+  pl: "Jakie miejsca warto zobaczyć na Tempelhofer Feld?"
+  nl: "Wat zijn een paar must-see plekken op Tempelhofer Feld?"
+  ar: ما هي الأماكن التي يجب رؤيتها في تمبلهوفر فيلد؟
+  hi: "टेम्पेलहोफ़र फेल्ड में देखने लायक कुछ खास जगहें कौन सी हैं?"
+  th: "จุดที่ต้องไปชมใน Tempelhofer Feld มีที่ไหนบ้าง?"
+  cs: "Jaká místa na Tempelhofer Feld stojí za vidění?"
+  sv: "Vilka är några platser man inte får missa på Tempelhofer Feld?"
+  he: "מהם המקומות שחובה לראות בטמפלהופר פלד?"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find the hourly weather forecast for Berlin tomorrow"
+  de: Finde die stündliche Wettervorhersage für Berlin morgen
+  zh: 查询柏林明天的逐小时天气预报
+  es: Buscar el pronóstico del tiempo por horas para Berlín mañana
+  fr: Trouver les prévisions météo heure par heure pour Berlin demain
+  pt: Encontrar a previsão do tempo por hora para Berlim amanhã
+  ru: Найти почасовой прогноз погоды в Берлине на завтра
+  ja: 明日のベルリンの1時間ごとの天気予報を教えて
+  ko: 내일 베를린 시간별 일기 예보 찾아줘
+  it: Trova le previsioni meteo orarie per Berlino domani
+  tr: Yarın için Berlin saatlik hava durumu tahminini bul
+  vi: Tìm dự báo thời tiết theo giờ tại Berlin cho ngày mai
+  id: Cari prakiraan cuaca per jam untuk Berlin besok
+  pl: Znajdź godzinową prognozę pogody dla Berlina na jutro
+  nl: Vind de weersverwachting per uur voor Berlijn morgen
+  ar: ابحث عن توقعات الطقس لكل ساعة في برلين غداً
+  hi: कल के लिए बर्लिन का प्रति घंटा मौसम पूर्वानुमान खोजें
+  th: ค้นหาพยากรณ์อากาศรายชั่วโมงสำหรับเบอร์ลินในวันพรุ่งนี้
+  cs: Najdi hodinovou předpověď počasí pro Berlín na zítřek
+  sv: Hitta timprognosen för vädret i Berlin i morgon
+  he: מצא את תחזית מזג האוויר השעתית לברלין למחר
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "How should I prepare for biking in Berlin's summer heat?"
+  de: "Wie sollte ich mich auf das Radfahren in Berlins Sommerhitze vorbereiten?"
+  zh: 在柏林的夏季高温下骑行，我该做哪些准备？
+  es: "¿Cómo debo prepararme para ir en bici con el calor del verano en Berlín?"
+  fr: "Comment me préparer pour faire du vélo sous la chaleur estivale de Berlin ?"
+  pt: "Como devo preparar-me para andar de bicicleta no calor do verão de Berlim?"
+  ru: "Как подготовиться к поездке на велосипеде в летнюю жару в Берлине?"
+  ja: ベルリンの夏の暑さの中でサイクリングをする際の注意点は？
+  ko: "베를린의 여름 더위 속에서 자전거를 타려면 어떻게 준비해야 해?"
+  it: "Come dovrei prepararmi per andare in bici con il caldo estivo di Berlino?"
+  tr: "Berlin'in yaz sıcağında bisiklet sürmek için nasıl hazırlanmalıyım?"
+  vi: "Tôi nên chuẩn bị gì để đạp xe trong cái nóng mùa hè ở Berlin?"
+  id: "Bagaimana cara bersiap untuk bersepeda di tengah panas musim panas Berlin?"
+  pl: "Jak przygotować się do jazdy rowerem w letnie upały w Berlinie?"
+  nl: "Hoe moet ik me voorbereiden op fietsen in de zomerhitte van Berlijn?"
+  ar: كيف أستعد لركوب الدراجة في حرارة الصيف في برلين؟
+  hi: "बर्लिन की गर्मियों की गर्मी में बाइक चलाने के लिए मुझे कैसे तैयारी करनी चाहिए?"
+  th: "ฉันควรเตรียมตัวอย่างไรสำหรับการปั่นจักรยานท่ามกลางความร้อนในฤดูร้อนของเบอร์ลิน?"
+  cs: "Jak se připravit na jízdu na kole v letních vedrech v Berlíně?"
+  sv: "Hur bör jag förbereda mig för att cykla i Berlins sommarvärme?"
+  he: "איך כדאי להתכונן לרכיבה על אופניים בחום הקיץ של ברלין?"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Show me the best cycling routes to Tempelhofer Feld"
+  de: Zeig mir die besten Radrouten zum Tempelhofer Feld
+  zh: 显示前往滕佩尔霍夫机场的最佳骑行路线
+  es: Muéstrame las mejores rutas ciclistas a Tempelhofer Feld
+  fr: Montre-moi les meilleurs itinéraires cyclables pour aller à Tempelhofer Feld
+  pt: Mostrar-me as melhores rotas de ciclismo para Tempelhofer Feld
+  ru: Показать лучшие веломаршруты до Темпельхофского поля
+  ja: テンペルホーフ空港公園へのおすすめのサイクリングルートを教えて
+  ko: 템펠호퍼 펠트까지 가는 최적의 자전거 경로를 보여줘
+  it: Mostrami i migliori percorsi ciclabili per Tempelhofer Feld
+  tr: "Tempelhofer Feld'e giden en iyi bisiklet rotalarını göster"
+  vi: Cho tôi xem những tuyến đường đạp xe tốt nhất đến Tempelhofer Feld
+  id: Tunjukkan rute bersepeda terbaik ke Tempelhofer Feld
+  pl: Pokaż mi najlepsze trasy rowerowe na Tempelhofer Feld
+  nl: Toon me de beste fietsroutes naar Tempelhofer Feld
+  ar: أرني أفضل مسارات الدراجات إلى تمبلهوفر فيلد
+  hi: मुझे टेम्पेलहोफ़र फेल्ड के लिए सबसे अच्छे साइकिलिंग मार्ग दिखाएं
+  th: แสดงเส้นทางปั่นจักรยานที่ดีที่สุดไปยัง Tempelhofer Feld
+  cs: Ukaž mi nejlepší cyklotrasy na Tempelhofer Feld
+  sv: Visa mig de bästa cykelvägarna till Tempelhofer Feld
+  he: הראה לי את מסלולי הרכיבה הטובים ביותר לטמפלהופר פלד
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Are there any events happening at Tempelhofer Feld tomorrow?"
+  de: "Gibt es morgen Veranstaltungen auf dem Tempelhofer Feld?"
+  zh: 明天滕佩尔霍夫机场有什么活动吗？
+  es: "¿Hay algún evento en Tempelhofer Feld mañana?"
+  fr: "Y a-t-il des événements prévus à Tempelhofer Feld demain ?"
+  pt: "Há algum evento a decorrer em Tempelhofer Feld amanhã?"
+  ru: "Будут ли завтра какие-нибудь мероприятия на Темпельхофском поле?"
+  ja: 明日、テンペルホーフ空港公園で何かイベントはある？
+  ko: "내일 템펠호퍼 펠트에서 열리는 행사가 있어?"
+  it: "Ci sono eventi a Tempelhofer Feld domani?"
+  tr: "Yarın Tempelhofer Feld'de herhangi bir etkinlik var mı?"
+  vi: "Có sự kiện nào diễn ra tại Tempelhofer Feld vào ngày mai không?"
+  id: "Apakah ada acara yang berlangsung di Tempelhofer Feld besok?"
+  pl: "Czy jutro na Tempelhofer Feld odbywają się jakieś wydarzenia?"
+  nl: "Zijn er morgen evenementen op Tempelhofer Feld?"
+  ar: هل هناك أي فعاليات تقام في تمبلهوفر فيلد غداً؟
+  hi: "क्या कल टेम्पेलहोफ़र फेल्ड में कोई कार्यक्रम हो रहा है?"
+  th: "มีกิจกรรมอะไรเกิดขึ้นที่ Tempelhofer Feld ในวันพรุ่งนี้บ้างไหม?"
+  cs: "Konají se zítra na Tempelhofer Feld nějaké akce?"
+  sv: "Händer det några evenemang på Tempelhofer Feld i morgon?"
+  he: "האם יש אירועים כלשהם בטמפלהופר פלד מחר?"
+  verified_by_human: []

@@ -22,7 +22,7 @@ instructions:
       atopile_docs_version: 0.15.7
       Source: official PyPI sdist `atopile-0.15.7.tar.gz` README, `.claude/skills/ato-language/SKILL.md`, `.claude/skills/domain-layer/SKILL.md`, grammar, templates, and examples.
 
-      When the user asks for a PCB schematic, write an `atopile` fenced code block. Use `module`, `interface`, and `component` blocks; instantiate with `new`; connect compatible interfaces with `~`; use `~>` only with `#pragma experiment("BRIDGE_CONNECT")` and bridgeable components. Prefer current imports such as `import Resistor` or `from "path.ato" import Thing`.
+      When the user asks for a PCB schematic, write an `atopile` fenced code block with a top-level `module App:` entrypoint. Use `module`, `interface`, and explicitly named `component` blocks; instantiate with `new`; never write `new component` or anonymous component types. Connect compatible interfaces with `~`; use `~>` only with `#pragma experiment("BRIDGE_CONNECT")` and bridgeable components. Prefer current imports such as `import Resistor` or `from "path.ato" import Thing`; never write invalid Python/JS-style imports such as `import Resistor from "..."`.
 
       Use units, tolerances, and assertions so the solver can pick parts: `10kohm +/- 5%`, `3.0V to 3.6V`, and `assert rail.voltage within 3.0V to 3.6V`. Do not claim compile success proves electrical safety, regulatory compliance, manufacturability, or expert review.
 

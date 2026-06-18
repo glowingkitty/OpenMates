@@ -1,0 +1,397 @@
+title:
+  context: "Title of example chat: USB-C 3.3V LDO PCB Schematic"
+  en: "USB-C 3.3V LDO PCB Schematic"
+  de: "USB-C 3.3V LDO PCB Schematic"
+  zh: "USB-C 3.3V LDO PCB Schematic"
+  es: "USB-C 3.3V LDO PCB Schematic"
+  fr: "USB-C 3.3V LDO PCB Schematic"
+  pt: "USB-C 3.3V LDO PCB Schematic"
+  ru: "USB-C 3.3V LDO PCB Schematic"
+  ja: "USB-C 3.3V LDO PCB Schematic"
+  ko: "USB-C 3.3V LDO PCB Schematic"
+  it: "USB-C 3.3V LDO PCB Schematic"
+  tr: "USB-C 3.3V LDO PCB Schematic"
+  vi: "USB-C 3.3V LDO PCB Schematic"
+  id: "USB-C 3.3V LDO PCB Schematic"
+  pl: "USB-C 3.3V LDO PCB Schematic"
+  nl: "USB-C 3.3V LDO PCB Schematic"
+  ar: "USB-C 3.3V LDO PCB Schematic"
+  hi: "USB-C 3.3V LDO PCB Schematic"
+  th: "USB-C 3.3V LDO PCB Schematic"
+  cs: "USB-C 3.3V LDO PCB Schematic"
+  sv: "USB-C 3.3V LDO PCB Schematic"
+  he: "USB-C 3.3V LDO PCB Schematic"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: USB-C 3.3V LDO PCB Schematic"
+  en: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  de: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  zh: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  es: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  fr: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  pt: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  ru: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  ja: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  ko: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  it: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  tr: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  vi: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  id: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  pl: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  nl: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  ar: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  hi: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  th: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  cs: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  sv: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  he: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: USB-C 3.3V LDO PCB Schematic. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  de: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  zh: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  es: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  fr: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  pt: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  ru: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  ja: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  ko: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  it: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  tr: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  vi: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  id: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  pl: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  nl: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  ar: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  hi: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  th: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  cs: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  sv: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  he: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: USB-C 3.3V LDO PCB Schematic. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  de: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  zh: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  es: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  fr: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  pt: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  ru: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  ja: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  ko: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  it: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  tr: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  vi: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  id: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  pl: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  nl: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  ar: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  hi: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  th: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  cs: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  sv: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  he: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Add voltage constraints to the 5V and 3.3V rails"
+  de: "Add voltage constraints to the 5V and 3.3V rails"
+  zh: "Add voltage constraints to the 5V and 3.3V rails"
+  es: "Add voltage constraints to the 5V and 3.3V rails"
+  fr: "Add voltage constraints to the 5V and 3.3V rails"
+  pt: "Add voltage constraints to the 5V and 3.3V rails"
+  ru: "Add voltage constraints to the 5V and 3.3V rails"
+  ja: "Add voltage constraints to the 5V and 3.3V rails"
+  ko: "Add voltage constraints to the 5V and 3.3V rails"
+  it: "Add voltage constraints to the 5V and 3.3V rails"
+  tr: "Add voltage constraints to the 5V and 3.3V rails"
+  vi: "Add voltage constraints to the 5V and 3.3V rails"
+  id: "Add voltage constraints to the 5V and 3.3V rails"
+  pl: "Add voltage constraints to the 5V and 3.3V rails"
+  nl: "Add voltage constraints to the 5V and 3.3V rails"
+  ar: "Add voltage constraints to the 5V and 3.3V rails"
+  hi: "Add voltage constraints to the 5V and 3.3V rails"
+  th: "Add voltage constraints to the 5V and 3.3V rails"
+  cs: "Add voltage constraints to the 5V and 3.3V rails"
+  sv: "Add voltage constraints to the 5V and 3.3V rails"
+  he: "Add voltage constraints to the 5V and 3.3V rails"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Choose manufacturer parts for the LDO and diode"
+  de: "Choose manufacturer parts for the LDO and diode"
+  zh: "Choose manufacturer parts for the LDO and diode"
+  es: "Choose manufacturer parts for the LDO and diode"
+  fr: "Choose manufacturer parts for the LDO and diode"
+  pt: "Choose manufacturer parts for the LDO and diode"
+  ru: "Choose manufacturer parts for the LDO and diode"
+  ja: "Choose manufacturer parts for the LDO and diode"
+  ko: "Choose manufacturer parts for the LDO and diode"
+  it: "Choose manufacturer parts for the LDO and diode"
+  tr: "Choose manufacturer parts for the LDO and diode"
+  vi: "Choose manufacturer parts for the LDO and diode"
+  id: "Choose manufacturer parts for the LDO and diode"
+  pl: "Choose manufacturer parts for the LDO and diode"
+  nl: "Choose manufacturer parts for the LDO and diode"
+  ar: "Choose manufacturer parts for the LDO and diode"
+  hi: "Choose manufacturer parts for the LDO and diode"
+  th: "Choose manufacturer parts for the LDO and diode"
+  cs: "Choose manufacturer parts for the LDO and diode"
+  sv: "Choose manufacturer parts for the LDO and diode"
+  he: "Choose manufacturer parts for the LDO and diode"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Add USB-C connector details and CC resistors"
+  de: "Add USB-C connector details and CC resistors"
+  zh: "Add USB-C connector details and CC resistors"
+  es: "Add USB-C connector details and CC resistors"
+  fr: "Add USB-C connector details and CC resistors"
+  pt: "Add USB-C connector details and CC resistors"
+  ru: "Add USB-C connector details and CC resistors"
+  ja: "Add USB-C connector details and CC resistors"
+  ko: "Add USB-C connector details and CC resistors"
+  it: "Add USB-C connector details and CC resistors"
+  tr: "Add USB-C connector details and CC resistors"
+  vi: "Add USB-C connector details and CC resistors"
+  id: "Add USB-C connector details and CC resistors"
+  pl: "Add USB-C connector details and CC resistors"
+  nl: "Add USB-C connector details and CC resistors"
+  ar: "Add USB-C connector details and CC resistors"
+  hi: "Add USB-C connector details and CC resistors"
+  th: "Add USB-C connector details and CC resistors"
+  cs: "Add USB-C connector details and CC resistors"
+  sv: "Add USB-C connector details and CC resistors"
+  he: "Add USB-C connector details and CC resistors"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Add an enable pin to the regulator"
+  de: "Add an enable pin to the regulator"
+  zh: "Add an enable pin to the regulator"
+  es: "Add an enable pin to the regulator"
+  fr: "Add an enable pin to the regulator"
+  pt: "Add an enable pin to the regulator"
+  ru: "Add an enable pin to the regulator"
+  ja: "Add an enable pin to the regulator"
+  ko: "Add an enable pin to the regulator"
+  it: "Add an enable pin to the regulator"
+  tr: "Add an enable pin to the regulator"
+  vi: "Add an enable pin to the regulator"
+  id: "Add an enable pin to the regulator"
+  pl: "Add an enable pin to the regulator"
+  nl: "Add an enable pin to the regulator"
+  ar: "Add an enable pin to the regulator"
+  hi: "Add an enable pin to the regulator"
+  th: "Add an enable pin to the regulator"
+  cs: "Add an enable pin to the regulator"
+  sv: "Add an enable pin to the regulator"
+  he: "Add an enable pin to the regulator"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Prepare PCB files from this schematic"
+  de: "Prepare PCB files from this schematic"
+  zh: "Prepare PCB files from this schematic"
+  es: "Prepare PCB files from this schematic"
+  fr: "Prepare PCB files from this schematic"
+  pt: "Prepare PCB files from this schematic"
+  ru: "Prepare PCB files from this schematic"
+  ja: "Prepare PCB files from this schematic"
+  ko: "Prepare PCB files from this schematic"
+  it: "Prepare PCB files from this schematic"
+  tr: "Prepare PCB files from this schematic"
+  vi: "Prepare PCB files from this schematic"
+  id: "Prepare PCB files from this schematic"
+  pl: "Prepare PCB files from this schematic"
+  nl: "Prepare PCB files from this schematic"
+  ar: "Prepare PCB files from this schematic"
+  hi: "Prepare PCB files from this schematic"
+  th: "Prepare PCB files from this schematic"
+  cs: "Prepare PCB files from this schematic"
+  sv: "Prepare PCB files from this schematic"
+  he: "Prepare PCB files from this schematic"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Explain the decoupling capacitor choices"
+  de: "Explain the decoupling capacitor choices"
+  zh: "Explain the decoupling capacitor choices"
+  es: "Explain the decoupling capacitor choices"
+  fr: "Explain the decoupling capacitor choices"
+  pt: "Explain the decoupling capacitor choices"
+  ru: "Explain the decoupling capacitor choices"
+  ja: "Explain the decoupling capacitor choices"
+  ko: "Explain the decoupling capacitor choices"
+  it: "Explain the decoupling capacitor choices"
+  tr: "Explain the decoupling capacitor choices"
+  vi: "Explain the decoupling capacitor choices"
+  id: "Explain the decoupling capacitor choices"
+  pl: "Explain the decoupling capacitor choices"
+  nl: "Explain the decoupling capacitor choices"
+  ar: "Explain the decoupling capacitor choices"
+  hi: "Explain the decoupling capacitor choices"
+  th: "Explain the decoupling capacitor choices"
+  cs: "Explain the decoupling capacitor choices"
+  sv: "Explain the decoupling capacitor choices"
+  he: "Explain the decoupling capacitor choices"
+  verified_by_human: []
+

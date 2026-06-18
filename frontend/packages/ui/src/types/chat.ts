@@ -115,6 +115,7 @@ export interface Message {
   // Metadata (not encrypted - for UI rendering and cost tracking)
   has_thinking?: boolean; // Quick check if message has thinking content
   thinking_token_count?: number; // Token count for thinking (for cost tracking)
+  example_response_credits?: number; // Static public example-chat response cost, including AI ask and app skills
 
   // PII (Personally Identifiable Information) anonymization fields
   // Used to store placeholder-to-original-value mappings for client-side restoration

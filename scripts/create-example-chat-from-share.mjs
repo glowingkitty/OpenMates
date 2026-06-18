@@ -133,6 +133,9 @@ function usage() {
 
 Options:
   --from-json <path>       Use already extracted chat JSON instead of a share URL
+  --usage-json <path>      Use usage rows JSON from /v1/settings/usage/chat-entries
+  --api-key <key>          Fetch source usage rows with this API key (or OPENMATES_API_KEY)
+  --api-base <url>         API base for --from-json usage fetches
   --slug <slug>            SEO slug, lowercase hyphenated (required)
   --title <title>          Override extracted title
   --summary <summary>      Override extracted summary
@@ -152,6 +155,9 @@ function parseArgs(argv) {
   const args = {
     shareUrl: null,
     fromJson: null,
+    usageJson: null,
+    apiKey: process.env.OPENMATES_API_KEY || null,
+    apiBase: null,
     slug: null,
     title: null,
     summary: null,
@@ -174,6 +180,15 @@ function parseArgs(argv) {
     switch (arg) {
       case '--from-json':
         args.fromJson = argv[++i];
+        break;
+      case '--usage-json':
+        args.usageJson = argv[++i];
+        break;
+      case '--api-key':
+        args.apiKey = argv[++i];
+        break;
+      case '--api-base':
+        args.apiBase = argv[++i];
         break;
       case '--slug':
         args.slug = argv[++i];
@@ -235,6 +250,15 @@ function parseArgs(argv) {
     process.exit(1);
   }
   return args;
+}
+
+function apiBaseFromShareUrl(shareUrl) {
+  if (!shareUrl) return null;
+  const url = new URL(shareUrl);
+  const host = url.host;
+  if (host.startsWith('app.dev.')) return `https://api.dev.${host.replace('app.dev.', '')}`;
+  if (host.startsWith('app.')) return `https://api.${host.replace('app.', '')}`;
+  return `${url.protocol}//${host}`;
 }
 
 function loadExtractedChat(args) {
@@ -630,6 +654,111 @@ function tsArray(values) {
   return `[${values.map((value) => tsString(value)).join(', ')}]`;
 }
 
+function toPositiveInteger(value) {
+  const number = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(number) || number <= 0) return null;
+  return Math.round(number);
+}
+
+function usageEntriesFromPayload(payload, chatId = null) {
+  if (!payload) return [];
+  if (Array.isArray(payload)) {
+    return payload.filter((entry) => !chatId || !entry.chat_id || entry.chat_id === chatId);
+  }
+  if (payload.chats && chatId && payload.chats[chatId]) {
+    return usageEntriesFromPayload(payload.chats[chatId], chatId);
+  }
+  if (chatId && payload[chatId]) {
+    return usageEntriesFromPayload(payload[chatId], chatId);
+  }
+  if (Array.isArray(payload.entries)) {
+    return usageEntriesFromPayload(payload.entries, chatId);
+  }
+  if (Array.isArray(payload.usage)) {
+    return usageEntriesFromPayload(payload.usage, chatId);
+  }
+  return [];
+}
+
+function creditsByMessageId(entries) {
+  const totals = new Map();
+  for (const entry of entries || []) {
+    if (!entry || typeof entry.message_id !== 'string' || !entry.message_id.trim()) continue;
+    const credits = toPositiveInteger(entry.credits ?? entry.credits_charged ?? entry.total_credits);
+    if (credits === null) continue;
+    const messageId = entry.message_id.trim();
+    totals.set(messageId, (totals.get(messageId) || 0) + credits);
+  }
+  return totals;
+}
+
+function annotateMessagesWithUsage(messages, entries) {
+  const creditsByTrigger = creditsByMessageId(entries);
+  let previousUserMessageId = null;
+  return (messages || []).map((message) => {
+    const messageId = message.message_id || message.id || null;
+    if (message.role === 'user' && messageId) previousUserMessageId = messageId;
+
+    const annotated = { ...message };
+    if (message.user_message_id) annotated.user_message_id = message.user_message_id;
+
+    if (message.role === 'assistant') {
+      const triggerMessageId = message.user_message_id || previousUserMessageId;
+      if (triggerMessageId) {
+        annotated.user_message_id = triggerMessageId;
+        const credits = creditsByTrigger.get(triggerMessageId);
+        if (credits) annotated.response_credits = credits;
+      }
+    }
+
+    return annotated;
+  });
+}
+
+export function annotateChatWithUsage(chat, usagePayload) {
+  if (!usagePayload) return chat;
+  return {
+    ...chat,
+    messages: annotateMessagesWithUsage(chat.messages || [], usageEntriesFromPayload(usagePayload, chat.chat_id)),
+    sub_chats: (chat.sub_chats || []).map((subChat) => ({
+      ...subChat,
+      messages: annotateMessagesWithUsage(
+        subChat.messages || [],
+        usageEntriesFromPayload(usagePayload, subChat.chat_id),
+      ),
+    })),
+  };
+}
+
+async function fetchUsageEntriesForChat(apiBase, apiKey, chatId) {
+  if (!apiBase || !apiKey || !chatId) return [];
+  const endpoint = `${apiBase.replace(/\/$/, '')}/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(chatId)}&limit=500`;
+  const response = await fetch(endpoint, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Usage fetch failed for ${chatId}: ${response.status} ${response.statusText}`);
+  }
+  return usageEntriesFromPayload(await response.json(), chatId);
+}
+
+async function loadUsagePayload(args, chat) {
+  if (args.usageJson) {
+    return JSON.parse(readFileSync(path.resolve(args.usageJson), 'utf8'));
+  }
+
+  const apiKey = args.apiKey;
+  const apiBase = args.apiBase || apiBaseFromShareUrl(args.shareUrl);
+  if (!apiKey || !apiBase) return null;
+
+  const chats = {};
+  const chatIds = [chat.chat_id, ...(chat.sub_chats || []).map((subChat) => subChat.chat_id)].filter(Boolean);
+  for (const chatId of chatIds) {
+    chats[chatId] = await fetchUsageEntriesForChat(apiBase, apiKey, chatId);
+  }
+  return { chats };
+}
+
 function normalizeCategory(value) {
   if (!value) return 'general_knowledge';
   const trimmed = String(value).trim();
@@ -669,6 +798,8 @@ function formatMessages(messages, metadata, keyPrefix) {
         ? message.content
         : `example_chats.${metadata.snake}.${keyPrefix === 'message' ? `message_${translatedIndex}` : `${keyPrefix}_message_${translatedIndex}`}`,
       created_at: normalizeTimestamp(message.created_at),
+      user_message_id: message.user_message_id || undefined,
+      response_credits: toPositiveInteger(message.response_credits) ?? undefined,
       category: message.category || undefined,
       model_name: message.model_name || undefined,
       pii_mappings: message.pii_mappings || undefined,
@@ -845,9 +976,11 @@ function writeIfChanged(filePath, content, args) {
   writeFileSync(filePath, content);
 }
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const chat = withPromotedAppSkillUseMessages(loadExtractedChat(args));
+  const loadedChat = withPromotedAppSkillUseMessages(loadExtractedChat(args));
+  const usagePayload = await loadUsagePayload(args, loadedChat);
+  const chat = annotateChatWithUsage(loadedChat, usagePayload);
   validateExtractedChat(chat);
 
   const slug = args.slug;
@@ -887,6 +1020,7 @@ function main() {
   console.log(`  messages: ${chat.messages.length}`);
   console.log(`  embeds: ${chat.embeds.length}`);
   console.log(`  sub_chats: ${(chat.sub_chats || []).length}`);
+  console.log(`  priced responses: ${chat.messages.filter((message) => message.response_credits).length + (chat.sub_chats || []).reduce((sum, subChat) => sum + (subChat.messages || []).filter((message) => message.response_credits).length, 0)}`);
   console.log(`  order: ${metadata.order}`);
   console.log(`  data: ${path.relative(REPO_ROOT, dataPath)}`);
   console.log(`  i18n: ${path.relative(REPO_ROOT, yamlPath)}`);
@@ -903,5 +1037,8 @@ function main() {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
 }
