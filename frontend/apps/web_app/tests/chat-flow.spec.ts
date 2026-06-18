@@ -908,8 +908,14 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// a draft chat ID before IndexedDB has a chat/key. Sending from that state must
 	// create the chat and key before saving the first encrypted message.
 	logChatCheckpoint('Phase 4.6: Sending from explicit new-chat screen...');
+	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
+	await page.goto(baseUrl);
+	await expect(page).not.toHaveURL(/chat-id=/, { timeout: 10000 });
 	const newChatMessageEditor = page.getByTestId('message-editor');
 	await expect(newChatMessageEditor).toBeVisible({ timeout: 10000 });
+	await expect(newChatMessageEditor).toHaveAttribute('data-current-chat-id', 'new-chat', {
+		timeout: 10000
+	});
 	await newChatMessageEditor.click();
 	const secondChatMessage = 'Reply with only: explicit new chat works';
 	await page.keyboard.type(secondChatMessage);
@@ -931,7 +937,6 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await deleteActiveChat(page, logChatCheckpoint, takeStepScreenshot, 'cleanup-explicit-new-chat');
 
 	// Navigate back to the test chat for subsequent phases
-	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 	await page.goto(`${baseUrl}/#chat-id=${chatId}`);
 	await page.waitForTimeout(3000);
 
