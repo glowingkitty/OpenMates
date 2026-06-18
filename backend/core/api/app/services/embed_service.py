@@ -197,14 +197,18 @@ class EmbedService:
         preview_results: List[Dict[str, Any]] = []
         preview_fields = EmbedService._parent_preview_fields_for(app_id, skill_id)
         flat_results = EmbedService._flatten_grouped_preview_results(results)
+        preserve_zero_values = app_id == "weather" and skill_id == "forecast"
 
         limit = WEB_SEARCH_PREVIEW_RESULT_LIMIT if app_id == "web" and skill_id == "search" else GENERIC_RESULT_LIST_PREVIEW_RESULT_LIMIT
         for result in flat_results:
-            preview_result = {
-                key: result[key]
-                for key in preview_fields
-                if result.get(key)
-            }
+            preview_result = {}
+            for key in preview_fields:
+                value = result.get(key)
+                if value is None or value == "":
+                    continue
+                if not preserve_zero_values and not value:
+                    continue
+                preview_result[key] = value
             if app_id == "web" and skill_id == "search" and not preview_result.get("url"):
                 continue
             if not preview_result:
@@ -254,6 +258,21 @@ class EmbedService:
         )
         if app_id == "web" and skill_id == "search":
             return (*common_fields, "snippet", "description")
+        if app_id == "weather" and skill_id == "forecast":
+            return (
+                *common_fields,
+                "location_name",
+                "condition",
+                "icon",
+                "temperature_min_c",
+                "temperature_max_c",
+                "precipitation_total_mm",
+                "precipitation_probability_max_pct",
+                "rain_hours",
+                "wind_speed_max_kmh",
+                "cloud_cover_avg_pct",
+                "relative_humidity_avg_pct",
+            )
         return common_fields
 
     @staticmethod

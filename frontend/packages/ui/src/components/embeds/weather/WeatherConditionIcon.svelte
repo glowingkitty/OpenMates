@@ -143,4 +143,11 @@
       animation-play-state: paused;
     }
   }
+
+  @container fullscreen (max-width: 520px) {
+    .weather-condition-icon.hero {
+      width: min(34vw, 108px);
+      height: min(34vw, 108px);
+    }
+  }
 </style>

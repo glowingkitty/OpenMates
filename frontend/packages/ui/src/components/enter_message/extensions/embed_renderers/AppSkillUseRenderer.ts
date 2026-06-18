@@ -4228,7 +4228,13 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    const results = decodedContent?.results || [];
+    const decodedResults = Array.isArray(decodedContent?.results)
+      ? decodedContent.results
+      : [];
+    const previewResults = Array.isArray(decodedContent?.preview_results)
+      ? decodedContent.preview_results
+      : [];
+    const results = decodedResults.length > 0 ? decodedResults : previewResults;
     const locationName = decodedContent?.location?.name || decodedContent?.location_name || "";
 
     const existingComponent = mountedComponents.get(content);
@@ -4260,6 +4266,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error" | "cancelled",
           results,
+          previewResults,
           taskId,
           skillTaskId,
           isMobile: false,

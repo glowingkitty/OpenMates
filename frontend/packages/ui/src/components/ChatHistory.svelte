@@ -2411,6 +2411,28 @@
                 <div class="streaming-spacer" style="height: {spacerHeight}px;"></div>
             {/if}
             
+            <!-- Follow-up suggestions shown after the last assistant message.
+                 Visible without requiring the user to focus the message input first. -->
+            {#if showQuickTipsInHistory}
+                <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
+                    <QuickTipsCard
+                        slugs={quickTipSlugs}
+                        category={chatCategory}
+                        on:action={(event) => handleQuickTipAction(event.detail)}
+                    />
+                </div>
+            {/if}
+
+            {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
+                <div class="follow-up-suggestions-wrapper" transition:fade={{ duration: 120 }}>
+                    <FollowUpSuggestions
+                        suggestions={followUpSuggestions}
+                        messageInputContent=""
+                        onSuggestionClick={onSuggestionClick}
+                    />
+                </div>
+            {/if}
+
             {#if showAssistantFeedback}
                 <div class="assistant-response-feedback" data-testid="assistant-response-feedback" in:fade={{ duration: 200 }}>
                     {#if assistantFeedbackSubmitted && assistantFeedbackThanksState !== 'hidden'}
@@ -2464,28 +2486,6 @@
                     >
                         {$text('chat.request_feature')}
                     </button>
-                </div>
-            {/if}
-
-            <!-- Follow-up suggestions shown after the last assistant message.
-                 Visible without requiring the user to focus the message input first. -->
-            {#if showQuickTipsInHistory}
-                <div class="quick-tips-wrapper" in:fade={{ duration: 200 }}>
-                    <QuickTipsCard
-                        slugs={quickTipSlugs}
-                        category={chatCategory}
-                        on:action={(event) => handleQuickTipAction(event.detail)}
-                    />
-                </div>
-            {/if}
-
-            {#if showFollowUpSuggestionsInHistory && onSuggestionClick}
-                <div class="follow-up-suggestions-wrapper" transition:fade={{ duration: 120 }}>
-                    <FollowUpSuggestions
-                        suggestions={followUpSuggestions}
-                        messageInputContent=""
-                        onSuggestionClick={onSuggestionClick}
-                    />
                 </div>
             {/if}
 
@@ -2667,7 +2667,8 @@
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-2);
-    padding: 8px 20px 14px;
+    margin-top: var(--spacing-4);
+    padding: 14px 20px 18px;
     box-sizing: border-box;
     width: 100%;
     text-align: center;

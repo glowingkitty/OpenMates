@@ -29,6 +29,7 @@
     provider?: string;
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     results?: WeatherDaySummary[];
+    previewResults?: WeatherDaySummary[];
     taskId?: string;
     skillTaskId?: string;
     isMobile?: boolean;
@@ -40,6 +41,7 @@
     provider: providerProp = 'Weather',
     status: statusProp,
     results: resultsProp = [],
+    previewResults: previewResultsProp = [],
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     isMobile = false,
@@ -55,7 +57,7 @@
   $effect(() => {
     localProvider = providerProp;
     localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
+    localResults = resultsProp.length > 0 ? resultsProp : previewResultsProp;
     localTaskId = taskIdProp;
     localSkillTaskId = skillTaskIdProp;
   });
@@ -75,7 +77,11 @@
     const content = data.decodedContent;
     if (!content) return;
     if (typeof content.provider === 'string') localProvider = content.provider;
-    if (Array.isArray(content.results)) localResults = content.results as WeatherDaySummary[];
+    if (Array.isArray(content.results) && content.results.length > 0) {
+      localResults = content.results as WeatherDaySummary[];
+    } else if (Array.isArray(content.preview_results)) {
+      localResults = content.preview_results as WeatherDaySummary[];
+    }
     if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
   }
 

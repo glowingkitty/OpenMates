@@ -178,9 +178,11 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
-    padding: 24px 16px 120px;
+    padding: 20px clamp(8px, 3vw, 16px) 120px;
+    width: 100%;
     max-width: 980px;
     margin: 0 auto;
+    box-sizing: border-box;
   }
 
   .summary-card {
@@ -344,17 +346,62 @@
 
   @container fullscreen (max-width: 520px) {
     .weather-day-fullscreen {
-      padding-inline: 10px;
+      gap: 12px;
+      padding: 14px 8px 96px;
     }
 
     .summary-card {
       flex-direction: column;
       align-items: flex-start;
-      gap: 8px;
+      gap: 6px;
+      min-height: 0;
+      border-radius: 24px;
+      padding: 18px;
+    }
+
+    .summary-card h3 {
+      font-size: clamp(24px, 10vw, 38px);
+    }
+
+    .summary-temp {
+      margin-top: 12px;
+      font-size: clamp(30px, 12vw, 48px);
+    }
+
+    .summary-kicker,
+    .summary-location {
+      font-size: 12px;
     }
 
     .metric-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .metric-card {
+      border-radius: 18px;
+      padding: 12px;
+      font-size: 12px;
+    }
+
+    .metric-card strong {
+      font-size: 18px;
+    }
+
+    .metric-label {
+      font-size: 10px;
+    }
+
+    .hourly-card {
+      border-radius: 18px;
+      padding: 12px;
+    }
+
+    .hour-row {
+      min-width: 82px;
+      border-radius: 15px;
+      padding: 9px 7px;
+      font-size: 11px;
     }
   }
 </style>

@@ -1864,6 +1864,9 @@ export class GroupRenderer implements EmbedRenderer {
       }
 
       if (appId === "weather" && skillId === "forecast") {
+        const previewResults = Array.isArray(decodedContent?.preview_results)
+          ? decodedContent.preview_results
+          : [];
         const component = mount(WeatherForecastEmbedPreview, {
           target,
           props: {
@@ -1877,7 +1880,8 @@ export class GroupRenderer implements EmbedRenderer {
               | "finished"
               | "error"
               | "cancelled",
-            results,
+            results: results.length > 0 ? results : previewResults,
+            previewResults,
             taskId,
             skillTaskId,
             isMobile: false,
