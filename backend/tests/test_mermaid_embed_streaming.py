@@ -1,8 +1,8 @@
 # backend/tests/test_mermaid_embed_streaming.py
 #
-# Contract tests for Diagrams-owned Mermaid embeds. These keep assistant-emitted
-# Mermaid fenced blocks out of the generic Code path and ensure the durable
-# source payload supports encrypted storage, text clients, and diff versions.
+# Dormant contract tests for disabled Diagrams-owned Mermaid embeds. These guard
+# that Mermaid fences fall through to the generic Code path while preserving the
+# parked service helpers for a future refinement pass.
 
 from __future__ import annotations
 
@@ -18,10 +18,11 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DIAGRAMS_APP_YML = REPO_ROOT / "backend/apps/diagrams/app.yml"
+DIAGRAMS_DISABLED_APP_YML = REPO_ROOT / "backend/apps/diagrams/app.disabled.yml"
 STREAM_CONSUMER = REPO_ROOT / "backend/apps/ai/tasks/stream_consumer.py"
 
 
-def test_mermaid_fence_metadata_defaults_to_diagrams_embed() -> None:
+def test_mermaid_fence_detection_is_disabled() -> None:
     from backend.apps.ai.utils.mermaid_fences import (
         _extract_mermaid_metadata,
         _is_mermaid_fence,
@@ -34,8 +35,8 @@ def test_mermaid_fence_metadata_defaults_to_diagrams_embed() -> None:
     API-->>User: Send verification code
 """
 
-    assert _is_mermaid_fence("mermaid") is True
-    assert _is_mermaid_fence("mmd") is True
+    assert _is_mermaid_fence("mermaid") is False
+    assert _is_mermaid_fence("mmd") is False
     assert _is_mermaid_fence("diagram") is False
     assert _is_mermaid_fence("python") is False
 
@@ -49,8 +50,9 @@ def test_mermaid_fence_metadata_defaults_to_diagrams_embed() -> None:
     }
 
 
-def test_diagrams_app_registers_mermaid_direct_embed() -> None:
-    app = yaml.safe_load(DIAGRAMS_APP_YML.read_text())
+def test_diagrams_app_definition_is_dormant() -> None:
+    assert not DIAGRAMS_APP_YML.exists()
+    app = yaml.safe_load(DIAGRAMS_DISABLED_APP_YML.read_text())
 
     assert app["app_id"] == "diagrams"
     embed = next(item for item in app["embed_types"] if item.get("backend_type") == "mermaid")
@@ -60,16 +62,10 @@ def test_diagrams_app_registers_mermaid_direct_embed() -> None:
     assert embed["preview_component"] == "diagrams/MermaidDiagramEmbedPreview.svelte"
     assert embed["fullscreen_component"] == "diagrams/MermaidDiagramEmbedFullscreen.svelte"
     assert embed["content_catalog"]["content_type_id"] == "mermaid"
-
-    instruction = next(item for item in app["instructions"] if "mermaid" in item.get("for_embed_types", []))
-    text = instruction["instruction"]
-    assert "```mermaid" in text
-    assert "sequenceDiagram" in text
-    assert "flowchart" in text
-    assert "Do not wrap Mermaid" in text
+    assert app["instructions"] == []
 
 
-def test_streaming_path_routes_incremental_mermaid_blocks_before_code() -> None:
+def test_streaming_path_keeps_mermaid_branch_dormant() -> None:
     source = STREAM_CONSUMER.read_text(encoding="utf-8")
     multi_chunk_branch = source[source.index("is_mermaid_block_multi = _is_mermaid_fence(current_code_language)") :]
     finalization_branch = source[source.index("if in_plot_block:", source.index("# Finalize embed")) :]

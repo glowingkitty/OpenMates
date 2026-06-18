@@ -52,8 +52,6 @@ const DIRECT_TYPES = new Set([
   "recording",
   "mail-email",
   "math-plot",
-  "mermaid",
-  "diagrams-mermaid",
   "events-event",
   "health-appointment",
   "shopping-product",
@@ -83,8 +81,6 @@ const DIRECT_TYPE_LABELS: Record<string, string> = {
   "recording": "recording",
   "mail-email": "email",
   "math-plot": "plot",
-  "mermaid": "Mermaid diagram",
-  "diagrams-mermaid": "Mermaid diagram",
   "events-event": "event",
   "health-appointment": "appointment",
   "shopping-product": "product",
@@ -1288,12 +1284,6 @@ function renderByDirectType(
       break;
     }
 
-    case "mermaid":
-    case "diagrams-mermaid": {
-      renderMermaidPreview(c, ln);
-      break;
-    }
-
     case "images-image-result": {
       const title = str(c.title) ?? "";
       const source = str(c.source) ?? str(c.url) ?? "";
@@ -1469,12 +1459,6 @@ function renderDirectTypeFullscreen(
       break;
     }
 
-    case "mermaid":
-    case "diagrams-mermaid": {
-      renderMermaidFullscreen(c);
-      break;
-    }
-
     default: {
       // Generic: show all non-null fields (fullscreen — no truncation)
       for (const [k, v] of Object.entries(c)) {
@@ -1490,39 +1474,6 @@ function renderDirectTypeFullscreen(
         }
       }
     }
-  }
-}
-
-function renderMermaidPreview(
-  c: Record<string, unknown>,
-  ln: (s: string) => void,
-): void {
-  const title = str(c.title) ?? "Mermaid diagram";
-  const kind = str(c.diagram_kind) ?? "mermaid";
-  const source = str(c.diagram_code) ?? str(c.code) ?? str(c.source) ?? "";
-  ln(`\x1b[1m${title}\x1b[0m`);
-  ln(`\x1b[2mMermaid diagram · ${kind}\x1b[0m`);
-  if (source) {
-    for (const line of source.split("\n").slice(0, 4)) {
-      if (line.trim()) ln(`  ${trunc(line, 80)}`);
-    }
-    if (source.split("\n").length > 4) ln("  ...");
-  }
-}
-
-function renderMermaidFullscreen(c: Record<string, unknown>): void {
-  const title = str(c.title) ?? "Mermaid diagram";
-  const kind = str(c.diagram_kind) ?? "mermaid";
-  const status = str(c.status);
-  const source = str(c.diagram_code) ?? str(c.code) ?? str(c.source) ?? "";
-  process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
-  process.stdout.write(`\x1b[2mMermaid diagram · ${kind}${status ? ` · ${status}` : ""}\x1b[0m\n\n`);
-  if (source) {
-    process.stdout.write("```mermaid\n");
-    process.stdout.write(`${source.trim()}\n`);
-    process.stdout.write("```\n");
-  } else {
-    process.stdout.write("No Mermaid source available.\n");
   }
 }
 

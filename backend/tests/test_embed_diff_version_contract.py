@@ -13,12 +13,16 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 
 from backend.core.api.app.services.embed_diff_service import EmbedDiffService
 
 
 STREAM_CONSUMER_PATH = Path(__file__).resolve().parents[1] / "apps/ai/tasks/stream_consumer.py"
 DIFF_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instructions/base_diff_editing_instruction.md"
+APPS_DIR = Path(__file__).resolve().parents[1] / "apps"
+SHARED_EMBED_TYPES_PATH = Path(__file__).resolve().parents[2] / "shared/config/embed_types.yml"
+SUPPORTED_DIFF_UPDATE_TYPES = {"code", "document", "mail", "pcb_schematic", "sheet"}
 
 
 @pytest.mark.anyio
@@ -88,3 +92,22 @@ def test_stream_consumer_does_not_shadow_json_module() -> None:
     ]
 
     assert not shadowing_imports
+
+
+def test_diff_editable_content_catalog_entries_have_stream_updaters() -> None:
+    diff_editable_backend_types: set[str] = set()
+    for app_yml in APPS_DIR.glob("*/app.yml"):
+        app = yaml.safe_load(app_yml.read_text(encoding="utf-8")) or {}
+        for embed_type in app.get("embed_types", []):
+            content_catalog = embed_type.get("content_catalog") or {}
+            if content_catalog.get("enabled") and content_catalog.get("diff_editable"):
+                diff_editable_backend_types.add(embed_type["backend_type"])
+
+    shared_embed_config = yaml.safe_load(SHARED_EMBED_TYPES_PATH.read_text(encoding="utf-8")) or {}
+    for embed_type in shared_embed_config.get("embed_types", []):
+        content_catalog = embed_type.get("content_catalog") or {}
+        if content_catalog.get("enabled") and content_catalog.get("diff_editable"):
+            diff_editable_backend_types.add(embed_type["backend_type"])
+
+    assert {"code", "document", "mail", "pcb_schematic", "sheet"} <= diff_editable_backend_types
+    assert diff_editable_backend_types <= SUPPORTED_DIFF_UPDATE_TYPES

@@ -1,7 +1,8 @@
 # backend/apps/ai/utils/mermaid_fences.py
 #
-# Helpers for detecting assistant-generated Mermaid fenced blocks that should
-# become Diagrams-owned direct embeds instead of generic Code embeds.
+# Dormant helpers for the disabled Diagrams/Mermaid embed experiment.
+# Mermaid fences intentionally fall through to generic Code embeds unless this
+# feature is explicitly reactivated in a future diagram-rendering pass.
 # Kept dependency-light so contract tests can validate the streaming behavior
 # without loading the full task runtime and provider stack.
 
@@ -10,7 +11,7 @@ from __future__ import annotations
 from typing import Optional, TypedDict
 
 
-MERMAID_FENCE_LANGUAGES = {"mermaid", "mmd"}
+MERMAID_FENCE_LANGUAGES: set[str] = set()
 MERMAID_KIND_TITLES = {
     "flowchart": "Flowchart",
     "graph": "Graph Diagram",

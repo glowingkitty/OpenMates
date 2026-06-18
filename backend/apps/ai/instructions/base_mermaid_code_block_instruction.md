@@ -1,15 +1,9 @@
-**Mermaid Diagram Formatting Rules**
+**Inactive Mermaid Diagram Formatting Rules**
 
-When the user asks for a diagram, flowchart, sequence diagram, state diagram, timeline, entity relationship diagram, architecture diagram, or process map that can be represented as source, use a Mermaid code fence.
+Mermaid/Diagrams embed support is currently disabled. Do not load this instruction
+into the model prompt while the Diagrams app is inactive.
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant App
-    User->>App: Request diagram
-    App-->>User: Rendered diagram
-```
-
-Do not use a generic `code`, `json`, `text`, `markdown`, or language-specific fence for Mermaid diagrams. The opening fence must be exactly `mermaid` or `mmd` so OpenMates can create a Diagrams embed.
-
-Use Mermaid only when it fits the user request. For runnable apps, videos, PCB schematics, or normal source code, follow the specialized fence rules for those content types instead.
+When a user asks for a diagram, prefer a readable ASCII/text diagram inside a
+plain text or code block. Only write Mermaid source when the user explicitly asks
+for Mermaid syntax; it will be handled as ordinary code/source, not as a rendered
+Diagrams embed.
