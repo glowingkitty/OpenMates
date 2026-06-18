@@ -21,8 +21,6 @@ from typing import Any, Awaitable, Callable
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import httpx
-from toon_format import decode as toon_decode
-from toon_format import encode as toon_encode
 
 from backend.core.api.app.routes.application_preview import (
     APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS,
@@ -528,16 +526,6 @@ async def store_application_preview_thumbnail(
             "vault_wrapped_aes_key": vault_wrapped_aes_key,
             "captured_at": datetime.fromtimestamp(now, tz=timezone.utc).isoformat(),
         }
-        await _persist_application_screenshot_metadata(
-            cache_service=cache_service,
-            directus_service=directus_service,
-            encryption_service=encryption_service,
-            application_embed_id=application_embed_id,
-            vault_key_id=vault_key_id,
-            metadata=metadata,
-            now=now,
-        )
-
         token = create_download_token(
             asset_id=application_embed_id,
             user_id=viewer_user_id,
@@ -588,57 +576,6 @@ def _build_application_preview_thumbnail_png(*, payload: dict[str, Any], runtime
     output = BytesIO()
     image.save(output, format="PNG", optimize=True)
     return output.getvalue()
-
-
-async def _persist_application_screenshot_metadata(
-    *,
-    cache_service: Any,
-    directus_service: Any,
-    encryption_service: Any,
-    application_embed_id: str,
-    vault_key_id: str,
-    metadata: dict[str, Any],
-    now: float,
-) -> None:
-    client = await cache_service.client
-    raw_embed = await client.get(f"embed:{application_embed_id}")
-    if raw_embed:
-        embed_data = json.loads(raw_embed.decode("utf-8") if isinstance(raw_embed, bytes) else raw_embed)
-    elif hasattr(directus_service, "embed") and hasattr(directus_service.embed, "get_embed_by_id"):
-        embed_data = await directus_service.embed.get_embed_by_id(application_embed_id)
-    else:
-        embed_data = None
-    if not isinstance(embed_data, dict):
-        return
-    encrypted_content = embed_data.get("encrypted_content") if isinstance(embed_data, dict) else None
-    if not isinstance(encrypted_content, str) or not encrypted_content:
-        return
-    plaintext = await encryption_service.decrypt_with_user_key(encrypted_content, vault_key_id)
-    if not plaintext:
-        return
-    content = toon_decode(plaintext)
-    if not isinstance(content, dict):
-        return
-    content["latest_screenshot"] = metadata
-    content["latest_screenshot_ref"] = {"asset_id": metadata["asset_id"], "variant": metadata["variant"]}
-    content_toon = toon_encode(content)
-    encrypted_updated, _ = await encryption_service.encrypt_with_user_key(content_toon, vault_key_id)
-    if not encrypted_updated:
-        return
-    updated_at = int(now)
-    embed_data["encrypted_content"] = encrypted_updated
-    embed_data["text_length_chars"] = len(content_toon)
-    embed_data["updated_at"] = updated_at
-    await client.set(f"embed:{application_embed_id}", json.dumps(embed_data), ex=3600)
-    if hasattr(directus_service, "embed"):
-        await directus_service.embed.update_embed(
-            application_embed_id,
-            {
-                "encrypted_content": encrypted_updated,
-                "text_length_chars": len(content_toon),
-                "updated_at": updated_at,
-            },
-        )
 
 
 def _public_api_base_url() -> str:

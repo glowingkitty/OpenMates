@@ -1,7 +1,7 @@
 /**
  * appStoreNavigationStore.ts
  *
- * Stores the prev/next navigation state for app store sub-item pages:
+ * Stores the prev/next navigation state for Apps sub-item pages:
  * skills, focus modes, and settings/memories categories within a single app.
  *
  * Mirrors the pattern of chatNavigationStore.ts — a sibling of the current

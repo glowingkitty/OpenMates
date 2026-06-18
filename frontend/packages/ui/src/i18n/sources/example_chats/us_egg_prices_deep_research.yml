@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Why US Egg Prices Stayed High"
   en: "Why US Egg Prices Stayed High"
-  de: "Why US Egg Prices Stayed High"
+  de: Warum die Eierpreise in den USA hoch blieben
   zh: "Why US Egg Prices Stayed High"
   es: "Why US Egg Prices Stayed High"
   fr: "Why US Egg Prices Stayed High"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Why US Egg Prices Stayed High"
   en: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
-  de: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
+  de: Ein Beispiel für Deep Research, bei dem OpenMates automatisch den Fokusmodus wählt, drei Unter-Chats delegiert und die Erholung des Angebots, Marktkonzentration, Einzelhandelsmargen, Regulierung sowie bestätigte gegenüber abgeleiteten Beweisen vergleicht.
   zh: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
   es: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
   fr: "A Deep research example where OpenMates auto-selects focus mode, delegates three sub-chats, and compares supply recovery, market concentration, retailer margins, regulation, and confirmed versus inferred evidence."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
-  de: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
+  de: "Warum blieben die Eierpreise in den USA hoch, nachdem die Vogelgrippe abgeklungen war? Vergleiche die Erholung des Angebots, Marktkonzentration, Einzelhandelsmargen, Regulierung und Gegenargumente. Gib bestätigte vs. abgeleitete Beweise an."
   zh: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
   es: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
   fr: "Why did US egg prices stay high after avian flu eased? Compare supply recovery, market concentration, retailer margins, regulation, and counterarguments. State confirmed vs inferred evidence."
@@ -116,45 +116,45 @@ message_2:
     ## Bottom Line
     As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
   de: |
-    ## Short Answer
-    Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
+    ## Kurze Antwort
+    Die Eierpreise blieben auch nach dem Abklingen der schlimmsten Ausbrüche der hochpathogenen aviären Influenza (HPAI) von 2024–2025 hoch, da strukturelle Produktionsänderungen auf eine inelastische Marktdynamik trafen. Während sich die Bestände bis Anfang 2026 weitgehend erholten, schufen dauerhafte Kostensteigerungen durch staatliche Vorschriften zur käfigfreien Haltung, erhöhte Futter- und Transportkosten sowie die immense Preismacht stark konzentrierter Erzeuger eine dauerhaft höhere Preisuntergrenze für Verbraucher.
     
-    ## Surface Explanation
-    The most obvious driver of egg prices is the biological and regulatory reality of modern farming. 
+    ## Oberflächliche Erklärung
+    Der offensichtlichste Treiber der Eierpreise ist die biologische und regulatorische Realität der modernen Landwirtschaft. 
     
-    Between October 2024 and February 2025, over 44 million egg-laying hens were culled due to HPAI. Even after the virus recedes, supply recovery is slow. It takes 19 to 20 weeks for newly hatched pullets to mature into egg-laying hens, and the stringent cleaning, biosecurity auditing, and staggered repopulation of massive commercial farms takes anywhere from 6 to 18 months. 
+    Zwischen Oktober 2024 und Februar 2025 wurden über 44 Millionen Legehennen aufgrund von HPAI gekeult. Selbst nach dem Rückzug des Virus verläuft die Erholung des Angebots langsam. Es dauert 19 bis 20 Wochen, bis frisch geschlüpfte Junghennen zu Legehennen heranreifen, und die strengen Reinigungsarbeiten, Biosicherheitsprüfungen und die gestaffelte Wiederbesiedlung riesiger kommerzieller Farmen nehmen 6 bis 18 Monate in Anspruch. 
     
-    Concurrently, a wave of state regulations fundamentally altered the baseline cost of production. Cage-free mandates—which took strict effect in states like Colorado, Michigan, and California by 2025—force producers to overhaul operations. Transitioning a conventional farm to an open-aviary cage-free system requires double the capital investment and two to three times more manual labor. To achieve the same return on investment, a farm requires a 74% higher farm-gate price, which structurally ends the era of rock-bottom cheap eggs.
+    Gleichzeitig veränderte eine Welle staatlicher Regulierungen die Basiskosten der Produktion grundlegend. Vorschriften zur käfigfreien Haltung – die in Bundesstaaten wie Colorado, Michigan und Kalifornien bis 2025 strikt in Kraft traten – zwingen Erzeuger dazu, ihre Betriebe umzustrukturieren. Die Umstellung eines konventionellen Betriebs auf ein käfigfreies Volierensystem erfordert doppelt so hohe Kapitalinvestitionen und zwei- bis dreimal mehr manuelle Arbeit. Um die gleiche Investitionsrendite zu erzielen, benötigt ein Betrieb einen um 74 % höheren Erzeugerpreis, was die Ära der extrem billigen Eier strukturell beendet.
     
-    ## What Else May Be Going On
-    Beneath the biological timeline and regulatory shifts, significant economic and corporate factors have kept retail prices inflated:
+    ## Was sonst noch dahinterstecken könnte
+    Unterhalb des biologischen Zeitplans und der regulatorischen Verschiebungen haben bedeutende wirtschaftliche und unternehmerische Faktoren die Einzelhandelspreise hochgehalten:
     
-    **1. Market Concentration and Corporate Profit-Taking:**
-    The egg market is highly consolidated. As prices spiked to an average of nearly $5/dozen in early 2025, major producers reported unprecedented windfall profits. Cal-Maine Foods, the largest U.S. producer, saw quarterly profits triple and gross margins expand five-fold. This points to producers and retailers leveraging the "headline shock" of bird flu to pad margins rather than just covering losses.
+    **1. Marktkonzentration und Mitnahmeeffekte bei Unternehmensgewinnen:**
+    Der Eiermarkt ist stark konsolidiert. Als die Preise Anfang 2025 auf durchschnittlich fast 5 $ pro Dutzend stiegen, meldeten große Erzeuger beispiellose Zufallsgewinne. Cal-Maine Foods, der größte US-Produzent, verzeichnete eine Verdreifachung der Quartalsgewinne und eine Verfünffachung der Bruttomargen. Dies deutet darauf hin, dass Erzeuger und Einzelhändler den „Schlagzeilen-Schock“ der Vogelgrippe nutzten, um ihre Margen aufzubessern, anstatt nur Verluste zu decken.
     
-    **2. Baseline Input Inflation:**
-    Poultry feed (corn and soybean meal) constitutes 60% to 70% of egg production costs. Through 2024, global agricultural yields and transport disruptions kept feed costs 50% above 2020 levels. Additionally, ongoing commercial trucking shortages and high electricity/diesel prices heavily impact eggs, which are highly perishable and cannot sit in warehouses waiting for cheaper shipping rates.
+    **2. Inflation der Basiskosten:**
+    Geflügelfutter (Mais und Sojaschrot) macht 60 % bis 70 % der Eierproduktionskosten aus. Bis 2024 hielten globale Ernteerträge und Transportstörungen die Futterkosten 50 % über dem Niveau von 2020. Zudem wirken sich der anhaltende Mangel an Lkw-Fahrern und hohe Strom-/Dieselpreise stark auf Eier aus, die leicht verderblich sind und nicht in Lagern auf günstigere Versandtarife warten können.
     
-    ## Evidence
-    To fully analyze the situation, it is critical to separate hard data from the inferences drawn by industry groups and consumer watchdogs.
+    ## Belege
+    Um die Situation vollständig zu analysieren, ist es entscheidend, harte Daten von den Schlussfolgerungen der Branchenverbände und Verbraucherschützer zu trennen.
     
-    **Confirmed Evidence:**
-    *   **Supply and Recovery Metrics:** It is biologically confirmed that farm repopulation takes 6 to 18 months. By March 2026, the supply had demonstrably recovered, with wholesale prices dropping roughly 42% year-over-year to about $2.50/dozen.
-    *   **Regulatory Costs:** Economic data from agricultural bureaus confirms cage-free eggs command a 30% to 50% retail premium. Colorado's 2025 mandate raised baseline state prices by 10% to 15% independent of flu spikes.
-    *   **Margin Discrepancies:** Financial disclosures confirm that the overall drop in the U.S. egg supply during the peak HPAI culls was only about 5% to 7%. Yet, retail prices spiked 157% by early 2025, and producer profit margins expanded by up to 500%. 
+    **Bestätigte Belege:**
+    *   **Angebots- und Erholungskennzahlen:** Es ist biologisch bestätigt, dass die Wiederbesiedlung von Farmen 6 bis 18 Monate dauert. Bis März 2026 hatte sich das Angebot nachweislich erholt, wobei die Großhandelspreise im Jahresvergleich um etwa 42 % auf rund 2,50 $ pro Dutzend fielen.
+    *   **Regulatorische Kosten:** Wirtschaftsdaten von Agrarbehörden bestätigen, dass käfigfreie Eier einen Einzelhandelsaufschlag von 30 % bis 50 % verlangen. Das Mandat von Colorado für 2025 erhöhte die Basispreise im Bundesstaat unabhängig von Grippespitzen um 10 % bis 15 %.
+    *   **Margendiskrepanzen:** Finanzberichte bestätigen, dass der Gesamtrückgang des US-Eierangebots während der HPAI-Keulungen nur etwa 5 % bis 7 % betrug. Dennoch stiegen die Einzelhandelspreise bis Anfang 2025 um 157 %, und die Gewinnmargen der Erzeuger weiteten sich um bis zu 500 % aus. 
     
-    **Inferred Evidence:**
-    *   **The "Price Gouging" Inference (Consumer Advocates):** Groups like Farm Action infer from the margin discrepancies that corporate consolidation allows mega-producers to coordinate prices. They infer that a 5% drop in national supply cannot organically justify a 150%+ spike in retail prices without artificial inflation. 
-    *   **The "Inelastic Commodity" Inference (Industry Economists):** Industry defenders infer that record profits are a natural byproduct of market mechanics, not malicious coordination. Because eggs are an inelastic staple, consumers buy them regardless of price. Therefore, a minor 5% supply drop causes massive panic buying and outbidding at the wholesale level, naturally driving up prices and generating windfalls for whichever producers still have healthy birds.
+    **Abgeleitete Belege:**
+    *   **Die Schlussfolgerung auf „Preistreiberei“ (Verbraucherschützer):** Gruppen wie Farm Action leiten aus den Margendiskrepanzen ab, dass die Unternehmenskonzentration es Megaproduzenten ermöglicht, Preise zu koordinieren. Sie folgern, dass ein Rückgang des nationalen Angebots um 5 % einen Anstieg der Einzelhandelspreise um über 150 % ohne künstliche Inflation nicht organisch rechtfertigen kann. 
+    *   **Die Schlussfolgerung auf „inelastische Rohstoffe“ (Branchenökonomen):** Branchenvertreter leiten ab, dass Rekordgewinne ein natürliches Nebenprodukt der Marktmechanik sind und keine böswillige Abstimmung. Da Eier ein inelastisches Grundnahrungsmittel sind, kaufen Verbraucher sie unabhängig vom Preis. Daher verursacht ein geringfügiger Angebotsrückgang von 5 % massive Panikkäufe und Überbietungen auf Großhandelsebene, was die Preise natürlich in die Höhe treibt und Zufallsgewinne für diejenigen Erzeuger generiert, die noch gesunde Tiere haben.
     
-    ## Counterarguments
-    When dissecting why prices stayed high, the primary counterarguments emerge between consumer advocates and agricultural producers:
+    ## Gegenargumente
+    Bei der Analyse, warum die Preise hoch blieben, ergeben sich die primären Gegenargumente zwischen Verbraucherschützern und landwirtschaftlichen Erzeugern:
     
-    *   **Against the "Rising Costs" Narrative:** Consumer advocates argue that if elevated retail prices were merely covering the higher costs of feed, logistics, and cage-free labor, corporate gross profit margins would remain relatively flat. The fact that profit *margins* quintupled proves that price increases far outpaced actual cost increases.
-    *   **Against the "Greedflation" Narrative:** Producers counter that they do not set retail shelf prices; grocery chains do. Furthermore, producers argue that cage-free mandates not only raise baseline costs but actually make farms more vulnerable to massive supply shocks. In a cage-free aviary, thousands of birds mingle freely, allowing avian flu to spread exponentially faster than in isolated battery cages, which justifies pricing in a higher "risk premium."
+    *   **Gegen das Narrativ der „steigenden Kosten“:** Verbraucherschützer argumentieren, dass die Bruttogewinnmargen der Unternehmen relativ flach bleiben würden, wenn die erhöhten Einzelhandelspreise lediglich die höheren Kosten für Futter, Logistik und käfigfreie Arbeit decken würden. Die Tatsache, dass sich die Gewinn*margen* verfünffacht haben, beweist, dass die Preissteigerungen die tatsächlichen Kostensteigerungen weit übertroffen haben.
+    *   **Gegen das Narrativ der „Gierflation“:** Erzeuger entgegnen, dass sie nicht die Regalpreise im Einzelhandel festlegen, sondern die Lebensmittelketten. Darüber hinaus argumentieren Erzeuger, dass Vorschriften zur käfigfreien Haltung nicht nur die Basiskosten erhöhen, sondern Farmen tatsächlich anfälliger für massive Angebotsschocks machen. In einer käfigfreien Voliere mischen sich Tausende von Vögeln frei, wodurch sich die Vogelgrippe exponentiell schneller ausbreiten kann als in isolierten Batteriekäfigen, was die Einpreisung einer höheren „Risikoprämie“ rechtfertigt.
     
-    ## Bottom Line
-    As of mid-2026, the severe supply shocks from the 2024–2025 avian flu have resolved, but retail prices will likely never return to pre-pandemic lows. The prolonged high prices were the result of a compounding effect: an initial biological supply shock was amplified by the inelastic nature of grocery staples, allowing a highly concentrated industry to extract massive profit margins. Now, permanent structural costs—driven by cage-free animal welfare mandates, persistent labor shortages, and sustained logistics inflation—have established a new, elevated reality for the egg market.
+    ## Fazit
+    Stand Mitte 2026 haben sich die schweren Angebotsschocks durch die Vogelgrippe 2024–2025 aufgelöst, aber die Einzelhandelspreise werden wahrscheinlich nie wieder auf die Tiefststände vor der Pandemie zurückkehren. Die anhaltend hohen Preise waren das Ergebnis eines kumulativen Effekts: Ein anfänglicher biologischer Angebotsschock wurde durch die inelastische Natur von Grundnahrungsmitteln verstärkt, was es einer stark konzentrierten Branche ermöglichte, massive Gewinnmargen zu erzielen. Nun haben dauerhafte strukturelle Kosten – getrieben durch Tierschutzvorschriften zur käfigfreien Haltung, anhaltenden Arbeitskräftemangel und anhaltende Logistikinflation – eine neue, erhöhte Realität für den Eiermarkt geschaffen.
   zh: |
     ## Short Answer
     Egg prices remained elevated after the worst of the 2024–2025 Highly Pathogenic Avian Influenza (HPAI) outbreaks passed because structural production changes collided with inelastic market dynamics. While flock populations largely recovered by early 2026, permanent cost increases from state-level cage-free mandates, elevated feed and transport costs, and immense pricing power held by highly concentrated producers established a permanently higher price floor for consumers.
@@ -920,7 +920,7 @@ message_2:
 sub_chat_1_title:
   context: "Title of sub-chat 1 in example chat: Why US Egg Prices Stayed High"
   en: "Research US egg supply recover"
-  de: "Research US egg supply recover"
+  de: Erholung des US-Eierangebots untersuchen
   zh: "Research US egg supply recover"
   es: "Research US egg supply recover"
   fr: "Research US egg supply recover"
@@ -970,7 +970,7 @@ sub_chat_1_summary:
 sub_chat_1_message_1:
   context: "user message 1 in sub-chat 1 of example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
-  de: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
+  de: Untersuche die Zeitpläne für die Erholung des US-Eierangebots nach den jüngsten Ausbrüchen der Vogelgrippe sowie die finanziellen Auswirkungen staatlicher Vorschriften wie Käfigfrei-Mandate auf die Produktionskosten und die Eierpreise im Einzelhandel. Unterscheide dabei zwischen bestätigten Daten und abgeleiteten Schlussfolgerungen.
   zh: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
   es: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
   fr: "Research US egg supply recovery timelines after the recent avian flu outbreaks and the financial impact of state regulations like cage-free mandates on production costs and retail egg prices. Distinguish confirmed data from inferred conclusions."
@@ -995,7 +995,7 @@ sub_chat_1_message_1:
 sub_chat_2_title:
   context: "Title of sub-chat 2 in example chat: Why US Egg Prices Stayed High"
   en: "Research alternative economic "
-  de: "Research alternative economic "
+  de: Alternative wirtschaftliche Faktoren untersuchen
   zh: "Research alternative economic "
   es: "Research alternative economic "
   fr: "Research alternative economic "
@@ -1045,7 +1045,7 @@ sub_chat_2_summary:
 sub_chat_2_message_1:
   context: "user message 1 in sub-chat 2 of example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
-  de: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
+  de: Untersuche alternative wirtschaftliche Faktoren (Gegenargumente), die die hohen US-Eierpreise nach der Vogelgrippe erklären, mit Schwerpunkt auf Futtermittelkosten, Arbeitskosten, Transport/Logistik und der allgemeinen Inflation. Unterscheide dabei zwischen bestätigten Daten und abgeleiteten Schlussfolgerungen.
   zh: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
   es: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
   fr: "Research alternative economic factors (counterarguments) explaining high US egg prices post-avian flu, focusing on feed costs, labor costs, transportation/logistics, and broader inflation. Distinguish confirmed data from inferred conclusions."
@@ -1070,7 +1070,7 @@ sub_chat_2_message_1:
 sub_chat_3_title:
   context: "Title of sub-chat 3 in example chat: Why US Egg Prices Stayed High"
   en: "Research market concentration "
-  de: "Research market concentration "
+  de: Marktkonzentration untersuchen
   zh: "Research market concentration "
   es: "Research market concentration "
   fr: "Research market concentration "
@@ -1120,7 +1120,7 @@ sub_chat_3_summary:
 sub_chat_3_message_1:
   context: "user message 1 in sub-chat 3 of example chat: Why US Egg Prices Stayed High. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
-  de: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
+  de: Untersuche die Marktkonzentration in der US-Eierproduktionsbranche (z. B. Gewinnspannen von Cal-Maine Foods, Klagen wegen Preisabsprachen) und die Rolle der Margen im Einzelhandel/Lebensmittelhandel bei der Aufrechterhaltung hoher Eierpreise nach der Vogelgrippe. Unterscheide dabei zwischen bestätigten Daten und abgeleiteten Schlussfolgerungen.
   zh: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
   es: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."
   fr: "Research market concentration in the US egg producer industry (e.g., Cal-Maine Foods' profit margins, price-fixing lawsuits) and the role of retailer/grocery store markup margins in keeping egg prices high post-avian flu. Distinguish confirmed data from inferred conclusions."

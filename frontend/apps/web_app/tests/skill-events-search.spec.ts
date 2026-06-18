@@ -103,28 +103,28 @@ test.describe('App: Events / Skill: search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
-	test('Phase 0: app store metadata and UI expose event providers with loaded icons', async ({ page }: { page: any }) => {
+	test('Phase 0: Apps metadata and UI expose event providers with loaded icons', async ({ page }: { page: any }) => {
 		test.setTimeout(120_000);
 
 		const events = appsMetadata.events;
-		expect(events, 'events app should appear in app store metadata').toBeTruthy();
+		expect(events, 'events app should appear in Apps metadata').toBeTruthy();
 		const searchSkill = (events.skills || []).find((skill: { id: string }) => skill.id === 'search');
-		expect(searchSkill, 'events search skill should appear in app store metadata').toBeTruthy();
+		expect(searchSkill, 'events search skill should appear in Apps metadata').toBeTruthy();
 		expect(searchSkill.providers).toEqual(EVENT_SEARCH_PROVIDERS);
 
 		await page.setViewportSize({ width: 1600, height: 900 });
-		await page.goto(getE2EDebugUrl('/#settings/app_store/events'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#settings/apps/events'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="app_store/events"]');
+		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="apps/events"]');
 		await expect(settingsMenu).toBeVisible({ timeout: 15_000 });
 
 		const searchSkillCard = settingsMenu.getByTestId('app-store-card').filter({ hasText: 'Search' }).first();
 		await expectSkillCardProviderIcons(searchSkillCard, EVENT_SEARCH_CARD_ICON_PROVIDERS);
 
-		await page.goto(getE2EDebugUrl('/#settings/app_store/events/skill/search'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#settings/apps/events/skill/search'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		const skillSettingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="app_store/events/skill/search"]');
+		const skillSettingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="apps/events/skill/search"]');
 		await expect(skillSettingsMenu).toBeVisible({ timeout: 15_000 });
 		await expectSettingsProviderIcons(skillSettingsMenu, EVENT_SEARCH_CARD_ICON_PROVIDERS);
 	});

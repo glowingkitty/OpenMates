@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Travel Trips"
   en: "Memory Travel Trips"
-  de: "Memory Travel Trips"
+  de: Memory Reise-Trips
   zh: "Memory Travel Trips"
   es: "Memory Travel Trips"
   fr: "Memory Travel Trips"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Travel Trips"
   en: "OpenMates uses saved travel trips memory in a real chat."
-  de: "OpenMates uses saved travel trips memory in a real chat."
+  de: OpenMates nutzt den Speicher für gespeicherte Reise-Trips in einem echten Chat.
   zh: "OpenMates uses saved travel trips memory in a real chat."
   es: "OpenMates uses saved travel trips memory in a real chat."
   fr: "OpenMates uses saved travel trips memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Travel Trips. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved travel trips memory to suggest a relaxed first-day plan for my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved travel trips memory to suggest a relaxed first-day plan for my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen Speicher für gespeicherte Reise-Trips, um einen entspannten Plan für den ersten Tag meiner gespeicherten Reise vorzuschlagen. Du kannst diesen Speicher anfordern und nutzen. Suche nach der Nutzung des Speichers nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved travel trips memory to suggest a relaxed first-day plan for my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved travel trips memory to suggest a relaxed first-day plan for my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved travel trips memory to suggest a relaxed first-day plan for my saved trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -83,12 +83,12 @@ message_2:
     *   **Late Afternoon (Alfama Wandering):** Spend the rest of your afternoon wandering through the narrow, winding alleys of Alfama. Because it is the city's oldest district, it is best explored slowly on foot. You can admire the flower-filled balconies and listen for the faint sounds of [Fado](wiki:Fado) music practicing in the distance.
     *   **Evening (Local Food):** For dinner, visit a traditional [Tasca](wiki:Tasca). These are small, family-run eateries where you can try local staples like [Bacalhau](wiki:Bacalhau) (salted cod) or grilled sardines. This fits your preference for local food while keeping the evening low-key and authentic.
   de: |
-    Based on your saved trip to [Lisbon](wiki:Lisbon) from September 10 to September 17, 2026, here is a relaxed first-day plan that incorporates your notes about remote work, viewpoints, and the [Alfama](wiki:Alfama) district:
-
-    *   **Morning (Remote Work):** Since you mentioned working remotely in the morning, start your day at a local café or your accommodation. The Alfama area has several quiet spots where you can stay productive while enjoying a [Bica](wiki:Bica_(coffee)) (a traditional Portuguese espresso).
-    *   **Early Afternoon (Viewpoints):** After your work block, head to the Miradouro de Santa Luzia. It offers a stunning terrace with [Azulejo](wiki:Azulejo) tile panels and a panoramic view of Alfama's red rooftops and the [Tagus](wiki:Tagus) River. A short walk away is the Miradouro das Portas do Sol, which is perfect for photos.
-    *   **Late Afternoon (Alfama Wandering):** Spend the rest of your afternoon wandering through the narrow, winding alleys of Alfama. Because it is the city's oldest district, it is best explored slowly on foot. You can admire the flower-filled balconies and listen for the faint sounds of [Fado](wiki:Fado) music practicing in the distance.
-    *   **Evening (Local Food):** For dinner, visit a traditional [Tasca](wiki:Tasca). These are small, family-run eateries where you can try local staples like [Bacalhau](wiki:Bacalhau) (salted cod) or grilled sardines. This fits your preference for local food while keeping the evening low-key and authentic.
+    Basierend auf deiner gespeicherten Reise nach [Lissabon](wiki:Lisbon) vom 10. bis 17. September 2026 ist hier ein entspannter Plan für den ersten Tag, der deine Notizen zu Remote-Work, Aussichtspunkten und dem Viertel [Alfama](wiki:Alfama) berücksichtigt:
+    
+    *   **Vormittag (Remote-Work):** Da du erwähnt hast, am Vormittag remote zu arbeiten, beginne deinen Tag in einem lokalen Café oder in deiner Unterkunft. Das Alfama-Viertel bietet mehrere ruhige Plätze, an denen du produktiv sein kannst, während du einen [Bica](wiki:Bica_(coffee)) (einen traditionellen portugiesischen Espresso) genießt.
+    *   **Früher Nachmittag (Aussichtspunkte):** Nach deinem Arbeitsblock solltest du zum Miradouro de Santa Luzia gehen. Er bietet eine wunderschöne Terrasse mit [Azulejo](wiki:Azulejo)-Fliesenpaneelen und einen Panoramablick über die roten Dächer der Alfama und den [Tejo](wiki:Tagus). Nur einen kurzen Spaziergang entfernt liegt der Miradouro das Portas do Sol, der sich perfekt für Fotos eignet.
+    *   **Später Nachmittag (Bummel durch Alfama):** Verbringe den Rest deines Nachmittags damit, durch die engen, gewundenen Gassen der Alfama zu schlendern. Da es das älteste Viertel der Stadt ist, erkundet man es am besten langsam zu Fuß. Du kannst die blumengeschmückten Balkone bewundern und in der Ferne den leisen Klängen von [Fado](wiki:Fado)-Proben lauschen.
+    *   **Abend (Lokales Essen):** Besuche zum Abendessen eine traditionelle [Tasca](wiki:Tasca). Das sind kleine, familiengeführte Lokale, in denen du lokale Spezialitäten wie [Bacalhau](wiki:Bacalhau) (Stockfisch) oder gegrillte Sardinen probieren kannst. Das passt zu deiner Vorliebe für lokales Essen und sorgt für einen entspannten und authentischen Abend.
   zh: |
     Based on your saved trip to [Lisbon](wiki:Lisbon) from September 10 to September 17, 2026, here is a relaxed first-day plan that incorporates your notes about remote work, viewpoints, and the [Alfama](wiki:Alfama) district:
 

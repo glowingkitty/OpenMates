@@ -634,7 +634,7 @@
   // ─── Highlights pill ───────────────────────────────────────────────────────
   /** True when at least one highlight exists in the chat — render the yellow pill. */
   let showHighlightPill = $derived(
-    isLoaded && !!highlightStats && highlightStats.highlights > 0,
+    !!highlightStats && highlightStats.highlights > 0,
   );
   /** Pill label: "3 highlights" or "3 highlights, 2 comments". Picks the
    *  comments variant only when at least one comment actually exists. */
@@ -708,6 +708,15 @@
     <div class="processing-content">
       <div class="processing-ai-icon"></div>
       <span class="processing-text">{$text('chat.creating_new_chat')}</span>
+      {#if showHighlightPill}
+        <button
+          class="highlight-count-pill"
+          type="button"
+          data-testid="chat-header-highlight-count"
+          onclick={handleHighlightPillClick}
+          disabled={!onHighlightJump}
+        >{highlightPillLabel}</button>
+      {/if}
     </div>
   {/if}
 
@@ -719,6 +728,15 @@
     <div class="processing-content credits-error-content">
       <div class="processing-ai-icon credits-error-icon"></div>
       <span class="credits-error-text">{$text('chat.header.not_enough_credits')}</span>
+      {#if showHighlightPill}
+        <button
+          class="highlight-count-pill"
+          type="button"
+          data-testid="chat-header-highlight-count"
+          onclick={handleHighlightPillClick}
+          disabled={!onHighlightJump}
+        >{highlightPillLabel}</button>
+      {/if}
     </div>
   {/if}
 

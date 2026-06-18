@@ -15,8 +15,8 @@ const STATIC_SETTINGS_ROUTES = new Set([
   "main",
   "pricing",
   "ai",
-  "app_store",
-  "app_store/all",
+  "apps",
+  "apps/all",
   "settings_memories",
   "privacy",
   "privacy/hide-personal-data",
@@ -138,10 +138,10 @@ export function normalizeSettingsDeepLinkPath(href: string): string | null {
   const queryIdx = pathWithParams.indexOf("?");
   let path = queryIdx >= 0 ? pathWithParams.substring(0, queryIdx) : pathWithParams;
 
-  if (path === "apps" || path.startsWith("apps/")) {
-    path = "app_store" + path.substring("apps".length);
+  if (path === "app_store" || path.startsWith("app_store/")) {
+    path = "apps" + path.substring("app_store".length);
   } else if (path === "appstore" || path.startsWith("appstore/")) {
-    path = "app_store" + path.substring("appstore".length);
+    path = "apps" + path.substring("appstore".length);
   }
 
   if (path === "memories" || path.startsWith("memories/")) {
@@ -155,14 +155,14 @@ export function normalizeSettingsDeepLinkPath(href: string): string | null {
     path = path.replace(/-/g, "_");
   }
 
-  const allAppsFilterMatch = path.match(/^app_store\/all\/(.+)$/);
+  const allAppsFilterMatch = path.match(/^apps\/all\/(.+)$/);
   if (allAppsFilterMatch) {
     path = VALID_ALL_APPS_FILTERS.has(allAppsFilterMatch[1])
-      ? "app_store/all"
+      ? "apps/all"
       : path;
   }
 
-  if (path.startsWith("app_store/")) {
+  if (path.startsWith("apps/")) {
     path = path.replace(/\/skills\//, "/skill/");
     path = path.replace(/\/focuses\//, "/focus/");
   }
@@ -192,7 +192,7 @@ export function isExistingSettingsPath(path: string): boolean {
   if (/^email\/block\/.+$/.test(path)) return true;
   if (/^account\/delete\/[^/]+$/.test(path)) return true;
   if (/^privacy\/hide-personal-data\/edit-(name|address|birthday|custom)\/[^/]+$/.test(path)) return true;
-  if (/^app_store\/reminder\/entry\/[^/]+(\/edit)?$/.test(path)) return true;
+  if (/^apps\/reminder\/entry\/[^/]+(\/edit)?$/.test(path)) return true;
 
   const aiModelMatch = path.match(/^ai\/model\/([^/]+)$/);
   if (aiModelMatch) return modelsMetadata.some((model) => model.id === aiModelMatch[1]);
@@ -203,7 +203,7 @@ export function isExistingSettingsPath(path: string): boolean {
   const mateMatch = path.match(/^mates\/([^/]+)$/);
   if (mateMatch) return matesMetadata.some((mate) => mate.id === mateMatch[1]);
 
-  const appStoreMatch = path.match(/^app_store\/([^/]+)(?:\/(.*))?$/);
+  const appStoreMatch = path.match(/^apps\/([^/]+)(?:\/(.*))?$/);
   if (!appStoreMatch) return false;
 
   const [, appId, rest = ""] = appStoreMatch;

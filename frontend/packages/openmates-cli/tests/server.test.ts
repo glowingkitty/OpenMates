@@ -29,6 +29,11 @@ const LLM_PROVIDER_ENV_KEYS = new Set([
   "SECRET__OPENROUTER__API_KEY",
   "SECRET__TOGETHER__API_KEY",
 ]);
+const IMAGE_CHANNEL_TAGS = {
+  stable: "main",
+  main: "main",
+  dev: "dev",
+} as const;
 
 // Import the functions we need to test. Since serverConfig.ts doesn't import
 // other .js modules, it works fine with --experimental-strip-types.
@@ -92,6 +97,57 @@ function composeArgs(installPath: string, withOverrides: boolean, installMode?: 
   return args;
 }
 
+function getDefaultImageTagForVersion(version: string): string {
+  return version ? `v${version}` : "dev";
+}
+
+function defaultTemplateRefForVersion(version: string): string {
+  return /-(alpha|beta|rc)(\.|\d|$)/.test(version) ? "dev" : `v${version}`;
+}
+
+function templateRefForImageTag(imageTag: string, packageVersion = ""): string {
+  const channelTag = IMAGE_CHANNEL_TAGS[imageTag as keyof typeof IMAGE_CHANNEL_TAGS];
+  if (channelTag) return channelTag;
+  if (imageTag.startsWith("v")) return defaultTemplateRefForVersion(imageTag.slice(1));
+  if (!imageTag && packageVersion) return defaultTemplateRefForVersion(packageVersion);
+  return "dev";
+}
+
+function resolveTargetImageTag(
+  flags: Record<string, string | boolean>,
+  currentTag: string,
+  packageVersion: string,
+): { tag: string; channel?: "dev" | "main" } {
+  const imageTag = flags["image-tag"];
+  const channel = flags.channel;
+  if (imageTag === true) {
+    throw new Error("Provide an image tag value: --image-tag <tag>.");
+  }
+  if (channel === true) {
+    throw new Error("Provide an update channel value: --channel stable, --channel main, or --channel dev.");
+  }
+  if (typeof imageTag === "string" && typeof channel === "string") {
+    throw new Error("Use either --image-tag or --channel, not both.");
+  }
+
+  if (typeof imageTag === "string") {
+    const trimmed = imageTag.trim();
+    if (!trimmed) throw new Error("--image-tag cannot be empty.");
+    return { tag: trimmed };
+  }
+
+  if (typeof channel === "string") {
+    const normalized = channel.trim().toLowerCase();
+    const tag = IMAGE_CHANNEL_TAGS[normalized as keyof typeof IMAGE_CHANNEL_TAGS];
+    if (!tag) throw new Error("Unsupported update channel.");
+    return { tag, channel: tag };
+  }
+
+  const installedChannel = IMAGE_CHANNEL_TAGS[currentTag as keyof typeof IMAGE_CHANNEL_TAGS];
+  if (installedChannel) return { tag: installedChannel, channel: installedChannel };
+  return { tag: getDefaultImageTagForVersion(packageVersion) };
+}
+
 function docAssert(claimId: string, assertion: () => void): void {
   try {
     assertion();
@@ -117,7 +173,7 @@ describe("ServerConfig", () => {
     // Back up existing config if present
     if (existsSync(CONFIG_PATH)) {
       backupExists = true;
-      backupContent = require("node:fs").readFileSync(CONFIG_PATH, "utf-8");
+      backupContent = readFileSync(CONFIG_PATH, "utf-8");
     }
   });
 
@@ -300,6 +356,52 @@ describe("composeArgs", () => {
     const args = composeArgs(emptyDir, true);
     assert.equal(args.length, 5); // No override added
     rmSync(emptyDir, { recursive: true, force: true });
+  });
+});
+
+describe("image-mode update planning", () => {
+  it("updates default version-pinned installs to the current CLI version tag", () => {
+    const target = resolveTargetImageTag({}, "v0.11.0-alpha.0", "0.12.0-alpha.0");
+    assert.deepEqual(target, { tag: "v0.12.0-alpha.0" });
+  });
+
+  it("preserves installed channel tags when no explicit target is provided", () => {
+    assert.deepEqual(resolveTargetImageTag({}, "dev", "0.12.0-alpha.0"), { tag: "dev", channel: "dev" });
+    assert.deepEqual(resolveTargetImageTag({}, "main", "0.12.0"), { tag: "main", channel: "main" });
+  });
+
+  it("maps stable channel to the published main image tag", () => {
+    const target = resolveTargetImageTag({ channel: "stable" }, "v0.11.0", "0.12.0");
+    assert.deepEqual(target, { tag: "main", channel: "main" });
+  });
+
+  it("rejects ambiguous image tag and channel combinations", () => {
+    assert.throws(
+      () => resolveTargetImageTag({ "image-tag": "v0.12.0", channel: "dev" }, "v0.11.0", "0.12.0"),
+      /either --image-tag or --channel/,
+    );
+  });
+
+  it("rejects missing image tag and channel values", () => {
+    assert.throws(
+      () => resolveTargetImageTag({ "image-tag": true }, "v0.11.0", "0.12.0"),
+      /--image-tag <tag>/,
+    );
+    assert.throws(
+      () => resolveTargetImageTag({ channel: true }, "v0.11.0", "0.12.0"),
+      /--channel stable/,
+    );
+  });
+
+  it("uses dev templates for prerelease and smoke tags", () => {
+    assert.equal(templateRefForImageTag("v0.12.0-alpha.0"), "dev");
+    assert.equal(templateRefForImageTag("selfhost-smoke-abc123"), "dev");
+  });
+
+  it("uses release and channel template refs where available", () => {
+    assert.equal(templateRefForImageTag("v0.12.0"), "v0.12.0");
+    assert.equal(templateRefForImageTag("main"), "main");
+    assert.equal(templateRefForImageTag("stable"), "main");
   });
 });
 

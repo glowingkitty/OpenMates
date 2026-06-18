@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Tv Watched Movies"
   en: "Memory Tv Watched Movies"
-  de: "Memory Tv Watched Movies"
+  de: Memory TV Gesehene Filme
   zh: "Memory Tv Watched Movies"
   es: "Memory Tv Watched Movies"
   fr: "Memory Tv Watched Movies"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Tv Watched Movies"
   en: "OpenMates uses saved tv watched_movies memory in a real chat."
-  de: "OpenMates uses saved tv watched_movies memory in a real chat."
+  de: OpenMates nutzt den Speicher für gesehene TV-Filme in einem echten Chat.
   zh: "OpenMates uses saved tv watched_movies memory in a real chat."
   es: "OpenMates uses saved tv watched_movies memory in a real chat."
   fr: "OpenMates uses saved tv watched_movies memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Tv Watched Movies. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen Speicher für gesehene Filme, um mir einen tiefgründigen Film für heute Abend zu empfehlen und zu erklären, warum. Du kannst diesen Speicher anfordern und nutzen. Suche nach der Nutzung des Speichers nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved watched movies memory to recommend a thoughtful movie for tonight and explain why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -82,11 +82,11 @@ message_2:
 
     Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
   de: |
-    Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
-
-    Since you noted that you loved the "thoughtful first-contact story" and "language-centered approach" of *Arrival*, *Contact* is an ideal thematic companion. Directed by [Robert Zemeckis](wiki:Robert_Zemeckis) and based on the novel by [Carl Sagan](wiki:Carl_Sagan), the film follows Dr. Ellie Arroway as she detects and deciphers a complex message from a distant star system.
-
-    Like [Denis Villeneuve](wiki:Denis_Villeneuve)’s work, *Contact* avoids the typical tropes of alien invasion movies, focusing instead on the scientific, linguistic, and philosophical challenges of communicating with an extraterrestrial intelligence. It also features a powerful emotional core—grounded in the protagonist's relationship with her late father—that leads to a moving and introspective conclusion, mirroring the "emotional ending" that resonated with you in *Arrival*. It is a patient, intellectual film that explores humanity's place in the universe with a similar sense of wonder and gravity.
+    Da dir [Arrival](wiki:Arrival_(film)) gefallen hat, empfehle ich dir den Film **Contact** (1997).
+    
+    Da du notiert hast, dass du die „tiefgründige Erstkontakt-Geschichte“ und den „sprachzentrierten Ansatz“ von *Arrival* geliebt hast, ist *Contact* eine ideale thematische Ergänzung. Unter der Regie von [Robert Zemeckis](wiki:Robert_Zemeckis) und basierend auf dem Roman von [Carl Sagan](wiki:Carl_Sagan) folgt der Film Dr. Ellie Arroway, die eine komplexe Nachricht aus einem fernen Sternensystem empfängt und entschlüsselt.
+    
+    Ähnlich wie das Werk von [Denis Villeneuve](wiki:Denis_Villeneuve) vermeidet *Contact* die typischen Klischees von Alien-Invasionsfilmen und konzentriert sich stattdessen auf die wissenschaftlichen, linguistischen und philosophischen Herausforderungen der Kommunikation mit einer außerirdischen Intelligenz. Der Film hat zudem einen starken emotionalen Kern – verwurzelt in der Beziehung der Protagonistin zu ihrem verstorbenen Vater –, der zu einem bewegenden und introspektiven Schluss führt und damit das „emotionale Ende“ widerspiegelt, das dich bei *Arrival* so angesprochen hat. Es ist ein ruhiger, intellektueller Film, der den Platz der Menschheit im Universum mit einem ähnlichen Sinn für Staunen und Ernsthaftigkeit erkundet.
   zh: |
     Based on your appreciation for [Arrival](wiki:Arrival_(film)), I recommend watching **Contact** (1997).
 

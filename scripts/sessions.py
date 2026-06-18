@@ -3378,20 +3378,17 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
         print("Running translation validation (validate:locales)...")
         rc, stdout, stderr = _run_translation_validation()
-        step4_error = "❌ Found" in stdout and "not found in en.json" in stdout
-        if rc != 0 and step4_error:
+        if rc != 0:
             print("TRANSLATION VALIDATION FAILED — aborting deploy:", file=sys.stderr)
-            for line in stdout.splitlines():
-                if "not found in en.json" in line or "$text(" in line or "❌" in line:
-                    print(f"  {line}", file=sys.stderr)
+            if stdout:
+                print(stdout, file=sys.stderr)
+            if stderr:
+                print(stderr, file=sys.stderr)
             print("", file=sys.stderr)
-            print("Fix: add the missing key to the correct YAML source under", file=sys.stderr)
+            print("Fix: update the relevant YAML source under", file=sys.stderr)
             print("  frontend/packages/ui/src/i18n/sources/", file=sys.stderr)
-            print("Then run: cd frontend/packages/ui && npm run build:translations", file=sys.stderr)
+            print("Then run: cd frontend/packages/ui && npm run build:translations && npm run validate:locales", file=sys.stderr)
             sys.exit(1)
-        elif rc != 0 and not step4_error:
-            # Non-key error (e.g. npm missing) — warn but don't block
-            print(f"  Warning: validate:locales exited {rc} (check manually)", file=sys.stderr)
         else:
             print("Translations: PASSED")
 
@@ -3404,36 +3401,52 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
+    use_staged = getattr(args, "use_staged", False)
     staged_files = _get_staged_files()
     foreign_staged = [f for f in staged_files if f not in to_commit]
     if foreign_staged:
+        if use_staged:
+            print("--use-staged found staged files outside this session; aborting to avoid index bleed:", file=sys.stderr)
+            for f in sorted(foreign_staged):
+                print(f"  - {f}", file=sys.stderr)
+            sys.exit(1)
         print(f"Unstaging {len(foreign_staged)} file(s) staged by another session...")
         rc, _, stderr = _run_cmd(["git", "reset", "HEAD"] + foreign_staged)
         if rc != 0:
             print(f"git reset failed: {stderr}", file=sys.stderr)
             sys.exit(1)
 
-    # Separate existing files from deleted files — git add fails on deleted files,
-    # but they may already be staged via git rm. Only add files that exist on disk.
-    files_to_add = [f for f in to_commit if os.path.exists(f)]
-    deleted_files = [f for f in to_commit if not os.path.exists(f)]
-
-    if deleted_files:
-        # Ensure deleted files are staged (git rm --cached is safe even if already staged)
-        print(f"Staging {len(deleted_files)} deleted file(s)...")
-        rc, _, stderr = _run_cmd(["git", "rm", "--cached", "--ignore-unmatch"] + deleted_files)
-        if rc != 0:
-            print(f"git rm failed: {stderr}", file=sys.stderr)
+    if use_staged:
+        staged_files = _get_staged_files()
+        missing_staged = [f for f in to_commit if f not in staged_files]
+        if missing_staged:
+            print("--use-staged requires staged changes for every tracked deploy file:", file=sys.stderr)
+            for f in sorted(missing_staged):
+                print(f"  - {f}", file=sys.stderr)
             sys.exit(1)
+        print(f"Using pre-staged changes for {len(to_commit)} tracked file(s)")
+    else:
+        # Separate existing files from deleted files — git add fails on deleted files,
+        # but they may already be staged via git rm. Only add files that exist on disk.
+        files_to_add = [f for f in to_commit if os.path.exists(f)]
+        deleted_files = [f for f in to_commit if not os.path.exists(f)]
 
-    if files_to_add:
-        print(f"Adding {len(files_to_add)} file(s)...")
-        rc, _, stderr = _run_cmd(["git", "add"] + files_to_add)
-        if rc != 0:
-            print(f"git add failed: {stderr}", file=sys.stderr)
-            sys.exit(1)
+        if deleted_files:
+            # Ensure deleted files are staged (git rm --cached is safe even if already staged)
+            print(f"Staging {len(deleted_files)} deleted file(s)...")
+            rc, _, stderr = _run_cmd(["git", "rm", "--cached", "--ignore-unmatch"] + deleted_files)
+            if rc != 0:
+                print(f"git rm failed: {stderr}", file=sys.stderr)
+                sys.exit(1)
 
-    print(f"Staging complete: {len(files_to_add)} added, {len(deleted_files)} deleted")
+        if files_to_add:
+            print(f"Adding {len(files_to_add)} file(s)...")
+            rc, _, stderr = _run_cmd(["git", "add"] + files_to_add)
+            if rc != 0:
+                print(f"git add failed: {stderr}", file=sys.stderr)
+                sys.exit(1)
+
+        print(f"Staging complete: {len(files_to_add)} added, {len(deleted_files)} deleted")
 
     # 3. Git commit
     commit_msg = args.title
@@ -5766,6 +5779,13 @@ def main() -> None:
         dest="no_verify",
         help="Bypass pre-commit hooks (git commit --no-verify). Use only when a "
         "pre-existing hook bug prevents deploy. WARNING printed to stderr.",
+    )
+    p_deploy.add_argument(
+        "--use-staged",
+        action="store_true",
+        dest="use_staged",
+        help="Commit already staged hunks for the tracked session files instead of "
+        "running git add on whole files. Use for concurrent same-file edits.",
     )
     p_deploy.add_argument(
         "--skip-tests",

@@ -29,6 +29,8 @@
         showSendButton?: boolean;
         isRecordButtonPressed?: boolean;
         isAuthenticated?: boolean;
+        /** Allow signed-out text sends when anonymous free usage is active. */
+        allowAnonymousTextSend?: boolean;
         /**
          * When true, the user is signed in but has zero credits.
          * The send button is replaced with a "Buy credits" button.
@@ -45,16 +47,20 @@
         isSketchOpen?: boolean;
         /** Label for the unauthenticated CTA shown instead of the send button. */
         unauthenticatedCtaLabel?: string;
+        /** Show the auth CTA even when the editor only has a blocked pending upload. */
+        forceUnauthenticatedCta?: boolean;
     }
     let {
         showSendButton = false,
         isRecordButtonPressed = false,
         isAuthenticated = true,
+        allowAnonymousTextSend = false,
         hasNoCredits = false,
         micPermissionState = 'unknown',
         highlightPressHold = false,
         isSketchOpen = false,
-        unauthenticatedCtaLabel = $text('signup.sign_up')
+        unauthenticatedCtaLabel = $text('signup.sign_up'),
+        forceUnauthenticatedCta = false
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -93,6 +99,7 @@
     let showPressHoldLabel = $derived(
         highlightPressHold && micPermissionState === 'granted'
     );
+    let canSendMessage = $derived(isAuthenticated || allowAnonymousTextSend);
 </script>
 
 <div class="action-buttons" data-testid="action-buttons">
@@ -145,7 +152,7 @@
             use:tooltip
         ></button>
 
-        {#if showSendButton || (isAuthenticated && hasNoCredits)}
+        {#if showSendButton || forceUnauthenticatedCta || (isAuthenticated && hasNoCredits)}
             <!-- fly in from right (x: 40) so camera/record buttons shift smoothly -->
             {#if isAuthenticated && hasNoCredits}
                 <!-- Signed-in user with zero credits: show "Buy credits" button -->
@@ -159,7 +166,7 @@
                 >
                    {$text('enter_message.buy_credits')}
                 </button>
-            {:else if isAuthenticated}
+            {:else if canSendMessage && !forceUnauthenticatedCta}
                 <button
                     class="send-button"
                     data-action="send-message"

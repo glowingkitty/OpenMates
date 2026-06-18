@@ -23,6 +23,7 @@ import { isPublicChat } from "../demo_chats/convertToChat";
 type SubmitIssueReportOptions = {
   title: string;
   description?: string;
+  issueType?: "bug_report" | "feature_request";
   shareCurrentChat?: boolean;
   source?: string;
 };
@@ -122,6 +123,7 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
     body: JSON.stringify({
       title: options.title,
       description: options.description ?? null,
+      issue_type: options.issueType ?? "bug_report",
       chat_or_embed_url: chatOrEmbedUrl,
       contact_email: null,
       language: currentLanguage,

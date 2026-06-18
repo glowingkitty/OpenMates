@@ -16,7 +16,7 @@ Notification preferences have moved to the top-level Notifications hub.
      */
     function navigateToAiAppSettings() {
         dispatch('openSettings', {
-            settingsPath: 'app_store/ai',
+            settingsPath: 'apps/ai',
             direction: 'forward',
             icon: 'app',
             title: $text('apps.ai')

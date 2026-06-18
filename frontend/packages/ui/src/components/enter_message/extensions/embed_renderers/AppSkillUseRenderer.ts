@@ -60,15 +60,40 @@ import NutritionRecipeEmbedPreview from "../../../embeds/nutrition/NutritionReci
 import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/SocialMediaGetPostsEmbedPreview.svelte";
 import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMediaSearchEmbedPreview.svelte";
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
+import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
+import CalendarActionEmbedPreview from "../../../embeds/calendar/CalendarActionEmbedPreview.svelte";
 import { proxyImage } from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
+const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
+const YOUTUBE_URL_VIDEO_ID_RE =
+  /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 
 export class AppSkillUseRenderer implements EmbedRenderer {
   type = "app-skill-use";
+
+  private extractYouTubeVideoIdFromValue(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    if (YOUTUBE_VIDEO_ID_RE.test(value)) return value;
+    return value.match(YOUTUBE_URL_VIDEO_ID_RE)?.[1] ?? null;
+  }
+
+  private extractVideoTranscriptVideoId(
+    decodedContent: any,
+    results: any[],
+    url: string,
+  ): string | null {
+    return (
+      this.extractYouTubeVideoIdFromValue(decodedContent?.video_id) ||
+      this.extractYouTubeVideoIdFromValue(decodedContent?.url) ||
+      this.extractYouTubeVideoIdFromValue(results[0]?.video_id) ||
+      this.extractYouTubeVideoIdFromValue(results[0]?.url) ||
+      this.extractYouTubeVideoIdFromValue(url)
+    );
+  }
 
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
@@ -520,8 +545,26 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      if (appId === "weather" && skillId === "rain_radar") {
+        return this.renderWeatherRainRadarComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
       if (appId === "weather" && skillId === "weather_day") {
         return this.renderWeatherDayComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "calendar" && this.isCalendarActionSkill(skillId)) {
+        return this.renderCalendarActionComponent(
           attrs,
           embedData,
           decodedContent,
@@ -818,6 +861,81 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       attrs,
     );
     return this.renderGenericProcessingState(attrs, content);
+  }
+
+  private isCalendarActionSkill(skillId: string): boolean {
+    return ["get-events", "create-event", "update-event", "delete-event"].includes(
+      skillId,
+    );
+  }
+
+  private renderCalendarActionComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const skillId =
+      decodedContent?.skill_id ||
+      embedData?.skill_id ||
+      (attrs as any).skill_id ||
+      "get-events";
+    const taskId = decodedContent?.task_id || embedData?.task_id || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(CalendarActionEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          skillId,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          taskId,
+          title: decodedContent?.title,
+          summary: decodedContent?.summary,
+          message: decodedContent?.message,
+          error: decodedContent?.error,
+          events: decodedContent?.events,
+          results: decodedContent?.results,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted CalendarActionEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting CalendarActionEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
   }
 
   /**
@@ -2415,6 +2533,22 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       const handleFullscreen = () => {
         this.openFullscreen(attrs, embedData, decodedContent);
       };
+
+      if (attrs.contentRef?.startsWith("embed:") && embedId) {
+        content.setAttribute("data-content-ref", attrs.contentRef);
+        content.setAttribute("data-embed-id", embedId);
+      }
+
+      const videoId = this.extractVideoTranscriptVideoId(
+        decodedContent,
+        results,
+        url,
+      );
+      if (videoId) {
+        content.setAttribute("data-video-id", videoId);
+      } else {
+        content.removeAttribute("data-video-id");
+      }
 
       const component = mount(VideoTranscriptEmbedPreview, {
         target: content,
@@ -4094,7 +4228,13 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || "";
-    const results = decodedContent?.results || [];
+    const decodedResults = Array.isArray(decodedContent?.results)
+      ? decodedContent.results
+      : [];
+    const previewResults = Array.isArray(decodedContent?.preview_results)
+      ? decodedContent.preview_results
+      : [];
+    const results = decodedResults.length > 0 ? decodedResults : previewResults;
     const locationName = decodedContent?.location?.name || decodedContent?.location_name || "";
 
     const existingComponent = mountedComponents.get(content);
@@ -4126,6 +4266,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error" | "cancelled",
           results,
+          previewResults,
           taskId,
           skillTaskId,
           isMobile: false,
@@ -4140,6 +4281,86 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     } catch (error) {
       console.error(
         "[AppSkillUseRenderer] Error mounting WeatherForecastEmbedPreview:",
+        error,
+      );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /**
+   * Render weather rain radar parent embed using Svelte component.
+   */
+  private renderWeatherRainRadarComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const query = decodedContent?.query || (attrs as any).query || "";
+    const provider = decodedContent?.provider || embedData?.provider || "Weather";
+    const status =
+      decodedContent?.status ||
+      embedData?.status ||
+      attrs.status ||
+      "processing";
+    const taskId = decodedContent?.task_id || "";
+    const skillTaskId = decodedContent?.skill_task_id || "";
+    const summary = decodedContent?.summary || {};
+    const timeline = decodedContent?.timeline || [];
+    const locationName = decodedContent?.location?.name || decodedContent?.location_name || "";
+    const s3BaseUrl = decodedContent?.s3_base_url || "";
+    const files = decodedContent?.files || undefined;
+    const aesKey = decodedContent?.aes_key || "";
+    const aesNonce = decodedContent?.aes_nonce || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn(
+          "[AppSkillUseRenderer] Error unmounting existing component:",
+          e,
+        );
+      }
+    }
+
+    content.innerHTML = "";
+
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+
+      const component = mount(WeatherRainRadarEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          locationName,
+          provider,
+          status: status as "processing" | "finished" | "error" | "cancelled",
+          summary,
+          timeline,
+          s3BaseUrl,
+          files,
+          aesKey,
+          aesNonce,
+          taskId,
+          skillTaskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug(
+        "[AppSkillUseRenderer] Mounted WeatherRainRadarEmbedPreview component",
+      );
+    } catch (error) {
+      console.error(
+        "[AppSkillUseRenderer] Error mounting WeatherRainRadarEmbedPreview:",
         error,
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);

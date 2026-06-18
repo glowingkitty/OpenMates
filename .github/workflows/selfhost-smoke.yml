@@ -124,6 +124,13 @@ jobs:
           curl -fsS http://localhost:8000/health >/dev/null
           curl -fsS http://localhost:5173 >/dev/null
           health_end=$(date +%s)
+          $CLI server update --path "$SOURCE_INSTALL_PATH" --dry-run --json | tee "$GITHUB_WORKSPACE/test-results/selfhost-source-update-plan.json"
+          node -e "const p=require(process.argv[1]); if (p.mode !== 'source' || p.status !== 'planned') { console.error(p); process.exit(1); }" "$GITHUB_WORKSPACE/test-results/selfhost-source-update-plan.json"
+          if $CLI server update --path "$SOURCE_INSTALL_PATH" --image-tag "$IMAGE_TAG" --dry-run 2>"$GITHUB_WORKSPACE/test-results/selfhost-source-update-rejects-image-tag.txt"; then
+            echo "source-mode update unexpectedly accepted --image-tag"
+            exit 1
+          fi
+          node -e "const fs=require('node:fs'); const e=fs.readFileSync(process.argv[1], 'utf8'); if (!e.includes('only apply to image-mode installs')) { console.error(e); process.exit(1); }" "$GITHUB_WORKSPACE/test-results/selfhost-source-update-rejects-image-tag.txt"
           end_all=$(date +%s)
 
           cat > "$GITHUB_WORKSPACE/test-results/selfhost-source-timing.json" <<JSON
@@ -184,10 +191,19 @@ jobs:
           curl -fsS http://localhost:8000/health >/dev/null
           curl -fsS http://localhost:5173 >/dev/null
           health_end=$(date +%s)
+
+          update_start=$(date +%s)
+          $CLI server update --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG" --dry-run --json | tee "$GITHUB_WORKSPACE/test-results/selfhost-image-update-plan.json"
+          node -e "const p=require(process.argv[1]); if (p.mode !== 'image' || p.targetImageTag !== process.env.IMAGE_TAG || p.status !== 'planned') { console.error(p); process.exit(1); }" "$GITHUB_WORKSPACE/test-results/selfhost-image-update-plan.json"
+          $CLI server update --path "$IMAGE_INSTALL_PATH" --image-tag "$IMAGE_TAG"
+          curl -fsS http://localhost:8000/health >/dev/null
+          curl -fsS http://localhost:5173 >/dev/null
+          node -e "const fs=require('node:fs'); const env=fs.readFileSync(process.env.IMAGE_INSTALL_PATH + '/.env', 'utf8'); if (!env.includes('OPENMATES_IMAGE_TAG=' + process.env.IMAGE_TAG)) process.exit(1);"
+          update_end=$(date +%s)
           end_all=$(date +%s)
 
           cat > "$GITHUB_WORKSPACE/test-results/selfhost-image-timing.json" <<JSON
-          {"mode":"image","install_s":$((install_end-install_start)),"start_s":$((start_end-start_start)),"health_wait_s":$((health_end-health_start)),"total_s":$((end_all-start_all)),"image_tag":"${IMAGE_TAG}"}
+          {"mode":"image","install_s":$((install_end-install_start)),"start_s":$((start_end-start_start)),"health_wait_s":$((health_end-health_start)),"update_s":$((update_end-update_start)),"total_s":$((end_all-start_all)),"image_tag":"${IMAGE_TAG}"}
           JSON
 
       - name: Summarize setup timing
@@ -199,10 +215,10 @@ jobs:
           const summary = [
             '### Self-host setup timing',
             '',
-            '| Mode | Install | Start | Health wait | Total |',
-            '| --- | ---: | ---: | ---: | ---: |',
-            `| Source | ${source.install_s}s | ${source.start_s}s | ${source.health_wait_s}s | ${source.total_s}s |`,
-            `| Image | ${image.install_s}s | ${image.start_s}s | ${image.health_wait_s}s | ${image.total_s}s |`,
+            '| Mode | Install | Start | Health wait | Update | Total |',
+            '| --- | ---: | ---: | ---: | ---: | ---: |',
+            `| Source | ${source.install_s}s | ${source.start_s}s | ${source.health_wait_s}s | n/a | ${source.total_s}s |`,
+            `| Image | ${image.install_s}s | ${image.start_s}s | ${image.health_wait_s}s | ${image.update_s}s | ${image.total_s}s |`,
             '',
             `Image tag: \`${image.image_tag}\``,
           ].join('\n');
@@ -246,8 +262,11 @@ jobs:
           name: selfhost-smoke-results
           path: |
             test-results/selfhost-smoke-playwright.json
+            test-results/selfhost-source-update-plan.json
+            test-results/selfhost-source-update-rejects-image-tag.txt
             test-results/selfhost-source-timing.json
             test-results/selfhost-image-timing.json
+            test-results/selfhost-image-update-plan.json
             frontend/apps/web_app/test-results/
           if-no-files-found: ignore
           retention-days: 7

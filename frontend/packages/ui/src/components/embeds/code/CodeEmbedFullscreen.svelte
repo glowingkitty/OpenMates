@@ -123,11 +123,14 @@
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
   let includedOriginalCodeContent = $state<string | null>(null);
-  let codeContent = $derived(
-      includedOriginalCodeContent !== null ? includedOriginalCodeContent
-      : typeof dc.code === 'string' ? dc.code
+  let latestCodeContent = $derived(
+      typeof dc.code === 'string' ? dc.code
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
+    );
+  let codeContent = $derived(
+      includedOriginalCodeContent !== null ? includedOriginalCodeContent
+      : latestCodeContent
     );
   let language = $derived(
       typeof dc.language === 'string' ? dc.language
@@ -1262,6 +1265,7 @@
           <EmbedHeaderCtaButton
             label={previewActive ? $text('app_skills.code.preview_hide') : $text('app_skills.code.preview_show')}
             onclick={togglePreview}
+            variant="secondary"
             testId="embed-preview-button"
           />
         {/if}
@@ -1323,7 +1327,7 @@
             class:code-panel-code-run-split={codeRunOverlayActive}
             data-testid="code-source-panel"
           >
-            <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
+            <div class="code-lines-container" role="presentation" data-testid="code-fullscreen-code" bind:this={codeLinesContainer}>
               {#each highlightedLines as lineHtml, i}
                 {@const lineNum = i + 1}
                 {@const isHighlighted = highlightRange != null && lineNum >= highlightRange.start && lineNum <= highlightRange.end}
@@ -1531,8 +1535,10 @@
       <EmbedVersionTimeline
         {embedId}
         currentVersion={versionNumber}
-        onVersionSelect={(version, _content) => {
-          // TODO: Request versioned content from server and display
+        currentContent={latestCodeContent}
+        buildRestoredContent={(content, newVersion) => ({ ...dc, code: content, version_number: newVersion })}
+        onVersionSelect={(version, content) => {
+          includedOriginalCodeContent = content;
           console.log('[CodeEmbedFullscreen] Version selected:', version);
         }}
       />

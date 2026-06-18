@@ -107,8 +107,27 @@ class TestGetProviderRateLimit:
         result = _get_provider_rate_limit("test_provider")
         assert result == {"requests_per_second": 15, "requests_per_month": 100000}
 
-    def test_defaults_to_free_plan_for_brave(self, monkeypatch):
-        """Brave should default to 'free' plan when env var is not set."""
+    def test_uses_documented_brave_search_plan_env(self, monkeypatch):
+        """Brave should use the documented BRAVE_SEARCH_PLAN env var."""
+        mock_cm = MagicMock()
+        mock_cm.get_provider_config.return_value = {
+            "rate_limits": {
+                "free": {"requests_per_second": 1},
+                "base": {"requests_per_second": 10},
+                "pro": {"requests_per_second": 15},
+            }
+        }
+        monkeypatch.setattr(
+            "backend.apps.ai.processing.rate_limiting.ConfigManager",
+            lambda: mock_cm,
+        )
+        monkeypatch.setenv("BRAVE_SEARCH_PLAN", "base")
+        monkeypatch.delenv("BRAVE_PLAN", raising=False)
+        result = _get_provider_rate_limit("brave")
+        assert result == {"requests_per_second": 10}
+
+    def test_supports_legacy_brave_plan_env(self, monkeypatch):
+        """BRAVE_PLAN remains supported as a fallback for existing deployments."""
         mock_cm = MagicMock()
         mock_cm.get_provider_config.return_value = {
             "rate_limits": {
@@ -120,9 +139,28 @@ class TestGetProviderRateLimit:
             "backend.apps.ai.processing.rate_limiting.ConfigManager",
             lambda: mock_cm,
         )
-        monkeypatch.delenv("BRAVE_PLAN", raising=False)
+        monkeypatch.delenv("BRAVE_SEARCH_PLAN", raising=False)
+        monkeypatch.setenv("BRAVE_PLAN", "free")
         result = _get_provider_rate_limit("brave")
         assert result == {"requests_per_second": 1}
+
+    def test_defaults_to_pro_plan_for_brave(self, monkeypatch):
+        """Brave should default to the provider config's documented pro plan."""
+        mock_cm = MagicMock()
+        mock_cm.get_provider_config.return_value = {
+            "rate_limits": {
+                "free": {"requests_per_second": 1},
+                "pro": {"requests_per_second": 15},
+            }
+        }
+        monkeypatch.setattr(
+            "backend.apps.ai.processing.rate_limiting.ConfigManager",
+            lambda: mock_cm,
+        )
+        monkeypatch.delenv("BRAVE_SEARCH_PLAN", raising=False)
+        monkeypatch.delenv("BRAVE_PLAN", raising=False)
+        result = _get_provider_rate_limit("brave")
+        assert result == {"requests_per_second": 15}
 
     def test_falls_back_to_direct_format(self, monkeypatch):
         """Should handle old format where rate_limits has direct keys."""

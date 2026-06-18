@@ -6,6 +6,7 @@ import inspect
 import logging
 from typing import Dict, Any, List, Optional, AsyncIterator, Tuple, Union
 import json
+import re
 import httpx
 import datetime
 import zoneinfo
@@ -13,7 +14,10 @@ import os
 import copy
 import hashlib
 import time
+from functools import lru_cache
+from pathlib import Path
 from toon_format import encode
+import yaml
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -54,6 +58,9 @@ from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
 )
+from backend.apps.ai.processing.connected_account_receipts import (
+    attach_connected_account_action_metadata,
+)
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
     MAX_DIRECT_SUB_CHATS_PER_PARENT,
@@ -79,6 +86,220 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 
 logger = logging.getLogger(__name__)
+
+_FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
+    "code",
+    "code-code",
+    "document",
+    "docs-doc",
+    "email",
+    "mail",
+    "mail-email",
+    "mermaid",
+    "diagrams-mermaid",
+    "pcb_schematic",
+    "schematic",
+    "electronics-pcb-schematic",
+    "sheet",
+})
+_TYPE_MARKER_RE = re.compile(
+    r'(?:(?:"type"|"embed_type")\s*:\s*"([^"\n]+)"|\b(?:type|embed_type)\s*:\s*([A-Za-z0-9_-]+))',
+    re.IGNORECASE,
+)
+
+
+def _message_content(message: Any) -> Optional[str]:
+    content = message.content if hasattr(message, "content") else (
+        message.get("content") if isinstance(message, dict) else None
+    )
+    return content if isinstance(content, str) else None
+
+
+def _metadata_value(item: Any, field_name: str) -> Any:
+    if isinstance(item, dict):
+        return item.get(field_name)
+    return getattr(item, field_name, None)
+
+
+def _add_embed_type_identifier(diffable_types: set[str], value: Any) -> None:
+    if isinstance(value, str) and value.strip():
+        diffable_types.add(value.strip().lower())
+
+
+def _diffable_embed_types_from_apps_metadata(apps_metadata: Any) -> set[str]:
+    diffable_types: set[str] = set()
+    if not isinstance(apps_metadata, dict):
+        return diffable_types
+
+    for app_metadata in apps_metadata.values():
+        for embed_type_def in _metadata_value(app_metadata, "embed_types") or []:
+            content_catalog = _metadata_value(embed_type_def, "content_catalog") or {}
+            if not isinstance(content_catalog, dict):
+                continue
+            if not content_catalog.get("enabled") or not content_catalog.get("diff_editable"):
+                continue
+            _add_embed_type_identifier(diffable_types, _metadata_value(embed_type_def, "id"))
+            _add_embed_type_identifier(diffable_types, _metadata_value(embed_type_def, "backend_type"))
+            _add_embed_type_identifier(diffable_types, _metadata_value(embed_type_def, "frontend_type"))
+            _add_embed_type_identifier(diffable_types, content_catalog.get("content_type_id"))
+    return diffable_types
+
+
+@lru_cache(maxsize=1)
+def _diffable_embed_types_from_shared_config() -> set[str]:
+    diffable_types: set[str] = set()
+    shared_config_path = Path(__file__).resolve().parents[4] / "shared/config/embed_types.yml"
+    try:
+        shared_config = yaml.safe_load(shared_config_path.read_text(encoding="utf-8")) or {}
+    except Exception as exc:
+        logger.warning(f"[DIFF_PROMPT] Could not read shared embed type metadata: {exc}", exc_info=True)
+        return diffable_types
+
+    for embed_type_def in shared_config.get("embed_types", []):
+        content_catalog = embed_type_def.get("content_catalog") or {}
+        if not content_catalog.get("enabled") or not content_catalog.get("diff_editable"):
+            continue
+        _add_embed_type_identifier(diffable_types, embed_type_def.get("id"))
+        _add_embed_type_identifier(diffable_types, embed_type_def.get("backend_type"))
+        _add_embed_type_identifier(diffable_types, embed_type_def.get("frontend_type"))
+        _add_embed_type_identifier(diffable_types, content_catalog.get("content_type_id"))
+    return diffable_types
+
+
+async def _get_diffable_embed_types(
+    cache_service: Optional[CacheService],
+    log_prefix: str,
+) -> set[str]:
+    diffable_types = set(_FALLBACK_DIFF_EDITABLE_EMBED_TYPES)
+    diffable_types.update(_diffable_embed_types_from_shared_config())
+    get_discovered_apps_metadata = getattr(cache_service, "get_discovered_apps_metadata", None)
+    if not callable(get_discovered_apps_metadata):
+        return diffable_types
+
+    try:
+        apps_metadata = await get_discovered_apps_metadata()
+    except Exception as exc:
+        logger.warning(
+            f"{log_prefix} [DIFF_PROMPT] Could not read app metadata for "
+            f"diff-editable embed types: {exc}",
+            exc_info=True,
+        )
+        return diffable_types
+
+    diffable_types.update(_diffable_embed_types_from_apps_metadata(apps_metadata))
+    return diffable_types
+
+
+def _message_has_diffable_type_marker(content: str, diffable_embed_types: set[str]) -> bool:
+    for match in _TYPE_MARKER_RE.finditer(content):
+        marker_value = match.group(1) or match.group(2)
+        if isinstance(marker_value, str) and marker_value.lower() in diffable_embed_types:
+            return True
+    return False
+
+
+def _embed_data_has_diffable_type(embed_data: Any, diffable_embed_types: set[str]) -> bool:
+    if not isinstance(embed_data, dict):
+        return False
+
+    for field_name in (
+        "type",
+        "embed_type",
+        "backend_type",
+        "frontend_type",
+        "content_type_id",
+    ):
+        embed_type = embed_data.get(field_name)
+        if isinstance(embed_type, str) and embed_type.lower() in diffable_embed_types:
+            return True
+    return False
+
+
+async def _has_diffable_embeds_in_cache(
+    request_data: AskSkillRequest,
+    cache_service: Optional[CacheService],
+    diffable_embed_types: set[str],
+    log_prefix: str,
+) -> bool:
+    if not cache_service or not getattr(request_data, "chat_id", None):
+        return False
+
+    get_chat_embed_ids = getattr(cache_service, "get_chat_embed_ids", None)
+    get_embed_from_cache = getattr(cache_service, "get_embed_from_cache", None)
+    if not callable(get_chat_embed_ids) or not callable(get_embed_from_cache):
+        return False
+
+    try:
+        embed_ids = await get_chat_embed_ids(request_data.chat_id)
+    except Exception as exc:
+        logger.warning(f"{log_prefix} [DIFF_PROMPT] Could not read chat embed index from cache: {exc}", exc_info=True)
+        return False
+
+    for embed_id in embed_ids or []:
+        try:
+            embed_data = await get_embed_from_cache(str(embed_id))
+        except Exception as exc:
+            logger.warning(f"{log_prefix} [DIFF_PROMPT] Could not read cached embed {embed_id}: {exc}", exc_info=True)
+            continue
+        if _embed_data_has_diffable_type(embed_data, diffable_embed_types):
+            return True
+
+    return False
+
+
+async def _has_diffable_embeds_in_directus(
+    request_data: AskSkillRequest,
+    directus_service: Optional[DirectusService],
+    diffable_embed_types: set[str],
+    log_prefix: str,
+) -> bool:
+    if not directus_service or not getattr(request_data, "chat_id", None):
+        return False
+
+    embed_methods = getattr(directus_service, "embed", None)
+    get_embeds_by_hashed_chat_id = getattr(embed_methods, "get_embeds_by_hashed_chat_id", None)
+    if not callable(get_embeds_by_hashed_chat_id):
+        return False
+
+    hashed_chat_id = hashlib.sha256(request_data.chat_id.encode()).hexdigest()
+    try:
+        embeds = await get_embeds_by_hashed_chat_id(hashed_chat_id)
+    except Exception as exc:
+        logger.warning(f"{log_prefix} [DIFF_PROMPT] Could not read chat embeds from Directus: {exc}", exc_info=True)
+        return False
+
+    for embed_data in embeds or []:
+        # Persisted embed types are encrypted, but editable file-backed artifacts
+        # retain file_path metadata. Use this only as a DB fallback when prompt
+        # history and Redis did not expose a direct type signal.
+        if _embed_data_has_diffable_type(embed_data, diffable_embed_types) or embed_data.get("file_path"):
+            return True
+
+    return False
+
+
+async def _has_diffable_embeds_for_prompt(
+    request_data: AskSkillRequest,
+    cache_service: Optional[CacheService] = None,
+    directus_service: Optional[DirectusService] = None,
+    log_prefix: str = "",
+) -> bool:
+    """Return True when the LLM can target an existing artifact with a diff fence."""
+    diffable_embed_types = await _get_diffable_embed_types(cache_service, log_prefix)
+    for message in request_data.message_history:
+        content = _message_content(message)
+        if content and _message_has_diffable_type_marker(content, diffable_embed_types):
+            return True
+
+    # Resolved history can expose only the server-side ref index to this stage.
+    # The stream consumer already uses the same index to resolve diff:<embed_ref>.
+    if getattr(request_data, "embed_file_path_index", None):
+        return True
+
+    if await _has_diffable_embeds_in_cache(request_data, cache_service, diffable_embed_types, log_prefix):
+        return True
+
+    return await _has_diffable_embeds_in_directus(request_data, directus_service, diffable_embed_types, log_prefix)
 
 INTERACTIVE_QUESTIONS_INSTRUCTION = """
 # INTERACTIVE QUESTIONS PROTOCOL
@@ -569,6 +790,158 @@ def _filter_skill_results_for_llm(
     return filtered
 
 
+async def _record_connected_account_operation_journal_entries(
+    *,
+    app_id: str,
+    skill_id: str,
+    results: Any,
+    token_artifacts: list[dict[str, Any]],
+    user_id: str,
+    user_vault_key_id: str | None,
+    chat_id: str,
+    message_id: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    cache_service: CacheService,
+    log_prefix: str,
+) -> list[dict[str, Any]]:
+    if app_id != "calendar" or not user_vault_key_id or not token_artifacts:
+        return []
+
+    journal_entries: list[dict[str, Any]] = []
+    try:
+        from backend.core.api.app.services.connected_account_operation_journal import (
+            ConnectedAccountOperationJournalService,
+        )
+        from backend.apps.ai.processing.connected_account_receipts import (
+            publish_connected_account_action_receipt,
+        )
+
+        journal_service = ConnectedAccountOperationJournalService(encryption_service=encryption_service)
+        normalized_results = _normalize_connected_account_results(results)
+        for artifact in token_artifacts:
+            connected_account_id = artifact.get("connected_account_id")
+            action = str(artifact.get("action") or "")
+            if not connected_account_id or not action:
+                logger.error("%s Connected-account journal artifact missing account/action metadata", log_prefix)
+                continue
+            receipt = {
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "action": action,
+                "decision": "completed",
+                "result_count": len(normalized_results),
+                "undo_available": _calendar_undo_available(skill_id),
+            }
+            journal_entry = await journal_service.record_entry(
+                directus_service=directus_service,
+                user_id=user_id,
+                user_vault_key_id=user_vault_key_id,
+                connected_account_id=str(connected_account_id),
+                app_id=app_id,
+                action=action,
+                decision="completed",
+                action_scope=artifact.get("action_scope") if isinstance(artifact.get("action_scope"), dict) else {},
+                receipt=receipt,
+                undo_payload=_calendar_undo_payload(skill_id, normalized_results),
+                chat_id=chat_id,
+                message_id=message_id,
+            )
+            journal_entries.append(journal_entry)
+            await publish_connected_account_action_receipt(
+                cache_service=cache_service,
+                user_id=user_id,
+                payload={
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "action_id": journal_entry.get("action_id"),
+                    "receipt": receipt,
+                },
+            )
+    except Exception as journal_error:
+        logger.error("%s Failed to persist connected-account operation journal: %s", log_prefix, journal_error, exc_info=True)
+    return journal_entries
+
+
+def _normalize_connected_account_results(results: Any) -> list[dict[str, Any]]:
+    if isinstance(results, list):
+        return [item for item in results if isinstance(item, dict)]
+    if isinstance(results, dict):
+        maybe_results = results.get("results")
+        if isinstance(maybe_results, list):
+            return [item for item in maybe_results if isinstance(item, dict)]
+        return [results]
+    return []
+
+
+def _calendar_undo_available(skill_id: str) -> bool:
+    return skill_id in {"create-event", "update-event", "delete-event"}
+
+
+def _calendar_undo_payload(skill_id: str, results: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if skill_id not in {"create-event", "update-event", "delete-event"} or not results:
+        return None
+    undo_events: list[dict[str, Any]] = []
+    for result in results:
+        calendar_id = result.get("calendar_id")
+        if skill_id == "create-event":
+            event = result.get("event") if isinstance(result.get("event"), dict) else {}
+            event_id = event.get("id")
+            if event_id and calendar_id:
+                undo_events.append(
+                    {
+                        "undo_type": "delete_created_event",
+                        "calendar_id": calendar_id,
+                        "event_id": event_id,
+                        "etag": event.get("etag"),
+                    }
+                )
+        elif skill_id == "update-event":
+            previous_event = result.get("previous_event") if isinstance(result.get("previous_event"), dict) else {}
+            updated_event = result.get("event") if isinstance(result.get("event"), dict) else {}
+            event_id = previous_event.get("id") or updated_event.get("id")
+            if event_id and calendar_id and _calendar_snapshot_has_required_fields(previous_event):
+                undo_events.append(
+                    {
+                        "undo_type": "restore_updated_event",
+                        "calendar_id": calendar_id,
+                        "event_id": event_id,
+                        "etag": previous_event.get("etag"),
+                        "snapshot": _calendar_event_snapshot(previous_event),
+                    }
+                )
+        elif skill_id == "delete-event":
+            deleted_event = result.get("deleted_event") if isinstance(result.get("deleted_event"), dict) else {}
+            event_id = deleted_event.get("id") or result.get("event_id")
+            if event_id and calendar_id and _calendar_snapshot_has_required_fields(deleted_event):
+                undo_events.append(
+                    {
+                        "undo_type": "recreate_deleted_event",
+                        "calendar_id": calendar_id,
+                        "event_id": event_id,
+                        "etag": deleted_event.get("etag"),
+                        "snapshot": _calendar_event_snapshot(deleted_event),
+                    }
+                )
+    return {"events": undo_events} if undo_events else None
+
+
+def _calendar_snapshot_has_required_fields(event: dict[str, Any]) -> bool:
+    return bool(event.get("title") and event.get("start") and event.get("end"))
+
+
+def _calendar_event_snapshot(event: dict[str, Any]) -> dict[str, Any]:
+    snapshot = {
+        "title": event.get("title"),
+        "start": event.get("start"),
+        "end": event.get("end"),
+        "location": event.get("location"),
+        "description": event.get("description"),
+        "attendees": event.get("attendees") if isinstance(event.get("attendees"), list) else [],
+    }
+    return {key: value for key, value in snapshot.items() if value not in (None, "", [])}
+
+
 DEFAULT_APP_INTERNAL_PORT = 8000
 APPROX_MAX_CONVERSATION_TOKENS = 120000
 AVG_CHARS_PER_TOKEN = 4
@@ -841,6 +1214,13 @@ async def _charge_skill_credits(
             Used to count only successful requests for billing (failed requests are not charged).
     """
     try:
+        if getattr(request_data, "is_anonymous", False):
+            logger.info(
+                f"{log_prefix} Anonymous free-usage request used skill '{app_id}.{skill_id}'. "
+                "Skipping user-balance skill billing; shared budget is reconciled by the anonymous API route."
+            )
+            return
+
         # Get skill definition from app metadata
         app_metadata = discovered_apps_metadata.get(app_id)
         if not app_metadata:
@@ -1641,6 +2021,8 @@ async def handle_main_processing(
             relevant_previews = set(preprocessing_results.relevant_embedded_previews)
         PREVIEW_TO_EMBED_TYPE = {
             "document": "doc",
+            "pcb_schematic": "schematic",
+            "pcb-schematic": "schematic",
         }
         normalized_previews = set()
         for p in relevant_previews:
@@ -1820,20 +2202,19 @@ async def handle_main_processing(
     # converts to interactive math-plot embeds rendered by function-plot on the frontend.
     if discovered_apps_metadata and "math" in discovered_apps_metadata:
         prompt_parts.append(base_instructions.get("base_plot_code_block_instruction", ""))
-
+    # Add Mermaid diagram instruction only when the Diagrams app is available.
+    # Teaches the LLM to emit ```mermaid``` fences that stream_consumer.py
+    # converts to Diagrams-owned direct embeds.
+    if discovered_apps_metadata and "diagrams" in discovered_apps_metadata:
+        prompt_parts.append(base_instructions.get("base_mermaid_code_block_instruction", ""))
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.
-    _has_diffable_embeds = False
-    for _msg in request_data.message_history:
-        _msg_content = _msg.content if hasattr(_msg, "content") else (
-            _msg.get("content") if isinstance(_msg, dict) else None
-        )
-        if not isinstance(_msg_content, str):
-            continue
-        if ("type: code" in _msg_content or "type: document" in _msg_content or
-                "type: sheet" in _msg_content or "type: mail" in _msg_content):
-            _has_diffable_embeds = True
-            break
+    _has_diffable_embeds = await _has_diffable_embeds_for_prompt(
+        request_data,
+        cache_service=cache_service,
+        directus_service=directus_service,
+        log_prefix=log_prefix,
+    )
     if _has_diffable_embeds:
         prompt_parts.append(base_instructions.get("base_diff_editing_instruction", ""))
         logger.debug(f"{log_prefix} [DIFF_PROMPT] Injected diff editing instruction (diffable embeds in history)")
@@ -4284,21 +4665,126 @@ async def handle_main_processing(
                             f"{app_id}.{skill_id}: {model_override}"
                         )
 
+                    connected_account_token_artifacts: list[dict[str, str]] = []
+                    connected_account_journal_entries: list[dict[str, Any]] = []
+                    if app_id == "calendar" and skill_id in {"get-events", "create-event", "update-event", "delete-event"}:
+                        from backend.apps.ai.processing.connected_account_execution import (
+                            cleanup_connected_account_token_artifacts,
+                            connected_account_action_for_skill,
+                            prepare_connected_account_skill_execution,
+                        )
+
+                        try:
+                            connected_context = await prepare_connected_account_skill_execution(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                skill_arguments=skill_arguments,
+                                connected_account_token_refs=getattr(request_data, "connected_account_token_refs", None),
+                                user_id=request_data.user_id,
+                                user_vault_key_id=user_vault_key_id,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                cache_service=cache_service,
+                                encryption_service=encryption_service,
+                            )
+                            skill_arguments = connected_context.skill_arguments
+                            connected_account_token_artifacts = connected_context.token_artifacts
+                        except PermissionError as permission_error:
+                            logger.info(
+                                f"{log_prefix} Connected-account permission required for "
+                                f"{app_id}.{skill_id}: {permission_error}"
+                            )
+                            if getattr(request_data, "is_connected_account_permission_continuation", False):
+                                current_message_history.append({
+                                    "tool_call_id": tool_call_id,
+                                    "role": "tool",
+                                    "name": tool_name,
+                                    "content": json.dumps({
+                                        "status": "permission_denied",
+                                        "reason": str(permission_error),
+                                        "app_id": app_id,
+                                        "skill_id": skill_id,
+                                    }),
+                                })
+                                continue
+
+                            from backend.apps.ai.processing.connected_account_permission_request import (
+                                create_connected_account_permission_request,
+                            )
+
+                            request_id = await create_connected_account_permission_request(
+                                cache_service=cache_service,
+                                user_id=request_data.user_id,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id_hash=request_data.user_id_hash,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                action=connected_account_action_for_skill(app_id, skill_id),
+                                skill_arguments=skill_arguments,
+                                connected_account_directory=getattr(request_data, "connected_account_directory", None),
+                                reason=str(permission_error),
+                                task_id=task_id,
+                            )
+                            if request_id:
+                                yield {"__awaiting_connected_account_permission__": True, "request_id": request_id}
+                                return
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps({
+                                    "status": "permission_unavailable",
+                                    "reason": (
+                                        "No connected calendar account is available for this action. "
+                                        "Ask the user to connect or select a Calendar account."
+                                    ),
+                                    "app_id": app_id,
+                                    "skill_id": skill_id,
+                                }),
+                            })
+                            continue
+
                     # Execute skill with retry logic (20s timeout, 1 retry by default)
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
-                    results = await execute_skill_with_multiple_requests(
-                        app_id=app_id,
-                        skill_id=skill_id,
-                        arguments=skill_arguments,
-                        timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
-                        chat_id=request_data.chat_id,
-                        message_id=request_data.message_id,
-                        user_id=request_data.user_id,
-                        skill_task_id=skill_task_id,
-                        cache_service=cache_service
-                        # max_retries uses default (1 retry = 2 total attempts)
-                    )
+                    try:
+                        results = await execute_skill_with_multiple_requests(
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            arguments=skill_arguments,
+                            timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
+                            chat_id=request_data.chat_id,
+                            message_id=request_data.message_id,
+                            user_id=request_data.user_id,
+                            skill_task_id=skill_task_id,
+                            cache_service=cache_service
+                            # max_retries uses default (1 retry = 2 total attempts)
+                        )
+                        if connected_account_token_artifacts:
+                            connected_account_journal_entries = await _record_connected_account_operation_journal_entries(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                results=results,
+                                token_artifacts=connected_account_token_artifacts,
+                                user_id=request_data.user_id,
+                                user_vault_key_id=user_vault_key_id,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service,
+                                cache_service=cache_service,
+                                log_prefix=log_prefix,
+                            )
+                    finally:
+                        if connected_account_token_artifacts:
+                            from backend.apps.ai.processing.connected_account_execution import cleanup_connected_account_token_artifacts
+
+                            await cleanup_connected_account_token_artifacts(
+                                token_artifacts=connected_account_token_artifacts,
+                                cache_service=cache_service,
+                                encryption_service=encryption_service,
+                            )
                     
                     # === RECORD SUCCESSFUL SKILL EXECUTION FOR DEDUPLICATION ===
                     # Store this successful call so subsequent iterations won't re-execute it.
@@ -4883,7 +5369,14 @@ async def handle_main_processing(
                         log_prefix=log_prefix,
                         grouped_results=grouped_results,
                     )
-                
+
+                if connected_account_journal_entries and not is_async_skill and not is_multimodal_result:
+                    attach_connected_account_action_metadata(
+                        results=results_with_refs,
+                        journal_entries=connected_account_journal_entries,
+                        undo_available=_calendar_undo_available(skill_id),
+                    )
+
                 # STEP 3: Create embeds from results
                 # For multiple requests: Create one app_skill_use embed per request group
                 # For single request: Update the existing placeholder embed

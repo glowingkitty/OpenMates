@@ -46,6 +46,8 @@
       protein_g?: number;
       fat_g?: number;
       carbs_g?: number;
+      fiber_g?: number;
+      sodium_mg?: number;
     };
   }
 
@@ -127,10 +129,12 @@
     const raw = content.nutrition;
     const n = raw && typeof raw === 'object' ? raw as Record<string, unknown> : content;
     return {
-      calories_kcal: asNumber(n.calories_kcal ?? n.nutrition_calories_kcal ?? n.nutrition_energy),
+      calories_kcal: asNumber(n.calories_kcal ?? n.nutrition_calories_kcal ?? n.calories_per_serving ?? n.nutrition_energy),
       protein_g: asNumber(n.protein_g ?? n.nutrition_protein_g ?? n.nutrition_protein),
       fat_g: asNumber(n.fat_g ?? n.nutrition_fat_g ?? n.nutrition_fat),
-      carbs_g: asNumber(n.carbs_g ?? n.nutrition_carbs_g ?? n.nutrition_carbohydrates)
+      carbs_g: asNumber(n.carbs_g ?? n.nutrition_carbs_g ?? n.nutrition_carbohydrates),
+      fiber_g: asNumber(n.fiber_g ?? n.nutrition_fiber_g ?? n.nutrition_fiber),
+      sodium_mg: asNumber(n.sodium_mg ?? n.nutrition_sodium_mg ?? n.nutrition_sodium)
     };
   }
 
@@ -138,6 +142,10 @@
     if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
     const raw = asString(value);
     return raw ? raw.split('|').map((item) => item.trim()).filter(Boolean) : [];
+  }
+
+  function parseMergedList(...values: unknown[]): string[] {
+    return [...new Set(values.flatMap(parseDelimitedList))];
   }
 
   function parseIngredients(content: Record<string, unknown>): RecipeResult['ingredients'] {
@@ -184,8 +192,8 @@
       rating: asNumber(content.rating) ?? null,
       rating_count: asNumber(content.rating_count) ?? null,
       ernaehrwert_score: asNumber(content.ernaehrwert_score) ?? null,
-      dietary_tags: parseDelimitedList(content.dietary_tags),
-      categories: parseDelimitedList(content.categories),
+      dietary_tags: parseMergedList(content.dietary_tags, content.diet_labels, content.health_labels),
+      categories: parseMergedList(content.categories, content.cuisine_type, content.meal_type, content.dish_type),
       ingredients: parseIngredients(content),
       instructions: parseInstructions(content),
       nutrition: parseNutrition(content)

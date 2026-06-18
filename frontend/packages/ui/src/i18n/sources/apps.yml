@@ -94,6 +94,16 @@ ai.skills.ask.description:
   sv: Fråga med text, bilder och annat media.
   he: שאל באמצעות טקסט, תמונות ומדיה נוספת.
   verified_by_human: [en, de]
+calendar:
+  context: App name for the Calendar app
+  en: Calendar
+  de: Kalender
+  verified_by_human: [en, de]
+calendar.description:
+  context: Description for the Calendar app
+  en: Connect your calendar so mates can read, create, update, and delete events with your permission.
+  de: Verbinde deinen Kalender, damit Mates mit deiner Erlaubnis Termine lesen, erstellen, bearbeiten und löschen können.
+  verified_by_human: [en, de]
 social_media:
   context: App name for the Social Media app
   en: Social Media
@@ -1198,6 +1208,54 @@ code.description:
   sv: Kodningshjälp, docs och projektråd.
   he: קבלת עזרה בתכנות, תיעוד וייעוץ לפרויקטים.
   verified_by_human: [en, de]
+diagrams:
+  context: App name for the Diagrams app
+  en: Diagrams
+  de: Diagramme
+  zh: 图表
+  es: Diagramas
+  fr: Diagrammes
+  pt: Diagramas
+  ru: Диаграммы
+  ja: 図表
+  ko: 다이어그램
+  it: Diagrammi
+  tr: Diyagramlar
+  vi: Sơ đồ
+  id: Diagram
+  pl: Diagramy
+  nl: Diagrammen
+  ar: المخططات
+  hi: डायग्राम
+  th: ไดอะแกรม
+  cs: Diagramy
+  sv: Diagram
+  he: תרשימים
+  verified_by_human: []
+diagrams.description:
+  context: Description for the Diagrams app
+  en: Create flowcharts, sequences, timelines & more.
+  de: Erstelle Flussdiagramme, Sequenzen und Zeitleisten.
+  zh: 创建流程图、序列图、时间线等。
+  es: Crea flujos, secuencias, cronologías y más.
+  fr: Créez des flux, séquences, chronologies et plus.
+  pt: Crie fluxos, sequências, linhas do tempo e mais.
+  ru: Создавайте блок-схемы, последовательности и таймлайны.
+  ja: フロー、シーケンス、タイムラインなどを作成。
+  ko: 흐름도, 시퀀스, 타임라인 등을 만드세요.
+  it: Crea flussi, sequenze, timeline e altro.
+  tr: Akışlar, diziler, zaman çizelgeleri ve daha fazlasını oluşturun.
+  vi: Tạo sơ đồ luồng, chuỗi, dòng thời gian và hơn thế nữa.
+  id: Buat alur, urutan, lini masa, dan lainnya.
+  pl: Twórz przepływy, sekwencje, osie czasu i więcej.
+  nl: Maak flows, sequenties, tijdlijnen en meer.
+  ar: أنشئ مخططات تدفق وتسلسلات وجداول زمنية والمزيد.
+  hi: फ्लोचार्ट, सीक्वेंस, टाइमलाइन और बहुत कुछ बनाएँ।
+  th: สร้างโฟลว์ ลำดับ ไทม์ไลน์ และอื่นๆ
+  cs: Vytvářejte toky, sekvence, časové osy a další.
+  sv: Skapa flöden, sekvenser, tidslinjer och mer.
+  he: יצירת זרימות, רצפים, צירי זמן ועוד.
+  verified_by_human: []
 docs:
   context: App name for the Docs app
   en: Docs
@@ -2349,6 +2407,54 @@ weather.forecast.description:
   cs: Získejte denní a hodinové předpovědi počasí.
   sv: Få dagliga och timvisa väderprognoser.
   he: קבלת תחזית יומית ושעתית.
+  verified_by_human: [en, de]
+weather.rain_radar:
+  context: Skill name for rain radar in Weather app
+  en: Rain radar
+  de: Regenradar
+  zh: Rain radar
+  es: Rain radar
+  fr: Rain radar
+  pt: Rain radar
+  ru: Rain radar
+  ja: Rain radar
+  ko: Rain radar
+  it: Rain radar
+  tr: Rain radar
+  vi: Rain radar
+  id: Rain radar
+  pl: Rain radar
+  nl: Rain radar
+  ar: Rain radar
+  hi: Rain radar
+  th: Rain radar
+  cs: Rain radar
+  sv: Rain radar
+  he: Rain radar
+  verified_by_human: [en, de]
+weather.rain_radar.description:
+  context: Description for rain radar skill in Weather app
+  en: Show nearby rain radar with an interactive timeline.
+  de: Zeigt Regenradar in der Nähe mit interaktiver Zeitleiste.
+  zh: Show nearby rain radar with an interactive timeline.
+  es: Show nearby rain radar with an interactive timeline.
+  fr: Show nearby rain radar with an interactive timeline.
+  pt: Show nearby rain radar with an interactive timeline.
+  ru: Show nearby rain radar with an interactive timeline.
+  ja: Show nearby rain radar with an interactive timeline.
+  ko: Show nearby rain radar with an interactive timeline.
+  it: Show nearby rain radar with an interactive timeline.
+  tr: Show nearby rain radar with an interactive timeline.
+  vi: Show nearby rain radar with an interactive timeline.
+  id: Show nearby rain radar with an interactive timeline.
+  pl: Show nearby rain radar with an interactive timeline.
+  nl: Show nearby rain radar with an interactive timeline.
+  ar: Show nearby rain radar with an interactive timeline.
+  hi: Show nearby rain radar with an interactive timeline.
+  th: Show nearby rain radar with an interactive timeline.
+  cs: Show nearby rain radar with an interactive timeline.
+  sv: Show nearby rain radar with an interactive timeline.
+  he: Show nearby rain radar with an interactive timeline.
   verified_by_human: [en, de]
 weather.day:
   context: Label for a single Weather day embed

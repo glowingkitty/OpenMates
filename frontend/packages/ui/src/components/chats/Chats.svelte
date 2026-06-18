@@ -25,6 +25,7 @@
 	import { getAllDraftChatIdsWithDrafts, clearAllSessionStorageDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
 	import { incognitoChatService } from '../../services/incognitoChatService'; // Import incognito chat service
+	import { anonymousChatStorage } from '../../services/anonymousChatStorage';
 	import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
 	import { hiddenChatStore } from '../../stores/hiddenChatStore'; // Import hidden chat store
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
@@ -403,6 +404,8 @@ let _chatUpdatedFlushPending = false;
 	// - Incognito chats: Ephemeral chats, stored in sessionStorage
 	let incognitoChatsTrigger = $state(0); // Trigger for reactivity when incognito chats change
 	let incognitoChats: ChatType[] = $state([]); // Cache for incognito chats
+	let anonymousChatsTrigger = $state(0);
+	let anonymousChats: ChatType[] = $state([]);
 	// Incremented by the language-changed event handler so visiblePublicChats
 	// is guaranteed to re-derive after translations are confirmed loaded —
 	// even when the locale change originates from a ?lang= URL param (which
@@ -423,10 +426,12 @@ let _chatUpdatedFlushPending = false;
 		
 		// Reference incognitoChatsTrigger to make this reactive to incognito chat changes
 		void incognitoChatsTrigger;
+		void anonymousChatsTrigger;
 		
 		// Load incognito chats (only if incognito mode is enabled)
 		// This is async, so we use the cached incognitoChats array which is updated via effect
 		const _incognitoChats = incognitoChats;
+		const _anonymousChats = anonymousChats;
 		
 		// CRITICAL: For non-authenticated users, include sessionStorage-only chats (new chats with drafts)
 		// These are chats that have drafts in sessionStorage but don't exist in IndexedDB yet
@@ -492,7 +497,7 @@ let _chatUpdatedFlushPending = false;
 		// ORDER MATTERS: We put processedRealChats first so that dynamic demo chats (which have group_key='examples')
 		// are preferred over hardcoded visiblePublicChats (which might have group_key='intro')
 		// olderChatsFromServer are appended last — these are in-memory-only older chats loaded on demand
-		const combinedChats = [...processedRealChats, ...filteredPublicChats, ...sessionStorageChats, ...sharedChats, ..._incognitoChats, ...olderChatsFromServer];
+		const combinedChats = [...processedRealChats, ...filteredPublicChats, ...sessionStorageChats, ...sharedChats, ..._anonymousChats, ..._incognitoChats, ...olderChatsFromServer];
 		const seenIds = new Set<string>();
 		const deduplicatedChats: ChatType[] = [];
 		for (const chat of combinedChats) {
@@ -666,7 +671,21 @@ let _chatUpdatedFlushPending = false;
 				userChats.push(chat);
 			}
 		}
-		return [...userChats.slice(0, visibleUserChatLimit), ...staticChats];
+
+		const visibleUserChats = userChats.slice(0, visibleUserChatLimit);
+		if (selectedChatId && !visibleUserChats.some(chat => chat.chat_id === selectedChatId)) {
+			const activeUserChat = userChats.find(chat => chat.chat_id === selectedChatId);
+			if (activeUserChat) {
+				// Keep the active row mounted even when it is outside the initial recent-chat window.
+				if (visibleUserChats.length >= visibleUserChatLimit && visibleUserChats.length > 0) {
+					visibleUserChats[visibleUserChats.length - 1] = activeUserChat;
+				} else {
+					visibleUserChats.push(activeUserChat);
+				}
+			}
+		}
+
+		return [...visibleUserChats, ...staticChats];
 	})());
 
 	// Determine if "Show more" button should be visible.
@@ -826,6 +845,7 @@ let _chatUpdatedFlushPending = false;
 	let handleContextMenuBulkAction: (event: Event) => void; // Handler for bulk actions from context menu
 	let handleIncognitoChatsDeleted: () => void; // Handler for incognito chats deletion event
 	let handleIncognitoChatsUpdated: () => Promise<void>; // Handler for incognito chats updated event
+	let handleAnonymousChatsUpdated: () => Promise<void>;
 	let handleShowHiddenChatUnlock: (event: Event) => void; // Handler for show hidden chat unlock modal
 	let handleShowOverscrollUnlockForHide: (event: Event) => void; // Handler for show overscroll unlock for hiding chat
 	let handleHiddenChatsAutoLocked: () => void; // Handler for hidden chats auto-locked event
@@ -1546,6 +1566,29 @@ let _chatUpdatedFlushPending = false;
 		}
 	}
 
+	let anonymousChatsLoading = $state(false);
+
+	async function loadAnonymousChats() {
+		if (anonymousChatsLoading) return;
+		anonymousChatsLoading = true;
+		try {
+			if (!$authStore.isAuthenticated) {
+				await anonymousChatStorage.init();
+				anonymousChats = await anonymousChatStorage.getAllChats();
+			} else {
+				anonymousChats = [];
+			}
+			anonymousChatsTrigger++;
+			console.debug('[Chats] Loaded anonymous chats:', anonymousChats.length);
+		} catch (error) {
+			console.error('[Chats] Error loading anonymous chats:', error);
+			anonymousChats = [];
+			anonymousChatsTrigger++;
+		} finally {
+			anonymousChatsLoading = false;
+		}
+	}
+
 	onMount(async () => {
 		// NOTE: Server status (isSelfHosted) is now managed by serverStatusStore
 		// and initialized once at app load in +layout.svelte to prevent UI flashing
@@ -1614,6 +1657,7 @@ let _chatUpdatedFlushPending = false;
 		// Demo chats are loaded synchronously, no sync needed
 		if (!$authStore.isAuthenticated) {
 			console.debug('[Chats] Non-authenticated user - syncing indicator disabled (derived state)');
+			await loadAnonymousChats();
 
 			// CRITICAL: For non-auth users, ensure the welcome demo chat is selected if no chat is active yet
 			// This handles the case where the sidebar mounts before +page.svelte sets the active chat
@@ -1906,6 +1950,11 @@ let _chatUpdatedFlushPending = false;
 		};
 		window.addEventListener('incognitoChatsUpdated', handleIncognitoChatsUpdated);
 
+		handleAnonymousChatsUpdated = async () => {
+			await loadAnonymousChats();
+		};
+		window.addEventListener('anonymousChatsUpdated', handleAnonymousChatsUpdated);
+
 		// Listen for show hidden chat unlock modal event
 		handleShowHiddenChatUnlock = (event: Event) => {
 			const customEvent = event as CustomEvent<{ chatId?: string }>;
@@ -2185,6 +2234,9 @@ let _chatUpdatedFlushPending = false;
 		}
 		if (handleIncognitoChatsUpdated) {
 			window.removeEventListener('incognitoChatsUpdated', handleIncognitoChatsUpdated);
+		}
+		if (handleAnonymousChatsUpdated) {
+			window.removeEventListener('anonymousChatsUpdated', handleAnonymousChatsUpdated);
 		}
 
 		// Clean up hidden chats event listeners
@@ -2516,9 +2568,9 @@ let _chatUpdatedFlushPending = false;
 
 	/**
 	 * Handle clicking an app catalog result from search (app, skill, focus mode, or memory).
-	 * Opens the settings panel and navigates to the app store sub-page.
+	 * Opens the settings panel and navigates to the Apps sub-page.
 	 * On small viewports: also closes the Chats panel so the settings panel is visible.
-	 * @param path - The settings path (e.g., "app_store/ai/skill/ask")
+	 * @param path - The settings path (e.g., "apps/ai/skill/ask")
 	 * @param title - The display title for the breadcrumb
 	 *
 	 * IMPORTANT: navigateToSettings() only updates the breadcrumb/path store — it does NOT
@@ -3829,7 +3881,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		{:else}
 			<!-- Hidden chats section (shown when unlocked) - reusing overscroll-unlock-container styling -->
 			{#if hiddenChatState.isUnlocked}
-				<div class="overscroll-unlock-container">
+				<div class="overscroll-unlock-container" data-testid="hidden-chats-section">
 					<div class="overscroll-unlock-content">
 						<p class="overscroll-unlock-label">
 							<span class="clickable-icon icon_hidden"></span>
@@ -3841,29 +3893,30 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									{#if groupItems.length > 0}
 										<div class="chat-group">
 											<h2 class="group-title" data-testid="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
-											{#each groupItems as chat (chat.chat_id)}
-												<div
-													role="button"
-													tabindex="0"
-													class="chat-item hidden-chat-item"
-													class:active={selectedChatId === chat.chat_id}
-													onclick={(event) => {
-														handleChatItemClick(chat, event);
-														hiddenChatStore.recordActivity();
-													}}
-													onkeydown={(e) => {
-														if (e.key === 'Enter' || e.key === ' ') {
-															e.preventDefault();
-															// Create a synthetic mouse event for keyboard navigation
-															const syntheticEvent = new MouseEvent('click', {
-																bubbles: true,
-																cancelable: true
-															});
-															handleChatItemClick(chat, syntheticEvent);
-															hiddenChatStore.recordActivity();
-														}
-													}}
-												>
+									{#each groupItems as chat (chat.chat_id)}
+										<div
+											role="button"
+											tabindex="0"
+											data-testid="hidden-chat-item"
+											class="chat-item hidden-chat-item"
+											class:active={selectedChatId === chat.chat_id}
+											onclick={(event) => {
+												handleChatItemClick(chat, event);
+												hiddenChatStore.recordActivity();
+											}}
+											onkeydown={(e) => {
+												if (e.key === 'Enter' || e.key === ' ') {
+													e.preventDefault();
+													// Create a synthetic mouse event for keyboard navigation
+													const syntheticEvent = new MouseEvent('click', {
+														bubbles: true,
+														cancelable: true
+													});
+													handleChatItemClick(chat, syntheticEvent);
+													hiddenChatStore.recordActivity();
+												}
+											}}
+										>
 													<ChatComponent
 														{chat}
 														activeChatId={selectedChatId}

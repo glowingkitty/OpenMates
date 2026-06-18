@@ -34,7 +34,7 @@ export interface SettingsCatalogEntry {
  * Represents an app, skill, focus mode, or memory field that is searchable.
  */
 export interface AppCatalogEntry {
-  /** The settings navigation path (e.g., "app_store/ai", "app_store/ai/skill/ask") */
+  /** The settings navigation path (e.g., "apps/ai", "apps/ai/skill/ask") */
   path: string;
   /** Translation key for the display label */
   nameTranslationKey: string;
@@ -169,7 +169,7 @@ const SETTINGS_CATALOG: SettingsCatalogEntry[] = [
   },
   // Apps — requires authentication (app installations are per-account)
   {
-    path: "app_store",
+    path: "apps",
     translationKey: "settings.apps",
     icon: "icon_apps",
     access: "authenticated",
@@ -406,7 +406,7 @@ function buildAppSearchCatalog(): AppCatalogEntry[] {
 
   for (const app of Object.values(appsMetadata)) {
     // Skip the AI app — its settings are now under the top-level "AI" settings menu,
-    // not the app store. The AI app still exists in the backend API for developers.
+    // not Apps. The AI app still exists in the backend API for developers.
     if (app.id === "ai") continue;
     // Collect app-level provider names as lowercase keywords (e.g. ["anthropic", "google"])
     // so users can find apps by typing a provider name like "Anthropic" or "OpenAI".
@@ -416,7 +416,7 @@ function buildAppSearchCatalog(): AppCatalogEntry[] {
 
     // App itself
     entries.push({
-      path: `app_store/${app.id}`,
+      path: `apps/${app.id}`,
       nameTranslationKey: app.name_translation_key || `apps.${app.id}`,
       descriptionTranslationKey: app.description_translation_key,
       icon: null, // Apps use icon_image (SVG), not icon class
@@ -435,7 +435,7 @@ function buildAppSearchCatalog(): AppCatalogEntry[] {
           : appProviderKeywords;
 
       entries.push({
-        path: `app_store/${app.id}/skill/${skill.id}`,
+        path: `apps/${app.id}/skill/${skill.id}`,
         nameTranslationKey: skill.name_translation_key,
         descriptionTranslationKey: skill.description_translation_key,
         icon: null,
@@ -448,7 +448,7 @@ function buildAppSearchCatalog(): AppCatalogEntry[] {
     // Focus modes
     for (const focusMode of app.focus_modes || []) {
       entries.push({
-        path: `app_store/${app.id}/focus/${focusMode.id}`,
+        path: `apps/${app.id}/focus/${focusMode.id}`,
         nameTranslationKey: focusMode.name_translation_key,
         descriptionTranslationKey: focusMode.description_translation_key,
         icon: null,
@@ -461,7 +461,7 @@ function buildAppSearchCatalog(): AppCatalogEntry[] {
     // Memories
     for (const memory of app.settings_and_memories || []) {
       entries.push({
-        path: `app_store/${app.id}/settings_memories/${memory.id}`,
+        path: `apps/${app.id}/settings_memories/${memory.id}`,
         nameTranslationKey: memory.name_translation_key,
         descriptionTranslationKey: memory.description_translation_key,
         icon: null,

@@ -1,0 +1,1347 @@
+id: calendar-permission-management
+title: Calendar Permission Management And Google Calendar V1
+status: draft
+
+goal: >
+  Add a privacy-first connected-account permission platform for high-risk app
+  skills, then prove it with a Google Calendar v1 app that can read, create,
+  update, and delete calendar events without exposing long-lived provider tokens
+  or connected account identities to server admins or LLM prompts.
+
+scope:
+  in:
+    - Cross-app connected account model for provider accounts that can later be reused by Calendar, Mail, Contacts, Finance, and other apps.
+    - Google Calendar as the first provider and Calendar as the first app using the permission platform.
+    - Calendar account connection with capability toggles for Read, Write, and Delete; all selected by default when connecting from the Calendar app, with user ability to untoggle Write and Delete before OAuth.
+    - Per-connected-account, per-app, per-action runtime permission settings: Always ask, Auto decide when to ask, and Allow automatically.
+    - Default Calendar runtime permissions: Read is Allow automatically; Write and Delete are Always ask.
+    - Incremental OAuth consent so requested Google scopes match selected capabilities and later account updates add only newly enabled capabilities.
+    - Client-side encrypted persistent refresh-token storage by default, with provider/account identity encrypted or hashed so Directus/admin views cannot reveal which provider account is connected.
+    - Active-turn token broker that receives eligible refresh-token envelopes from the client, stores them Vault-encrypted in Redis/memory under short-lived turn-token refs, and lazily exchanges only selected refs for access tokens after the permission broker authorizes an exact account/action.
+    - Mandatory initial refresh-token pre-submission to the token broker for connected accounts/actions whose runtime mode is Auto decide or Allow automatically, so the request can continue if the user locks or closes the device after sending the message.
+    - Memory-permission-like pause/resume flow for Always ask actions and Auto decide ask outcomes, including account selection or switching before approval.
+    - Deterministic permission broker and optional safeguard LLM that can allow Auto decide actions or ask the user; Auto decide never silently blocks a permitted action.
+    - Allow automatically mode means the action runs without an approval prompt whenever the account has the capability and the action can be executed safely at the technical authorization layer.
+    - Short cancel windows for auto-approved mutations, so users who are present can interrupt an automatic create, update, delete, or future send action before provider mutation.
+    - Undo contracts for permission-managed mutations, including provider action journals, fullscreen embed buttons, and embed context menu actions when undo is technically possible.
+    - Encrypted system receipt messages for permission-managed skill executions, covering manual approval, auto approval, auto-decide approval, rejection, cancellation, and undo outcomes.
+    - Calendar search/get-events, create-event, update-event, and delete-event skills with dedicated embed preview and fullscreen components.
+    - Privacy and app settings UX: Privacy & Security > Connected accounts as the canonical cross-app account list, plus Calendar > Accounts as the app-scoped view over the same records.
+    - Client-mediated execution only for provider-backed connected-account skills: web, CLI, and Apple can submit local refresh-token envelopes to the broker, while REST/API-key skill execution cannot call these skills unless a future explicit offline automation grant exists.
+  out:
+    - Gmail/Mail, Contacts, Drive, Microsoft, Outlook, CalDAV, Revolut, or other non-Calendar providers beyond data-model extensibility and UX placeholders.
+    - Offline automation token storage except for explicit future workflow hooks and contracts; v1 only defines the boundary and warning requirements.
+    - Payment initiation, bank transfer creation, or finance write actions.
+    - Full recurring-event editor parity beyond detection, display, risk labeling, cancel-window, and undo requirements for recurring updates/deletes.
+    - Replacing the existing backend user-data permission audit; this spec builds on it with action-level app-skill permission policy.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials."
+    - "gh fallback searches for permission/app skills/OAuth/calendar/mail/finance found no matching issues."
+  linear_tasks:
+    - "scripts/linear.py searches for permission app skills/OAuth/calendar/mail/finance returned no matching open retained tasks."
+  docs:
+    - docs/specs/user-data-permission-audit/spec.yml
+    - backend/core/api/app/security/user_data_permissions.yml
+    - docs/specs/app-skill-processing-quality/spec.yml
+    - docs/user-guide/apps/mail.md
+    - docs/architecture/messaging/message-processing.md
+    - docs/architecture/phased_sync_handler.md
+    - docs/architecture/privacy/sensitive-data-redaction.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - backend/apps/base_skill.py
+    - backend/apps/mail/app.yml
+    - backend/apps/reminder/app.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - frontend/packages/ui/src/services/websocketService.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+  external_research:
+    - "RFC 9700 OAuth 2.0 Security Best Current Practice: authorization code + PKCE, refresh token rotation/sender constraints, least privilege, token revocation."
+    - "Google Calendar API scopes: choose the most narrowly focused scope possible; freebusy/read events/write events have separate scopes/capabilities."
+    - "Google Gmail scopes: sensitive/restricted scopes and storage/transmission implications confirm future Mail must request only app-specific scopes when needed."
+    - "Microsoft Entra consent guidance: delegated permissions, user/admin consent, least privilege, and dynamic/incremental consent."
+    - "OWASP LLM06 Excessive Agency: minimize tools/functions/permissions, execute in user context, require human approval for high-impact actions, and enforce authorization outside the LLM."
+    - "NIST SP 800-63B: reauthentication/session lifetime and phishing-resistant transaction confirmation guidance for high-risk actions."
+    - "Revolut Business API scopes: READ, WRITE, PAY, and sensitive-card data reinforce separate read/write/pay risk classes for future finance apps."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/**/Settings*
+    - apple/OpenMates/Sources/**/Chat*
+    - apple/OpenMates/Sources/**/Embeds*
+  parity_expectations:
+    - Apple must eventually expose Connected accounts and Calendar account permissions with the same plain-language Read, Write, Delete actions and runtime permission modes.
+    - Apple chat must render account/permission approval cards and Calendar embeds with native components matching web behavior.
+    - This first spec may implement web/backend first, but must keep API and sync contracts platform-neutral.
+  verification:
+    - Apple affected. On Linux, use python3 scripts/apple_remote.py status and then build-ios or test-ios after implementation unless Apple work is explicitly deferred in a follow-up spec.
+  intentional_native_differences:
+    - Native account OAuth connection may use OS web-auth APIs, but resulting encrypted connected-account records and permission decisions must match web contracts.
+
+clarification:
+  rounds:
+    - question: Should the first spec define only the permission framework or also a pilot app?
+      answer: Both permission management and the first app, starting with Calendar.
+    - question: Which Calendar provider should v1 target first?
+      answer: Google Calendar first, while keeping other providers in mind for later.
+    - question: Should create/update/delete support only owned calendars or shared writable calendars too?
+      answer: Also support shared calendars.
+    - question: How should non-technical users control permission prompts?
+      answer: Use simple Read, Write, Delete settings with Always ask, Auto decide when to ask, and Allow automatically rather than raw API scopes.
+    - question: Where should account and permission settings live?
+      answer: Connected accounts should be centrally available under Privacy & Security, with app settings showing an app-scoped Accounts section over the same records.
+    - question: How should active chat continue after the user locks the phone?
+      answer: For Auto decide and Allow automatically, the client must submit eligible refresh-token envelopes with the message to a token broker. The broker stores them Vault-encrypted in Redis/memory under short-lived turn-token refs, exchanges only the selected ref just-in-time after the permission broker authorizes the exact action, discards plaintext refresh tokens immediately after exchange, and deletes refs/access-token handles after completion.
+    - question: Should Allow automatically ever ask the user for confirmation because a permitted action looks risky?
+      answer: No. Allow automatically means the action runs without a confirmation prompt whenever the account capability, OAuth grant, ref/action scope, and owner checks permit it. Risky actions should rely on default settings, clear receipts, short cancel windows, and undo where possible instead of surprising prompts.
+    - question: Should Auto decide be allowed to block actions without user confirmation?
+      answer: No. Auto decide either approves or asks the user. It cannot silently block a permitted action; if the broker or safeguard is uncertain, it asks and waits like Always ask.
+    - question: How should users keep control over auto-approved write actions?
+      answer: Auto-approved mutations should show a short Press to cancel window when the user is present, then provide undo through the fullscreen embed and embed context menu when undo is technically possible. Future Mail send should use delayed sending so undo can cancel the pending send before delivery.
+    - question: Should permission-managed skill executions be reflected in chat history?
+      answer: Yes. Each permission-managed execution should create an encrypted system receipt message summarizing whether the action was user-approved, auto-approved, auto-decided approved, rejected, cancelled, or undone, with mixed receipts when a turn has multiple outcomes.
+    - question: For auto-approved Calendar create/update/delete actions, what should the default "Press to cancel" countdown be?
+      answer: 4 seconds.
+    - question: For future Mail sending, what should the default delayed-send undo window be?
+      answer: 30 seconds. For actions that can only be undone within a limited window, the embed preview should show a progress bar and a direct "Press to undo send" style action while undo remains available.
+    - question: Should users be allowed to customize the future Mail delayed-send undo window in v1?
+      answer: No. Use a fixed 30-second send delay in v1; customization may be added later.
+    - question: How should CLI approval work compared with web and Apple?
+      answer: CLI must have full approval parity. If a CLI-triggered action needs approval, the user must be able to review account, action details, approve/reject, cancel auto-approved mutations, view receipts, and run undo directly in CLI without switching to the web or Apple app.
+    - question: Should interactive CLI commands keep waiting for user approval input, and how should the backend avoid long-running approval waits?
+      answer: Interactive CLI commands may stay open and wait for approve/reject input, but server-side AI/tool workers must not wait indefinitely. When approval is needed, the backend ends the current processing request after creating an encrypted pending approval system message and minimal pending context; a later user approval or rejection triggers a new continuation pass.
+    - question: What should the pending approval TTL be before it expires if the user never responds?
+      answer: 7 days, matching the app settings/memories request system.
+    - question: When an approval expires after 7 days, should the chat show an encrypted system receipt?
+      answer: Yes. Permission-managed approvals and app settings/memories requests should add an encrypted expiration receipt so the user understands that no action continued because the request expired.
+    - question: If one turn has some auto-approved account actions and one action that asks the user, what happens to auto-created token refs while waiting?
+      answer: Pending approval stores only the action bundle, account refs, and decision state. Short-lived turn-token refs and access-token handles for auto-approved accounts may expire while waiting. When the user responds later, the approving client must submit fresh token-broker refs for every still-needed auto-approved and manually approved account/action before continuation executes.
+    - question: Should delayed continuation automatically recreate expired token-broker refs for account/action refs that were already approved by Allow automatically or Auto decide?
+      answer: Yes. After the user responds to the asked approval, the client should automatically create fresh token-broker refs for all still-needed already-approved account/action refs whose refs expired, without asking again for those already-approved parts. The backend must re-check current provider state before executing mutations.
+    - question: When should the client show a user message as Sent if connected-account token refs are needed?
+      answer: Only after the backend confirms that the user message, connected-account directory, and required token-broker refs for that active turn were accepted. If broker submission fails, the message remains in Sending/Error state and must not appear Sent.
+    - question: Can REST API keys call provider-backed connected-account skills?
+      answer: No. Normal REST/API-key execution cannot call skills that require client-held refresh tokens, because those tokens are only accessible inside web, CLI, and Apple clients. Future offline automation may add a separate explicit server-side grant with its own scope, expiry, max-operation, and revocation controls.
+    - question: If a mixed approval bundle has multiple actions and the user rejects one requested action, should already-approved actions still execute?
+      answer: Yes. Already-approved actions continue and the assistant response completes with partial-results context. Rejected or failed permission actions produce receipts and are omitted, similar to how one failing app skill should not fail the whole request.
+    - question: Should approval cards allow approving/rejecting requested actions individually or only as a whole subset?
+      answer: Approval cards should show a list of requested actions with toggles selected by default. The user can untoggle individual actions, then press Approve to approve all selected actions. A Reject all button rejects every requested action.
+    - question: For an approval card with multiple accounts/actions, should the user be able to switch accounts per action?
+      answer: Yes, allow switching the account per action when multiple connected accounts are available. Account labels and anonymized refs must be clear and specific enough to avoid user and assistant confusion, for example google-personal and google-work are acceptable, while vague suffixes such as -work-2 should prompt for a clearer label like google-openmates or google-glowingkitty.
+  vision_summary: >
+    OpenMates should let non-technical users connect provider accounts and control
+    assistant autonomy with plain action-level settings rather than API scopes.
+    Google Calendar v1 proves the model: persistent provider identity and refresh
+    tokens remain client-side encrypted, while active turns use short-lived
+    broker-held turn-token refs so auto-approved requests continue after device
+    lock without storing long-lived secrets server-side. Access tokens are minted
+    lazily only for selected account/actions after deterministic authorization.
+    Deterministic policy remains the authority;
+    the safeguard LLM can reduce approval fatigue for Auto decide but cannot bypass
+    technical authorization checks. Auto decide never silently blocks a permitted
+    action: it either approves or asks the user. Allow automatically never asks
+    for approval; user control comes from transparent receipts, short cancel
+    windows for mutations, and undo where technically possible.
+  approved_by_user: true
+
+user_facing_permission_model:
+  capability_toggles_at_connect:
+    calendar:
+      read:
+        label: Read calendar events
+        default_selected: true
+        oauth_behavior: Request the minimum Google Calendar scopes needed for selected read behavior.
+      write:
+        label: Create or edit events
+        default_selected: true
+        oauth_behavior: Request additional Google Calendar event-write capability only when selected.
+      delete:
+        label: Delete events
+        default_selected: true
+        oauth_behavior: Request provider capability needed for event deletion only when selected; if covered by write scope, still track Delete as a separate OpenMates capability.
+  runtime_permission_modes:
+    always_ask:
+      label: Always ask
+      behavior: No turn-token ref or access-token handle is created until the user approves a specific request.
+    auto_decide:
+      label: Auto decide when to ask
+      behavior: Eligible refresh-token envelopes are pre-submitted to the token broker with each message and stored under short-lived turn-token refs. Deterministic policy and, when needed, safeguard LLM decide whether to lazily exchange the selected ref for an access-token handle or ask the user. Auto decide never silently blocks a permitted action; uncertainty or unavailable safeguard returns ask_user.
+    allow_automatically:
+      label: Allow automatically
+      behavior: Eligible refresh-token envelopes are pre-submitted to the token broker with each message and stored under short-lived turn-token refs. Matching actions lazily exchange the selected ref and use the resulting access-token handle without a confirmation prompt whenever capability, OAuth grant, owner, and ref/action-scope checks pass. Mutations may show a short cancel window, but not an approval prompt.
+  auto_mutation_control:
+    cancel_window:
+      label: Press to cancel
+      behavior: Auto-approved create, update, delete, and future send actions show a short interruptible countdown when the user has an active foreground session. If no foreground client is available, the action proceeds according to the user's runtime mode. CLI and Apple clients must implement equivalent countdown/cancel behavior rather than treating this as web-only.
+    undo:
+      label: Undo
+      behavior: Every permission-managed mutation records enough operation journal data to offer undo from the fullscreen embed, embed preview, embed context menu, and equivalent CLI/Apple action surfaces when technically possible. Time-limited undo windows show a visible progress bar and direct preview action such as "Press to undo send" while undo remains available. The UI must show a disabled Undo control with a plain-language reason when undo is impossible or expired.
+    receipts:
+      behavior: Each permission-managed skill execution creates an encrypted system receipt message with action, decision mode, account ref, outcome, cancel/undo availability, expiration status, and no provider tokens or plaintext provider identities. Web, CLI, and Apple clients must render or expose these receipts consistently. App settings/memories permission requests should follow the same expiration-receipt pattern.
+  calendar_defaults:
+    read: allow_automatically
+    write: always_ask
+    delete: always_ask
+
+scenarios:
+  - id: S-1
+    title: User connects Google Calendar with selected capabilities
+    given:
+      - Alice opens Calendar > Accounts and chooses Connect account.
+    when:
+      - The UI shows Read, Write, and Delete capability toggles selected by default.
+      - Alice untoggles Delete and continues.
+    then:
+      - Google OAuth requests only the scopes required for selected Calendar Read and Write capabilities.
+      - The backend returns token material only once to the client and discards plaintext tokens after the response.
+      - The client stores provider identity, account label, capabilities, permissions, and refresh-token bundle encrypted under Alice's client-side key material.
+      - Directus stores only hashed owner fields, encrypted provider/account data, and non-reversible hashes needed for dedupe/routing.
+      - If multiple connected accounts would have confusing labels or anonymized refs, the UI asks Alice to choose clearer labels before using them in assistant-visible account directories.
+
+  - id: S-2
+    title: User sends an auto-allowed calendar read and locks the phone
+    given:
+      - Alice has a connected Calendar account with Read set to Allow automatically.
+    when:
+      - Alice sends "Summarize my work calendar this week" and immediately locks her phone.
+    then:
+      - The client includes an anonymized account directory and submits the eligible refresh-token envelope to the token broker as part of the same outbound message flow.
+      - The message remains in Sending state until the backend confirms that the user message, account directory, and token-broker ref were accepted.
+      - The token broker stores the refresh-token envelope Vault-encrypted in Redis/memory under a short-lived turn-token ref without exchanging it yet.
+      - The main processor can continue after device lock, select the intended anonymized account, and ask the Calendar skill to read events through that ref.
+      - The permission broker authorizes the exact read action before the token broker decrypts the selected refresh token, exchanges it for an access token, handles any rotated refresh token by returning it to the client for re-encryption, discards plaintext refresh token immediately after exchange, and exposes only a scoped short-lived access-token handle to provider execution.
+      - The turn-token ref and access-token handle are deleted when the assistant response completes, errors, is cancelled, or their short TTL expires.
+
+  - id: S-3
+    title: User has multiple Always ask accounts and approves a specific read
+    given:
+      - Alice has personal and work Calendar accounts connected.
+      - Both accounts have Read set to Always ask.
+    when:
+      - Alice asks "Summarize my work calendar this week."
+    then:
+      - The client sends an anonymized account directory but no token-broker ref.
+      - The main processor chooses the work account reference from the anonymized labels and asks the permission broker for Calendar Read.
+      - The permission broker returns ask_user.
+      - The UI shows a permission card with the selected account, action, date range, and an option to choose a different connected account.
+      - The permission card lists requested actions with toggles selected by default, plus Approve selected and Reject all actions.
+      - When multiple connected accounts are available, each requested action can switch to a different account independently.
+      - Only after Alice approves selected actions does the client submit the selected account refresh-token envelopes to the token broker and allow the backend to continue those approved actions.
+
+  - id: S-4
+    title: Auto decide either approves or asks before exchanging a broker ref
+    given:
+      - Alice has Calendar Read set to Auto decide when to ask.
+    when:
+      - Alice asks a calendar question that may require reading a broad date range.
+    then:
+      - The client pre-submits eligible refresh-token envelopes to the token broker and sends opaque turn-token refs with the message.
+      - The permission broker evaluates the action proposal before any ref is exchanged for an access token.
+      - Deterministic ask rules override the safeguard LLM.
+      - The safeguard LLM receives only a redacted structured action proposal and can return allow_without_prompt or ask_user.
+      - If the safeguard fails or is uncertain, the UI asks Alice and waits for her decision.
+      - Auto decide does not silently block a permitted action.
+
+  - id: S-5
+    title: Write action defaults to explicit approval
+    given:
+      - Alice has Calendar Write capability enabled and runtime Write set to Always ask.
+    when:
+      - Alice asks "Add a dentist appointment tomorrow at 3pm."
+    then:
+      - The backend creates an event proposal instead of immediately mutating Google Calendar.
+      - The approval card shows account, calendar, title, date, time, attendees, recurrence, reminders, and detected conflicts.
+      - After Alice approves, the client creates a write-scoped token-broker ref, the backend lazily exchanges it after final authorization, creates the event, and the response includes a created-event embed.
+
+  - id: S-6
+    title: Delete action is transparent and undoable where possible
+    given:
+      - Alice has Calendar Delete capability enabled.
+    when:
+      - Alice asks to delete a recurring event, a bulk set of events, or an event with external attendees.
+    then:
+      - If Delete is Always ask, the approval card shows exact affected events and risk reason.
+      - If Delete is Auto decide, the broker either approves or asks Alice; it never silently blocks a permitted delete.
+      - If Delete is Allow automatically, the action runs without approval after any configured cancel window.
+      - After deletion, the Calendar delete embed shows the surrounding calendar context with the deleted event ghosted or greyed out and an Undo control when the event can be recreated safely from the operation journal.
+
+  - id: S-7
+    title: User manages connected accounts centrally and from Calendar settings
+    given:
+      - Alice has a Google account connected for Calendar.
+    when:
+      - Alice opens Privacy & Security > Connected accounts.
+    then:
+      - The client decrypts and lists connected accounts across apps.
+      - Alice can open the same account detail page from Privacy & Security or Calendar > Accounts.
+      - Alice can update Calendar Read, Write, and Delete runtime modes, revoke Calendar capabilities, or add supported future app sections such as Mail or Contacts without visiting each app first.
+
+  - id: S-8
+    title: Main processor sees account choices but never token secrets
+    given:
+      - Alice has one or more connected Calendar accounts.
+    when:
+      - The main processor builds the prompt for a Calendar-capable turn.
+    then:
+      - The prompt may include anonymized account references and user-approved labels such as work calendar or calendar account 1.
+      - The prompt does not include email addresses, OAuth scopes, refresh tokens, access tokens, provider account IDs, or Directus record IDs.
+      - Calendar tools receive opaque account/action refs through server-side execution context, not LLM-visible arguments, and only the token broker can resolve a ref to provider credentials.
+
+  - id: S-9
+    title: Missing capability triggers account update instead of broad upfront access
+    given:
+      - Alice connected Calendar with Read only.
+    when:
+      - Alice asks to create an event.
+    then:
+      - The backend returns an account capability update request instead of attempting the write.
+      - The UI explains that creating events requires enabling Calendar Write for that connected account.
+      - If Alice approves, OAuth requests only the additional required Google Calendar capability.
+
+  - id: S-10
+    title: Offline automation remains explicit and separate from normal chat
+    given:
+      - Alice asks OpenMates to run a Calendar task every morning while her devices may be offline.
+    when:
+      - The system detects offline automation is required.
+    then:
+      - The UI explains that this requires server-side access while Alice is away.
+      - Normal Auto decide or Allow automatically chat settings are not enough to create a persistent server-side refresh-token copy.
+      - Alice must approve a scoped automation grant with account, app, actions, schedule, expiry, max operations, and revocation path.
+
+  - id: S-11
+    title: Auto-approved mutation gives present users a cancel window
+    given:
+      - Alice has Calendar Write set to Allow automatically.
+      - Alice is actively viewing the chat on one device.
+    when:
+      - Alice asks "Move my dentist appointment from 3pm to 4pm."
+    then:
+      - The backend prepares the exact update operation and records a pending operation id.
+      - The UI shows "Auto-approved. Press to cancel..." with a short countdown before the provider update executes.
+      - If Alice presses cancel before the countdown completes, no provider mutation occurs and the chat receives a cancelled receipt.
+      - If Alice does not cancel, the update executes and the resulting embed includes Undo.
+
+  - id: S-12
+    title: Permission-managed executions create encrypted decision receipts
+    given:
+      - Alice asks one message that reads Calendar events and creates a new event.
+      - Calendar Read is Allow automatically and Calendar Write is Always ask.
+    when:
+      - The read runs automatically and Alice approves the create proposal.
+    then:
+      - The chat receives an encrypted system receipt summarizing "Auto-approved Calendar Read" and "User approved Calendar Create".
+      - The receipt contains no provider tokens, provider emails, raw OAuth scopes, or plaintext provider account ids.
+      - Future LLM context may receive only a redacted receipt summary, not raw operation journal data.
+
+  - id: S-13
+    title: Undo reverses supported Calendar mutations from the embed
+    given:
+      - Alice created, updated, or deleted a Calendar event through a permission-managed skill.
+    when:
+      - Alice opens the fullscreen Calendar mutation embed or its context menu and chooses Undo.
+    then:
+      - The backend verifies the operation journal, owner hash, account ref, action id, expiry, provider revision or etag, and undo capability.
+      - Supported create undo deletes the created event; supported update undo restores the previous snapshot; supported delete undo recreates the deleted event from a pre-delete snapshot.
+      - The chat receives an encrypted undo receipt and the embed updates to show the undo outcome.
+
+  - id: S-14
+    title: Future Mail send uses delayed send as undo
+    given:
+      - A future Mail app supports provider-backed email sending.
+      - Alice approves or auto-allows a send action.
+    when:
+      - The send action would otherwise deliver an email immediately.
+    then:
+      - The system queues the send for the user's configured delay, defaulting to 30 seconds, instead of delivering immediately.
+      - The embed preview shows a progress bar and "Press to undo send" action while the email is queued.
+      - Undo cancels the pending send before delivery.
+      - After delivery, Undo is disabled with a reason explaining that sent email cannot be recalled by OpenMates.
+      - The delay is fixed at 30 seconds in v1; user customization is out of scope.
+
+  - id: S-15
+    title: CLI exposes equivalent permission approval, cancel, receipt, and undo flows
+    given:
+      - Alice uses OpenMates CLI with connected Calendar accounts synced locally.
+    when:
+      - A Calendar action needs approval, is auto-approved with a cancel window, creates a receipt, or supports undo.
+    then:
+      - Always ask and Auto decide ask outcomes pause the CLI command and prompt Alice with the same action summary, account choices, and approve/reject options as web.
+      - The interactive CLI process may stay open waiting for Alice's input, but no backend AI worker or provider tool call waits indefinitely while the prompt is displayed.
+      - Auto-approved mutations show a terminal countdown with a cancel key or typed command during the 4-second cancel window when the command is interactive.
+      - Non-interactive CLI mode never hangs for approval or cancel input; it either requires an explicit prior permission mode/flag or returns a structured pending-approval or auto-executed receipt.
+      - CLI output shows encrypted receipt summaries and exposes undo commands for supported operations while undo remains available.
+      - CLI approval, rejection, cancellation, and undo are completed in CLI; no web or Apple handoff is required.
+
+  - id: S-16
+    title: Approval waits do not hold backend workers open
+    given:
+      - Alice triggers a Calendar action that requires Always ask or Auto decide ask approval.
+    when:
+      - The backend determines user approval is needed.
+    then:
+      - The backend creates an encrypted pending approval system message and stores only minimal pending context with a 7-day TTL, matching app settings/memories requests.
+      - The current AI processing request ends cleanly without holding a worker, token-broker ref, access-token handle, or open tool call while waiting for Alice.
+      - If Alice approves later from web, CLI, or Apple, the approval creates or supplies the required token-broker ref and triggers a new continuation pass for the exact approved action.
+      - If Alice rejects one requested action in a mixed action bundle, the system records an encrypted rejection receipt for that action, omits it from execution, and continues already-approved actions.
+      - The approval UI lists requested actions with toggles selected by default, lets Alice untoggle individual requested actions, approves selected actions through a single Approve action, and rejects all requested actions through Reject all.
+      - If multiple connected accounts are available, the approval UI lets Alice switch the account independently per requested action.
+      - If Alice never responds, the pending approval expires after 7 days without degrading server performance, records an encrypted expiration receipt, and does not continue the action.
+      - Pending approval storage never contains plaintext refresh tokens or access tokens. Any pre-created Auto decide or Allow automatically turn-token ref or access-token handle expires on its short TTL and is not extended to match the 7-day pending approval TTL.
+      - If the pending action bundle also included auto-approved account actions, continuation re-creates fresh token-broker refs for those account/action refs before executing rather than relying on refs created during the original message send.
+      - Fresh ref recreation for already-approved Allow automatically and Auto decide approved account/action refs happens automatically during continuation and does not show another approval prompt for those already-approved parts.
+      - Before executing delayed update/delete mutations, the backend re-checks provider object state, revision/etag, and action preconditions. If material provider state changed since the original proposal, execution pauses and asks Alice to confirm the refreshed proposal.
+      - Rejected, unavailable, or failed action refs are reported as partial-results context rather than failing the whole assistant response when other approved actions can still complete.
+
+  - id: S-17
+    title: Live Google Calendar smoke tests use a dedicated test account
+    given:
+      - CI or a maintainer environment has a dedicated Google test account configured through Vault or environment secrets.
+      - The test account has deterministic calendars and events that can be recreated before each run.
+    when:
+      - Optional live Calendar integration tests run.
+    then:
+      - The tests connect or seed a Calendar account without storing plaintext credentials in git.
+      - The test creates, updates, deletes, cancels, and undoes events only in dedicated test calendars.
+      - Provider cleanup runs even on failure, and tests are skipped with an explicit reason when the Vault/env credentials are unavailable.
+      - Normal backend pytest and Playwright contract tests still pass without live Google credentials by using fake provider/token-broker fixtures.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Calendar connection requests Google OAuth scopes derived from selected Read, Write, and Delete capabilities, persists provider/account/token data encrypted or hashed so admins cannot identify the connected provider account from Directus, and requires clear non-confusing user labels/anonymized refs when multiple accounts are connected.
+  - id: AC-2
+    scenario: S-2
+    text: For Allow automatically Calendar Read, eligible refresh-token envelopes are submitted to the token broker during message send, stored Vault-encrypted under short-lived turn-token refs, exchanged lazily only after the exact read action is selected and authorized, and represented to main processing only as opaque account/action refs.
+  - id: AC-3
+    scenario: S-3
+    text: Always ask Calendar actions never create token-broker refs or access-token handles until the user approves a specific account/action request, and the user can change the selected account during approval.
+  - id: AC-4
+    scenario: S-4
+    text: Auto decide Calendar actions pre-create eligible turn-token refs and either lazily exchange the selected ref after deterministic policy or optional safeguard permits the exact action, or ask the user and wait; Auto decide never silently blocks a permitted action.
+  - id: AC-5
+    scenario: S-5
+    text: Calendar Write defaults to Always ask and uses a proposal/approval flow before creating or editing provider events.
+  - id: AC-6
+    scenario: S-6
+    text: Calendar Delete follows the selected runtime mode exactly, renders transparent deleted-event context after success, and offers Undo when the operation journal can safely recreate the affected event state.
+  - id: AC-7
+    scenario: S-7
+    text: Connected accounts are managed centrally under Privacy & Security and app-scoped under Calendar > Accounts as two views over the same encrypted account records.
+  - id: AC-8
+    scenario: S-8
+    text: LLM prompts and tool-call arguments never include provider tokens, raw OAuth scopes, email addresses, provider account IDs, or plaintext provider identities unless the user explicitly named an account label that way.
+  - id: AC-9
+    scenario: S-9
+    text: Missing Calendar capabilities trigger an incremental account update flow instead of requesting unrelated provider scopes or silently failing.
+  - id: AC-10
+    scenario: S-10
+    text: Persistent server-side refresh-token access is only available through explicit scoped offline automation grants, not normal chat Auto decide or Allow automatically settings.
+  - id: AC-11
+    scenario: S-11
+    text: Auto-approved Calendar mutations show an interruptible cancel window when a foreground client is available, without converting Allow automatically into an approval prompt.
+  - id: AC-12
+    scenario: S-12
+    text: Every permission-managed skill execution creates an encrypted system receipt covering manual approvals, automatic approvals, auto-decide approvals, rejections, cancellations, and mixed outcomes without exposing provider secrets or plaintext identities.
+  - id: AC-13
+    scenario: S-13
+    text: Supported Calendar create, update, and delete mutations can be undone from the fullscreen embed or embed context menu after server-side operation-journal verification.
+  - id: AC-14
+    scenario: S-14
+    text: Future Mail send actions use a fixed 30-second delayed send in v1 so Undo can cancel a pending send before delivery, and clearly disable Undo after delivery.
+  - id: AC-15
+    scenario: S-15
+    text: OpenMates CLI implements equivalent permission approval, auto-approval cancel, encrypted receipt, and undo surfaces, with safe non-interactive behavior.
+  - id: AC-16
+    scenario: S-16
+    text: Approval prompts never hold backend AI workers or provider tool calls open indefinitely; delayed approval/rejection resumes from minimal pending context, supports per-action toggles and account switching with Approve selected and Reject all, continues already-approved actions in mixed bundles, or expires safely with an encrypted expiration receipt and no long-lived server token retention.
+  - id: AC-18
+    scenario: S-2
+    text: A user message that requires connected-account token refs is shown as Sent only after the backend confirms the message, connected-account directory, and required broker refs were accepted; broker preparation failures keep the message in Sending/Error state.
+  - id: AC-19
+    scenario: S-10
+    text: REST/API-key skill execution cannot invoke provider-backed connected-account skills that require client-held refresh tokens unless a separate explicit offline automation grant exists.
+  - id: AC-17
+    scenario: S-17
+    text: Calendar approval, cancel, undo, and provider mutation behavior is covered by deterministic fake-provider tests and optional live Google Calendar smoke tests using a dedicated Vault/env-backed test account.
+
+contracts:
+  data:
+    - collection: connected_accounts
+      fields:
+        - id: client-generated UUID
+        - hashed_user_id: sha256 user id for owner filtering
+        - encrypted_provider_type: client-encrypted provider family/type such as google
+        - provider_type_hash: non-reversible keyed hash for dedupe/routing where required
+        - encrypted_account_label: client-encrypted user label
+        - encrypted_provider_account_display: client-encrypted provider display email/name if user wants to see it
+        - provider_account_id_hash: non-reversible stable account identifier hash for dedupe
+        - encrypted_refresh_token_bundle: client-encrypted refresh token and refresh metadata
+        - encrypted_capabilities: client-encrypted enabled provider/app capabilities
+        - encrypted_app_permissions: client-encrypted runtime permission modes per app/action
+        - encrypted_account_directory_hint: client-encrypted non-secret label hints used by the client to build anonymized LLM account directory
+        - server_access_enabled: false by default; true only for explicit offline automation grants
+        - encrypted_server_access_ref: optional server-side automation secret reference, never used for normal chat
+        - created_at, updated_at, revoked_at, last_used_at
+      privacy:
+        - Directus admins must not see plaintext provider name, email, account label, OAuth scopes, or token material.
+        - Backend may transiently know provider type at request execution time when calling a provider API, but must not persist or log account identity.
+    - collection: connected_account_action_decisions
+      fields:
+        - id: UUID
+        - hashed_user_id: sha256 user id
+        - connected_account_id: connected account UUID
+        - chat_id_hash: hash of chat id
+        - message_id_hash: hash of message id
+        - encrypted_decision_summary: client-encrypted user-visible action/decision audit
+        - decision_type: explicit_approval, explicit_rejection, auto_decide_allow, auto_decide_ask, allow_automatically, user_cancelled, undo_success, undo_failed, technical_block
+        - created_at
+      privacy:
+        - Raw event details, account names, provider identities, and user prompt excerpts are encrypted or omitted.
+    - collection: connected_account_operation_journal
+      fields:
+        - id: UUID
+        - hashed_user_id: sha256 user id
+        - connected_account_id: connected account UUID
+        - action_id: opaque server-generated action id
+        - app_id: calendar or future app id
+        - action: read, create, update, delete, send, modify
+        - decision_type: explicit_approval, auto_decide_allow, allow_automatically
+        - execution_state: pending_cancel_window, executed, cancelled, undo_pending, undone, undo_unavailable, failed
+        - encrypted_action_summary: client-encrypted user-visible summary
+        - encrypted_before_snapshot: provider object state before mutation when needed for undo
+        - encrypted_after_snapshot: provider object state after mutation when needed for undo
+        - provider_object_ref_hash: non-reversible hash of event/message/provider object id
+        - provider_revision_hash: optional non-reversible hash of etag/revision/version for safe undo checks
+        - undo_expires_at, cancel_expires_at, executed_at, created_at
+      privacy:
+        - Operation journal stores enough encrypted state to undo supported mutations while keeping provider object ids, event details, attendees, message bodies, and account identities out of admin-readable fields.
+    - test_secret_contract: google_calendar_live_smoke
+      fields:
+        - GOOGLE_CALENDAR_TEST_ENABLED: boolean opt-in, false by default.
+        - GOOGLE_CALENDAR_TEST_ACCOUNT_ID: non-secret identifier for the dedicated test account.
+        - GOOGLE_CALENDAR_TEST_REFRESH_TOKEN or Vault equivalent: secret used only for live smoke tests.
+        - GOOGLE_CALENDAR_TEST_CALENDAR_ID: dedicated calendar id for destructive create/update/delete/undo tests.
+      privacy:
+        - Test credentials live only in Vault or CI environment secrets, never in git, screenshots, logs, or spec evidence.
+        - Live tests must use dedicated calendars and cleanup fixtures after each run.
+  api:
+    - route: POST /v1/connected-accounts
+      request: "Encrypted connected account row after OAuth connect or account update."
+      response: "Stored row id and sync version."
+      errors:
+        - 401 when unauthenticated.
+        - 400 when required encrypted fields or owner hashes are missing.
+    - route: PATCH /v1/connected-accounts/{id}
+      request: "Encrypted capability, permission, label, rotated token, or revocation updates."
+      response: "Updated row id and sync version."
+      errors:
+        - 403 when account does not belong to authenticated hashed owner.
+    - route: POST /v1/provider-oauth/{provider_id}/start
+      request: "Selected provider capabilities, app/account context, and return route context."
+      response: "Provider authorization URL with minimal scope set and CSRF/owner-bound state."
+      errors:
+        - 400 when unsupported capability combination is requested for the provider adapter.
+        - 404 when no confidential OAuth adapter exists for provider_id.
+    - route: GET /v1/provider-oauth/{provider_id}/callback
+      request: "Provider authorization code and state from OAuth redirect."
+      response: "Redirect to the web app with an opaque OAuth handoff id, never provider tokens in the URL."
+      errors:
+        - 400 when OAuth state is invalid.
+        - 502 when provider exchange fails.
+      security:
+        - Provider adapters may briefly receive plaintext refresh tokens during confidential-server code exchange when a provider requires a server-held client secret.
+        - Adapters must immediately create a one-time connected-account OAuth handoff and must not persist or log plaintext tokens, provider emails, OAuth scopes, or provider account ids outside the encrypted handoff payload.
+    - route: POST /v1/connected-account-oauth/handoffs/{handoff_id}/claim
+      request: "Opaque OAuth handoff id from the authenticated browser session."
+      response: "Refresh-token bundle and account hint returned once to the owning client for immediate client-side encryption."
+      errors:
+        - 403 when handoff is expired, already claimed, or owned by another user.
+      security:
+        - Handoff payloads are stored only Vault-encrypted in cache with a short TTL and deleted on successful claim.
+        - The response is the only intended backend-to-client plaintext token transfer during account bootstrap; clients must encrypt the bundle and store only encrypted/hash connected-account rows.
+    - route: POST /v1/token-broker/turn-token-refs
+      request: "Refresh-token envelope, connected_account_id, chat_id, message_id, app_id, allowed actions, and action scope from the client."
+      response: "Opaque turn_token_ref, ref expiry, and broker acceptance confirmation used before the client marks the message Sent."
+      errors:
+        - 400 when requested actions exceed encrypted client-declared capability envelope.
+        - 401 when unauthenticated.
+        - 403 when connected account owner hash does not match current user.
+        - 502 when broker cannot store the ref safely.
+      security:
+        - Refresh-token envelopes are stored only Vault-encrypted in Redis/memory under short-lived turn-token refs.
+        - Plaintext refresh tokens may exist only inside the token broker call stack during decrypt/exchange and must be discarded immediately after provider exchange.
+        - Access-token handles are created lazily only for selected refs after permission-broker authorization, scoped to chat_id, message_id, account_id, app_id, actions, date range or event ids when known, and expire quickly.
+        - Turn-token refs and access-token handles are deleted on assistant completion, cancellation, error, logout, account revocation, or TTL expiry.
+    - route: POST /v1/token-broker/exchange
+      request: "Internal-only selected turn_token_ref plus exact authorized app/action/range/object scope."
+      response: "Opaque access-token handle or provider-execution context unavailable to LLM prompts."
+      errors:
+        - 403 when the selected ref is not owned by the authenticated user or does not match the authorized action scope.
+        - 409 when the ref expired or the connected account was revoked.
+        - 502 when provider token refresh fails.
+      security:
+        - Callable only from permission-managed backend execution, never directly from REST/API-key skill execution.
+        - Handles rotated refresh tokens by returning rotation metadata only to the active authenticated client for re-encryption.
+    - route: POST /v1/apps/{app_id}/skills/{skill_id}/execute via REST/API-key
+      request: "Existing REST/API-key skill execution request."
+      response: "Provider-backed connected-account Calendar/Mail/Finance skills are unavailable unless a future offline automation grant explicitly supports the action."
+      errors:
+        - 403 when an API key attempts to invoke a client-mediated connected-account skill without an offline automation grant.
+    - route: POST /v1/connected-accounts/permissions/decision
+      request: "Redacted action proposal and deterministic policy inputs for optional safeguard classification."
+      response: "allow_without_prompt or ask_user with short reason."
+      errors:
+        - Safeguard unavailable returns ask_user.
+    - route: POST /v1/connected-accounts/actions/{action_id}/cancel
+      request: "Cancel a pending auto-approved mutation during its cancel window."
+      response: "Cancelled operation receipt or already_executed error."
+      errors:
+        - 403 when action does not belong to authenticated owner.
+        - 409 when cancel window expired or provider mutation already started.
+    - route: POST /v1/connected-accounts/actions/{action_id}/undo
+      request: "Undo a supported permission-managed mutation."
+      response: "Undo result, updated embed payload, and encrypted receipt metadata."
+      errors:
+        - 403 when action does not belong to authenticated owner.
+        - 409 when undo expired, provider revision changed, or undo is no longer safe.
+        - 422 when action type has no undo implementation.
+  websocket:
+    - event: chat_message_added
+      additions:
+        - connected_account_directory: anonymized account refs and labels built client-side from encrypted connected accounts.
+        - connected_account_token_refs: turn-token refs for eligible Auto decide and Allow automatically account/action pairs accepted by the token broker during message send.
+      privacy:
+        - The event must not contain refresh tokens, access tokens, provider emails, provider account ids, or plaintext provider type unless included only inside encrypted payloads.
+        - The server must not emit chat_message_confirmed or any client-visible Sent state until the message, connected_account_directory, and required connected_account_token_refs are accepted for the active turn.
+    - event: request_connected_account_permission
+      direction: server_to_client
+      payload: "chat_id, message_id, request_id, app_id, action, proposed account_ref, candidate account refs, redacted proposal details, reason."
+    - event: connected_account_permission_confirmed
+      direction: client_to_server
+      payload: "request_id, approved/rejected, selected account_ref, turn_token_ref if approved."
+    - event: connected_account_action_cancel_window_started
+      direction: server_to_client
+      payload: "chat_id, message_id, action_id, app_id, action, account_ref, cancel_expires_at, redacted action summary."
+    - event: connected_account_action_cancelled
+      direction: bidirectional
+      payload: "chat_id, message_id, action_id, app_id, action, cancelled_by_user, encrypted receipt metadata."
+    - event: connected_account_action_receipt_added
+      direction: server_to_client
+      payload: "chat_id, message_id, encrypted system receipt message, decision outcomes, undo availability."
+    - event: connected_account_action_undo_requested
+      direction: client_to_server
+      payload: "chat_id, message_id, action_id, app_id, action."
+    - event: connected_account_action_undo_completed
+      direction: server_to_client
+      payload: "chat_id, message_id, action_id, undo status, updated embed payload, encrypted receipt metadata."
+    - event: connected_accounts_sync_ready
+      direction: server_to_client
+      payload: "Encrypted connected account rows for client-side IndexedDB sync."
+  ai_pipeline:
+    - stage: preprocessor
+      contract: >
+        Receives only coarse capability availability by app/action, for example
+        calendar.read available_auto, calendar.write available_ask. It must not
+        receive account labels, provider names, tokens, emails, or calendar names.
+    - stage: main_processor
+      contract: >
+        Receives anonymized connected account directory and turn-token-ref availability.
+        It can select an account_ref and action proposal, but cannot see or emit
+        token material. Tool execution resolves refs server-side outside the
+        LLM prompt.
+    - stage: permission_broker
+      contract: >
+        Enforces deterministic authorization and ask rules before safeguard LLM.
+        Always ask blocks token use until explicit approval. Auto decide either
+        allows or asks the user and waits; it never silently blocks a permitted
+        action. Allow automatically skips approval prompts and may use pre-created
+        turn-token refs when capability, grant, owner, and action-scope checks pass.
+    - stage: safeguard_llm
+      contract: >
+        Receives a redacted structured action proposal and returns allow_without_prompt
+        or ask_user. It cannot override deterministic ask rules or technical
+        authorization blocks. Failure defaults to ask_user.
+  calendar_skills:
+    - id: calendar-get-events
+      actions: [read]
+      description: Search/list Calendar events by time range, date, topic, participant, location, calendar, or free/busy style availability.
+      output_embed: calendar-events
+    - id: calendar-create-event
+      actions: [write]
+      description: Create one event after permission broker allows automatically/auto-decides approval or explicit approval is received; auto-approved creates may expose a cancel window and must record undo data.
+      output_embed: calendar-event-create
+    - id: calendar-update-event
+      actions: [write]
+      description: Update one event after showing old/new diff for prompted flows or after auto approval; auto-approved updates may expose a cancel window and must record undo data.
+      output_embed: calendar-event-update
+    - id: calendar-delete-event
+      actions: [delete]
+      description: Delete one or more matched events according to the selected runtime mode, with risk labels, optional cancel window for auto-approved deletes, and undo when provider state can be safely recreated.
+      output_embed: calendar-event-delete
+  embed_contracts:
+    - embed_type: calendar-events
+      preview: "For short ranges, compact agenda list. For week/month range, mini calendar summary chosen by LLM metadata."
+      fullscreen: "Switchable Agenda, Day, Week, and Month views with filters used and client-decrypted account/calendar labels."
+    - embed_type: calendar-event-create
+      preview: "Before approval, event proposal details. After success, created event card plus nearby calendar context."
+      fullscreen: "Event details, attendees, recurrence/reminders, conflicts, and surrounding day/week view."
+    - embed_type: calendar-event-update
+      preview: "Changed fields with old/new highlights."
+      fullscreen: "Detailed diff plus calendar context before and after update."
+    - embed_type: calendar-event-delete
+      preview: "Exact deleted event(s) and reason/approval outcome."
+      fullscreen: "Surrounding calendar context with deleted event ghosted or greyed out so the user can identify what changed."
+  privacy_security:
+    - Persistent refresh-token storage is client-side encrypted by default.
+    - OAuth account bootstrap is provider-generic: confidential provider adapters may briefly see plaintext refresh tokens only during code exchange, then create a short-lived Vault-encrypted one-time browser handoff for client-side encryption.
+    - OAuth handoff ids must be owner-bound, short-lived, one-time claimable, and must not include provider tokens in redirect URLs.
+    - Normal chat turns may submit refresh tokens only to the token broker, never to LLM-visible context or general skill handlers.
+    - For Auto decide and Allow automatically, eligible refresh-token envelopes are submitted during message send and stored Vault-encrypted in Redis/memory under short-lived turn-token refs so requests can continue after device lock without exposing refresh tokens to main processing.
+    - For Always ask, refresh tokens are not submitted until explicit user approval for the specific proposal.
+    - Server-side persistent refresh-token access is reserved for explicit offline automation grants with separate warning, scope, expiry, max-operation, and revocation controls.
+    - Turn-token refs and access-token handles are short-lived, action-scoped, encrypted server-side, and deleted after response completion, cancellation, error, logout, account revocation, or TTL expiry. Ref/handle TTL must remain short and must never be extended to match the 7-day pending approval TTL.
+    - Pending approval context stores only minimal action metadata and never plaintext refresh tokens, access tokens, provider account ids, calendar titles, attendee emails, event bodies, or provider object ids.
+    - Pending approval bundles may reference auto-approved account/action refs, but they do not keep those accounts' turn-token refs or access-token handles alive. Delayed continuation requires fresh token-broker ref creation from the approving client for all still-needed account/action refs.
+    - Fresh ref creation for already-approved refs uses the client-held encrypted refresh-token bundle and the token broker; refresh tokens still exist only transiently inside the broker call stack and are discarded immediately after exchange.
+    - Web, CLI, and Apple clients can submit connected-account token refs because they hold/decrypt the user token bundle locally. REST/API-key callers cannot invoke provider-backed connected-account skills unless a future explicit offline automation grant provides a server-side credential boundary for that action.
+    - Client-visible Sent status for a user message that depends on connected-account refs is gated on backend acceptance of the message, account directory, and required token-broker refs.
+    - Mixed action bundles are partial-results tolerant: rejected, unavailable, or failed permission-managed actions create receipts and are omitted, while other approved actions continue when safe.
+    - Auto-approved mutations store encrypted operation journal snapshots for cancel/undo but never store plaintext event details, attendees, message bodies, provider account identities, or provider object ids in admin-readable fields.
+    - Permission receipt messages are encrypted chat system messages; LLM-visible history may include only redacted receipt summaries.
+    - Logs and admin tools must redact turn-token refs, access-token handles, provider account identifiers, tokens, account labels, calendar titles, attendee emails, and event details unless already intentionally user-visible and encrypted.
+  testing_strategy:
+    - Unit and pytest layers use fake connected accounts, fake token broker, and fake Google Calendar provider wrappers to verify approval semantics, cancel windows, operation journals, undo, and receipt generation without network credentials.
+    - Playwright layers use deterministic mocked OAuth/provider responses for normal PR gating so UI approval flows are repeatable and do not depend on Google availability.
+    - Optional live Google Calendar smoke tests run only when Vault/env test credentials are present and target a dedicated test account/calendar. These tests verify provider scope behavior, event revision/etag handling, and real create/update/delete/undo cleanup.
+    - CLI parity tests must cover interactive approval prompts, auto-approved cancel countdowns, receipt output, undo commands, and safe non-interactive behavior.
+
+deterministic_permission_policy:
+  ask_user_rules:
+    - OAuth capability expansion or provider consent update.
+    - Any action using an account/action set to Always ask.
+    - Auto decide actions where deterministic policy or safeguard cannot confidently approve.
+    - Auto decide bulk delete or deletion of more than one event.
+    - Auto decide update/delete of recurring events or whole series.
+    - Auto decide create/update/delete involving external attendees unless a future scoped grant explicitly covers it.
+    - Auto decide ambiguous account/calendar target when multiple candidates match.
+    - Auto decide reads over broad date ranges outside a configured safe window.
+    - Provider warnings, token refresh anomalies, suspicious redirects, or changed OAuth scope set.
+    - Offline automation setup or server-side persistent refresh-token enablement.
+  technical_block:
+    - Requested action exceeds selected capabilities or granted OAuth scopes.
+    - Token-broker ref or access-token handle scope does not match chat_id, message_id, account_id, app_id, action, or approved range/event ids.
+    - Connected account is revoked or owner hash mismatch occurs.
+    - Provider action fails, provider grant is revoked, or provider object revision no longer matches a safe mutation/undo precondition.
+    - Prompt-injected provider content attempts to override permission policy; external content is ignored for policy decisions and sanitized before inference.
+  auto_decide_allowed_examples:
+    - Read a narrow date range from an account with Read set to Auto decide and explicit user intent.
+    - Create a single non-recurring event without attendees in a user-selected calendar when Write is Auto decide and no conflicts or sensitive signals exist.
+  allow_automatically_allowed_examples:
+    - Read current day/week calendar events from the referenced account.
+    - Create, update, or delete Calendar events when the corresponding action is Allow automatically and capability, OAuth grant, owner, token-ref/action-scope, and provider precondition checks pass.
+  cancel_window_defaults:
+    - Calendar read actions do not need a cancel window because no provider mutation occurs.
+    - Calendar create/update/delete actions use a 4-second cancel window when a foreground client is available.
+    - Future Mail send actions use a fixed 30-second delayed-send window in v1 because delivered email cannot be reliably undone.
+  undo_required_actions:
+    - Calendar create must support undo by deleting the created event when provider state still allows it.
+    - Calendar update must support undo by restoring the previous encrypted snapshot when provider revision checks pass.
+    - Calendar delete must support undo by recreating from the pre-delete encrypted snapshot when provider semantics allow it.
+    - Future Mail send supports undo only while the send is still queued; the embed preview shows countdown progress and a direct undo action during that window, and after delivery Undo is disabled with a reason.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_connected_accounts_permissions.py
+    command: python3 -m pytest backend/tests/test_connected_accounts_permissions.py
+    covers:
+      - AC-1
+      - AC-3
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-10
+      - AC-12
+      - AC-19
+    assertions:
+      - connected account rows require hashed_user_id and encrypted provider/account/token fields
+      - plaintext provider names, emails, account labels, OAuth scopes, and refresh tokens are rejected by schema/validator tests
+      - multiple connected accounts require clear non-confusing account labels/anonymized refs for client-built account directories
+      - Always ask actions cannot create or use token-broker refs without explicit approval
+      - Privacy and app-scoped account APIs return the same encrypted account ids
+      - missing Calendar write capability returns account update request
+      - normal chat settings cannot create persistent server-side refresh-token access
+      - REST/API-key skill execution rejects provider-backed connected-account skills without an explicit offline automation grant
+      - permission-managed execution receipts are encrypted system messages with no provider secrets or plaintext account identities
+      - expired permission approvals and app settings/memories requests create encrypted expiration receipts
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-api-pytest-2026-06-16T15:57:29Z"
+        timestamp: "2026-06-16T15:57:29Z"
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_token_broker_refs.py
+    command: python3 -m pytest backend/tests/test_token_broker_refs.py
+    covers:
+      - AC-2
+      - AC-4
+      - AC-8
+      - AC-11
+    assertions:
+      - refresh-token envelope is stored only Vault-encrypted under a short-lived turn-token ref before the selected action is known
+      - selected turn-token ref is exchanged lazily only after permission-broker authorization and plaintext refresh token is discarded immediately after exchange
+      - access-token handle is encrypted, scoped, short-lived, and deleted on completion/error/cancel/TTL
+      - rotated refresh tokens are returned only to client response for re-encryption
+      - turn-token ref and access-token handle cannot be used for mismatched chat, message, account, app, action, range, or event id
+      - safeguard LLM receives no token material or plaintext account identity
+      - auto-approved mutation token refs can be cancelled before the cancel window expires and cannot be cancelled after execution starts
+      - pending approvals never store plaintext refresh tokens and pre-created token refs/access-token handles expire independently from the 7-day approval TTL
+      - delayed continuation re-creates fresh token refs for all still-needed auto-approved and manually approved account/action refs
+      - already-approved auto/auto-decide account refs with expired token refs are refreshed automatically during continuation without another approval prompt
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-api-pytest-2026-06-16T15:57:29Z"
+        timestamp: "2026-06-16T15:57:29Z"
+
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_calendar_permission_broker.py
+    command: python3 -m pytest backend/tests/test_calendar_permission_broker.py
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-9
+      - AC-11
+      - AC-13
+      - AC-14
+    assertions:
+      - Read Allow automatically permits narrow reads with matching token refs and lazy exchange
+      - Auto decide pre-created token refs either become exchangeable when policy/safeguard permits the exact action or return ask_user without blocking silently
+      - Write Always ask returns event proposal approval requirement
+      - Delete follows the selected runtime mode exactly and exposes risk labels plus undo availability
+      - missing capabilities request incremental OAuth update rather than broad access
+      - Calendar create/update/delete undo policies validate operation journal and provider revision state
+      - delayed update/delete continuation re-checks provider revision/etag and asks again when material state changed
+      - future Mail send policy uses delayed send and disables undo after delivery
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-api-pytest-2026-06-16T15:57:29Z"
+        timestamp: "2026-06-16T15:57:29Z"
+
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-8
+      - AC-12
+      - AC-15
+      - AC-16
+      - AC-18
+      - AC-19
+    assertions:
+      - CLI/websocket client sends connected account directory without tokens in LLM-visible fields
+      - Auto decide and Allow automatically eligible accounts submit token-broker ref requests during message send
+      - CLI keeps a connected-account message in Sending state until the message, directory, and required token refs are accepted
+      - Always ask accounts do not submit token-broker ref requests until explicit approval
+      - CLI refuses non-interactive Calendar writes/deletes without explicit permission mode or approval path
+      - REST/API-key execution reports connected-account provider skills unavailable without an explicit offline automation grant
+      - CLI/websocket client handles permission execution receipts without exposing provider secrets
+      - CLI interactive approval prompts can approve/reject Calendar actions without web or Apple handoff
+      - CLI interactive approval waits do not keep backend AI workers or provider tool calls open
+      - CLI interactive auto-approved mutation countdown can be cancelled during the 4-second window
+      - CLI undo command reverses supported operation-journal actions while undo remains available
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-cli-unit-2026-06-16T15:59:47Z"
+        timestamp: "2026-06-16T15:59:47Z"
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    command: python3 scripts/run_tests.py --spec calendar-connected-accounts.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-7
+      - AC-9
+    assertions:
+      - Calendar connect flow shows Read, Write, Delete capability toggles selected by default
+      - untoggling Delete changes the displayed OAuth capability summary before provider handoff
+      - Privacy & Security Connected accounts and Calendar Accounts open the same account detail
+      - account update flow can add missing Calendar Write capability without enabling unrelated apps
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27654640662"
+        timestamp: "2026-06-16T23:23:02Z"
+
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    command: python3 scripts/run_tests.py --spec calendar-permission-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-8
+      - AC-11
+      - AC-12
+      - AC-13
+      - AC-16
+      - AC-18
+    assertions:
+      - Read Allow automatically request continues after simulated device disconnect once token-broker ref exists
+      - Connected-account messages become Sent only after the message, account directory, and required token-broker refs are accepted
+      - Always ask read shows permission card with account selector and no pre-created token-broker ref
+      - Approval card lists requested actions with toggles selected by default, Approve selected, and Reject all
+      - Approval card allows account switching per requested action when multiple connected accounts are available
+      - Auto decide either exchanges the pre-created token ref after approval or asks the user; it never silently blocks a permitted action
+      - Write proposal card shows exact event details before create/update
+      - Auto-approved write/delete shows Press to cancel when a foreground client is available
+      - Delete proposal and success embed show ghosted deleted event context and Undo availability
+      - Permission execution receipts are added for approval, auto approval, auto-decide approval, rejection, cancellation, and undo outcomes
+      - Approval prompts end the active backend request and resume from pending context after approve/reject
+      - Expired approval prompts show encrypted expiration receipts and do not retain server-side token refs or access-token handles
+      - Mixed auto-approved plus asked permission bundles continue only after fresh token refs are available for all required account/action refs
+      - delayed continuation automatically refreshes expired token refs for previously approved auto/auto-decide account refs and does not ask for those parts again
+      - rejected or failed actions in a mixed permission bundle are omitted while already-approved actions continue and the response includes partial-results context
+      - LLM-visible debug payload contains anonymized account refs only
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27654362908"
+        timestamp: "2026-06-16T23:15:57Z"
+
+  - id: T-E2E-004
+    type: playwright
+    file: frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    command: python3 scripts/run_tests.py --spec connected-account-calendar-settings.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+    assertions:
+      - Calendar settings shows the Google Calendar connected-account section to an authenticated user.
+      - Connect Google Calendar starts OAuth with the selected read/write/delete capabilities and a settings return path.
+      - OAuth redirect finalization claims only an opaque handoff id and persists an encrypted connected-account row.
+      - Persisted connected-account payload does not contain plaintext refresh tokens, provider account ids, provider emails, or provider ids.
+      - The connected-account section refreshes after handoff finalization and shows the connected account count.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "27654947473"
+        timestamp: "2026-06-16T23:30:22Z"
+
+  - id: T-LIVE-001
+    type: pytest
+    file: backend/tests/live/test_google_calendar_permissions_live.py
+    command: python3 -m pytest backend/tests/live/test_google_calendar_permissions_live.py
+    covers:
+      - AC-1
+      - AC-6
+      - AC-11
+      - AC-13
+      - AC-17
+    assertions:
+      - skips with explicit reason when GOOGLE_CALENDAR_TEST_ENABLED and Vault/env credentials are unavailable
+      - uses only the dedicated Google test account and dedicated test calendar
+      - creates an event, updates it, cancels a pending mutation before execution, deletes it, and verifies undo behavior against real Google Calendar revision/etag semantics
+      - cleans up all test-created events even when assertions fail
+      - does not log refresh tokens, access tokens, provider account emails, calendar titles, or event details
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-001
+    type: unit
+    file: apple/OpenMates/Tests/CalendarConnectedAccountsTests.swift
+    command: python3 scripts/apple_remote.py test-ios --test CalendarConnectedAccountsTests
+    covers:
+      - AC-7
+      - AC-8
+    assertions:
+      - native connected-account state uses encrypted records and same action/mode vocabulary
+      - native approval card receives anonymized account refs and not provider tokens or emails
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - docs/specs/user-data-permission-audit/spec.yml
+    - backend/core/api/app/security/user_data_permissions.yml
+    - backend/apps/ai/processing/main_processor.py app settings/memories permission pause/resume flow
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py app settings/memories encrypted sync
+    - frontend/packages/openmates-cli/src/client.ts app settings/memories and sub-chat approval handling
+    - frontend/packages/ui/src/components/ChatMessage.svelte permission and sub-chat confirmation cards
+    - backend/apps/reminder/app.yml create/list/cancel action split
+    - backend/apps/mail/app.yml mail draft/search embed patterns
+  architecture: >
+    Implement connected accounts as a zero-knowledge sync surface similar to app
+    settings/memories, but use a dedicated collection because provider accounts
+    span multiple apps. Add an action-level permission broker in the AI pipeline
+    before high-risk app skill execution. Add a token broker boundary so normal
+    chat turns can continue after device lock for Auto decide and Allow automatically
+    without persisting long-lived refresh tokens server-side. The broker stores
+    active-turn refresh-token envelopes only Vault-encrypted under short-lived refs
+    and exchanges them lazily after action authorization. Calendar v1 uses the
+    framework first with Google OAuth, action-scoped permission settings,
+    REST/API-key exclusion for client-mediated provider skills, and dedicated embeds.
+  data_flow:
+    - Client connects Google Calendar and chooses capability toggles.
+    - Provider-specific OAuth adapter exchanges authorization code server-side when a provider requires a confidential client secret, creates a short-lived encrypted handoff, and discards plaintext tokens.
+    - Client claims the one-time handoff, encrypts the token bundle locally, and stores only encrypted/hash connected-account fields through backend/Directus.
+    - Login sync sends encrypted connected accounts to client alongside app settings/memories.
+    - On message send, client builds coarse preprocessor capabilities and anonymized main-processor account directory.
+    - For Auto decide and Allow automatically eligible accounts/actions, client submits refresh-token envelopes to token broker during message send.
+    - Token broker stores refresh-token envelopes Vault-encrypted in Redis/memory under short-lived turn-token refs and returns ref acceptance before the client marks the message Sent.
+    - Main processor proposes Calendar actions and asks permission broker.
+    - Permission broker applies deterministic rules and optional safeguard LLM for Auto decide.
+    - Auto-approved mutations create a pending operation journal entry and, when a foreground client is available, expose a short cancel window before provider mutation.
+    - Calendar skill uses approved account/action refs server-side; token broker lazily exchanges only the selected ref after authorization; provider execution uses a short-lived access-token handle; the skill creates normalized result/embed payloads, writes encrypted decision receipts, records undo snapshots for mutations, and deletes refs/handles on completion.
+    - Undo requests verify operation journal ownership, provider revision state, undo expiry, and action-specific undo support before reversing a provider mutation.
+  affected_files:
+    - path: docs/specs/calendar-permission-management/spec.yml
+      reason: Executable product/security contract.
+    - path: backend/core/directus/schemas/connected_accounts.yml
+      reason: New encrypted connected account collection.
+    - path: backend/core/directus/schemas/connected_account_action_decisions.yml
+      reason: Encrypted decision audit collection.
+    - path: backend/core/directus/schemas/connected_account_operation_journal.yml
+      reason: Encrypted mutation operation journal for cancel and undo.
+    - path: backend/core/api/app/routes/connected_accounts.py
+      reason: Connected account CRUD and sync APIs.
+    - path: backend/core/api/app/routes/provider_oauth_google_calendar.py
+      reason: Google Calendar OAuth provider adapter for minimal-scope start/callback/update routes.
+    - path: backend/core/api/app/routes/connected_account_oauth.py
+      reason: Provider-neutral one-time OAuth handoff claim route.
+    - path: backend/core/api/app/services/connected_account_oauth_handoff.py
+      reason: Provider-neutral encrypted OAuth refresh-token handoff primitive.
+    - path: backend/core/api/app/routes/token_broker.py
+      reason: Active-turn token ref storage, lazy refresh-token exchange, and access-token handle creation.
+    - path: backend/core/api/app/routes/apps_api.py
+      reason: Keep REST/API-key skill execution from invoking client-mediated connected-account skills without offline automation grants.
+    - path: backend/core/api/app/services/connected_accounts_service.py
+      reason: Owner checks, sync, and encrypted row validation.
+    - path: backend/apps/ai/processing/permission_broker.py
+      reason: Deterministic action policy, Auto decide ask/allow semantics, safeguard integration, receipt/cancel/undo policy.
+    - path: backend/apps/calendar/app.yml
+      reason: Calendar app, skills, permissions, embed metadata.
+    - path: backend/apps/calendar/skills/*.py
+      reason: Calendar get/create/update/delete skills.
+    - path: backend/shared/providers/google_calendar/*.py
+      reason: Pure Google Calendar provider wrapper.
+    - path: frontend/packages/ui/src/services/connectedAccountsService.ts
+      reason: Client-side encrypted connected account persistence and sync.
+    - path: frontend/packages/ui/src/services/chatSyncService*.ts
+      reason: Send account directory and token-ref metadata, gate Sent status on broker acceptance, handle permission pause/resume.
+    - path: frontend/packages/ui/src/components/settings/**
+      reason: Privacy Connected accounts and Calendar Accounts settings.
+    - path: frontend/packages/ui/src/components/embeds/calendar/**
+      reason: Calendar embed preview/fullscreen components, Undo controls, and context menu actions.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI connected account sync, token-ref submission, Sent status gating, REST/API exclusion awareness, and approval handling.
+    - path: apple/OpenMates/Sources/**
+      reason: Native parity for connected account settings and approval/cards when implemented.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/calendar-permission-management/spec.yml
+    - python3 -m pytest backend/tests/test_connected_accounts_permissions.py backend/tests/test_token_broker_refs.py backend/tests/test_calendar_permission_broker.py
+    - cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    - python3 scripts/run_tests.py --spec calendar-connected-accounts.spec.ts after deploy for green phase
+    - python3 scripts/run_tests.py --spec calendar-permission-flow.spec.ts after deploy for green phase
+    - python3 scripts/apple_remote.py status and targeted build/test evidence if Apple parity is implemented in the slice
+  verification_order:
+    - Backend permission/token broker pytest first.
+    - CLI/client contract tests second.
+    - Web Playwright red before deploy and green after deploy.
+    - Apple remote status/build/test after web green when native files are touched.
+
+implementation_progress:
+  - timestamp: "2026-06-15"
+    status: partial
+    completed:
+      - Backend connected-account validators, token-broker refs, lazy exchange/access-token handle tests, Calendar skill contract tests, REST/API-key exclusion tests, permission broker tests, and operation journal privacy tests passed together.
+      - Authenticated connected-account storage routes now list, create, and patch encrypted/hash-only rows with owner-hash checks and plaintext provider identity/token rejection.
+      - Provider-neutral OAuth refresh-token handoff service and claim route now support confidential-provider code exchange adapters without persistent plaintext token storage.
+      - Google Calendar OAuth start/callback adapter now maps selected capabilities to minimal Google scopes, stores owner-bound state, exchanges authorization codes server-side, creates generic one-time handoffs, and redirects with only oauth_handoff_id.
+      - Browser OAuth handoff finalization service now claims one-time handoffs, encrypts provider/token/account data locally, and stores only encrypted/hash connected-account rows.
+      - Browser connected-account storage service prepares owner hashes locally, calls authenticated encrypted-row routes, and rejects plaintext provider identity/token fields before network calls.
+      - Browser connected-account storage service can decrypt encrypted rows into a chat-visible redacted account directory plus broker-only token-ref inputs for selected accounts/actions.
+      - Calendar app-skill embeds now use generic Calendar preview/fullscreen wrappers so generated embed registry entries resolve to real Svelte components while the richer approval UI is pending.
+      - WebSocket connected-account directory/token-ref sanitizer coverage rejects chat-visible refresh tokens, access tokens, OAuth scopes, and plaintext provider account identity before message confirmation.
+      - CLI client connected-account payload builders, token-ref request flow, and Sent gating passed focused build/unit verification.
+      - Web chat send plumbing accepts optional connected-account directory and token-ref inputs, creates broker refs inside sendNewMessage before WebSocket send, and rejects forbidden token/plaintext account identity fields from chat-visible payloads.
+      - Targeted ESLint for touched UI services passed with local ESLint binary.
+      - Apple remote iOS build succeeded after chat send contract changes; no native connected-account UI parity has been implemented yet.
+    evidence:
+      - command: python3 -m pytest backend/tests/test_connected_accounts_permissions.py backend/tests/test_token_broker_refs.py backend/tests/test_connected_account_execution.py backend/tests/test_calendar_permission_broker.py backend/tests/test_calendar_app_contract.py backend/tests/test_connected_account_operation_journal.py
+        result: 20 passed
+      - command: python3 -m pytest backend/tests/test_connected_accounts_permissions.py backend/tests/test_token_broker_refs.py
+        result: 9 passed
+      - command: python3 -m pytest backend/tests/test_connected_account_oauth_handoff.py
+        result: 3 passed
+      - command: python3 -m pytest backend/tests/test_google_calendar_oauth_adapter.py
+        result: 4 passed
+      - command: python3 -m py_compile backend/core/api/app/services/connected_account_oauth_handoff.py backend/core/api/app/routes/connected_account_oauth.py backend/core/api/main.py
+        result: passed
+      - command: python3 -m py_compile backend/core/api/app/routes/provider_oauth_google_calendar.py backend/shared/providers/google_calendar/oauth.py backend/core/api/main.py
+        result: passed
+      - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountOAuthService.ts src/services/__tests__/connectedAccountOAuthService.test.ts
+        result: passed
+      - command: python3 scripts/run_tests.py --suite vitest
+        result: 397 passed on GitHub Actions run 27549331902 for commit 280b321
+      - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountTokenBrokerService.ts src/services/connectedAccountStorageService.ts src/services/__tests__/connectedAccountStorageService.test.ts src/components/embeds/calendar/CalendarActionEmbedPreview.svelte src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte src/data/embedRegistry.generated.ts
+        result: passed
+      - command: cd frontend/packages/ui && node scripts/generate-embed-registry.js
+        result: passed
+      - command: python3 scripts/run_tests.py --suite vitest
+        result: 388 passed on GitHub Actions run 27547059503 for commit 2662b0a
+      - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountStorageService.ts src/services/__tests__/connectedAccountStorageService.test.ts
+        result: passed
+      - command: python3 scripts/run_tests.py --suite vitest
+        result: 389 passed on GitHub Actions run 27547411577 for commit 161519d
+      - command: python3 -m py_compile backend/core/api/app/services/connected_account_operation_journal.py backend/core/api/app/services/token_broker.py backend/apps/ai/processing/connected_account_execution.py
+        result: passed
+      - command: cd frontend/packages/ui && ./node_modules/.bin/eslint src/services/connectedAccountTokenBrokerService.ts src/services/sendersChatMessages.ts src/services/chatSyncService.ts
+        result: passed
+      - command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+        result: ssh_reachable, iOS build succeeded
+      - command: bash scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/chatSyncService.ts --path frontend/packages/ui/src/services/connectedAccountStorageService.ts --path frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
+        result: passed
+      - command: python3 scripts/run_tests.py --suite vitest
+        result: 400 passed on GitHub Actions run 27562662616 for commit 7008d0b
+    blocked_or_remaining:
+      - Calendar connected-account settings add flow has mocked Playwright coverage, but capability toggles/update flow, Calendar permission cards, pause/resume events, cancel windows, full undo surfaces, live Google verification, and Apple parity are not complete.
+      - Package-level UI lint remains blocked by pre-existing unrelated lint debt; targeted changed-file lint passed.
+
+tasks:
+  - id: TASK-1
+    title: Add encrypted connected account storage and sync
+    covers:
+      scenarios: [S-1, S-7, S-8]
+      acceptance_criteria: [AC-1, AC-7, AC-8]
+    expected_files:
+      - backend/core/directus/schemas/connected_accounts.yml
+      - backend/core/api/app/routes/connected_accounts.py
+      - backend/core/api/app/services/connected_accounts_service.py
+      - frontend/packages/ui/src/services/connectedAccountsService.ts
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add Google Calendar OAuth capability flow
+    covers:
+      scenarios: [S-1, S-9]
+      acceptance_criteria: [AC-1, AC-9]
+    expected_files:
+      - backend/core/api/app/routes/provider_oauth_google_calendar.py
+      - frontend/packages/ui/src/components/settings/**
+    verification:
+      - T-PYTEST-001
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add token broker refs and lazy exchange
+    covers:
+      scenarios: [S-2, S-3, S-4, S-11, S-16]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-8, AC-11, AC-16, AC-18]
+    expected_files:
+      - backend/core/api/app/routes/token_broker.py
+      - backend/tests/test_token_broker_refs.py
+      - frontend/packages/ui/src/services/chatSyncService*.ts
+      - frontend/packages/openmates-cli/src/client.ts
+    verification:
+      - T-PYTEST-002
+      - T-CLI-001
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add permission broker and safeguard policy
+    covers:
+      scenarios: [S-3, S-4, S-5, S-6, S-10, S-11, S-13, S-14, S-16]
+      acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-10, AC-11, AC-13, AC-14, AC-16, AC-19]
+    expected_files:
+      - backend/apps/ai/processing/permission_broker.py
+      - backend/core/directus/schemas/connected_account_operation_journal.yml
+      - backend/tests/test_calendar_permission_broker.py
+    verification:
+      - T-PYTEST-003
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add Calendar app skills and provider wrapper
+    covers:
+      scenarios: [S-2, S-5, S-6, S-9, S-11, S-13, S-17]
+      acceptance_criteria: [AC-2, AC-5, AC-6, AC-9, AC-11, AC-13, AC-17]
+    expected_files:
+      - backend/apps/calendar/app.yml
+      - backend/apps/calendar/skills/get_events_skill.py
+      - backend/apps/calendar/skills/create_event_skill.py
+      - backend/apps/calendar/skills/update_event_skill.py
+      - backend/apps/calendar/skills/delete_event_skill.py
+      - backend/shared/providers/google_calendar/*.py
+    verification:
+      - T-PYTEST-003
+      - T-E2E-002
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Add connected account and Calendar permission UI
+    covers:
+      scenarios: [S-1, S-3, S-5, S-7, S-9, S-11, S-12]
+      acceptance_criteria: [AC-1, AC-3, AC-5, AC-7, AC-9, AC-11, AC-12]
+    expected_files:
+      - frontend/packages/ui/src/components/settings/**
+      - frontend/packages/ui/src/i18n/sources/**
+    verification:
+      - T-E2E-001
+      - T-E2E-002
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Add Calendar embed previews and fullscreen views
+    covers:
+      scenarios: [S-2, S-5, S-6, S-11, S-13]
+      acceptance_criteria: [AC-2, AC-5, AC-6, AC-11, AC-13]
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/calendar/**
+      - backend/apps/calendar/app.yml
+    verification:
+      - T-E2E-002
+    independently_deployable: false
+
+  - id: TASK-8
+    title: Add CLI and Apple parity hooks
+    covers:
+      scenarios: [S-2, S-3, S-4, S-7, S-8, S-12, S-15, S-16]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-7, AC-8, AC-12, AC-15, AC-16, AC-18, AC-19]
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - apple/OpenMates/Sources/**
+    verification:
+      - T-CLI-001
+      - T-APPLE-001
+    independently_deployable: false
+
+risks:
+  - Refresh tokens transiting the backend token broker raise privacy risk; mitigation is Vault-encrypted Redis/memory storage under short-lived refs, isolated route, no logging, plaintext only inside the broker call stack during lazy exchange, immediate plaintext discard after exchange, tests that fail on plaintext persistence, and access-token-only handles for provider execution.
+  - Google OAuth scope behavior for shared writable calendars must be verified during implementation; the spec requires minimal scopes but allows provider-specific mapping to choose the narrowest scope that supports shared calendar write/delete.
+  - Auto decide can annoy users if it asks too often or erode trust if it approves too much; deterministic ask rules, transparent encrypted receipts, and easy setting changes are required.
+  - Allow automatically can execute surprising mutations if users misunderstand the setting; mitigation is plain-language mode copy, mutation cancel windows, undo where possible, and visible encrypted receipts.
+  - Undo cannot be guaranteed for all providers or actions; every mutation must declare undo availability before execution and show a disabled Undo reason when reversal is impossible or expired.
+  - LLM prompt injection in event descriptions or external calendar content could try to manipulate tool use; provider content must be treated as untrusted and cannot influence permission policy.
+  - Apple parity may lag if web/backend slices are large; API and sync contracts must remain platform-neutral even if native UI implementation is split.
+
+open_questions:
+  - Should Calendar Read Allow automatically pre-create turn-token refs for all connected Calendar accounts with that mode, or only accounts whose client-side label/app mention heuristic matches the user message? The current spec requires eligible accounts/actions but leaves the exact local filtering heuristic to implementation.
+  - What exact Google Calendar scopes are required to support shared writable calendars with least privilege? Implementation must verify before final OAuth route work.
+  - Should active-turn token refs and access-token handles use a 5, 10, or 15 minute TTL? The spec requires short-lived and completion deletion but leaves the exact constant for implementation review.
+  - What exact non-interactive CLI flags or JSON output shape should permission approval, auto-cancel windows, and undo use?

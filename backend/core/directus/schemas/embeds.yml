@@ -1,7 +1,11 @@
 # backend/core/directus/schemas/embeds.yml
 # Defines the schema for the 'embeds' collection in Directus.
 # Embeds are separate entities from messages, stored independently and referenced in messages via lightweight JSON blocks.
-# All sensitive fields (type, chat_id, message_id, task_id) are protected client-side before storage to maintain zero-knowledge architecture.
+# For normal embeds, Directus stores client-encrypted permanent data. The separate
+# Redis embed cache is short-lived, Vault-encrypted, and server-readable for AI
+# inference/modification. encryption_mode='vault' is an explicit Directus
+# exception for server-managed generated files such as images/PDFs.
+# All sensitive fields (type, chat_id, message_id, task_id) are protected before storage to maintain zero-knowledge architecture.
 embeds:
   type: collection
   fields:
@@ -29,7 +33,7 @@ embeds:
 
     encrypted_type:
       type: string
-      note: "[Encrypted] Type of embed encrypted client-side (app_skill_use, website, place, event, code, file, sheet, document, etc.). Server cannot determine embed type without decryption key. Encrypted with same key as encrypted_content."
+      note: "[Permanent storage] For normal encryption_mode='client' embeds, type is encrypted client-side (app_skill_use, website, place, event, code, file, sheet, document, etc.) with the same key as encrypted_content. encryption_mode='vault' is an explicit server-managed exception."
 
     status:
       type: string
@@ -63,11 +67,11 @@ embeds:
 
     encrypted_content:
       type: textfield
-      note: "[Encrypted] Full embed content (TOON format string). For app_skill_use embeds with composite results, contains query, provider, skill name, and metadata. For single embeds (code, file, sheet, document, website, place, event), contains the actual content. Encrypted with encryption_key_embed (private) or shared_encryption_key (shared). Content is stored as TOON string for space efficiency (30-60% savings vs JSON)."
+      note: "[Permanent storage] Full embed content (TOON format string). Normal encryption_mode='client' Directus embeds are encrypted client-side with the embed key; short-lived Redis cache copies are separately Vault-encrypted for server AI context. encryption_mode='vault' is an explicit server-managed exception."
 
     encrypted_text_preview:
       type: textfield
-      note: "[Encrypted] Lightweight text preview for text-based embeds (code, documents). Always synced to client for fast rendering. Encrypted with same key as encrypted_content."
+      note: "[Permanent storage] Lightweight text preview for text-based embeds (code, documents). For normal encryption_mode='client' embeds, encrypted client-side with the same key as encrypted_content."
 
     parent_embed_id:
       type: string
@@ -79,7 +83,7 @@ embeds:
 
     encrypted_diff:
       type: textfield
-      note: "[Encrypted] For file updates: stores diff/patch between versions (unified diff format). Encrypted with same key as encrypted_content."
+      note: "[Permanent storage] For file updates: stores diff/patch between versions (unified diff format). For normal encryption_mode='client' embeds, encrypted client-side with the same key as encrypted_content."
 
     file_path:
       type: string

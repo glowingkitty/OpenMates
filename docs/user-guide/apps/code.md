@@ -24,6 +24,13 @@ The Code app helps developers and anyone working with code. It can fetch the lat
 
 - **Get Docs** -- Looks up the latest documentation for any programming library, framework, or tool. Works with hundreds of technologies (React, FastAPI, Svelte, Docker, and many more).
 
+**Available focus modes:**
+
+- **Project Planner** -- Turns coding ideas into scoped plans, tasks, acceptance criteria, and verification steps before implementation starts.
+- **Research Solutions** -- Compares technical options such as frameworks, APIs, providers, databases, or architecture patterns against your requirements.
+- **Learn by Building** -- Helps you learn a programming topic through a small real project with guided checkpoints.
+- **Check Security** -- Audits server, proxy, deployment, Docker, and infrastructure configuration for security issues.
+
 **Code previews:**
 
 - When your mate writes code in a response, it appears as a formatted preview card with syntax highlighting, the programming language label, and a line count.
@@ -35,6 +42,8 @@ The Code app helps developers and anyone working with code. It can fetch the lat
 - Ask about a library: "How do I set up routing in FastAPI?"
 - Request code examples: "Show me how to use React hooks"
 - Ask your mate to write code: "Write a Python script that reads a CSV file"
+- Plan a coding project: "Help me plan a small SaaS onboarding flow before we build it"
+- Learn by building: "Teach me Svelte 5 by helping me build a tiny notes app"
 
 ## Memories
 

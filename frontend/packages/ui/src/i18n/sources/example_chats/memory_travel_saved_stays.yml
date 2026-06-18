@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Travel Saved Stays"
   en: "Memory Travel Saved Stays"
-  de: "Memory Travel Saved Stays"
+  de: Gespeicherte Unterkünfte (Memory)
   zh: "Memory Travel Saved Stays"
   es: "Memory Travel Saved Stays"
   fr: "Memory Travel Saved Stays"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Travel Saved Stays"
   en: "OpenMates uses saved travel saved_stays memory in a real chat."
-  de: "OpenMates uses saved travel saved_stays memory in a real chat."
+  de: OpenMates nutzt gespeicherte Erinnerungen zu Unterkünften in einem echten Chat.
   zh: "OpenMates uses saved travel saved_stays memory in a real chat."
   es: "OpenMates uses saved travel saved_stays memory in a real chat."
   fr: "OpenMates uses saved travel saved_stays memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Travel Saved Stays. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meine gespeicherten Erinnerungen zu Unterkünften, um mir vorzuschlagen, was ich vor der Buchung einer Unterkunft prüfen sollte. Du kannst diese gespeicherten Erinnerungen anfordern und verwenden. Nachdem du die gespeicherten Erinnerungen verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved travel stays memory to suggest what I should check before booking accommodation. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -82,11 +82,11 @@ message_2:
     *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
     *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
   de: |
-    Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
-
-    *   **Accessibility and Infrastructure:** Since your notes for the [machiya](wiki:Machiya) stay specifically mention the absence of an elevator and a need to "check stairs," always verify the floor level and physical layout. Traditional Japanese properties often have steep, narrow stairs that may be challenging with heavy luggage.
-    *   **Transit Proximity:** You have prioritized locations "near bus routes" and "transit access." Check the walking distance to the nearest station or bus stop, as some quiet residential areas in cities like Kyoto can be a significant walk from major transport hubs.
-    *   **Atmosphere and Quietude:** Both of your saved options highlight a "quiet" environment or a "traditional atmosphere." Look for guest reviews that specifically mention noise levels or the "family-friendly" nature of the neighborhood to ensure it aligns with the peaceful experience you prefer.
+    Basierend auf deinen gespeicherten Unterkünften in [Kyoto](wiki:Kyoto) ist hier das, was du vor der Buchung prüfen solltest:
+    
+    *   **Barrierefreiheit und Infrastruktur:** Da deine Notizen für den Aufenthalt im [Machiya](wiki:Machiya) explizit das Fehlen eines Aufzugs und die Notwendigkeit, „Treppen zu prüfen“, erwähnen, solltest du immer das Stockwerk und die räumliche Aufteilung verifizieren. Traditionelle japanische Unterkünfte haben oft steile, schmale Treppen, die mit schwerem Gepäck eine Herausforderung sein können.
+    *   **Anbindung an den Nahverkehr:** Du hast Standorte „in der Nähe von Buslinien“ und mit „Anbindung an den Nahverkehr“ priorisiert. Prüfe die Gehdistanz zur nächsten Haltestelle oder zum nächsten Bahnhof, da einige ruhige Wohnviertel in Städten wie Kyoto ein beachtliches Stück von den Hauptverkehrsknotenpunkten entfernt sein können.
+    *   **Atmosphäre und Ruhe:** Beide deiner gespeicherten Optionen heben eine „ruhige“ Umgebung oder eine „traditionelle Atmosphäre“ hervor. Suche nach Gästebewertungen, die explizit den Lärmpegel oder die „familienfreundliche“ Art der Nachbarschaft erwähnen, um sicherzustellen, dass sie dem von dir bevorzugten friedlichen Erlebnis entspricht.
   zh: |
     Based on your saved stays in [Kyoto](wiki:Kyoto), here is what you should check before finalizing a booking:
 

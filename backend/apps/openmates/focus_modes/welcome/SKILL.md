@@ -1,7 +1,7 @@
 ---
 id: welcome
 app: openmates
-stage: production
+stage: planning
 icon: openmates.svg
 
 name: welcome

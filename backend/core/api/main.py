@@ -33,6 +33,7 @@ from typing import Dict, List, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, referrals, websockets  # noqa: E402
+from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
 from backend.core.api.app.routes import share  # noqa: E402 # Import share router
@@ -46,6 +47,7 @@ from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Im
 from backend.core.api.app.routes import e2e_api  # noqa: E402 # Import E2E test client log forwarding router (scoped HMAC auth)
 from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
 from backend.core.api.app.routes import code_execution  # noqa: E402 # Import Code Run web-app execution router
+from backend.core.api.app.routes import electronics_pcb_schematic  # noqa: E402 # Electronics PCB schematic compile endpoints
 from backend.core.api.app.routes import application_preview, application_preview_gateway  # noqa: E402 # Generated application live preview routers
 from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
 from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
@@ -61,6 +63,11 @@ from backend.core.api.app.routes import status_routes  # noqa: E402 # Import sta
 from backend.core.api.app.routes import docs_routes  # noqa: E402 # Import docs API (public, serves doc tree + markdown for CLI)
 from backend.core.api.app.routes import debug_sync  # noqa: E402 # Import debug sync status router (JWT-authed, non-admin, for window.debug integration)
 from backend.core.api.app.routes import sync_api  # noqa: E402 # Native/desktop optional offline sync endpoints
+from backend.core.api.app.routes import token_broker  # noqa: E402 # Active-turn connected-account token broker
+from backend.core.api.app.routes import connected_accounts  # noqa: E402 # Encrypted connected-account storage APIs
+from backend.core.api.app.routes import connected_account_actions  # noqa: E402 # Connected-account operation actions
+from backend.core.api.app.routes import connected_account_oauth  # noqa: E402 # One-time connected-account OAuth handoffs
+from backend.core.api.app.routes import provider_oauth_google_calendar  # noqa: E402 # Google Calendar connected-account OAuth adapter
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
 from backend.core.api.app.routes import notifications as notifications_api  # noqa: E402 # Safe notification list + SSE stream
 from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
@@ -1302,6 +1309,7 @@ def create_app() -> FastAPI:
     
     # Internal/web app routers - excluded from API schema (web app only, not for API access)
     app.include_router(auth.router, include_in_schema=False)  # Auth endpoints - web app only
+    app.include_router(anonymous.router, include_in_schema=False)  # Anonymous free usage routes - official cloud only
     app.include_router(email.router, include_in_schema=False)  # Email endpoints - web app only
     
     # Conditionally register payment-related routers (only if payment is enabled)
@@ -1324,6 +1332,7 @@ def create_app() -> FastAPI:
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
+    app.include_router(electronics_pcb_schematic.router, include_in_schema=False)  # Electronics PCB schematic E2B compile - web app only
     app.include_router(application_preview.router, include_in_schema=False)  # Generated application preview sessions - web app only
     app.include_router(application_preview_gateway.router, include_in_schema=False)  # Token-gated user-content preview gateway
     app.include_router(share.router, include_in_schema=False)  # Share router - web app only
@@ -1358,6 +1367,11 @@ def create_app() -> FastAPI:
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
     app.include_router(sync_api.router, include_in_schema=False)  # Native/desktop optional offline prefetch - JWT auth, encrypted payloads only
+    app.include_router(token_broker.router, include_in_schema=False)  # Connected-account token refs - web/CLI/Apple authenticated only
+    app.include_router(connected_accounts.router, include_in_schema=False)  # Encrypted connected-account rows - client source of truth
+    app.include_router(connected_account_actions.router, include_in_schema=False)  # Connected-account operation actions
+    app.include_router(connected_account_oauth.router, include_in_schema=False)  # OAuth refresh-token handoffs - one-time browser encryption bridge
+    app.include_router(provider_oauth_google_calendar.router, include_in_schema=False)  # Google Calendar OAuth adapter - creates one-time handoffs
     app.include_router(status_routes.router, include_in_schema=True)  # Status page API v3
     app.include_router(docs_routes.router, include_in_schema=True)  # Public docs API - serves doc tree, markdown, and search for CLI
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs

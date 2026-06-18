@@ -464,6 +464,7 @@ def create_linear_issue_for_report(
     issue_id: Optional[str],
     issue_title: str,
     issue_description: Optional[str] = None,
+    issue_type: str = "bug_report",
     chat_or_embed_url: Optional[str] = None,
     is_from_admin: bool = False,
     contact_email: Optional[str] = None,
@@ -481,6 +482,7 @@ def create_linear_issue_for_report(
         issue_id: Directus issue record UUID (for updating with Linear identifier)
         issue_title: The user-provided issue title (already ASCII-smuggling cleaned)
         issue_description: Optional issue description (already ASCII-smuggling cleaned)
+        issue_type: Lightweight report category (bug_report or feature_request)
         chat_or_embed_url: Optional related chat/embed URL (included in Linear description)
         is_from_admin: Whether the reporter is an admin user
         contact_email: Optional reporter email (included in Linear description for context)
@@ -497,6 +499,7 @@ def create_linear_issue_for_report(
                 issue_id=issue_id,
                 issue_title=issue_title,
                 issue_description=issue_description,
+                issue_type=issue_type,
                 chat_or_embed_url=chat_or_embed_url,
                 is_from_admin=is_from_admin,
                 contact_email=contact_email,
@@ -520,6 +523,7 @@ async def _async_create_linear_issue_for_report(
     issue_id: Optional[str],
     issue_title: str,
     issue_description: Optional[str],
+    issue_type: str,
     chat_or_embed_url: Optional[str],
     is_from_admin: bool,
     contact_email: Optional[str],
@@ -580,7 +584,9 @@ async def _async_create_linear_issue_for_report(
             logger.info("Added 'Security' label due to ASCII smuggling detection in API route")
 
         # ── Step 3: Build Linear issue description ───────────────────────
-        parts = ["**User-reported issue**"]
+        report_kind = "Feature request" if issue_type == "feature_request" else "Bug report"
+        parts = [f"**User-reported {report_kind.lower()}**"]
+        parts.append(f"*Type: {issue_type}*")
 
         if is_from_admin:
             parts.append("*Reported by: admin*")
@@ -641,7 +647,7 @@ async def _async_create_linear_issue_for_report(
         priority = 2 if is_from_admin else 3
 
         linear_result = await _create_linear_issue(
-            title=f"Bug report: {effective_title}",
+            title=f"{report_kind}: {effective_title}",
             description=description,
             priority=priority,
             label_names=label_names,

@@ -49,6 +49,7 @@
   import { copyToClipboard } from '../../../utils/clipboardUtils';
   import { hydrateEmbedLinks, hydrateWikiLinks, replaceEmbedRefsWithUrls, replaceEmbedRefsWithUrlsInHtml } from '../../../utils/embedLinkUtils';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
+  import EmbedZoomControls from '../shared/EmbedZoomControls.svelte';
   import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
 
   /**
@@ -112,11 +113,14 @@
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
   let includedOriginalHtmlContent = $state<string | null>(null);
-  let htmlContent = $derived(
-      includedOriginalHtmlContent !== null ? includedOriginalHtmlContent
-      : typeof dc.html === 'string' ? dc.html
+  let latestHtmlContent = $derived(
+      typeof dc.html === 'string' ? dc.html
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
+    );
+  let htmlContent = $derived(
+      includedOriginalHtmlContent !== null ? includedOriginalHtmlContent
+      : latestHtmlContent
     );
   let title = $derived(
       typeof dc.title === 'string' ? dc.title
@@ -756,23 +760,14 @@ ${downloadHtmlContent}
         </div>
       </div>
 
-      <div class="doc-zoom-bar">
-        <div class="doc-zoom-bar-inner">
-          <button class="doc-zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomPercent <= ZOOM_MIN}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button class="doc-zoom-level" onclick={resetZoom} aria-label="Reset zoom" title="Click to fit page to screen">
-            {zoomDisplayText}
-          </button>
-          <button class="doc-zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomPercent >= ZOOM_MAX}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+      <EmbedZoomControls
+        zoomOut={zoomOut}
+        zoomIn={zoomIn}
+        resetZoom={resetZoom}
+        zoomLabel={zoomDisplayText}
+        zoomOutDisabled={zoomPercent <= ZOOM_MIN}
+        zoomInDisabled={zoomPercent >= ZOOM_MAX}
+      />
     {:else if sanitizedHtml}
       <!--
         Grey canvas area containing the document pages. The zoom bar is
@@ -836,23 +831,14 @@ ${downloadHtmlContent}
       <!-- Floating zoom controls — sticky to bottom of scroll viewport.
            Placed AFTER .doc-viewer-canvas in the .content-area scroll flow
            so position: sticky keeps it at the bottom of the visible area. -->
-      <div class="doc-zoom-bar">
-        <div class="doc-zoom-bar-inner">
-          <button class="doc-zoom-btn" onclick={zoomOut} aria-label="Zoom out" disabled={zoomPercent <= ZOOM_MIN}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button class="doc-zoom-level" onclick={resetZoom} aria-label="Reset zoom" title="Click to fit page to screen">
-            {zoomDisplayText}
-          </button>
-          <button class="doc-zoom-btn" onclick={zoomIn} aria-label="Zoom in" disabled={zoomPercent >= ZOOM_MAX}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+      <EmbedZoomControls
+        zoomOut={zoomOut}
+        zoomIn={zoomIn}
+        resetZoom={resetZoom}
+        zoomLabel={zoomDisplayText}
+        zoomOutDisabled={zoomPercent <= ZOOM_MIN}
+        zoomInDisabled={zoomPercent >= ZOOM_MAX}
+      />
     {:else}
       <div class="empty-state">
         <p>{$text('embeds.document_no_content')}</p>
@@ -864,7 +850,10 @@ ${downloadHtmlContent}
       <EmbedVersionTimeline
         {embedId}
         currentVersion={versionNumber}
-        onVersionSelect={(version, _content) => {
+        currentContent={latestHtmlContent}
+        buildRestoredContent={(content, newVersion) => ({ ...dc, html: content, version_number: newVersion })}
+        onVersionSelect={(version, content) => {
+          includedOriginalHtmlContent = content;
           console.log('[DocsEmbedFullscreen] Version selected:', version);
         }}
       />
@@ -1208,95 +1197,6 @@ ${downloadHtmlContent}
   }
 
   /* ===========================================
-     Floating Zoom Bar
-     position: sticky keeps the bar at the bottom of the
-     visible scroll area (.content-area in UnifiedEmbedFullscreen).
-     negative margin-top overlaps it onto the canvas instead of
-     adding extra space below the document.
-     =========================================== */
-
-  .doc-zoom-bar {
-    position: sticky;
-    bottom: 16px;
-    z-index: var(--z-index-modal);
-    pointer-events: none;
-    display: flex;
-    justify-content: center;
-    /* Negative margin-top pulls the bar up so it overlaps the document
-       canvas instead of adding extra space below it. The bar height
-       (~44px) + bottom (16px) = 60px overlap. */
-    margin-top: -60px;
-    padding-bottom: var(--spacing-8);
-  }
-
-  .doc-zoom-bar-inner {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-    background: var(--color-grey-0, #ffffff);
-    border-radius: 28px;
-    padding: var(--spacing-2) var(--spacing-3);
-    box-shadow:
-      0 2px 8px rgba(0, 0, 0, 0.15),
-      0 0 1px rgba(0, 0, 0, 0.1);
-    pointer-events: auto;
-  }
-
-  .doc-zoom-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: var(--color-grey-70, #555);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color var(--duration-fast), color var(--duration-fast);
-    padding: 0;
-    flex-shrink: 0;
-  }
-
-  .doc-zoom-btn:hover:not(:disabled) {
-    background: var(--color-grey-10, #f0f0f0);
-    color: var(--color-grey-100, #1a1a1a);
-  }
-
-  .doc-zoom-btn:active:not(:disabled) {
-    background: var(--color-grey-20, #e5e5e5);
-  }
-
-  .doc-zoom-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-
-  .doc-zoom-level {
-    min-width: 52px;
-    height: 32px;
-    border-radius: var(--radius-7);
-    border: 1px solid var(--color-grey-20, #e5e5e5);
-    background: var(--color-grey-5, #fafafa);
-    color: var(--color-grey-80, #333);
-    font-size: var(--font-size-xs);
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 10px;
-    transition: background-color var(--duration-fast), border-color var(--duration-fast);
-    letter-spacing: 0.2px;
-  }
-
-  .doc-zoom-level:hover {
-    background: var(--color-grey-10, #f0f0f0);
-    border-color: var(--color-grey-30, #ccc);
-  }
-
-  /* ===========================================
      Empty State
      =========================================== */
 
@@ -1317,10 +1217,5 @@ ${downloadHtmlContent}
       padding: var(--spacing-6) var(--spacing-2) var(--spacing-12);
     }
 
-    .doc-zoom-bar {
-      bottom: 10px;
-      margin-top: -56px;
-      padding-bottom: var(--spacing-5);
-    }
   }
 </style>

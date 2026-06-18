@@ -58,24 +58,29 @@ models:
 
   - id: "kimi-k2.7-code"
     name: "Kimi K2.7 Code"
-    description: "Kimi K2.7 Code is Moonshot AI's coding-focused agent model for long-horizon software engineering tasks. Features a 1T-parameter MoE architecture with 32B activated parameters, 256K context window, tool use, and improved token efficiency over K2.6. Served through OpenRouter."
+    description: "Kimi K2.7 Code is Moonshot AI's coding-focused agent model for long-horizon software engineering tasks. Features a 1T-parameter MoE architecture with 32B activated parameters, 256K context window, tool use, and improved token efficiency over K2.6. Primary: Together AI; Fallback: OpenRouter."
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-06-12" # Model release date from OpenRouter/Hugging Face listing
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      together: "moonshotai/Kimi-K2.7-Code"
       openrouter: "moonshotai/kimi-k2.7-code"
     input_types:
       - text
     output_types:
       - text
-    default_server: "openrouter" # Use OpenRouter; no direct Novita provider is configured in OpenMates
+    default_server: "together" # Default to Together AI for serverless inference
     servers:
+      - id: "together"
+        name: "Together AI"
+        model_id: "moonshotai/Kimi-K2.7-Code"
+        region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "moonshotai/kimi-k2.7-code"
-        region: "US" # Server region for UI display
+        region: "US" # Server region for UI display (fallback)
     pricing:
       tokens:
         input:
@@ -107,6 +112,6 @@ models:
 #
 # Simplified: tokens_per_credit = 333.33 / your_cost_per_million
 #
-# Examples for Kimi K2.7 Code (OpenRouter pricing):
+# Examples for Kimi K2.7 Code (Together AI / OpenRouter pricing):
 # - Input ($0.95/M): 333.33 / 0.95 = 350.9 tokens/credit -> round to 350
 # - Output ($4.00/M): 333.33 / 4.00 = 83.3 tokens/credit -> round to 80

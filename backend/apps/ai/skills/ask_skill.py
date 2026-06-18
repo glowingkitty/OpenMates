@@ -56,6 +56,7 @@ class AskSkillRequest(BaseModel):
     user_id: str = Field(..., description="Actual ID of the user.")
     user_id_hash: str = Field(..., description="Hashed ID of the user.")
     message_history: List[AIHistoryMessage] = Field(..., description="The complete history of messages in the chat, ordered chronologically. Each message is an AIHistoryMessage model. The last message is the current one.") # Emphasized completeness and order, and specified model type
+    current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip post-processing and use 'incognito' as chat_id for billing.")
@@ -64,10 +65,16 @@ class AskSkillRequest(BaseModel):
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
     app_settings_memories_metadata: Optional[List[str]] = Field(default=None, description="List of available app settings/memories keys from client in 'app_id-item_type' format (e.g., ['code-preferred_technologies', 'travel-trips']). Client is source of truth since only client can decrypt.")
+    connected_account_directory: Optional[List[Dict[str, Any]]] = Field(default=None, description="Redacted connected-account directory from the client. Must not include provider tokens or plaintext account identity.")
+    connected_account_token_refs: Optional[List[Dict[str, Any]]] = Field(default=None, description="Short-lived turn-token refs created by the client token broker before send. Opaque refs only; no refresh tokens.")
+    connected_account_permission_state: Optional[Dict[str, Any]] = Field(default=None, description="Permission continuation state for connected-account approvals.")
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
     is_app_settings_memories_continuation: bool = Field(default=False, description="True if this task is a continuation after app settings/memories confirmation/rejection. Prevents infinite loops by skipping pending context storage if data is still missing.")
+    is_connected_account_permission_continuation: bool = Field(default=False, description="True if this task is a continuation after connected-account permission confirmation/rejection.")
     is_focus_mode_continuation: bool = Field(default=False, description="True if this task is a continuation after focus mode auto-confirm or rejection. The user message was already persisted before the deferred activation pause.")
     is_sub_chat_continuation: bool = Field(default=False, description="True if this task is a continuation after waited sub-chats completed. The user message was already persisted before the sub-chat pause.")
+    is_anonymous: bool = Field(default=False, description="True for official-cloud anonymous free usage. Skips user-vault lookup and user-balance charging.")
+    anonymous_reservation_id: Optional[str] = Field(default=None, description="Anonymous budget reservation ID for server-side reconciliation.")
     continuation_message_id: Optional[str] = Field(default=None, description="When set, the continuation task reuses this as the AI message_id instead of generating a new one from the Celery task_id. This ensures the continuation response is appended to the same message bubble as the focus mode embed.")
     api_key_hash: Optional[str] = Field(default=None, alias="_api_key_hash", description="SHA-256 hash of the API key for usage tracking.")
     device_hash: Optional[str] = Field(default=None, alias="_device_hash", description="SHA-256 hash of the device for usage tracking.")
@@ -121,6 +128,8 @@ class OpenAICompletionRequest(BaseModel):
     provider: Optional[str] = Field(default=None, description="Preferred provider (e.g., 'openai', 'cerebras', 'anthropic').")
     focus_mode: Optional[str] = Field(default=None, description="Focus mode ID to use.")
     is_incognito: Optional[bool] = Field(default=False, description="Whether this is an incognito request (no storage/billing).")
+    is_anonymous: Optional[bool] = Field(default=False, description="Whether this is an anonymous free-usage request billed against the shared anonymous budget.")
+    anonymous_reservation_id: Optional[str] = Field(default=None, description="Anonymous budget reservation ID for server-side reconciliation.")
     
     # Context metadata fields injected by the external API handler from API key authentication
     # These allow the skill to use the real authenticated user for proper cache lookups and billing
@@ -415,6 +424,8 @@ class AskSkill(BaseSkill):
             message_history=message_history,
             chat_has_title=False,  # Always generate new metadata for API requests
             is_incognito=openai_request.is_incognito or False,
+            is_anonymous=openai_request.is_anonymous or False,
+            anonymous_reservation_id=openai_request.anonymous_reservation_id,
             is_external=True,  # This is an external OpenAI-compatible request
             mate_id=openai_request.mate_id,
             active_focus_id=openai_request.focus_mode,

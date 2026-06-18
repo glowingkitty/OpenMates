@@ -602,21 +602,33 @@ async function startNewChat(
 	if (!clicked) {
 		const messageEditor = page.getByTestId('message-editor');
 		if (await messageEditor.isVisible({ timeout: 3000 }).catch(() => false)) {
-			logCheckpoint('New Chat button not visible; editor is already ready, treating page as new chat.');
+			await expect(async () => {
+				expect(page.url()).not.toMatch(/chat-id=/);
+				expect(await messageInput.getAttribute('data-current-chat-id')).toBe('new-chat');
+			}).toPass({ timeout: 10000 });
+			logCheckpoint('New Chat button not visible; editor is stably bound to new chat.');
 		} else {
 			logCheckpoint('WARNING: Could not find New Chat button or ready message editor.');
 		}
 	}
 
 	const newUrl = page.url();
-	if (clicked && previousContextId) {
-		await expect(async () => {
-			const contextId = await messageInput.getAttribute('data-current-chat-id');
-			expect(contextId).toBeTruthy();
+	await expect(async () => {
+		expect(page.url()).not.toMatch(/chat-id=/);
+		const contextId = await messageInput.getAttribute('data-current-chat-id');
+		expect(contextId).toBeTruthy();
+		if (clicked && previousContextId) {
 			expect(contextId).not.toBe(previousContextId);
-		}).toPass({ timeout: 10000 });
-		logCheckpoint('Message input rebound to new chat context.');
-	}
+		}
+	}).toPass({ timeout: 10000 });
+
+	const stableContextId = await messageInput.getAttribute('data-current-chat-id');
+	await page.waitForTimeout(2000);
+	await expect(async () => {
+		expect(page.url()).not.toMatch(/chat-id=/);
+		expect(await messageInput.getAttribute('data-current-chat-id')).toBe(stableContextId);
+	}).toPass({ timeout: 10000 });
+	logCheckpoint('Message input is stable in new chat context.');
 	logCheckpoint(`URL after attempting to start new chat: ${newUrl}`);
 }
 

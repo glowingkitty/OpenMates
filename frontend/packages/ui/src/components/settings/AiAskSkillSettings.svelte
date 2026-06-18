@@ -49,7 +49,7 @@
     // ─── Sibling skill navigation ─────────────────────────────────────────────
     //
     // Register the AI app's full skill list so AppDetailsHeader can show prev/next
-    // arrows when the user opens the AI Ask skill page (app_store/ai/skill/ask).
+    // arrows when the user opens the AI Ask skill page (apps/ai/skill/ask).
     // The navigate callback uses the special 'ai/ask' route for this skill and the
     // standard skill route for all other AI skills.
     $effect(() => {
@@ -66,8 +66,8 @@
                     // The AI Ask skill has its own special route; all other AI skills use the generic route
                     const path =
                         targetSkillId === 'ask'
-                            ? 'app_store/ai/skill/ask'
-                            : `app_store/ai/skill/${targetSkillId}`;
+                            ? 'apps/ai/skill/ask'
+                            : `apps/ai/skill/${targetSkillId}`;
                     dispatch('openSettings', {
                         settingsPath: path,
                         direction: 'forward',
@@ -362,7 +362,7 @@
     function handleModelClick(model: AIModelMetadata) {
         // Navigate to model details page
         dispatch('openSettings', {
-            settingsPath: `app_store/ai/skill/ask/model/${model.id}`,
+            settingsPath: `apps/ai/skill/ask/model/${model.id}`,
             direction: 'forward',
             icon: 'ai',
             title: model.name

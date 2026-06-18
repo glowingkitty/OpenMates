@@ -98,6 +98,10 @@ struct EmbedContentView: View {
             case .sheetsSheet:
                 SheetRenderer(data: rawData, mode: mode)
 
+            // Diagrams
+            case .diagramsMermaid:
+                MermaidDiagramRenderer(data: rawData, mode: mode)
+
             // Electronics
             case .electronicsSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "components")

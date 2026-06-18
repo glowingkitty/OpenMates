@@ -788,12 +788,12 @@
       let targetPath: string;
       if (isRealApp && skillId) {
         // Real app with a specific skill → deep-link to the skill settings page
-        targetPath = `app_store/${appId}/skill/${skillId}`;
+        targetPath = `apps/${appId}/skill/${skillId}`;
       } else if (isRealApp) {
         // Real app, no specific skill → app details page
-        targetPath = `app_store/${appId}`;
+        targetPath = `apps/${appId}`;
       } else {
-        // Virtual/direct embed type (e.g. "sheets") → app store root
+        // Virtual/direct embed type (e.g. "sheets") -> Apps root
         targetPath = 'app_store';
       }
 

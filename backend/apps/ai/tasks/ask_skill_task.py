@@ -42,7 +42,6 @@ from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
     PostProcessingResult,
     extract_available_skills,
-    extract_available_focus_modes,
 )
 from .stream_consumer import _consume_main_processing_stream
 
@@ -646,7 +645,9 @@ async def _async_process_ai_skill_ask_task(
     # We ALWAYS need the user record and credits for the pre-processing credit check.
     # Credits are encrypted, so the vault_key_id is mandatory for all billable requests.
     user_vault_key_id: Optional[str] = None
-    if cache_service_instance and request_data.user_id:
+    if getattr(request_data, "is_anonymous", False):
+        logger.info(f"[Task ID: {task_id}] Anonymous free-usage request. Skipping Directus user cache warmup and vault-key lookup.")
+    elif cache_service_instance and request_data.user_id:
         cached_user_data = await cache_service_instance.get_user_by_id(request_data.user_id)
         
         if not cached_user_data:
@@ -1947,19 +1948,15 @@ async def _async_process_ai_skill_ask_task(
                 logger.warning(f"[Task ID: {task_id}] No available app IDs found in discovered_apps_metadata for post-processing validation")
 
 
-            # Extract production skills and focus modes for structured suggestion prefix generation.
-            # These are injected into the postprocessor prompt so the LLM can produce
-            # [app_id-skill_id] / [app_id-focus_id] prefixed suggestions that surface
-            # app features users may not know about.
+            # Extract production skills for natural-language suggestion generation.
+            # These are injected into the postprocessor prompt so the LLM can suggest
+            # useful next actions that the normal preprocessing router can auto-detect.
             available_skills_for_postproc = extract_available_skills(
                 discovered_apps_metadata
             ) if discovered_apps_metadata else []
-            available_focus_modes_for_postproc = extract_available_focus_modes(
-                discovered_apps_metadata
-            ) if discovered_apps_metadata else []
             logger.debug(
-                f"[Task ID: {task_id}] Extracted {len(available_skills_for_postproc)} skills and "
-                f"{len(available_focus_modes_for_postproc)} focus modes for post-processing suggestion context"
+                f"[Task ID: {task_id}] Extracted {len(available_skills_for_postproc)} skills "
+                "for post-processing suggestion context"
             )
 
             # Build full message history for post-processing (same format as preprocessing)
@@ -2004,7 +2001,6 @@ async def _async_process_ai_skill_ask_task(
                 available_app_ids=available_app_ids,
 
                 available_skills=available_skills_for_postproc,
-                available_focus_modes=available_focus_modes_for_postproc,
                 is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
                 is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
                 output_language=chat_output_language,

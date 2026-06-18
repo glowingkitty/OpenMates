@@ -1,0 +1,694 @@
+id: diagrams-mermaid-embeds
+title: Diagrams Mermaid Embeds
+status: implementing
+
+goal: >
+  Add first-class Mermaid diagram embeds under a Diagrams app so assistant-created
+  diagrams render as encrypted, shareable, editable embeds across CLI, web, and
+  Apple clients. CLI shows a useful text/source representation, the web app shows
+  a readable cropped preview plus a pan/zoom fullscreen diagram, and the Apple app
+  implements native parity with the rendered web source of truth.
+
+scope:
+  in:
+    - Add a Diagrams app metadata entry and a direct Mermaid embed type backed by assistant-emitted `mermaid` fenced code blocks.
+    - Convert streamed assistant Mermaid fences into direct embeds instead of generic code embeds, preserving encrypted content, embed references, deduplication, sharing, and sync behavior.
+    - Render web preview cards with a readable partial/cropped diagram rather than an unreadably zoomed-out whole diagram.
+    - Render web fullscreen diagrams with easy pan and zoom controls, reset/fit behavior, keyboard or button controls, and raw-source fallback when rendering fails.
+    - Render CLI preview/fullscreen output as text, including title, diagram kind, and Mermaid source snippets/full source.
+    - Implement Apple native preview and fullscreen parity for Mermaid diagrams using OpenMates native embed primitives and web-computed visual contracts as source of truth.
+    - Support assistant diff-based editing of Mermaid diagram embeds and show version timeline/restore controls wherever existing diffable embed timeline patterns apply.
+    - Create a real natural-language OpenMates chat that triggers Mermaid diagram creation without an explicit app mention, verify it works, then publish it as the canonical Diagrams/Mermaid example chat.
+    - Add deterministic backend, CLI, web, and Apple tests following the CLI -> web -> Apple verification ladder.
+  out:
+    - A graphical Mermaid editor or drag-and-drop diagram builder.
+    - Server-side Mermaid rendering as the durable source of truth; v1 stores source and clients render it.
+    - Supporting non-Mermaid diagram syntaxes such as Graphviz/DOT, PlantUML, Excalidraw, BPMN, or hand-drawn sketch formats.
+    - Exact pixel matching between web and Apple screenshots; material visual parity is required, exact screenshot hashes are not.
+    - Using unsandboxed script/style/HTML execution from Mermaid output.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials; fallback `gh issue list --repo glowingkitty/OpenMates --search \"mermaid\" --state all` found only #432, a docs-only maintainable infographics task."
+    - "#432 Improve architecture docs with maintainable infographics: adjacent documentation task, not product Mermaid embed support."
+    - "#50 Add graphviz diagrams for architecture in documentation: closed docs-only issue, not product embed support."
+  linear_tasks:
+    - "`python3 scripts/linear.py search \"mermaid\" --team OPE --state Todo --state \"In Progress\" --state Backlog --state \"In Review\"` returned no matching open task."
+    - "Equivalent Linear searches for `diagrams`, `diagram embed`, and `document embed` returned no matching open task."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/add-embed-type.md
+    - docs/contributing/guides/testing.md
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/frontend/data-driven-embed-fullscreen-routing.md
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/specs/embed-diff-editing-parity/spec.yml
+    - docs/specs/pcb-schematic-embed/spec.yml
+    - docs/specs/content-embed-example-chats/spec.yml
+  code_patterns:
+    - frontend/apps/web_app/src/lib/components/docs/DocsMessage.svelte
+    - frontend/apps/web_app/package.json
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/tokens/sources/gradients.yml
+    - frontend/packages/ui/src/tokens/sources/icons-mapping.yml
+    - frontend/packages/ui/src/components/Icon.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathPlotEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/math/MathPlotEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/MathPlotRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/demo_chats/types.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/*.yml
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - backend/apps/docs/app.yml
+    - backend/apps/math/app.yml
+    - backend/apps/ai/instructions/base_plot_code_block_instruction.md
+    - backend/apps/ai/instructions/base_document_generation_instruction.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+  tests:
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/apps/web_app/tests/paste-classification.spec.ts
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - scripts/audit_example_chats.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MermaidDiagramEmbedRenderer.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+  parity_expectations:
+    - Apple preview card content must materially match the web Mermaid preview, including Diagrams app chrome, icon, color tokens, status bar, readable cropped diagram preview, and source fallback/error state.
+    - Apple fullscreen must materially match web fullscreen shell and provide equivalent pan, zoom in/out, fit/reset, and readable source fallback behavior.
+    - Apple must use OpenMates primitives and generated design tokens, not default platform product UI controls for embed chrome or zoom controls.
+    - Apple may render Mermaid through a safe native WebKit wrapper or a native renderer only if untrusted Mermaid output cannot execute OpenMates-origin script, access auth/session state, or leak private content.
+  verification:
+    - "After CLI and web evidence are green and the implementation is deployed, run `python3 scripts/apple_remote.py status`."
+    - "Run `python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\"` or the targeted test command from the implementation plan."
+    - "Run or extend `OpenMatesUITests/EmbedRenderingParityUITests` for the Diagrams gallery when Mac access is available; otherwise record a sanitized failure class such as `ssh_failed`, `project_not_found`, or `xcode_build_failed`."
+  intentional_native_differences:
+    - WebKit/native SVG text rasterization, platform scrolling physics, and safe-area dimensions may differ when they do not materially obscure diagram readability or controls.
+    - Exact pixel matching is not a v1 gate; material parity and functional controls are required.
+
+clarification:
+  rounds:
+    - question: Should v1 include editing/versioning of existing Mermaid diagram embeds, or should the first slice focus only on creation, rendering, CLI text output, web preview/fullscreen pan-zoom, Apple parity, sharing/copying, and tests?
+      answer: Diff based editing via assistant and viewing timeline of course Supported.
+    - question: >
+        Confirm this vision before writing the spec: Diagrams/Mermaid v1 should
+        add a first-class `diagrams` direct embed type that converts
+        assistant-emitted Mermaid fences into encrypted embeds. CLI renders the
+        text/source version, web renders a readable cropped/partial diagram
+        preview plus fullscreen pan/zoom controls, Apple implements native parity
+        with web, and assistant diff-based edits plus version timeline are in
+        scope.
+      answer: Go ahead.
+  vision_summary: >
+    Users should be able to ask for a diagram and receive a proper Diagrams app
+    embed rather than a plain code block. The embed must remain useful on every
+    client: CLI prints Mermaid text, web shows a readable visual preview plus
+    controllable fullscreen, and Apple matches the web experience natively.
+    Mermaid source is diff-editable by the assistant and users can inspect and
+    restore diagram versions through the existing embed timeline pattern.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Assistant creates a Mermaid diagram embed
+    given:
+      - Alice asks OpenMates to draw a sequence diagram for a signup flow.
+      - The Diagrams app is available in discovered app metadata.
+    when:
+      - The assistant emits a `mermaid` fenced code block with valid Mermaid source.
+    then:
+      - "The backend stream consumer creates a direct Mermaid embed with `type: mermaid`, `app_id: diagrams`, and `skill_id: mermaid`."
+      - The message markdown contains only the JSON embed reference, not the raw fenced block.
+      - The embed content stores the Mermaid source, title, diagram kind, status, and stable `embed_ref` in encrypted TOON content.
+
+  - id: S-2
+    title: CLI shows useful text output for Mermaid embeds
+    given:
+      - Alice runs the CLI and receives a Mermaid diagram embed in a chat.
+    when:
+      - The inline preview or `openmates embeds show <id>` renders the embed.
+    then:
+      - The preview prints a Diagrams/Mermaid label, title, diagram kind, and a short source excerpt.
+      - Fullscreen CLI output prints the full Mermaid source in a fenced `mermaid` block.
+      - CLI output does not attempt graphical rendering or emit raw encrypted content.
+
+  - id: S-3
+    title: Web preview renders a readable cropped diagram
+    given:
+      - Alice opens a chat containing a finished Mermaid embed in the web app.
+      - The Mermaid diagram is larger than the 300 by 200 preview card.
+    when:
+      - The embed preview card renders in the message stream.
+    then:
+      - The preview shows a visible diagram area or safe rendering placeholder inside UnifiedEmbedPreview chrome.
+      - The preview prioritizes readability by cropping/clipping part of the diagram instead of scaling the whole diagram until labels are unreadable.
+      - Processing, error, cancelled, and invalid Mermaid states are visible and do not break surrounding chat rendering.
+
+  - id: S-4
+    title: Web fullscreen supports pan and zoom
+    given:
+      - Alice opens the Mermaid embed fullscreen in the web app.
+    when:
+      - Alice uses zoom in, zoom out, fit/reset, mouse/touch pan, and keyboard-accessible controls.
+    then:
+      - The diagram remains readable and controllable without leaving the fullscreen shell.
+      - The user can reset to a fitted view and can inspect large diagrams by panning.
+      - The fullscreen offers a source fallback or copyable Mermaid source when rendering fails.
+      - The rendered SVG is sanitized and cannot execute scripts, event handlers, external resources, or unsafe links.
+
+  - id: S-5
+    title: Assistant edits a Mermaid embed via diff and timeline
+    given:
+      - Alice has an existing Mermaid diagram embed with version 1.
+      - Alice asks the assistant to add an error branch to the diagram.
+    when:
+      - The assistant produces a supported diff edit targeting the Mermaid embed.
+    then:
+      - The backend applies the patch to the Mermaid source and stores a new version without replacing unrelated embed metadata.
+      - Preview and fullscreen re-render from the updated source.
+      - The version timeline shows the previous and current versions and restore returns the diagram to the selected source.
+
+  - id: S-6
+    title: Apple renders Mermaid diagrams with web parity
+    given:
+      - The web app has Mermaid preview and fullscreen contract artifacts for iPhone and iPad-equivalent viewports.
+      - The Apple app debug embed gallery includes a Diagrams/Mermaid fixture.
+    when:
+      - Apple embed rendering parity tests run on iPhone and iPad simulators.
+    then:
+      - Native preview and fullscreen materially match the web layout, chrome, colors, typography, readable cropping, and pan/zoom controls.
+      - The Apple app does not crash when decoding, previewing, full-screening, sharing, or restoring a Mermaid embed.
+      - Native rendering avoids default platform product UI and protects untrusted Mermaid content from app/session access.
+
+  - id: S-7
+    title: Natural-language example chat demonstrates Mermaid embed creation
+    given:
+      - The Mermaid embed implementation is deployed and verified on dev.
+      - A user starts a normal OpenMates chat without mentioning an app, skill, or `@` command.
+    when:
+      - The user asks in natural language for a diagram, such as "Draw a clear sequence diagram for how a user signs up with email verification."
+    then:
+      - The assistant chooses the Diagrams/Mermaid path without requiring an explicit app mention.
+      - The resulting real chat contains a finished Diagrams/Mermaid embed that renders in preview and fullscreen.
+      - After quality review confirms the real chat is public-safe and demonstrates the embed well, the transcript is converted into the canonical public example chat for the Diagrams/Mermaid content type.
+      - The example chat metadata links to the Diagrams/Mermaid content type and passes deterministic public-safety and renderability audits.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Mermaid fences are converted into encrypted Diagrams direct embeds with stable references and no raw fence leakage in rendered chat messages.
+  - id: AC-2
+    scenario: S-2
+    text: CLI preview and fullscreen commands render Mermaid embeds as readable text/source output.
+  - id: AC-3
+    scenario: S-3
+    text: The web preview renders a readable cropped/partial diagram or explicit safe fallback inside UnifiedEmbedPreview for all required states.
+  - id: AC-4
+    scenario: S-4
+    text: The web fullscreen renders sanitized Mermaid diagrams with pan, zoom, fit/reset, and source fallback controls.
+  - id: AC-5
+    scenario: S-5
+    text: Mermaid embeds participate in assistant diff editing, version history, timeline viewing, and restore flows.
+  - id: AC-6
+    scenario: S-6
+    text: Apple implements native Mermaid preview/fullscreen parity with web and passes remote build/test verification or records a sanitized infrastructure failure.
+  - id: AC-7
+    scenario: S-7
+    text: A real natural-language chat, without explicit app mention, is verified to create a Mermaid embed and is published as the canonical public Diagrams/Mermaid example chat.
+
+contracts:
+  api:
+    - No new public REST API route is required for basic Mermaid creation; stream conversion follows the existing embed service and WebSocket `send_embed_data` pattern.
+    - Existing embed sharing, restore, and diff-edit routes must accept the new backend type `mermaid` wherever direct diffable embeds are supported.
+    - Mermaid embed payloads sent to clients use encrypted stored content and plaintext WebSocket content only through existing authorized embed delivery paths.
+  data:
+    - "backend_type: mermaid"
+    - "frontend_type: diagrams-mermaid"
+    - "app_id: diagrams"
+    - "skill_id: mermaid"
+    - "content fields: type, app_id, skill_id, title, diagram_kind, diagram_code, embed_ref, status, version_number"
+    - Mermaid source is the durable source of truth; rendered SVG is ephemeral client-side output unless a future spec adds generated artifacts.
+    - "`content_hash` should be populated for finished Mermaid embeds so duplicate detection and version metadata follow code/file/sheet/document conventions."
+  ui_states:
+    - CLI inline preview.
+    - CLI fullscreen/source output.
+    - Web preview processing, finished, error, cancelled, invalid Mermaid, and mobile states.
+    - Web fullscreen pan, zoom in, zoom out, fit/reset, copy source, render error, and version timeline states.
+    - Apple preview processing, finished, error, invalid Mermaid, iPhone fullscreen, iPad fullscreen, and version timeline states.
+    - Public Diagrams/Mermaid example chat card and transcript with a renderable finished Mermaid embed.
+  privacy_security:
+    - Mermaid SVG output must be sanitized before insertion into web DOM or native WebKit/native-rendered surfaces.
+    - Mermaid initialization must use strict security settings where available and must not allow scripts, event handler attributes, unsafe URLs, external image loads, or OpenMates-origin DOM access from diagram content.
+    - Diagram source may contain user/private data and must remain encrypted at rest with existing embed encryption/key wrapping behavior.
+    - Error logging must not include full Mermaid source when source may contain private user data; logs may include length, diagram kind, embed id, and sanitized error class.
+    - Apple implementation must not expose auth cookies, tokens, vault keys, or private app state to any WebKit/rendering context used for Mermaid.
+    - The committed example chat must contain only public-safe synthetic or approved transcript content and no private chat IDs, share keys, raw AES material, S3 keys, credentials, internal prompts, or user identifiers.
+  accessibility:
+    - Preview and fullscreen controls have accessible names and keyboard/touch alternatives.
+    - Fullscreen exposes title, diagram kind, zoom level, and source fallback to assistive technologies.
+    - If rendered diagrams are not semantically navigable, source text remains available.
+
+tests:
+  - id: T-PYTEST-STREAM
+    type: pytest
+    file: backend/tests/test_mermaid_embed_streaming.py
+    command: python3 -m pytest backend/tests/test_mermaid_embed_streaming.py
+    covers:
+      - AC-1
+      - AC-5
+    assertions:
+      - "stream consumer converts a complete `mermaid` fence into a `type: mermaid` embed reference"
+      - "embed service stores `app_id: diagrams`, `skill_id: mermaid`, `diagram_code`, `diagram_kind`, `embed_ref`, status, and content hash"
+      - malformed Mermaid source is stored as source and marked renderable/error-safe rather than crashing stream consumption
+      - diff editing applies a unified diff to Mermaid source and records version metadata
+      - restoring a previous version restores the prior Mermaid source
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 -m pytest backend/tests/test_mermaid_embed_streaming.py"
+        timestamp: "2026-06-18T08:08:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest backend/tests/test_mermaid_embed_streaming.py"
+        timestamp: "2026-06-18T08:12:00Z"
+
+  - id: T-CLI-RENDER
+    type: unit
+    file: frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    covers:
+      - AC-2
+    assertions:
+      - CLI preview recognizes `mermaid` and `diagrams-mermaid` direct embed aliases
+      - CLI preview prints title, diagram kind, and a source excerpt
+      - CLI fullscreen prints full Mermaid source in a fenced `mermaid` block
+      - CLI output does not print encrypted payloads or attempt graphical rendering
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "node --test --experimental-strip-types frontend/packages/openmates-cli/tests/embedRenderers.test.ts"
+        timestamp: "2026-06-18T08:08:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "node --test --experimental-strip-types frontend/packages/openmates-cli/tests/embedRenderers.test.ts"
+        timestamp: "2026-06-18T08:12:00Z"
+
+  - id: T-VITEST-UI
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/diagrams/__tests__/mermaidDiagramContent.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+    assertions:
+      - embed text renderer maps `diagrams-mermaid` and `mermaid` to readable text/source output
+      - Mermaid SVG sanitization strips scripts, event handlers, unsafe links, and external resources
+      - preview sizing helpers prefer readable cropped/partial rendering over whole-diagram miniaturization
+      - fullscreen zoom state supports zoom in, zoom out, pan offset, and reset/fit calculations
+      - version timeline metadata is passed through for Mermaid embeds
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "2026-06-18T08:20:28Z / GitHub Actions 27746442039 / 432 passed"
+        timestamp: "2026-06-18T08:21:26Z"
+
+  - id: T-PLAYWRIGHT-MERMAID
+    type: playwright
+    file: frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    command: python3 scripts/run_tests.py --spec diagrams-mermaid-embed.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-7
+    assertions:
+      - asking for a Mermaid sequence diagram creates a `diagrams-mermaid` embed preview
+      - preview contains rendered diagram content that is clipped/readable rather than fully miniaturized
+      - fullscreen opens and pan/zoom/fit controls change the diagram transform or viewport state
+      - invalid Mermaid source shows a safe fallback without breaking chat rendering
+      - assistant diff edit updates the Mermaid source and the version timeline can restore the previous version
+      - a natural-language request without an explicit app mention creates a Diagrams/Mermaid embed
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "python3 scripts/run_tests.py --suite playwright --spec diagrams-mermaid-embed.spec.ts / GitHub Actions 27753940934 / deployed aede9321c"
+        timestamp: "2026-06-18T10:43:21Z"
+
+  - id: T-EXAMPLE-CHAT-AUDIT
+    type: lint
+    file: scripts/audit_example_chats.py
+    command: python3 scripts/audit_example_chats.py
+    covers:
+      - AC-7
+    assertions:
+      - Diagrams/Mermaid has exactly one linked canonical public example chat once the content type is published
+      - the example chat contains at least one renderable finished Mermaid embed
+      - the source prompt in the example chat is natural language and does not use an explicit app mention or `@` command
+      - the example chat does not contain private keys, S3 object references, raw tool payloads, internal prompts, or broken public placeholder text
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 scripts/audit_example_chats.py / 11 issues before German translation and content_embed_examples fixes"
+        timestamp: "2026-06-18T10:55:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/audit_example_chats.py"
+        timestamp: "2026-06-18T11:02:23Z"
+
+  - id: T-PLAYWRIGHT-APPLE-CONTRACT
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    command: python3 scripts/run_tests.py --spec apple-embed-rendering-contracts.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-6
+    assertions:
+      - web Apple-contract extraction includes the `diagrams` app section
+      - artifacts include Mermaid preview and fullscreen surfaces for iPhone and iPad viewports
+      - extracted text/layout data includes Diagrams chrome, Mermaid title, controls, and visible rendered content/fallback metadata
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UNIT
+    type: unit
+    file: apple/OpenMatesTests/SkillApplicationParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/SkillApplicationParityTests"
+    covers:
+      - AC-6
+    assertions:
+      - Apple `EmbedType` includes `diagrams-mermaid` with `appId == diagrams` and display name `Diagram`
+      - Dev preview fixtures include a Diagrams/Mermaid embed with title, diagram kind, and source
+      - Mermaid content decodes from raw embed data without dropping source or status fields
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UI
+    type: manual
+    covers:
+      - AC-6
+    assertions:
+      - "`python3 scripts/apple_remote.py status` succeeds or records a sanitized failure class"
+      - "`python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\"` succeeds after implementation is committed and pushed, or records a sanitized failure class"
+      - targeted `OpenMatesUITests/EmbedRenderingParityUITests` Diagrams coverage renders preview/fullscreen without default platform product UI
+      - captured native screenshots materially match web contract artifacts for Mermaid preview/fullscreen on iPhone and iPad
+    red_phase:
+      required: true
+      expected: fail_or_not_available_before_implementation
+      evidence:
+        status: ssh_reachable_pre_build
+        run_id: "python3 scripts/apple_remote.py status"
+        timestamp: "2026-06-18T08:22:00Z"
+    green_phase:
+      required: true
+      expected: pass_or_sanitized_infra_failure
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_remote.py status (ssh_reachable=True); python3 scripts/apple_remote.py build-ios (exit_code=0)"
+        timestamp: "2026-06-18T10:44:00Z"
+
+implementation_plan:
+  existing_patterns:
+    - "Use `backend/apps/docs/app.yml` as the direct embed metadata template."
+    - "Use `math-plot` stream conversion as the closest fenced-block conversion template."
+    - "Use document/code/sheet diff-editing flows for Mermaid source patching and timeline metadata."
+    - "Use `DocsMessage.svelte` only as a minimal Mermaid rendering/security reference, not as the embed UI implementation."
+    - "Use Apple embed parity fixtures/tests from `apple-embed-rendering-parity` as the native verification pattern."
+  architecture: >
+    Mermaid embeds are source-first direct embeds. The backend detects `mermaid`
+    fences, stores encrypted Mermaid source plus metadata, and sends normal embed
+    updates. Web and Apple clients render sanitized visual diagrams from source;
+    CLI renders source text. Diff editing patches the source string and reuses
+    existing version metadata/timeline patterns.
+  data_flow:
+    - User asks for a diagram.
+    - The assistant receives Diagrams/Mermaid instructions when the Diagrams app is discovered and relevant.
+    - The assistant emits a `mermaid` fenced block.
+    - "`stream_consumer.py` creates a Mermaid placeholder/embed and replaces the fence with an embed reference."
+    - "`embed_service.py` encrypts/stores the Mermaid TOON content, sends WebSocket updates, and persists finished embeds."
+    - CLI renders source text, web renders sanitized visual preview/fullscreen, and Apple renders native parity surfaces.
+    - Assistant diff edits patch `diagram_code`, create a new version, and update preview/fullscreen/timeline.
+  affected_files:
+    - path: backend/apps/diagrams/app.yml
+      reason: New Diagrams app metadata and direct Mermaid embed type.
+    - path: backend/apps/ai/instructions/base_mermaid_diagram_instruction.md
+      reason: Teach assistant when and how to emit Mermaid fences.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Inject Mermaid instructions when Diagrams is available/relevant.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Detect `mermaid` fences and convert them to embeds.
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Create/update Mermaid embeds, content hashes, events, and persistence fallback.
+    - path: frontend/packages/ui/package.json
+      reason: Add Mermaid dependency to the UI package that owns embed components.
+    - path: frontend/packages/ui/src/components/embeds/diagrams/*
+      reason: New preview/fullscreen/text/sanitization/preview fixture components.
+    - path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+      reason: Mount Mermaid preview for direct embeds.
+    - path: frontend/packages/ui/src/services/embedPreviewRegistry.ts
+      reason: Resolve Mermaid preview props for saved/shared/direct embed loading.
+    - path: frontend/packages/ui/src/data/embedTextRenderers.ts
+      reason: Register text renderer for copy/export/CLI shared output paths.
+    - path: frontend/packages/ui/src/i18n/sources/embeds.yml
+      reason: Add localized embed labels/status/control text.
+    - path: frontend/packages/openmates-cli/src/embedRenderers.ts
+      reason: Render Mermaid preview/fullscreen as terminal text/source.
+    - path: frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+      reason: New web E2E coverage for creation, preview, fullscreen, and diff editing.
+    - path: apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      reason: Add `diagrams-mermaid` type and metadata.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/MermaidDiagramEmbedRenderer.swift
+      reason: Native preview/fullscreen Mermaid renderer.
+    - path: apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      reason: Add Diagrams app fixture.
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/email-verification-sequence-diagram.ts
+      reason: Canonical public example chat generated from a verified real natural-language chat.
+    - path: frontend/packages/ui/src/i18n/sources/example_chats/email_verification_sequence_diagram.yml
+      reason: Localized public example chat title, description, and transcript text.
+    - path: frontend/packages/ui/src/demo_chats/exampleChatData.ts
+      reason: Register the canonical example chat in the public example chat catalog.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/diagrams-mermaid-embeds/spec.yml
+    - Write or extend the listed tests before feature code and record red-phase evidence.
+    - Run backend/CLI/unit checks locally or via allowed scripts first.
+    - Deploy to dev before Playwright green runs, wait for Vercel Ready, then run web specs.
+    - Run Apple remote status/build/test after code is committed and pushed, recording sanitized evidence.
+    - python3 scripts/spec_verify.py docs/specs/diagrams-mermaid-embeds/spec.yml --phase red
+    - python3 scripts/spec_verify.py docs/specs/diagrams-mermaid-embeds/spec.yml --phase green
+  verification_order:
+    - Backend and CLI contract tests first.
+    - Web unit/vitest and Playwright after deploy for green phase.
+    - Apple remote unit/UI/build verification third.
+    - Example chat audit and live public transcript smoke test after the real chat is approved and committed.
+
+tasks:
+  - id: TASK-1
+    title: Add backend Diagrams metadata and Mermaid stream conversion
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - backend/apps/diagrams/app.yml
+      - backend/apps/ai/instructions/base_mermaid_diagram_instruction.md
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_mermaid_embed_streaming.py
+    verification:
+      - T-PYTEST-STREAM
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add CLI Mermaid text rendering
+    covers:
+      scenarios:
+        - S-2
+      acceptance_criteria:
+        - AC-2
+    expected_files:
+      - frontend/packages/openmates-cli/src/embedRenderers.ts
+      - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    verification:
+      - T-CLI-RENDER
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Add web Mermaid preview fullscreen and text renderer
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+    expected_files:
+      - frontend/packages/ui/package.json
+      - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.preview.ts
+      - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.preview.ts
+      - frontend/packages/ui/src/components/embeds/diagrams/diagramsEmbedText.ts
+      - frontend/packages/ui/src/components/embeds/diagrams/mermaidDiagramContent.ts
+      - frontend/packages/ui/src/data/embedTextRenderers.ts
+      - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+      - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+      - frontend/packages/ui/src/i18n/sources/embeds.yml
+    verification:
+      - T-VITEST-UI
+      - T-PLAYWRIGHT-MERMAID
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add Mermaid diff editing and version timeline support
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - backend/apps/ai/processing/main_processor.py
+      - backend/core/api/app/services/embed_service.py
+      - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+      - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    verification:
+      - T-PYTEST-STREAM
+      - T-VITEST-UI
+      - T-PLAYWRIGHT-MERMAID
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add Apple Mermaid parity renderer and fixtures
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - apple/OpenMates.xcodeproj/project.pbxproj
+      - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/MermaidDiagramEmbedRenderer.swift
+      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      - apple/OpenMatesTests/SkillApplicationParityTests.swift
+      - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+      - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    verification:
+      - T-PLAYWRIGHT-APPLE-CONTRACT
+      - T-APPLE-UNIT
+      - T-APPLE-UI
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Create and publish canonical Mermaid example chat
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-7
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/data/example_chats/email-verification-sequence-diagram.ts
+      - frontend/packages/ui/src/i18n/sources/example_chats/email_verification_sequence_diagram.yml
+      - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    verification:
+      - T-PLAYWRIGHT-MERMAID
+      - T-EXAMPLE-CHAT-AUDIT
+    independently_deployable: false
+
+risks:
+  - Mermaid SVG rendering can introduce XSS or external-resource risks if output is inserted without strict configuration and sanitization.
+  - Large diagrams can become unreadable in preview if implementation scales down instead of cropping/readability-first rendering.
+  - Apple native Mermaid rendering may require WebKit or a JavaScript rendering bridge; this must be isolated from app auth/session state.
+  - Real natural-language example chat quality can vary by model/provider behavior; do not commit the example until the deployed implementation demonstrably produces the Mermaid embed without explicit app mention.
+  - Playwright green evidence requires deployment to dev before running the spec.
+  - Local Vitest commands are forbidden; use repo test dispatch scripts.
+
+open_questions:
+  - Should future versions support additional diagram syntaxes under the same Diagrams app, or should each syntax be its own direct embed type?
+  - Should Mermaid rendered SVG snapshots ever be cached for offline Apple rendering, or is source-only storage sufficient for v1?

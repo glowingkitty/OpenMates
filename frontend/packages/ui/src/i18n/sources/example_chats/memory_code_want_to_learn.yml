@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Code Want To Learn"
   en: "Memory Code Want To Learn"
-  de: "Memory Code Want To Learn"
+  de: Speicher Code Lernziele
   zh: "Memory Code Want To Learn"
   es: "Memory Code Want To Learn"
   fr: "Memory Code Want To Learn"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Code Want To Learn"
   en: "OpenMates uses saved code want_to_learn memory in a real chat."
-  de: "OpenMates uses saved code want_to_learn memory in a real chat."
+  de: OpenMates nutzt den gespeicherten Code-Speicher „want_to_learn“ in einem echten Chat.
   zh: "OpenMates uses saved code want_to_learn memory in a real chat."
   es: "OpenMates uses saved code want_to_learn memory in a real chat."
   fr: "OpenMates uses saved code want_to_learn memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Code Want To Learn. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen gespeicherten Speicher für Lernziele (want-to-learn), um ein praktisches erstes Mini-Projekt für dieses Wochenende vorzuschlagen. Du darfst diesen gespeicherten Speicher anfordern und verwenden. Nachdem du den Speicher verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved coding want-to-learn memory to suggest a practical first mini-project for this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -95,24 +95,24 @@ message_2:
 
     This project directly applies what you've shared about your learning path by combining high-performance computation with modern web integration.
   de: |
-    Based on your interest in learning [Rust](wiki:Rust_(programming_language)), [WebAssembly](wiki:WebAssembly), and Asynchronous programming patterns, I suggest building a **Web-Based Real-Time Image Filter**.
-
-    This project is an ideal entry point because it provides immediate visual feedback and highlights why WebAssembly is valuable.
-
-    ### The Project: Rust-Powered Image Processor
-    The goal is to create a simple web page where you can upload an image and apply filters (like grayscale, sepia, or brightness) using a Rust backend compiled to Wasm.
-
-    **Why this fits your goals:**
-    *   **WebAssembly:** You will use `wasm-pack` and `wasm-bindgen` to bridge the gap between [JavaScript](wiki:JavaScript) and Rust, learning how to pass large buffers of memory (pixel data) between the two.
-    *   **Rust Fundamentals:** You'll practice using [Iterators](wiki:Iterator) and handling raw byte arrays efficiently.
-    *   **Async Patterns:** You can extend the project by using [Future](wiki:Futures_and_promises) patterns in Rust to handle file loading or to offload the processing to a [Web worker](wiki:Web_worker), ensuring the UI remains responsive during heavy computation.
-
-    **Suggested Weekend Roadmap:**
-    1.  **Setup:** Initialize a project with `wasm-pack` and set up a basic HTML/JS frontend with a `<canvas>` element.
-    2.  **The Bridge:** Write a Rust function that takes a `Vec<u8>` (representing RGBA pixels), iterates through them to calculate grayscale values, and returns the modified vector.
-    3.  **Optimization:** Once the basic filter works, explore using Rayon or internal async tasks to see if you can parallelize the pixel processing for very large images.
-
-    This project directly applies what you've shared about your learning path by combining high-performance computation with modern web integration.
+    Basierend auf deinem Interesse, [Rust](wiki:Rust_(programming_language)), [WebAssembly](wiki:WebAssembly) und asynchrone Programmiermuster zu lernen, schlage ich vor, einen **webbasierten Echtzeit-Bildfilter** zu bauen.
+    
+    Dieses Projekt ist ein idealer Einstieg, da es sofortiges visuelles Feedback liefert und verdeutlicht, warum WebAssembly so wertvoll ist.
+    
+    ### Das Projekt: Rust-basierter Bildprozessor
+    Das Ziel ist es, eine einfache Webseite zu erstellen, auf der du ein Bild hochladen und Filter (wie Graustufen, Sepia oder Helligkeit) anwenden kannst, wobei ein zu Wasm kompilierter Rust-Backend zum Einsatz kommt.
+    
+    **Warum das zu deinen Zielen passt:**
+    *   **WebAssembly:** Du wirst `wasm-pack` und `wasm-bindgen` verwenden, um die Brücke zwischen [JavaScript](wiki:JavaScript) und Rust zu schlagen und zu lernen, wie man große Speicherpuffer (Pixeldaten) zwischen beiden austauscht.
+    *   **Rust-Grundlagen:** Du wirst den Umgang mit [Iteratoren](wiki:Iterator) üben und lernen, wie man effizient mit rohen Byte-Arrays arbeitet.
+    *   **Async-Muster:** Du kannst das Projekt erweitern, indem du [Future](wiki:Futures_and_promises)-Muster in Rust nutzt, um das Laden von Dateien zu handhaben oder die Verarbeitung in einen [Web-Worker](wiki:Web_worker) auszulagern, damit die Benutzeroberfläche auch bei rechenintensiven Aufgaben flüssig bleibt.
+    
+    **Vorgeschlagener Fahrplan fürs Wochenende:**
+    1.  **Setup:** Initialisiere ein Projekt mit `wasm-pack` und erstelle ein einfaches HTML/JS-Frontend mit einem `<canvas>`-Element.
+    2.  **Die Brücke:** Schreibe eine Rust-Funktion, die einen `Vec<u8>` (der RGBA-Pixel darstellt) entgegennimmt, diese durchläuft, um Graustufenwerte zu berechnen, und den modifizierten Vektor zurückgibt.
+    3.  **Optimierung:** Sobald der Basisfilter funktioniert, kannst du Rayon oder interne asynchrone Tasks ausprobieren, um die Pixelverarbeitung für sehr große Bilder zu parallelisieren.
+    
+    Dieses Projekt wendet das, was du über deinen Lernpfad geteilt hast, direkt an, indem es Hochleistungsberechnungen mit moderner Web-Integration kombiniert.
   zh: |
     Based on your interest in learning [Rust](wiki:Rust_(programming_language)), [WebAssembly](wiki:WebAssembly), and Asynchronous programming patterns, I suggest building a **Web-Based Real-Time Image Filter**.
 

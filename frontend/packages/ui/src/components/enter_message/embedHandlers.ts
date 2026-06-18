@@ -10,6 +10,7 @@ import {
   createDocEmbed,
   createMailEmbed,
   detectLanguageFromContent,
+  redactEmbedContent,
   createSheetEmbed,
 } from "./services/codeEmbedService";
 import { delimitedTextToMarkdownTable, docxArrayBufferToHtml, parseEmlText, xlsxArrayBufferToMarkdownTable } from "./utils/fileContentParsers";
@@ -894,7 +895,8 @@ export async function insertCodeFile(
     // so we use the same "preview:" contentRef convention that pasted embeds use
     // during write mode — the GroupRenderer reads `item.code` for these nodes.
     const embedId = generateUUID();
-    const lineCount = fileContent.split("\n").length;
+    const { redactedContent, piiMappings } = redactEmbedContent(fileContent);
+    const lineCount = redactedContent.split("\n").length;
 
     console.debug(
       "[EmbedHandlers] Demo mode — inserting inline code embed (unauthenticated):",
@@ -912,7 +914,7 @@ export async function insertCodeFile(
           status: "finished",
           // Use "preview:code:" prefix so GroupRenderer reads code from `item.code` attr
           contentRef: `preview:code:${embedId}`,
-          code: fileContent,
+          code: redactedContent,
           filename: file.name,
           language: language,
           lineCount: lineCount,
@@ -922,6 +924,11 @@ export async function insertCodeFile(
       .run();
 
     setTimeout(() => editor.commands.focus("end"), 50);
+    if (piiMappings.length > 0) {
+      console.info(
+        `[EmbedHandlers] Demo code file embed redacted ${piiMappings.length} PII item(s)`,
+      );
+    }
     return;
   }
 

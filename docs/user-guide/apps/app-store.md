@@ -7,7 +7,7 @@ last_verified: 2026-06-11
 claims:
   - id: user-guide-apps-app-store-source
     type: unit
-    claim: The app store guide is grounded in the app store card/detail source files.
+    claim: The Apps guide is grounded in the Apps card/detail source files.
     file: scripts/tests/test_user_guide_app_docs_claims.py
     assertion: user-guide-apps-app-store-source
 ---
@@ -18,7 +18,7 @@ claims:
 
 ## What It Does
 
-The Apps is where you can explore all the apps your digital team mates can use. Think of it like an app store on your phone -- you can browse apps, see what they do, check their pricing, and manage which ones are active.
+Apps is where you can explore all the apps your digital team mates can use. Think of it like an app marketplace on your phone -- you can browse apps, see what they do, check their pricing, and manage which ones are active.
 
 **Where to find it:** Settings > Apps
 

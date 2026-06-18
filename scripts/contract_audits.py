@@ -424,7 +424,7 @@ def audit_app_skill_contracts() -> list[Finding]:
                 line=1,
                 title="Skill files exist but app.yml has no skills metadata",
                 evidence=f"{app_id}/skills contains {len(skill_files)} Python file(s)",
-                recommendation="Add matching skill metadata in app.yml so settings, app store, and tool generation stay in sync.",
+                recommendation="Add matching skill metadata in app.yml so settings, Apps, and tool generation stay in sync.",
             )
     return findings
 

@@ -96,7 +96,7 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
 
   it("keeps hallucinated settings links as plain text", () => {
     const doc = parseMarkdownToTiptap(
-      "Open [billing settings](/#settings/app_store/openmates/settings_memories/billing).",
+      "Open [billing settings](/#settings/apps/openmates/settings_memories/billing).",
     );
 
     const paragraph = doc.content[0];

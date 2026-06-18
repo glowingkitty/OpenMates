@@ -5,7 +5,7 @@
 
      Architecture: See docs/architecture/app-skills.md
      Route: settings_memories (top-level, shown in sidebar nav)
-     Navigation: Clicking a category navigates to app_store/{appId}/settings_memories/{categoryId}
+     Navigation: Clicking a category navigates to apps/{appId}/settings_memories/{categoryId}
                  with cameFrom='settings_memories' so back-navigation returns here.
 -->
 
@@ -158,7 +158,7 @@
      */
     function openCategory(app: AppMetadata, categoryId: string, categoryName: string) {
         dispatch('openSettings', {
-            settingsPath: `app_store/${app.id}/settings_memories/${categoryId}`,
+            settingsPath: `apps/${app.id}/settings_memories/${categoryId}`,
             direction: 'forward',
             icon: getAppIconName(app.icon_image, app.id),
             title: categoryName,
@@ -174,9 +174,9 @@
     function openAppStore() {
         allAppsInitialFilter.set('settings_memories');
         dispatch('openSettings', {
-            settingsPath: 'app_store/all',
+            settingsPath: 'apps/all',
             direction: 'forward',
-            icon: 'app_store',
+            icon: 'app',
             title: $text('settings.app_store.show_all_apps'),
             cameFrom: 'settings_memories',
             cameFromTitle: $text('settings.settings_memories'),
@@ -242,7 +242,7 @@
     <div class="discover-link-section">
         <SettingsItem
             type="submenu"
-            icon="app_store"
+            icon="app"
             title={$text('settings.app_store.settings_memories.discover_link')}
             onClick={openAppStore}
         />

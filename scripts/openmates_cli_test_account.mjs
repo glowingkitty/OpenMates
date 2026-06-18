@@ -38,12 +38,12 @@ function loadDotenv() {
   if (!existsSync(envPath)) return;
 
   const content = readFileSync(envPath, "utf8");
+  const parsed = {};
   for (const rawLine of content.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line || line.startsWith("#") || !line.includes("=")) continue;
     const index = line.indexOf("=");
     const key = line.slice(0, index).trim();
-    if (process.env[key] !== undefined) continue;
     let value = line.slice(index + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
@@ -51,8 +51,22 @@ function loadDotenv() {
     ) {
       value = value.slice(1, -1);
     }
-    process.env[key] = value;
+    parsed[key] = value;
   }
+
+  for (const [key, value] of Object.entries(parsed)) {
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
+function defaultSlot() {
+  return (
+    process.env.OPENMATES_TEST_ACCOUNT_SOURCE_SLOT ||
+    process.env.PLAYWRIGHT_WORKER_SLOT ||
+    "auto"
+  );
 }
 
 function parseArgs(argv) {
@@ -60,7 +74,7 @@ function parseArgs(argv) {
     apiUrl: process.env.OPENMATES_API_URL || DEFAULT_API_URL,
     autoApproveMemories: false,
     expires: "604800",
-    slot: process.env.OPENMATES_TEST_ACCOUNT_SOURCE_SLOT || "2",
+    slot: defaultSlot(),
   };
   const positional = [];
 
@@ -84,17 +98,48 @@ function parseArgs(argv) {
   return { command: positional[0], args: positional.slice(1), options };
 }
 
-function getTestAccount(slot) {
+function readTestAccount(slot) {
   const suffix = slot ? `_${slot}` : "";
   const email = process.env[`OPENMATES_TEST_ACCOUNT${suffix}_EMAIL`] || process.env.OPENMATES_TEST_ACCOUNT_EMAIL;
   const password = process.env[`OPENMATES_TEST_ACCOUNT${suffix}_PASSWORD`] || process.env.OPENMATES_TEST_ACCOUNT_PASSWORD;
   const otpKey = process.env[`OPENMATES_TEST_ACCOUNT${suffix}_OTP_KEY`] || process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY;
 
-  if (!email || !password) {
+  if (!email || !password) return null;
+
+  return { email, password, otpKey, slot: slot || "base" };
+}
+
+function getTestAccountCandidates() {
+  const candidates = [];
+  for (let candidateSlot = 1; candidateSlot <= 20; candidateSlot += 1) {
+    const account = readTestAccount(String(candidateSlot));
+    if (account) candidates.push(account);
+  }
+  const baseAccount = readTestAccount("");
+  if (baseAccount) candidates.push(baseAccount);
+
+  if (candidates.length === 0) {
+    throw new Error("Missing OPENMATES_TEST_ACCOUNT_* credentials");
+  }
+
+  const preferred = candidates.filter((account) => !account.email.includes("mailosaur.net"));
+  const legacy = candidates.filter((account) => account.email.includes("mailosaur.net"));
+  return [...preferred, ...legacy];
+}
+
+function getTestAccount(slot) {
+  if (slot === "auto") {
+    return getTestAccountCandidates()[0];
+  }
+
+  const account = readTestAccount(slot);
+
+  if (!account) {
+    const suffix = slot ? `_${slot}` : "";
     throw new Error(`Missing OPENMATES_TEST_ACCOUNT${suffix}_EMAIL/PASSWORD credentials`);
   }
 
-  return { email, password, otpKey };
+  return account;
 }
 
 function bytesToBase64(bytes) {
@@ -263,7 +308,22 @@ function writeCliSession(session) {
 }
 
 async function login(options) {
-  const account = getTestAccount(options.slot);
+  const accounts = options.slot === "auto" ? getTestAccountCandidates() : [getTestAccount(options.slot)];
+  const failures = [];
+
+  for (const account of accounts) {
+    try {
+      return await loginWithAccount(account, options);
+    } catch (error) {
+      if (options.slot !== "auto") throw error;
+      failures.push(`slot ${account.slot}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  throw new Error(`Login failed for all configured OPENMATES_TEST_ACCOUNT_* slots: ${failures.join("; ")}`);
+}
+
+async function loginWithAccount(account, options) {
   const hashedEmail = await sha256Base64(account.email);
 
   const lookup = await apiPost(options.apiUrl, "/v1/auth/lookup", {
@@ -330,6 +390,7 @@ async function login(options) {
   return {
     success: true,
     apiUrl: options.apiUrl,
+    slot: account.slot,
     username: user.username || null,
     userIdHash: user.id ? createHash("sha256").update(user.id).digest("hex").slice(0, 12) : null,
     cookies: Object.keys(loginResult.cookies).sort(),

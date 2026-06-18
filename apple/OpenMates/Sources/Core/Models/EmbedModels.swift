@@ -15,6 +15,34 @@ enum EmbedStatus: String, Codable, Sendable {
 
 // MARK: - Embed record
 
+struct EmbedVersionMetadata: Identifiable, Codable, Equatable, Sendable {
+    let versionNumber: Int
+    let createdAt: Int
+    let hasSnapshot: Bool
+    let hasPatch: Bool
+    let contentHash: String?
+
+    var id: Int { versionNumber }
+
+    private enum CodingKeys: String, CodingKey {
+        case versionNumber = "version_number"
+        case createdAt = "created_at"
+        case hasSnapshot = "has_snapshot"
+        case hasPatch = "has_patch"
+        case contentHash = "content_hash"
+    }
+}
+
+struct EmbedVersionRestoreRequest: Codable, Equatable, Sendable {
+    let embedId: String
+    let versionNumber: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case embedId = "embed_id"
+        case versionNumber = "version_number"
+    }
+}
+
 struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     let id: String
     let type: String
@@ -29,6 +57,10 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     let embedIds: String?
     let hashedChatId: String?
     let hashedUserId: String?
+    let versionNumber: Int?
+    let contentHash: String?
+    let versionHistory: [EmbedVersionMetadata]
+    let versionHistoryReadonly: Bool
     let createdAt: String?
 
     var childEmbedIds: [String] {
@@ -130,6 +162,10 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         embedIds: String?,
         hashedChatId: String? = nil,
         hashedUserId: String? = nil,
+        versionNumber: Int? = nil,
+        contentHash: String? = nil,
+        versionHistory: [EmbedVersionMetadata] = [],
+        versionHistoryReadonly: Bool = false,
         createdAt: String?
     ) {
         self.id = id
@@ -145,6 +181,10 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         self.embedIds = embedIds
         self.hashedChatId = hashedChatId
         self.hashedUserId = hashedUserId
+        self.versionNumber = versionNumber
+        self.contentHash = contentHash
+        self.versionHistory = versionHistory
+        self.versionHistoryReadonly = versionHistoryReadonly
         self.createdAt = createdAt
     }
 
@@ -173,6 +213,18 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .hashedChatId))
         hashedUserId = try container.decodeIfPresent(String.self, forKey: .hashedUserId)
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .hashedUserId))
+        versionNumber = try container.decodeIfPresent(Int.self, forKey: .versionNumber)
+            ?? (try legacyContainer.decodeIfPresent(Int.self, forKey: .versionNumber))
+        contentHash = try container.decodeIfPresent(String.self, forKey: .contentHash)
+            ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .contentHash))
+        let decodedVersionHistory = try container.decodeIfPresent([EmbedVersionMetadata].self, forKey: .versionHistory)
+        versionHistory = try decodedVersionHistory
+            ?? legacyContainer.decodeIfPresent([EmbedVersionMetadata].self, forKey: .versionHistory)
+            ?? []
+        let decodedVersionHistoryReadonly = try container.decodeIfPresent(Bool.self, forKey: .versionHistoryReadonly)
+        versionHistoryReadonly = try decodedVersionHistoryReadonly
+            ?? legacyContainer.decodeIfPresent(Bool.self, forKey: .versionHistoryReadonly)
+            ?? false
         var decodedEmbedIds: String?
         if let ids = try container.decodeIfPresent([String].self, forKey: .embedIds) {
             decodedEmbedIds = ids.joined(separator: "|")
@@ -258,6 +310,10 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             embedIds: resolvedEmbedIds,
             hashedChatId: hashedChatId,
             hashedUserId: hashedUserId,
+            versionNumber: versionNumber,
+            contentHash: contentHash,
+            versionHistory: versionHistory,
+            versionHistoryReadonly: versionHistoryReadonly,
             createdAt: createdAt
         )
     }
@@ -279,6 +335,10 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         case embedIds = "embed_ids"
         case hashedChatId = "hashed_chat_id"
         case hashedUserId = "hashed_user_id"
+        case versionNumber = "version_number"
+        case contentHash = "content_hash"
+        case versionHistory = "version_history"
+        case versionHistoryReadonly = "version_history_readonly"
         case createdAt = "created_at"
     }
 
@@ -293,6 +353,10 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         case embedIds
         case hashedChatId
         case hashedUserId
+        case versionNumber
+        case contentHash
+        case versionHistory
+        case versionHistoryReadonly
         case createdAt
     }
 
@@ -505,6 +569,7 @@ enum EmbedType: String, CaseIterable {
     case codeCode = "code-code"
     case codeApplication = "code-application"
     case docsDoc = "docs-doc"
+    case diagramsMermaid = "diagrams-mermaid"
     case electronicsComponent = "electronics-component"
     case image
     case mailEmail = "mail-email"
@@ -606,6 +671,7 @@ enum EmbedType: String, CaseIterable {
             switch self {
             case .codeRepo, .codeCode, .codeApplication: return "code"
             case .docsDoc: return "docs"
+            case .diagramsMermaid: return "diagrams"
             case .electronicsComponent: return "electronics"
             case .recording: return "audio"
             case .image, .imagesImageResult: return "images"
@@ -644,6 +710,7 @@ enum EmbedType: String, CaseIterable {
         case .codeApplication: return "Application"
         case .codeGetDocs: return "Docs"
         case .docsDoc: return "Document"
+        case .diagramsMermaid: return "Diagram"
         case .electronicsSearch: return "Component Search"
         case .electronicsComponent: return "Component"
         case .image: return "Image"

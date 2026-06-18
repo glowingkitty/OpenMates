@@ -7,8 +7,8 @@
      - Connected Skills section: all app skills that use this provider (clickable)
 
      **Routing**:
-     - app_store/{app_id}/skill/{skill_id}/provider/{provider_id}
-     - Back navigates to app_store/{app_id}/skill/{skill_id}
+     - apps/{app_id}/skill/{skill_id}/provider/{provider_id}
+     - Back navigates to apps/{app_id}/skill/{skill_id}
 
      **Data sources**:
      - providersMetadata.ts — static provider info (id, name, description, country, logo_svg)
@@ -133,7 +133,7 @@
      */
     function goBack() {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/skill/${skillId}`,
+            settingsPath: `apps/${appId}/skill/${skillId}`,
             direction: 'back',
             icon: getIconName(app?.icon_image),
             title: skill?.name_translation_key ? $text(skill.name_translation_key) : skillId,
@@ -145,7 +145,7 @@
      */
     function handleSkillClick(connected: ConnectedSkill) {
         dispatch('openSettings', {
-            settingsPath: `app_store/${connected.appId}/skill/${connected.skillId}`,
+            settingsPath: `apps/${connected.appId}/skill/${connected.skillId}`,
             direction: 'forward',
             icon: getIconName(connected.appIconImage),
             title: connected.skillNameKey ? $text(connected.skillNameKey) : connected.skillId,

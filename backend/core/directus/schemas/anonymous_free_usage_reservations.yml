@@ -1,0 +1,64 @@
+# backend/core/directus/schemas/anonymous_free_usage_reservations.yml
+# Short-lived reservation rows for anonymous free usage. Reservations prevent
+# concurrent anonymous requests from overspending shared daily/weekly budgets.
+anonymous_free_usage_reservations:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      note: "Primary key for the reservation row."
+
+    request_id:
+      type: string
+      length: 128
+      unique: true
+      note: "Idempotency key for one anonymous request."
+
+    local_id_hash:
+      type: string
+      length: 128
+      nullable: true
+      note: "Server-secret HMAC of the first-party anonymous local ID."
+
+    ip_hash:
+      type: string
+      length: 128
+      nullable: true
+      note: "Server-secret HMAC of request IP; pseudonymous personal data."
+
+    reserved_credits:
+      type: integer
+      default: 0
+      note: "Credits reserved before provider execution."
+
+    finalized_credits:
+      type: integer
+      default: 0
+      note: "Actual credits charged after execution completes."
+
+    status:
+      type: string
+      length: 32
+      note: "reserved, finalized, released, or expired."
+
+    release_reason:
+      type: string
+      length: 128
+      nullable: true
+      note: "Reason unused credits were released."
+
+    created_at:
+      type: datetime
+      nullable: true
+      note: "ISO timestamp when the reservation was created."
+
+    updated_at:
+      type: datetime
+      nullable: true
+      note: "ISO timestamp when the reservation was last changed."
+
+    expires_at:
+      type: datetime
+      nullable: true
+      note: "When an unused reservation may be released."

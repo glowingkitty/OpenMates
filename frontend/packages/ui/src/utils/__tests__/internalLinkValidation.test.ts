@@ -34,7 +34,7 @@ describe("internal link validation", () => {
   it("rejects hallucinated app settings routes", () => {
     expect(
       isRenderableInternalHref(
-        "/#settings/app_store/openmates/settings_memories/billing",
+        "/#settings/apps/openmates/settings_memories/billing",
       ),
     ).toBe(false);
   });

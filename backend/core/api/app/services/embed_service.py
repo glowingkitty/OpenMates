@@ -197,14 +197,18 @@ class EmbedService:
         preview_results: List[Dict[str, Any]] = []
         preview_fields = EmbedService._parent_preview_fields_for(app_id, skill_id)
         flat_results = EmbedService._flatten_grouped_preview_results(results)
+        preserve_zero_values = app_id == "weather" and skill_id == "forecast"
 
         limit = WEB_SEARCH_PREVIEW_RESULT_LIMIT if app_id == "web" and skill_id == "search" else GENERIC_RESULT_LIST_PREVIEW_RESULT_LIMIT
         for result in flat_results:
-            preview_result = {
-                key: result[key]
-                for key in preview_fields
-                if result.get(key)
-            }
+            preview_result = {}
+            for key in preview_fields:
+                value = result.get(key)
+                if value is None or value == "":
+                    continue
+                if not preserve_zero_values and not value:
+                    continue
+                preview_result[key] = value
             if app_id == "web" and skill_id == "search" and not preview_result.get("url"):
                 continue
             if not preview_result:
@@ -254,6 +258,21 @@ class EmbedService:
         )
         if app_id == "web" and skill_id == "search":
             return (*common_fields, "snippet", "description")
+        if app_id == "weather" and skill_id == "forecast":
+            return (
+                *common_fields,
+                "location_name",
+                "condition",
+                "icon",
+                "temperature_min_c",
+                "temperature_max_c",
+                "precipitation_total_mm",
+                "precipitation_probability_max_pct",
+                "rain_hours",
+                "wind_speed_max_kmh",
+                "cloud_cover_avg_pct",
+                "relative_humidity_avg_pct",
+            )
         return common_fields
 
     @staticmethod
@@ -288,6 +307,7 @@ class EmbedService:
             "document": ("docs", "document"),
             "mail": ("mail", "email"),
             "math-plot": ("math", "plot"),
+            "mermaid": ("diagrams", "mermaid"),
         }
         return mapping.get(embed_type, (embed_type, embed_type))
 
@@ -644,6 +664,27 @@ class EmbedService:
             None if creation fails
         """
         try:
+            from backend.apps.ai.utils.pcb_schematic_fences import (
+                _extract_pcb_schematic_metadata,
+                _is_pcb_schematic_fence,
+            )
+
+            if _is_pcb_schematic_fence(language):
+                metadata = _extract_pcb_schematic_metadata(language, filename, "")
+                return await self.create_pcb_schematic_embed_placeholder(
+                    language=metadata["language"],
+                    filename=metadata["filename"],
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    title=metadata["title"],
+                    module_name=metadata["module_name"],
+                    log_prefix=log_prefix,
+                )
+
             # Hash sensitive IDs for privacy protection
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
@@ -749,6 +790,9 @@ class EmbedService:
         user_id_hash: str,
         user_vault_key_id: str,
         status: str = "processing",
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -795,6 +839,30 @@ class EmbedService:
                 filename = None
                 embed_ref = None
 
+            from backend.apps.ai.utils.pcb_schematic_fences import (
+                _extract_pcb_schematic_metadata,
+                _is_pcb_schematic_fence,
+            )
+
+            if _is_pcb_schematic_fence(language):
+                metadata = _extract_pcb_schematic_metadata(language, filename, code_content)
+                return await self.update_pcb_schematic_embed_content(
+                    embed_id=embed_id,
+                    code_content=code_content,
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status=status,
+                    title=metadata["title"],
+                    module_name=metadata["module_name"],
+                    filename=metadata["filename"],
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
+                    log_prefix=log_prefix,
+                )
+
             # Create updated content with new code
             # Calculate line count for display (count all lines including empty ones)
             line_count = code_content.count('\n') + 1 if code_content else 0
@@ -831,15 +899,19 @@ class EmbedService:
                 **cached_embed,
                 "encrypted_content": encrypted_content,
                 "status": status,
-                "updated_at": int(datetime.now().timestamp())
+                "updated_at": int(datetime.now().timestamp()),
             }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
 
             # CRITICAL: Check if embed is already finalized to prevent duplicate send_embed_data events
             # If the embed is already "finished" and we're trying to send "finished" again, skip it
             # This prevents duplicate events when update_code_embed_content is called multiple times
             current_status = cached_embed.get("status", "processing")
             should_send_event = True
-            if status == "finished" and current_status == "finished":
+            if status == "finished" and current_status == "finished" and version_number is None:
                 # Embed is already finalized - don't send duplicate event
                 should_send_event = False
                 logger.debug(
@@ -869,6 +941,9 @@ class EmbedService:
                     task_id=cached_embed.get("hashed_task_id"),
                     is_private=cached_embed.get("is_private", False),
                     is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
@@ -885,6 +960,235 @@ class EmbedService:
 
         except Exception as e:
             logger.error(f"{log_prefix} Error updating code embed content: {e}", exc_info=True)
+            return False
+
+    async def create_pcb_schematic_embed_placeholder(
+        self,
+        language: str,
+        filename: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None,
+        module_name: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a processing Electronics PCB schematic direct embed."""
+        try:
+            from backend.shared.providers.e2b_pcb_schematic_compiler import (
+                ATOPILE_DOCS_VERSION,
+                ATOPILE_PACKAGE_VERSION,
+            )
+
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "pcb_schematic",
+                embed_id,
+                {"filename": filename, "title": title, "module_name": module_name},
+            )
+            placeholder_content = {
+                "type": "pcb_schematic",
+                "app_id": "electronics",
+                "skill_id": "schematic",
+                "language": language or "atopile",
+                "code": "",
+                "filename": filename,
+                "title": title,
+                "module_name": module_name,
+                "embed_ref": embed_ref,
+                "status": "processing",
+                "line_count": 0,
+                "compile_id": None,
+                "compile_status": None,
+                "artifact_manifest": None,
+                "atopile_version": ATOPILE_PACKAGE_VERSION,
+                "atopile_docs_version": ATOPILE_DOCS_VERSION,
+            }
+            placeholder_toon = encode(placeholder_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id,
+            )
+            now = int(datetime.now().timestamp())
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "pcb_schematic",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "created_at": now,
+                "updated_at": now,
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="pcb_schematic",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                created_at=now,
+                updated_at=now,
+                log_prefix=log_prefix,
+            )
+            logger.info(f"{log_prefix} Created processing PCB schematic embed {embed_id}")
+            return {
+                "embed_id": embed_id,
+                "embed_reference": json.dumps({"type": "pcb_schematic", "embed_id": embed_id}),
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating PCB schematic embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_pcb_schematic_embed_content(
+        self,
+        embed_id: str,
+        code_content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "processing",
+        title: Optional[str] = None,
+        module_name: Optional[str] = None,
+        filename: Optional[str] = None,
+        compile_id: Optional[str] = None,
+        compile_status: Optional[str] = None,
+        compile_logs: Optional[str] = None,
+        artifact_manifest: Optional[Dict[str, Any]] = None,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        log_prefix: str = "",
+    ) -> bool:
+        """Update source or compile metadata for a PCB schematic embed."""
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} PCB schematic embed {embed_id} not found in cache, cannot update")
+                return False
+
+            existing_content: Dict[str, Any] = {}
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            if existing_toon:
+                try:
+                    decoded = decode(existing_toon)
+                    if isinstance(decoded, dict):
+                        existing_content = decoded
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing PCB schematic content: {e}")
+
+            from backend.shared.providers.e2b_pcb_schematic_compiler import (
+                ATOPILE_DOCS_VERSION,
+                ATOPILE_PACKAGE_VERSION,
+            )
+
+            line_count = code_content.count('\n') + 1 if code_content else 0
+            next_title = title if title is not None else existing_content.get("title")
+            next_module_name = module_name if module_name is not None else existing_content.get("module_name")
+            next_filename = filename if filename is not None else existing_content.get("filename")
+            next_version_number = version_number or int(
+                cached_embed.get("version_number") or existing_content.get("version_number") or 1
+            )
+            next_content_hash = content_hash
+            if next_content_hash is None and status == "finished":
+                next_content_hash = hashlib.sha256(code_content.encode("utf-8")).hexdigest()
+            updated_content = {
+                **existing_content,
+                "type": "pcb_schematic",
+                "app_id": "electronics",
+                "skill_id": "schematic",
+                "language": existing_content.get("language") or "atopile",
+                "code": code_content,
+                "filename": next_filename,
+                "title": next_title,
+                "module_name": next_module_name,
+                "embed_ref": existing_content.get("embed_ref") or self._generate_direct_embed_ref(
+                    "pcb_schematic",
+                    embed_id,
+                    {"filename": next_filename, "title": next_title, "module_name": next_module_name},
+                ),
+                "status": status,
+                "line_count": line_count,
+                "compile_id": compile_id if compile_id is not None else existing_content.get("compile_id"),
+                "compile_status": compile_status if compile_status is not None else existing_content.get("compile_status"),
+                "compile_logs": compile_logs if compile_logs is not None else existing_content.get("compile_logs"),
+                "artifact_manifest": artifact_manifest if artifact_manifest is not None else existing_content.get("artifact_manifest"),
+                "atopile_version": ATOPILE_PACKAGE_VERSION,
+                "atopile_docs_version": ATOPILE_DOCS_VERSION,
+                "version_number": next_version_number,
+            }
+            updated_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id,
+            )
+            updated_embed_data = {
+                **cached_embed,
+                "type": "pcb_schematic",
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "version_number": next_version_number,
+                "updated_at": int(datetime.now().timestamp()),
+            }
+            if next_content_hash is not None:
+                updated_embed_data["content_hash"] = next_content_hash
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (
+                status == "finished"
+                and current_status == "finished"
+                and compile_status is None
+                and version_number is None
+            )
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="pcb_schematic",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    version_number=next_version_number,
+                    content_hash=next_content_hash,
+                    version_history_rows=version_history_rows,
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                )
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+            return True
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating PCB schematic embed content: {e}", exc_info=True)
             return False
 
     async def create_remotion_video_embed_placeholder(
@@ -1435,6 +1739,9 @@ class EmbedService:
         title: Optional[str] = None,
         row_count: int = 0,
         col_count: int = 0,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -1506,13 +1813,17 @@ class EmbedService:
                 **cached_embed,
                 "encrypted_content": encrypted_content,
                 "status": status,
-                "updated_at": int(datetime.now().timestamp())
+                "updated_at": int(datetime.now().timestamp()),
             }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
 
             # Prevent duplicate finalization events
             current_status = cached_embed.get("status", "processing")
             should_send_event = True
-            if status == "finished" and current_status == "finished":
+            if status == "finished" and current_status == "finished" and version_number is None:
                 should_send_event = False
                 logger.debug(
                     f"{log_prefix} [EMBED_EVENT] Skipping duplicate send_embed_data for "
@@ -1534,6 +1845,9 @@ class EmbedService:
                     task_id=cached_embed.get("hashed_task_id"),
                     is_private=cached_embed.get("is_private", False),
                     is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
@@ -1751,6 +2065,210 @@ class EmbedService:
             return False
 
     # =========================================================================
+    # Mermaid diagram embed methods (for ```mermaid ... ``` fenced blocks)
+    # Source-first direct embeds owned by the Diagrams app.
+    # =========================================================================
+
+    async def create_mermaid_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None,
+        diagram_kind: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a processing Diagrams/Mermaid direct embed placeholder."""
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+            embed_ref = self._generate_direct_embed_ref(
+                "mermaid",
+                embed_id,
+                {"title": title, "diagram_kind": diagram_kind},
+            )
+            now = int(datetime.now().timestamp())
+            placeholder_content = {
+                "type": "mermaid",
+                "app_id": "diagrams",
+                "skill_id": "mermaid",
+                "title": title or "Mermaid Diagram",
+                "diagram_kind": diagram_kind or "mermaid",
+                "diagram_code": "",
+                "embed_ref": embed_ref,
+                "status": "processing",
+                "line_count": 0,
+                "version_number": 1,
+            }
+            placeholder_toon = encode(placeholder_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id,
+            )
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "mermaid",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "version_number": 1,
+                "created_at": now,
+                "updated_at": now,
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="mermaid",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                version_number=1,
+                created_at=now,
+                updated_at=now,
+                log_prefix=log_prefix,
+            )
+
+            logger.info(f"{log_prefix} Created processing Mermaid embed {embed_id}")
+            return {
+                "embed_id": embed_id,
+                "embed_reference": json.dumps({"type": "mermaid", "embed_id": embed_id}),
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating Mermaid embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_mermaid_embed_content(
+        self,
+        embed_id: str,
+        diagram_code: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "finished",
+        title: Optional[str] = None,
+        diagram_kind: Optional[str] = None,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        log_prefix: str = "",
+    ) -> bool:
+        """Update Mermaid source and metadata for a Diagrams direct embed."""
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Mermaid embed {embed_id} not found in cache, cannot update")
+                return False
+
+            existing_content: Dict[str, Any] = {}
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            if existing_toon:
+                try:
+                    decoded = decode(existing_toon)
+                    if isinstance(decoded, dict):
+                        existing_content = decoded
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing Mermaid content: {e}")
+
+            next_title = title if title is not None else existing_content.get("title") or "Mermaid Diagram"
+            next_diagram_kind = diagram_kind if diagram_kind is not None else existing_content.get("diagram_kind") or "mermaid"
+            next_version_number = version_number or int(cached_embed.get("version_number") or existing_content.get("version_number") or 1)
+            next_content_hash = content_hash
+            if next_content_hash is None and status == "finished":
+                next_content_hash = hashlib.sha256(diagram_code.encode("utf-8")).hexdigest()
+
+            updated_content = {
+                **existing_content,
+                "type": "mermaid",
+                "app_id": "diagrams",
+                "skill_id": "mermaid",
+                "title": next_title,
+                "diagram_kind": next_diagram_kind,
+                "diagram_code": diagram_code,
+                "embed_ref": existing_content.get("embed_ref") or self._generate_direct_embed_ref(
+                    "mermaid",
+                    embed_id,
+                    {"title": next_title, "diagram_kind": next_diagram_kind},
+                ),
+                "status": status,
+                "line_count": diagram_code.count("\n") + 1 if diagram_code else 0,
+                "version_number": next_version_number,
+            }
+            updated_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id,
+            )
+            updated_embed_data = {
+                **cached_embed,
+                "type": "mermaid",
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "version_number": next_version_number,
+                "updated_at": int(datetime.now().timestamp()),
+            }
+            if next_content_hash is not None:
+                updated_embed_data["content_hash"] = next_content_hash
+
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="mermaid",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    version_number=next_version_number,
+                    content_hash=next_content_hash,
+                    version_history_rows=version_history_rows,
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                )
+
+            logger.info(
+                f"{log_prefix} Updated Mermaid embed {embed_id} "
+                f"(kind={next_diagram_kind}, chars={len(diagram_code)}, status={status})"
+            )
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+            return True
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating Mermaid embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
     # Mail embed methods (for ```email ... ``` fenced blocks)
     # Mirrors the code/document pattern but uses type="mail" with structured fields.
     # =========================================================================
@@ -1867,6 +2385,9 @@ class EmbedService:
         user_vault_key_id: str,
         status: str = "finished",
         footer: str = "",
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -1914,11 +2435,15 @@ class EmbedService:
                 **cached_embed,
                 "encrypted_content": encrypted_content,
                 "status": status,
-                "updated_at": int(datetime.now().timestamp())
+                "updated_at": int(datetime.now().timestamp()),
             }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
 
             current_status = cached_embed.get("status", "processing")
-            should_send_event = not (status == "finished" and current_status == "finished")
+            should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
 
             await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
@@ -1935,6 +2460,9 @@ class EmbedService:
                     task_id=cached_embed.get("hashed_task_id"),
                     is_private=cached_embed.get("is_private", False),
                     is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
@@ -2101,6 +2629,9 @@ class EmbedService:
         title: Optional[str] = None,
         filename: Optional[str] = None,
         docx_model: Optional[Dict[str, Any]] = None,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -2209,13 +2740,17 @@ class EmbedService:
                 **cached_embed,
                 "encrypted_content": encrypted_content,
                 "status": status,
-                "updated_at": int(datetime.now().timestamp())
+                "updated_at": int(datetime.now().timestamp()),
             }
+            if version_number is not None:
+                updated_embed_data["version_number"] = version_number
+            if content_hash is not None:
+                updated_embed_data["content_hash"] = content_hash
 
             # Check if embed is already finalized to prevent duplicate send_embed_data events
             current_status = cached_embed.get("status", "processing")
             should_send_event = True
-            if status == "finished" and current_status == "finished":
+            if status == "finished" and current_status == "finished" and version_number is None:
                 should_send_event = False
                 logger.debug(
                     f"{log_prefix} [EMBED_EVENT] Skipping duplicate send_embed_data for already-finalized document embed {embed_id} "
@@ -2239,6 +2774,9 @@ class EmbedService:
                     task_id=cached_embed.get("hashed_task_id"),
                     is_private=cached_embed.get("is_private", False),
                     is_shared=cached_embed.get("is_shared", False),
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,
@@ -2612,6 +3150,7 @@ class EmbedService:
         "s3_base_url",           # S3 bucket URL — resolved server-side
         "files",                 # Nested s3_key per variant — resolved server-side
         "content_hash",          # Internal dedup hash — not useful for LLM
+        "radar_blob_b64",        # Raw radar grids — too large and not useful for LLM inference
     })
 
     def _filter_toon_for_llm(
@@ -2761,6 +3300,22 @@ class EmbedService:
                     f"(kept: {list(filtered.keys())}, embed_ref={embed_ref!r})"
                 )
                 return filtered_toon, embed_ref
+
+            if embed_type == "rain_radar" or (app_id == "weather" and skill_id == "rain_radar"):
+                # Rain radar embeds store heavy encrypted preview/blob file references for
+                # client rendering. The LLM only needs semantic summaries and compact frame
+                # metadata; raw grids and storage fields would bloat context and leak infra.
+                filtered = {
+                    k: v for k, v in decoded.items()
+                    if k not in self._TOON_LLM_STRIP_FIELDS and k != "embed_id"
+                }
+                filtered_toon = encode(filtered)
+                logger.debug(
+                    f"{log_prefix} Filtered rain-radar embed TOON for LLM: "
+                    f"{len(toon_content)} → {len(filtered_toon)} chars "
+                    f"(kept: {list(filtered.keys())})"
+                )
+                return filtered_toon, None
 
             if app_id != "images" or skill_id != "upload":
                 # For all other embed types (search results, web pages, travel, maps, etc.),
@@ -3288,9 +3843,10 @@ class EmbedService:
         # Maps embed_ref (human-readable) → embed_id (UUID) for this call.
         file_path_index: Dict[str, str] = {}
 
-        # Pattern to match JSON code blocks that might contain embed references
-        # Format: ```json\n{...}\n```
-        json_block_pattern = r'```json\s*\n([\s\S]*?)\n```'
+        # Pattern to match JSON code blocks that might contain embed references.
+        # Both fence names are used by clients when storing assistant history.
+        # Format: ```json\n{...}\n``` or ```json_embed\n{...}\n```
+        json_block_pattern = r'```(?:json|json_embed)\s*\n([\s\S]*?)\n```'
 
         # Find all embed references first
         # Embed references now include optional URL field as fallback for LLM inference
@@ -4078,6 +4634,7 @@ class EmbedService:
         version_number: Optional[int] = None,
         file_path: Optional[str] = None,
         content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         text_length_chars: Optional[int] = None,
         is_private: bool = False,
         is_shared: bool = False,
@@ -4197,6 +4754,10 @@ class EmbedService:
                 payload["payload"]["file_path"] = file_path
             if content_hash is not None:
                 payload["payload"]["content_hash"] = content_hash
+            if version_history_rows is not None:
+                # Plaintext only during delivery to the owner device. The client
+                # encrypts these rows with the embed key before store_embed_diff.
+                payload["payload"]["version_history_rows"] = version_history_rows
             if app_id is not None:
                 payload["payload"]["app_id"] = app_id
             if skill_id is not None:

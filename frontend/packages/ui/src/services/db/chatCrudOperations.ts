@@ -17,6 +17,7 @@ import {
   chatKeyManager,
   computeKeyFingerprint,
 } from "../encryption/ChatKeyManager";
+import { unwrapAnonymousChatKey } from "../anonymousChatKeyWrapping";
 import { chatKeysEqual } from "../chatKeyConsistency";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
@@ -164,6 +165,14 @@ export async function encryptChatForStorage(
   // Step 1: check ChatKeyManager (single source of truth)
   let chatKey = chatKeyManager.getKeySync(chat.chat_id);
 
+  if (!chatKey && chat.is_anonymous && chat.anonymous_encrypted_chat_key) {
+    const anonymousKey = await unwrapAnonymousChatKey(chat.anonymous_encrypted_chat_key);
+    if (anonymousKey) {
+      chatKeyManager.injectKey(chat.chat_id, anonymousKey, "anonymous_session");
+      chatKey = anonymousKey;
+    }
+  }
+
   // If sync provides a key while a different key is already cached, do not
   // store the incoming key beside locally encrypted fields. The caller must
   // explicitly clear/reload ChatKeyManager before accepting a server key change.
@@ -266,6 +275,11 @@ export async function encryptChatForStorage(
   // all existing messages permanently undecryptable (the original key is lost).
   // This was the root cause of OPE-314-class decryption failures after logout/login.
   if (!chatKey) {
+    if (chat.is_anonymous) {
+      throw new Error(
+        `[ChatDatabase] Cannot save anonymous chat ${chat.chat_id}: anonymous chat key is unavailable`,
+      );
+    }
     if (options?.isFromSync) {
       console.error(
         `[ChatDatabase] ⚠️ SYNC GUARD: No chat key available for synced chat ${chat.chat_id}. ` +
@@ -287,7 +301,7 @@ export async function encryptChatForStorage(
   }
 
   // Ensure encrypted_chat_key is present in the stored object
-  if (!encryptedChat.encrypted_chat_key) {
+  if (!encryptedChat.encrypted_chat_key && !chat.is_anonymous) {
     const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
     if (encryptedChatKey) {
       encryptedChat.encrypted_chat_key = encryptedChatKey;
@@ -296,6 +310,10 @@ export async function encryptChatForStorage(
         `[ChatDatabase] ❌ Failed to encrypt chat key for chat ${chat.chat_id} — master key may be missing`,
       );
     }
+  }
+
+  if (chat.is_anonymous) {
+    encryptedChat.encrypted_chat_key = null;
   }
 
   // Stamp key_version and key_fingerprint for decryption-failure diagnosis and future key rotation.
@@ -351,6 +369,16 @@ export async function decryptChatFromStorage(
   // Title decryption is handled by the UI layer when needed
   // The database layer just stores encrypted titles
   // No need to decrypt here as the UI will handle decryption on demand
+
+  // Handle decryption of new encrypted fields with chat-specific key
+  if (chat.is_anonymous && chat.anonymous_encrypted_chat_key) {
+    const anonymousKey = await unwrapAnonymousChatKey(chat.anonymous_encrypted_chat_key);
+    if (anonymousKey) {
+      chatKeyManager.injectKey(chat.chat_id, anonymousKey, "anonymous_session");
+    } else {
+      chatKeyManager.removeKey(chat.chat_id);
+    }
+  }
 
   // Handle decryption of new encrypted fields with chat-specific key
   if (chat.encrypted_chat_key) {

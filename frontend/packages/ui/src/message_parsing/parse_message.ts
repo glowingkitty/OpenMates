@@ -56,6 +56,27 @@ function _getEmbedStore(): import("../services/embedStore").EmbedStore | null {
 
 const INLINE_CODE_EMBED_LINK_RE = /^\[([^\]\n]*)\]\(embed:([^)\n]+)\)$/;
 
+function stripWriteModeLinkMarks(node: any): any {
+  if (!node || typeof node !== "object") return node;
+
+  const nextNode = { ...node };
+
+  if (Array.isArray(nextNode.marks)) {
+    const marks = nextNode.marks.filter((mark: any) => mark?.type !== "link");
+    if (marks.length > 0) {
+      nextNode.marks = marks;
+    } else {
+      delete nextNode.marks;
+    }
+  }
+
+  if (Array.isArray(nextNode.content)) {
+    nextNode.content = nextNode.content.map(stripWriteModeLinkMarks);
+  }
+
+  return nextNode;
+}
+
 /**
  * Pass 1: Walk the document tree and collect all `app_id` values from `embed`
  * nodes (type "app-skill-use"). These are always populated from the raw JSON
@@ -989,7 +1010,7 @@ export function parse_message(
       const withLinks = convertEmbedLinks(doc);
       return convertSourceQuotes(withLinks);
     }
-    return doc;
+    return stripWriteModeLinkMarks(doc);
   }
 
   // First, parse basic markdown structure using existing parser
@@ -1040,6 +1061,10 @@ export function parse_message(
   // Add streaming metadata for write mode highlighting
   if (mode === "write" && streamingData.unclosedBlocks.length > 0) {
     unifiedDoc._streamingData = streamingData;
+  }
+
+  if (mode === "write") {
+    return stripWriteModeLinkMarks(unifiedDoc);
   }
 
   return unifiedDoc;

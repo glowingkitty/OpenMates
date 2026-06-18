@@ -68,10 +68,25 @@ jobs:
       - name: Build openmates CLI (required by cli-skills-* specs)
         run: pnpm --filter openmates build
         working-directory: frontend
+      - name: Run CLI integration checks
+        if: github.event.inputs.spec == '__cli_integration_code_docs__'
+        id: cli_run
+        continue-on-error: true
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          node tests/code-docs.integration.mjs \
+            --output "$GITHUB_WORKSPACE/test-results/cli-integration.json"
+        working-directory: frontend/packages/openmates-cli
+        env:
+          OPENMATES_TEST_ACCOUNT_API_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_API_KEY }}
+          OPENMATES_CLI_TEST_API_URL: ${{ secrets.E2E_DEV_API_URL }}
+          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
       - name: Install Playwright browsers
+        if: github.event.inputs.spec != '__cli_integration_code_docs__'
         run: npx playwright install --with-deps chromium
         working-directory: frontend/apps/web_app
       - name: Run spec
+        if: github.event.inputs.spec != '__cli_integration_code_docs__'
         id: pw_run
         continue-on-error: true
         run: |
@@ -121,6 +136,12 @@ jobs:
           GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
           GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
           GMAIL_TEST_ADDRESS: ${{ secrets.GMAIL_TEST_ADDRESS }}
+          GOOGLE_CALENDAR_TEST_EMAIL: ${{ secrets.GOOGLE_CALENDAR_TEST_EMAIL }}
+          GOOGLE_CALENDAR_TEST_PASSWORD: ${{ secrets.GOOGLE_CALENDAR_TEST_PASSWORD }}
+          GOOGLE_CALENDAR_TEST_TOTP_KEY: ${{ secrets.GOOGLE_CALENDAR_TEST_TOTP_KEY }}
+          GOOGLE_TEST_EMAIL: ${{ secrets.GOOGLE_TEST_EMAIL }}
+          GOOGLE_TEST_PASSWORD: ${{ secrets.GOOGLE_TEST_PASSWORD }}
+          GOOGLE_TEST_TOTP_KEY: ${{ secrets.GOOGLE_TEST_TOTP_KEY }}
           E2E_USE_MOCKS: ${{ github.event.inputs.use_mocks == 'true' && '1' || '' }}
           E2E_RECORD_FIXTURES: ${{ github.event.inputs.record_fixtures == 'true' && '1' || '' }}
           E2E_USE_LIVE_MOCKS: ${{ github.event.inputs.use_live_mocks == 'true' && '1' || '' }}
@@ -179,10 +200,11 @@ jobs:
           name: ${{ steps.artifact_name.outputs.name }}
           path: |
             test-results/playwright.json
+            test-results/cli-integration.json
             frontend/apps/web_app/test-results/
             frontend/apps/web_app/artifacts/
           if-no-files-found: ignore
           retention-days: 7
       - name: Fail if tests failed
-        if: steps.pw_run.outcome == 'failure'
+        if: steps.pw_run.outcome == 'failure' || steps.cli_run.outcome == 'failure'
         run: exit 1

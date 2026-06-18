@@ -401,16 +401,16 @@ function _extractAndStorePrefill(queryString: string, path: string): void {
     }
 
     // Determine if this is a create or edit link based on path pattern
-    // Create: app_store/{appId}/settings_memories/{categoryId}/create
-    // Edit: app_store/{appId}/settings_memories/{categoryId}/entry/{entryId}/edit
+    // Create: apps/{appId}/settings_memories/{categoryId}/create
+    // Edit: apps/{appId}/settings_memories/{categoryId}/entry/{entryId}/edit
     const parts = path.split("/");
     const isCreate = parts.includes("create");
     const isEdit = parts.includes("edit") && parts.includes("entry");
 
     if (isCreate) {
       // Extract app_id and category_id from path
-      // Pattern: app_store/{appId}/settings_memories/{categoryId}/create
-      const appIdIdx = 1; // parts[0] = app_store, parts[1] = appId
+      // Pattern: apps/{appId}/settings_memories/{categoryId}/create
+      const appIdIdx = 1; // parts[0] = apps, parts[1] = appId
       const categoryIdx = 3; // parts[2] = settings_memories, parts[3] = categoryId
       if (parts.length >= 5 && parts[appIdIdx] && parts[categoryIdx]) {
         createEntryPrefillStore.set({
@@ -429,7 +429,7 @@ function _extractAndStorePrefill(queryString: string, path: string): void {
       }
     } else if (isEdit) {
       // Extract entry_id from path
-      // Pattern: app_store/{appId}/settings_memories/{categoryId}/entry/{entryId}/edit
+      // Pattern: apps/{appId}/settings_memories/{categoryId}/entry/{entryId}/edit
       const entryIdIdx = parts.indexOf("entry") + 1;
       if (entryIdIdx > 0 && entryIdIdx < parts.length) {
         updateEntryPrefillStore.set({
@@ -518,13 +518,11 @@ export function processSettingsDeepLink(
       _extractAndStorePrefill(queryString, path);
     }
 
-    // Map common aliases for app store routes
-    // Canonical external URL: #settings/apps  (internal key stays app_store)
-    // Legacy aliases: 'appstore', 'app_store' (from old links or hyphen normalization)
-    if (path === "apps" || path.startsWith("apps/")) {
-      path = "app_store" + path.substring("apps".length);
+    // Map old app-store route aliases to canonical Apps routes.
+    if (path === "app_store" || path.startsWith("app_store/")) {
+      path = "apps" + path.substring("app_store".length);
     } else if (path === "appstore" || path.startsWith("appstore/")) {
-      path = "app_store" + path.substring("appstore".length);
+      path = "apps" + path.substring("appstore".length);
     }
 
     // Map 'memories' alias to internal 'settings_memories' route
@@ -542,23 +540,23 @@ export function processSettingsDeepLink(
       path = path.replace(/-/g, "_");
     }
 
-    // Deep link to All Apps with a filter: app_store/all/{filter}
-    // e.g. #settings/apps/all/focus-modes → app_store/all with filter 'focus_modes'
-    const allAppsFilterMatch = path.match(/^app_store\/all\/(.+)$/);
+    // Deep link to All Apps with a filter: apps/all/{filter}
+    // e.g. #settings/apps/all/focus-modes -> apps/all with filter 'focus_modes'
+    const allAppsFilterMatch = path.match(/^apps\/all\/(.+)$/);
     if (allAppsFilterMatch) {
       const filterValue = allAppsFilterMatch[1] as AllAppsFilterType;
       const validFilters: AllAppsFilterType[] = ['all', 'settings_memories', 'focus_modes', 'skills'];
       if (validFilters.includes(filterValue)) {
         allAppsInitialFilter.set(filterValue);
       }
-      path = "app_store/all";
+      path = "apps/all";
     }
 
-    // Normalize app store sub-routes from plural to singular form
+    // Normalize Apps sub-routes from plural to singular form
     // Deep links may use plural forms (e.g., 'skills', 'focuses') but routes use singular ('skill', 'focus')
-    // Pattern: app_store/{appId}/skills/{skillId} -> app_store/{appId}/skill/{skillId}
-    // Pattern: app_store/{appId}/focuses/{focusModeId} -> app_store/{appId}/focus/{focusModeId}
-    if (path.startsWith("app_store/")) {
+    // Pattern: apps/{appId}/skills/{skillId} -> apps/{appId}/skill/{skillId}
+    // Pattern: apps/{appId}/focuses/{focusModeId} -> apps/{appId}/focus/{focusModeId}
+    if (path.startsWith("apps/")) {
       path = path.replace(/\/skills\//, "/skill/");
       path = path.replace(/\/focuses\//, "/focus/");
     }

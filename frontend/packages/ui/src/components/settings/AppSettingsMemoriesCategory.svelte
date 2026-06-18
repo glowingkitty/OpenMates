@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/settings/AppSettingsMemoriesCategory.svelte
      Component for managing entries in a specific app settings/memories category.
      
-     This component is used for the app_store/{app_id}/settings_memories/{category_id} nested route.
+     This component is used for the apps/{app_id}/settings_memories/{category_id} nested route.
      
      **Backend Implementation**:
      - Data source: Static appsMetadata.ts (generated at build time) for category definition
@@ -194,7 +194,7 @@
                 categoryId,
                 (targetCategoryId) => {
                     dispatch('openSettings', {
-                        settingsPath: `app_store/${appId}/settings_memories/${targetCategoryId}`,
+                        settingsPath: `apps/${appId}/settings_memories/${targetCategoryId}`,
                         direction: 'forward',
                         icon: getIconName(app?.icon_image),
                         title: app?.name_translation_key ? $text(app.name_translation_key) : appId,
@@ -216,7 +216,7 @@
      */
     function goBack() {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}`,
+            settingsPath: `apps/${appId}`,
             direction: 'back',
             icon: getIconName(app?.icon_image),
             title: app?.name_translation_key ? $text(app.name_translation_key) : appId
@@ -229,7 +229,7 @@
      */
     function handleAddEntry() {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/settings_memories/${categoryId}/create`,
+            settingsPath: `apps/${appId}/settings_memories/${categoryId}/create`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: $text('common.add_entry')
@@ -241,7 +241,7 @@
      */
     function handleEntryClick(entryId: string, entryTitle: string) {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/settings_memories/${categoryId}/entry/${entryId}`,
+            settingsPath: `apps/${appId}/settings_memories/${categoryId}/entry/${entryId}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: entryTitle
@@ -254,7 +254,7 @@
      */
     function handleEntryEditClick(entryId: string, entryTitle: string) {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/settings_memories/${categoryId}/entry/${entryId}/edit`,
+            settingsPath: `apps/${appId}/settings_memories/${categoryId}/entry/${entryId}/edit`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title: entryTitle
@@ -269,7 +269,7 @@
     function handleExampleClick(index: number, exampleKey: string) {
         const title = $text(exampleKey);
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/settings_memories/${categoryId}/entry/example_${index}`,
+            settingsPath: `apps/${appId}/settings_memories/${categoryId}/entry/example_${index}`,
             direction: 'forward',
             icon: getIconName(app?.icon_image),
             title

@@ -131,8 +131,8 @@
   childEmbedTransformer={transformToWeatherDay}
   legacyResults={legacyResults}
   legacyResultTransformer={transformLegacyResults}
-  minCardWidth="300px"
-  maxGridWidth="720px"
+  minCardWidth="240px"
+  maxGridWidth="680px"
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}

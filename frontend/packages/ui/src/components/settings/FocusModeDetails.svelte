@@ -8,7 +8,7 @@
      - Instructions section: bullet-point summary of what the focus mode does (from
        process_translation_key), with a "Show full system prompt" button to reveal the raw prompt.
      
-     This component is used for the app_store/{app_id}/focus/{focus_mode_id} nested route.
+     This component is used for the apps/{app_id}/focus/{focus_mode_id} nested route.
      
      **Backend Implementation**:
      - Data source: Static appsMetadata.ts (generated at build time)
@@ -185,7 +185,7 @@
                 focusModeId,
                 (targetFocusModeId) => {
                     dispatch('openSettings', {
-                        settingsPath: `app_store/${appId}/focus/${targetFocusModeId}`,
+                        settingsPath: `apps/${appId}/focus/${targetFocusModeId}`,
                         direction: 'forward',
                         icon: getIconName(app?.icon_image),
                         title: app?.name_translation_key ? $text(app.name_translation_key) : appId,
@@ -204,7 +204,7 @@
 
     function goBack() {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}`,
+            settingsPath: `apps/${appId}`,
             direction: 'back',
             icon: getIconName(app?.icon_image),
             title: app?.name_translation_key ? $text(app.name_translation_key) : appId

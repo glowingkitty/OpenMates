@@ -2,12 +2,60 @@ import logging
 import json
 from typing import List, Dict, Any, Optional, Union
 import hashlib
+import base64
+import binascii
 
 # Forward declaration for type hinting DirectusService
 if False: # TYPE_CHECKING
     from .directus import DirectusService
 
 logger = logging.getLogger(__name__)
+_VAULT_CIPHERTEXT_PREFIX = "vault:v1:"
+_MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29
+
+
+def _encrypted_chat_field_names(payload: Dict[str, Any]) -> list[str]:
+    return [
+        key
+        for key in payload
+        if key.startswith("encrypted_") or key.startswith("shared_encrypted_")
+    ]
+
+
+def _validate_no_vault_ciphertext_for_chat_fields(record_label: str, payload: Dict[str, Any]) -> None:
+    """Reject server-side Vault ciphertext on Directus chat/message encrypted fields."""
+    for field in _encrypted_chat_field_names(payload):
+        value = payload.get(field)
+        if isinstance(value, str) and value.startswith(_VAULT_CIPHERTEXT_PREFIX):
+            raise ValueError(
+                f"{record_label} field {field} must be client-side encrypted; "
+                "Vault ciphertext is not allowed in Directus chats/messages."
+            )
+
+
+def _validate_client_encrypted_message_content(message_id: str, encrypted_content: str) -> None:
+    if not encrypted_content:
+        raise ValueError(
+            f"Message {message_id} is missing client-encrypted base64 content."
+        )
+
+    if encrypted_content.startswith(_VAULT_CIPHERTEXT_PREFIX):
+        raise ValueError(
+            f"Message {message_id} encrypted_content must be client-side encrypted; "
+            "Vault ciphertext is not allowed in Directus messages."
+        )
+
+    try:
+        decoded_bytes = base64.b64decode(encrypted_content, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError(
+            f"Message {message_id} encrypted_content must be client-encrypted base64."
+        ) from exc
+
+    if len(decoded_bytes) < _MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES:
+        raise ValueError(
+            f"Message {message_id} client-encrypted base64 content is too short."
+        )
 
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
@@ -387,6 +435,7 @@ class ChatMethods:
         Requires 'basedOnVersion' in the data payload for optimistic concurrency control.
         Increments the '_version' field on successful update.
         """
+        _validate_no_vault_ciphertext_for_chat_fields(f"Chat {chat_id}", data)
         logger.info(
             f"Attempting to update chat metadata for chat_id: {chat_id} "
             f"with field_keys={sorted(data.keys()) if isinstance(data, dict) else []}"
@@ -441,8 +490,9 @@ class ChatMethods:
                 - (None, True) if chat already exists but update was unnecessary
                 - (None, False) on other failures
         """
+        chat_id_val = chat_metadata.get('id')
+        _validate_no_vault_ciphertext_for_chat_fields(f"Chat {chat_id_val or 'unknown'}", chat_metadata)
         try:
-            chat_id_val = chat_metadata.get('id')
             logger.info(f"Creating chat in Directus: {chat_id_val}")
             success, result_data = await self.directus_service.create_item('chats', chat_metadata)
             if success and result_data:
@@ -613,64 +663,15 @@ class ChatMethods:
         CRITICAL: This method MUST ONLY accept client-encrypted messages (encrypted with chat-specific key).
         Vault-encrypted messages should NEVER reach this point - they violate zero-knowledge architecture.
         """
+        chat_id_val = message_data.get('chat_id')
+        # Check both 'id' and 'message_id' for the client-side ID
+        message_id = message_data.get("id") or message_data.get("message_id")
+        encrypted_content = message_data.get("encrypted_content")
+        role = message_data.get("role", "user")
+        _validate_no_vault_ciphertext_for_chat_fields(f"Message {message_id}", message_data)
+        _validate_client_encrypted_message_content(str(message_id), str(encrypted_content or ""))
+
         try:
-            chat_id_val = message_data.get('chat_id')
-            # Check both 'id' and 'message_id' for the client-side ID
-            message_id = message_data.get("id") or message_data.get("message_id")
-            encrypted_content = message_data.get("encrypted_content")
-            role = message_data.get("role", "user")
-            
-            # CRITICAL VALIDATION: Ensure we only store client-encrypted messages
-            if not encrypted_content:
-                logger.error(
-                    f"❌ REJECTING message {message_id} for chat {chat_id_val} (role={role}): "
-                    f"No encrypted_content provided. Messages MUST be encrypted by client before storage."
-                )
-                return None
-            
-            # VALIDATION: Check if encrypted_content is valid
-            # Accept both:
-            # 1. Pure base64 (client-side encrypted data)
-            # 2. Vault transit format "vault:v1:<base64>" (server-side encrypted, e.g., reminders)
-            import base64
-            is_valid_encryption = False
-            
-            # Check for Vault transit format (server-side encryption for system messages like reminders)
-            if encrypted_content.startswith("vault:"):
-                # Vault transit ciphertext format: vault:v<version>:<base64_ciphertext>
-                parts = encrypted_content.split(":", 2)
-                if len(parts) == 3 and parts[1].startswith("v"):
-                    try:
-                        # Validate the base64 portion of the Vault ciphertext
-                        decoded_bytes = base64.b64decode(parts[2], validate=True)
-                        is_valid_encryption = True
-                        logger.debug(
-                            f"✅ Message {message_id} (role={role}): encrypted_content is valid Vault transit format "
-                            f"({len(decoded_bytes)} bytes in ciphertext portion)"
-                        )
-                    except Exception:
-                        pass  # Will be caught by the rejection below
-            else:
-                # Standard base64 validation for client-side encrypted data
-                try:
-                    decoded_bytes = base64.b64decode(encrypted_content, validate=True)
-                    is_valid_encryption = True
-                    logger.debug(
-                        f"✅ Message {message_id} (role={role}): encrypted_content is valid base64 "
-                        f"({len(decoded_bytes)} bytes after decoding)"
-                    )
-                except Exception:
-                    pass  # Will be caught by the rejection below
-            
-            if not is_valid_encryption:
-                logger.error(
-                    f"❌ REJECTING message {message_id} for chat {chat_id_val} (role={role}): "
-                    f"encrypted_content is not valid base64 or Vault transit format. "
-                    f"This indicates incomplete or corrupted encryption. "
-                    f"This is a CRITICAL zero-knowledge architecture violation!"
-                )
-                return None  # Reject the message
-            
             # IDEMPOTENCY FIX: Generate a deterministic UUID for the Primary Key 'id' field
             # based on the client_message_id. This ensures that even if the unique constraint 
             # on client_message_id is missing in the database, the Primary Key constraint 
@@ -740,6 +741,7 @@ class ChatMethods:
         """
         Updates specific fields for a chat item in Directus.
         """
+        _validate_no_vault_ciphertext_for_chat_fields(f"Chat {chat_id}", fields_to_update)
         logger.info(f"Updating chat fields for chat_id: {chat_id} with data: {list(fields_to_update.keys())}")
         try:
             updated_item_data = await self.directus_service.update_item(

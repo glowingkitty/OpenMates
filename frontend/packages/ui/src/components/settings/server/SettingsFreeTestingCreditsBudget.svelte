@@ -13,13 +13,13 @@
     import {
         SettingsButton,
         SettingsCard,
-        SettingsConsentToggle,
         SettingsDetailRow,
         SettingsInfoBox,
         SettingsInput,
         SettingsSectionHeading,
     } from '../../settings/elements';
     import { notificationStore } from '../../../stores/notificationStore';
+    import { initializeServerStatus } from '../../../stores/serverStatusStore';
 
     type BudgetStatus = {
         enabled: boolean;
@@ -39,20 +39,19 @@
     let saveError = $state('');
     let budget = $state<BudgetStatus | null>(null);
 
-    let enabled = $state(false);
     let totalBudgetCredits = $state('0');
     let perUserGrantCredits = $state('1000');
 
     let usedBudgetCredits = $derived(budget?.used_budget_credits ?? 0);
     let remainingBudgetCredits = $derived(Math.max(0, parseCredits(totalBudgetCredits) - usedBudgetCredits));
-    let canGrantFullUser = $derived(!enabled || remainingBudgetCredits >= parseCredits(perUserGrantCredits));
+    let canGrantFullUser = $derived(remainingBudgetCredits >= parseCredits(perUserGrantCredits));
     let isFormValid = $derived(
         parseCredits(totalBudgetCredits) >= 0 &&
         parseCredits(perUserGrantCredits) >= 0 &&
-        (!enabled || parseCredits(perUserGrantCredits) >= 1) &&
         parseCredits(totalBudgetCredits) >= usedBudgetCredits &&
-        canGrantFullUser
+        (parseCredits(totalBudgetCredits) === 0 || (parseCredits(perUserGrantCredits) >= 1 && canGrantFullUser))
     );
+    let activatesOnSave = $derived(parseCredits(totalBudgetCredits) > 0 && parseCredits(perUserGrantCredits) >= 1 && canGrantFullUser);
 
     onMount(() => {
         fetchBudget();
@@ -78,7 +77,6 @@
 
     function applyBudget(status: BudgetStatus) {
         budget = status;
-        enabled = status.enabled;
         totalBudgetCredits = String(status.total_budget_credits);
         perUserGrantCredits = String(status.per_user_grant_credits);
     }
@@ -90,6 +88,7 @@
             const response = await fetch(getApiEndpoint('/v1/admin/free-testing-credits-budget'), {
                 method: 'GET',
                 credentials: 'include',
+                cache: 'no-store',
             });
             if (!response.ok) {
                 const data = await response.json().catch(() => null);
@@ -113,7 +112,7 @@
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    enabled,
+                    enabled: activatesOnSave,
                     total_budget_credits: parseCredits(totalBudgetCredits),
                     per_user_grant_credits: parseCredits(perUserGrantCredits),
                 }),
@@ -123,6 +122,7 @@
                 throw new Error(data?.detail || `HTTP ${response.status}`);
             }
             applyBudget(await response.json());
+            await initializeServerStatus(true);
             notificationStore.success($text('settings.server.free_testing_budget.save_success'));
         } catch (error) {
             saveError = error instanceof Error ? error.message : $text('settings.server.free_testing_budget.save_error');
@@ -167,12 +167,6 @@
             <SettingsDetailRow label={$text('settings.server.free_testing_budget.updated_at')} value={formatDate(budget?.updated_at ?? null)} muted />
         </SettingsCard>
 
-        <SettingsConsentToggle
-            bind:checked={enabled}
-            consentText={$text('settings.server.free_testing_budget.enabled')}
-            ariaLabel={$text('settings.server.free_testing_budget.enabled')}
-        />
-
         <SettingsSectionHeading title={$text('settings.server.free_testing_budget.total_budget')} icon="gift_cards" />
         <SettingsInput
             bind:value={totalBudgetCredits}
@@ -189,7 +183,7 @@
             type="number"
             inputmode="numeric"
             min="0"
-            hasError={enabled && (parseCredits(perUserGrantCredits) < 1 || !canGrantFullUser)}
+            hasError={parseCredits(totalBudgetCredits) > 0 && (parseCredits(perUserGrantCredits) < 1 || !canGrantFullUser)}
             dataTestid="free-testing-per-user-grant-input"
         />
 
@@ -197,7 +191,7 @@
             <SettingsInfoBox type="error">
                 <p>{$text('settings.server.free_testing_budget.validation_below_used')}</p>
             </SettingsInfoBox>
-        {:else if enabled && !canGrantFullUser}
+        {:else if parseCredits(totalBudgetCredits) > 0 && !canGrantFullUser}
             <SettingsInfoBox type="warning">
                 <p>{$text('settings.server.free_testing_budget.validation_no_partial')}</p>
             </SettingsInfoBox>

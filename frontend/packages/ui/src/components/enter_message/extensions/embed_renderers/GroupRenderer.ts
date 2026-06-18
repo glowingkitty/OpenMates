@@ -45,6 +45,8 @@ import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPrev
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
+import PcbSchematicEmbedPreview from "../../../embeds/electronics/PcbSchematicEmbedPreview.svelte";
+import MermaidDiagramEmbedPreview from "../../../embeds/diagrams/MermaidDiagramEmbedPreview.svelte";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
@@ -56,6 +58,7 @@ import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPr
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
+import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -355,6 +358,16 @@ export class GroupRenderer implements EmbedRenderer {
             decodedContent,
             content,
           ),
+      ],
+      [
+        "electronics-pcb-schematic",
+        (item, embedData, decodedContent, content) =>
+          this.renderPcbSchematicComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "diagrams-mermaid",
+        (item, embedData, decodedContent, content) =>
+          this.renderMermaidDiagramComponent(item, embedData, decodedContent, content),
       ],
       [
         "electronics-component",
@@ -680,6 +693,10 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderHomeListingItem(item, embedData, decodedContent);
       case "shopping-product":
         return this.renderShoppingProductItem(item, embedData, decodedContent);
+      case "electronics-pcb-schematic":
+        return this.renderPcbSchematicItem(item, embedData, decodedContent);
+      case "diagrams-mermaid":
+        return this.renderMermaidDiagramItem(item, embedData, decodedContent);
       case "electronics-component":
         return this.renderElectronicsComponentItem(item, embedData, decodedContent);
       case "nutrition-recipe":
@@ -1847,6 +1864,9 @@ export class GroupRenderer implements EmbedRenderer {
       }
 
       if (appId === "weather" && skillId === "forecast") {
+        const previewResults = Array.isArray(decodedContent?.preview_results)
+          ? decodedContent.preview_results
+          : [];
         const component = mount(WeatherForecastEmbedPreview, {
           target,
           props: {
@@ -1860,7 +1880,38 @@ export class GroupRenderer implements EmbedRenderer {
               | "finished"
               | "error"
               | "cancelled",
-            results,
+            results: results.length > 0 ? results : previewResults,
+            previewResults,
+            taskId,
+            skillTaskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "weather" && skillId === "rain_radar") {
+        const component = mount(WeatherRainRadarEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: query || "",
+            locationName:
+              decodedContent?.location?.name || decodedContent?.location_name || "",
+            provider: provider || "Weather",
+            status: status as
+              | "processing"
+              | "finished"
+              | "error"
+              | "cancelled",
+            summary: decodedContent?.summary || {},
+            timeline: decodedContent?.timeline || [],
+            s3BaseUrl: decodedContent?.s3_base_url || "",
+            files: decodedContent?.files || undefined,
+            aesKey: decodedContent?.aes_key || "",
+            aesNonce: decodedContent?.aes_nonce || "",
             taskId,
             skillTaskId,
             isMobile: false,
@@ -5053,6 +5104,143 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render a PCB schematic embed using PcbSchematicEmbedPreview.
+   */
+  private async renderPcbSchematicComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (embedData?.status || item.status || "finished") as
+      | "processing"
+      | "finished"
+      | "error";
+    const lineCount = decodedContent?.line_count || decodedContent?.lineCount || item.lineCount || 0;
+    const codeContent = decodedContent?.code || item.code || "";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping PcbSchematicEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(PcbSchematicEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          language: decodedContent?.language || item.language || "atopile",
+          filename: decodedContent?.filename || item.filename || "board.ato",
+          lineCount,
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+          codeContent,
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted PcbSchematicEmbedPreview:", {
+        embedId,
+        filename: decodedContent?.filename,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount PcbSchematicEmbedPreview:",
+        err,
+      );
+      const fallbackHtml = await this.renderPcbSchematicItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
+   * Render a Diagrams Mermaid embed using MermaidDiagramEmbedPreview.
+   */
+  private async renderMermaidDiagramComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (embedData?.status || decodedContent?.status || item.status || "finished") as
+      | "processing"
+      | "finished"
+      | "error"
+      | "cancelled";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping MermaidDiagramEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(MermaidDiagramEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title as string | undefined,
+          diagram_kind: decodedContent?.diagram_kind as string | undefined,
+          diagram_code: decodedContent?.diagram_code as string | undefined,
+          line_count: decodedContent?.line_count as number | undefined,
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted MermaidDiagramEmbedPreview:", {
+        embedId,
+        title: decodedContent?.title,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount MermaidDiagramEmbedPreview:",
+        err,
+      );
+      const fallbackHtml = await this.renderMermaidDiagramItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
    * Render an electronics component child embed using ElectronicsComponentEmbedPreview.
    */
   private async renderElectronicsComponentComponent(
@@ -5176,6 +5364,61 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${esc(String(title))}</div>
         ${brand ? `<div class="embed-text-subline">${esc(String(brand))}</div>` : ""}
         ${priceEur ? `<div class="embed-text-subline">${esc(String(priceEur))}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * HTML fallback renderer for electronics-pcb-schematic embeds.
+   */
+  private async renderPcbSchematicItem(
+    item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const filename = decodedContent?.filename || item.filename || "board.ato";
+    const lineCount = decodedContent?.line_count || decodedContent?.lineCount || item.lineCount || 0;
+    const language = decodedContent?.language || item.language || "atopile";
+    const isProcessing = item.status === "processing";
+
+    return `
+      <div class="embed-app-icon electronics">
+        <span class="icon icon_pcbdesign"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ""}
+        <div class="embed-text-line">${esc(String(filename))}</div>
+        <div class="embed-text-line">${esc(String(lineCount))} lines, ${esc(String(language))}</div>
+      </div>
+    `;
+  }
+
+  /**
+   * HTML fallback renderer for diagrams-mermaid embeds.
+   */
+  private async renderMermaidDiagramItem(
+    item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const title = decodedContent?.title || item.title || "Mermaid Diagram";
+    const diagramKind = decodedContent?.diagram_kind || "mermaid";
+    const code = decodedContent?.diagram_code || "";
+    const isProcessing = item.status === "processing";
+
+    return `
+      <div class="embed-app-icon diagrams">
+        <span class="icon icon_diagram"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ""}
+        <div class="embed-text-line">${esc(String(title))}</div>
+        <div class="embed-text-line">${esc(String(diagramKind))}</div>
+        ${code ? `<div class="embed-text-subline">${esc(String(code)).slice(0, 120)}</div>` : ""}
       </div>
     `;
   }

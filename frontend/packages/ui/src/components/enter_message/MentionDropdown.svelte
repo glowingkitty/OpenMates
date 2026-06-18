@@ -316,21 +316,21 @@
             case 'skill': {
                 const skillResult = result as SkillMentionResult;
                 const skillId = result.id.split(':')[1] || result.id;
-                return `app_store/${skillResult.appId}/skill/${skillId}`;
+                return `apps/${skillResult.appId}/skill/${skillId}`;
             }
             case 'focus_mode': {
                 const focusResult = result as FocusModeMentionResult;
                 const focusModeId = result.id.split(':')[1] || result.id;
-                return `app_store/${focusResult.appId}/focus/${focusModeId}`;
+                return `apps/${focusResult.appId}/focus/${focusModeId}`;
             }
             case 'settings_memory': {
                 const memoryResult = result as SettingsMemoryMentionResult;
                 const memoryId = result.id.split(':')[1] || result.id;
-                return `app_store/${memoryResult.appId}/settings_memories/${memoryId}`;
+                return `apps/${memoryResult.appId}/settings_memories/${memoryId}`;
             }
             case 'settings_memory_entry': {
                 const entryResult = result as SettingsMemoryEntryMentionResult;
-                return `app_store/${entryResult.appId}/settings_memories/${entryResult.memoryCategoryId}`;
+                return `apps/${entryResult.appId}/settings_memories/${entryResult.memoryCategoryId}`;
             }
             default:
                 return 'main';

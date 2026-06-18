@@ -235,7 +235,7 @@ export async function flushPendingFinalizedEmbedsForChat(
           serviceInstance,
           embedData as unknown as SendEmbedDataPayload,
         );
-        if (isEmbedAlreadyProcessed(embedId)) {
+        if (isEmbedAlreadyProcessed(embedId, embedData.version_number)) {
           pendingForChat.delete(embedId);
           processedThisPass = true;
         }
@@ -300,7 +300,11 @@ try {
   if (typeof BroadcastChannel !== "undefined") {
     embedBroadcastChannel = new BroadcastChannel("openmates_embed_dedup_v1");
     embedBroadcastChannel.onmessage = (event) => {
-      const { type, embedId } = event.data || {};
+      const { type, embedId, processingKey } = event.data || {};
+      if (type === "embed_processed" && typeof processingKey === "string") {
+        processedFinalizedEmbeds.add(processingKey);
+        return;
+      }
       if (type === "embed_processed" && typeof embedId === "string") {
         processedFinalizedEmbeds.add(embedId);
       }
@@ -380,18 +384,40 @@ async function persistThinkingToDb(
 /**
  * Check if a finalized embed has already been processed
  */
-function isEmbedAlreadyProcessed(embedId: string): boolean {
-  return processedFinalizedEmbeds.has(embedId);
+function getEmbedProcessingKey(
+  embedId: string,
+  versionNumber?: number | null,
+): string {
+  return typeof versionNumber === "number"
+    ? `${embedId}:v${versionNumber}`
+    : embedId;
+}
+
+function isEmbedAlreadyProcessed(
+  embedId: string,
+  versionNumber?: number | null,
+): boolean {
+  return processedFinalizedEmbeds.has(
+    getEmbedProcessingKey(embedId, versionNumber),
+  );
 }
 
 /**
  * Mark an embed as processed (for finalized embeds only).
  * Also broadcasts to other tabs via BroadcastChannel so they skip redundant work.
  */
-function markEmbedAsProcessed(embedId: string): void {
-  processedFinalizedEmbeds.add(embedId);
+function markEmbedAsProcessed(
+  embedId: string,
+  versionNumber?: number | null,
+): void {
+  const processingKey = getEmbedProcessingKey(embedId, versionNumber);
+  processedFinalizedEmbeds.add(processingKey);
   try {
-    embedBroadcastChannel?.postMessage({ type: "embed_processed", embedId });
+    embedBroadcastChannel?.postMessage({
+      type: "embed_processed",
+      embedId,
+      processingKey,
+    });
   } catch {
     // BroadcastChannel may be closed — non-fatal
   }
@@ -414,6 +440,11 @@ export function clearProcessedEmbedsTracking(): void {
  */
 export function unmarkEmbedAsProcessed(embedId: string): void {
   processedFinalizedEmbeds.delete(embedId);
+  for (const processingKey of Array.from(processedFinalizedEmbeds)) {
+    if (processingKey.startsWith(`${embedId}:v`)) {
+      processedFinalizedEmbeds.delete(processingKey);
+    }
+  }
 }
 
 // --- AI Task and Stream Event Handler Implementations ---
@@ -3117,6 +3148,68 @@ export async function handleEmbedUpdateImpl(
 // Type alias for the inner embed data structure (used when WebSocket passes payload directly)
 type EmbedDataPayload = SendEmbedDataPayload["payload"];
 
+async function persistClientEncryptedEmbedDiffRows(
+  serviceInstance: ChatSynchronizationService,
+  embedData: EmbedDataPayload,
+  embedKey: Uint8Array,
+  hashedUserId: string,
+): Promise<void> {
+  const rows = embedData.version_history_rows;
+  if (!Array.isArray(rows) || rows.length === 0) return;
+
+  const { storeEmbedDiff } = await import("./embedDiffStore");
+  const sendersModule = await import("./chatSyncServiceSenders");
+  const sendStoreEmbedDiffFunction =
+    sendersModule.sendStoreEmbedDiffImpl ||
+    (
+      sendersModule as {
+        default?: {
+          sendStoreEmbedDiffImpl?: typeof sendersModule.sendStoreEmbedDiffImpl;
+        };
+      }
+    ).default?.sendStoreEmbedDiffImpl;
+
+  if (typeof sendStoreEmbedDiffFunction !== "function") {
+    throw new Error("sendStoreEmbedDiffImpl function not found");
+  }
+
+  for (const row of rows) {
+    if (!row.embed_id || typeof row.version_number !== "number") continue;
+    const encryptedSnapshot =
+      typeof row.snapshot === "string"
+        ? await encryptWithEmbedKey(row.snapshot, embedKey)
+        : undefined;
+    const encryptedPatch =
+      typeof row.patch === "string"
+        ? await encryptWithEmbedKey(row.patch, embedKey)
+        : undefined;
+    if (!encryptedSnapshot && !encryptedPatch) continue;
+
+    const createdAt = normalizeToUnixSeconds(
+      row.created_at,
+      Math.floor(Date.now() / 1000),
+    );
+    const encryptedRow = {
+      id: `${row.embed_id}_v${row.version_number}`,
+      embed_id: row.embed_id,
+      version_number: row.version_number,
+      encrypted_snapshot: encryptedSnapshot,
+      encrypted_patch: encryptedPatch,
+      created_at: createdAt,
+    };
+
+    await storeEmbedDiff(encryptedRow);
+    await sendStoreEmbedDiffFunction(serviceInstance, {
+      embed_id: row.embed_id,
+      version_number: row.version_number,
+      encrypted_snapshot: encryptedSnapshot ?? null,
+      encrypted_patch: encryptedPatch ?? null,
+      hashed_user_id: hashedUserId,
+      created_at: createdAt,
+    });
+  }
+}
+
 /**
  * Handle send_embed_data event from server
  * This receives plaintext TOON content, encrypts it client-side, stores in IndexedDB,
@@ -3192,7 +3285,17 @@ export async function handleSendEmbedDataImpl(
     if (existingStatus) {
       const currentStatus = existingStatus;
       const incomingStatus = normalizeStatus(embedData.status);
+      const existingVersion =
+        existingEntry &&
+        typeof existingEntry !== "string" &&
+        typeof existingEntry.version_number === "number"
+          ? existingEntry.version_number
+          : undefined;
+      const isNewerEmbedVersion =
+        typeof embedData.version_number === "number" &&
+        embedData.version_number > (existingVersion ?? 0);
       if (
+        !isNewerEmbedVersion &&
         !validateEmbedTransition(
           currentStatus,
           incomingStatus,
@@ -3431,6 +3534,7 @@ export async function handleSendEmbedDataImpl(
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
               status: embedData.status,
+              version_number: embedData.version_number,
               child_embed_ids: embedData.embed_ids,
               isProcessing: false,
             },
@@ -3486,10 +3590,10 @@ export async function handleSendEmbedDataImpl(
 
       // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
       // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)
-      if (isEmbedAlreadyProcessed(embedData.embed_id)) {
+      if (isEmbedAlreadyProcessed(embedData.embed_id, embedData.version_number)) {
         console.warn(
           `[ChatSyncService:AI] [EMBED_EVENT] ⚠️ DUPLICATE DETECTED: Embed ${embedData.embed_id} already processed ` +
-            `(status=${embedData.status}) - skipping duplicate processing. ` +
+            `(status=${embedData.status}, version=${embedData.version_number ?? "n/a"}) - skipping duplicate processing. ` +
             `This should not happen if deduplication is working correctly!`,
         );
 
@@ -3517,6 +3621,7 @@ export async function handleSendEmbedDataImpl(
               chat_id: embedData.chat_id,
               message_id: embedData.message_id,
               status: embedData.status,
+              version_number: embedData.version_number,
               child_embed_ids: embedData.embed_ids,
               isProcessing: false,
             },
@@ -3526,9 +3631,10 @@ export async function handleSendEmbedDataImpl(
       }
 
       // Mark as processed BEFORE starting async operations to prevent race conditions
-      markEmbedAsProcessed(embedData.embed_id);
+      markEmbedAsProcessed(embedData.embed_id, embedData.version_number);
       console.info(
         `[ChatSyncService:AI] [EMBED_EVENT] Marked embed ${embedData.embed_id} as processed. ` +
+          `version=${embedData.version_number ?? "n/a"}; ` +
           `Total processed embeds: ${processedFinalizedEmbeds.size}`,
       );
 
@@ -4163,6 +4269,13 @@ export async function handleSendEmbedDataImpl(
         `[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`,
       );
 
+      await persistClientEncryptedEmbedDiffRows(
+        serviceInstance,
+        embedData,
+        embedKey,
+        hashedUserId,
+      );
+
       // 10. Send key wrappers to server for embed_keys collection (ONLY for parent embeds)
       // Child embeds don't have their own key wrappers - they use the parent's key
       if (!isChildEmbed && wrappedMasterKey && wrappedChatKey) {
@@ -4248,6 +4361,7 @@ export async function handleSendEmbedDataImpl(
             chat_id: embedData.chat_id,
             message_id: embedData.message_id,
             status: embedData.status,
+            version_number: embedData.version_number,
             child_embed_ids: embedData.embed_ids,
             isProcessing: false,
           },

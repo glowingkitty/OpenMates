@@ -46,10 +46,12 @@ struct MainAppView: View {
     @StateObject private var incognitoManager = IncognitoManager()
     @StateObject private var handoffManager = HandoffManager()
     @StateObject private var authFlowState = AuthFlowState()
+    @StateObject private var anonymousFreeUsage = AnonymousFreeUsageService.shared
     @State private var syncBridge: OfflineSyncBridge?
     @State private var selectedChatId: String?
     @State private var isChatsPanelOpen = false
     @State private var showSettings = false
+    @State private var reportIssuePrefill: ReportIssuePrefill?
     @State private var showNewChat = false
     @State private var showExplore = false
     @State private var showSearch = false
@@ -488,6 +490,8 @@ struct MainAppView: View {
     private func showSettingsDidChange(_ oldValue: Bool, _ isOpen: Bool) {
         if isOpen {
             lastForegroundInteractionAt = Date()
+        } else {
+            reportIssuePrefill = nil
         }
     }
 
@@ -582,13 +586,20 @@ struct MainAppView: View {
         showNewChat = false
         visibleUserChatLimit = Self.initialUserChatLimit
         loadDemoChats(selectDefault: false)
+        Task { await anonymousFreeUsage.loadAnonymousChats(into: chatStore) }
     }
 
     private func applyLaunchCommandIfNeeded() {
         guard !didApplyLaunchCommand else { return }
         didApplyLaunchCommand = true
 
-        if launchCommand?.action == .newChat {
+        #if DEBUG
+        let shouldStartNewChatForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
+        #else
+        let shouldStartNewChatForUITest = false
+        #endif
+
+        if launchCommand?.action == .newChat || shouldStartNewChatForUITest {
             openNewChatScreen()
         }
     }
@@ -599,11 +610,32 @@ struct MainAppView: View {
         } else {
             // Unauthenticated: populate sidebar with demo chats
             loadDemoChats()
+            await anonymousFreeUsage.refreshStatus()
+            await anonymousFreeUsage.loadAnonymousChats(into: chatStore)
             // Fetch default daily inspirations (public endpoint, no auth required)
             Task { await syncInspirationToWidget() }
         }
         applyLaunchCommandIfNeeded()
         applyPendingQuickActionIfNeeded()
+    }
+
+    private func promoteAnonymousChatsAfterAuthentication() async {
+        for _ in 0..<120 {
+            guard isAuthenticated else { return }
+            if wsManager.connectionState == .connected {
+                break
+            }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+        let promoted = await anonymousFreeUsage.promoteAnonymousChats(
+            chatStore: chatStore,
+            wsManager: wsManager,
+            userId: authManager.currentUser?.id
+        )
+        if let first = promoted.first {
+            selectedChatId = first
+            showNewChat = false
+        }
     }
 
     private func applyPendingQuickActionIfNeeded() {
@@ -831,7 +863,7 @@ struct MainAppView: View {
     // MARK: - Settings slide panel (web: slides from right, 323px wide, shadow)
 
     private func settingsPanel(width: CGFloat, closesOnExampleChatOpen: Bool) -> some View {
-        SettingsView {
+        SettingsView(reportIssuePrefill: reportIssuePrefill) {
             withAnimation(.easeInOut(duration: 0.3)) {
                 showSettings = false
             }
@@ -851,6 +883,13 @@ struct MainAppView: View {
         .background(Color.grey20)
         .clipShape(RoundedRectangle(cornerRadius: activeChatContainerRadius))
         .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 0)
+    }
+
+    private func openReportIssue(prefill: ReportIssuePrefill) {
+        reportIssuePrefill = prefill
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showSettings = true
+        }
     }
 
     private func settingsSlidePanel(viewportWidth: CGFloat) -> some View {
@@ -1007,32 +1046,39 @@ struct MainAppView: View {
                 totalChatCount: totalChatCount,
                 serverSuggestions: syncedNewChatSuggestions,
                 onCreateChatWithMessage: { message in
-                    let chatId = UUID().uuidString
                     let now = ChatSendPipeline.isoString(from: Date())
-                    let chat = Chat(
-                        id: chatId,
-                        title: nil,
-                        lastMessageAt: nil,
-                        createdAt: now,
-                        updatedAt: now,
-                        isArchived: false,
-                        isPinned: false,
-                        appId: nil,
-                        encryptedTitle: nil,
-                        encryptedChatKey: nil,
-                        messagesV: 0,
-                        titleV: 0,
-                        draftV: 0
+                    if isAuthenticated {
+                        let chatId = UUID().uuidString
+                        let chat = Chat(
+                            id: chatId,
+                            title: nil,
+                            lastMessageAt: nil,
+                            createdAt: now,
+                            updatedAt: now,
+                            isArchived: false,
+                            isPinned: false,
+                            appId: nil,
+                            encryptedTitle: nil,
+                            encryptedChatKey: nil,
+                            messagesV: 0,
+                            titleV: 0,
+                            draftV: 0
+                        )
+                        let result = try await ChatSendPipeline().sendUserMessage(
+                            content: message,
+                            in: chat,
+                            existingMessages: [],
+                            wsManager: wsManager,
+                            chatStore: chatStore,
+                            waitForRemoteSend: false
+                        )
+                        return result.chat.id
+                    }
+                    return try await anonymousFreeUsage.createAnonymousChatWithMessage(
+                        message,
+                        now: now,
+                        chatStore: chatStore
                     )
-                    let result = try await ChatSendPipeline().sendUserMessage(
-                        content: message,
-                        in: chat,
-                        existingMessages: [],
-                        wsManager: wsManager,
-                        chatStore: chatStore,
-                        waitForRemoteSend: false
-                    )
-                    return result.chat.id
                 },
                 onChatCreated: { chatId in
                     selectedChatId = chatId
@@ -1057,7 +1103,8 @@ struct MainAppView: View {
                         }
                     }
                 },
-                onOpenAuth: { showAuthSheet = true }
+                onOpenAuth: { showAuthSheet = true },
+                canSendAnonymously: anonymousFreeUsage.canSendAnonymously
             )
         } else if isAuthenticated, let chatId = selectedChatId {
             let isPublic = publicChatGroup(for: chatId) != nil
@@ -1078,20 +1125,27 @@ struct MainAppView: View {
                 onOpenPublicChat: openPublicChat,
                 onOpenChat: { selectedChatId = $0; showNewChat = false },
                 onNewChat: openNewChatScreen,
+                onReportIssue: openReportIssue,
                 onScrollPositionChanged: { messageId in
                     sendScrollPositionUpdate(chatId: chatId, messageId: messageId)
                 }
             )
         } else if !isAuthenticated, let chatId = selectedChatId {
+            let isAnonymous = anonymousFreeUsage.isAnonymousChat(chatId)
+            let initialWindow = isAnonymous ? chatStore.initialMessageWindow(for: chatId) : []
             ChatView(
                 chatId: chatId,
-                bannerState: demoBannerState(for: chatId),
+                bannerState: isAnonymous ? nil : demoBannerState(for: chatId),
                 bannerCreatedAt: nil,
+                initialChat: isAnonymous ? chatStore.chat(for: chatId) : nil,
+                initialMessages: initialWindow,
+                chatStore: isAnonymous ? chatStore : nil,
                 isSettingsOpen: !isCompactShell && showSettings,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
                 onOpenPublicChat: openPublicChat,
-                onNewChat: openNewChatScreen
+                onNewChat: openNewChatScreen,
+                onReportIssue: openReportIssue
             )
         }
     }
@@ -1552,6 +1606,7 @@ struct MainAppView: View {
 
         Task { await authManager.validateSessionAfterOfflineBootstrap() }
         connectWebSocket()
+        Task { await promoteAnonymousChatsAfterAuthentication() }
         scheduleTokenBackedWebSocketReconnectIfNeeded()
         scheduleInitialDataFallback()
         Task { await syncInspirationToWidget() }
@@ -1998,7 +2053,8 @@ struct MainAppView: View {
             updatedAt: nil,
             appId: payload.role == "assistant" ? (chat.category ?? chat.appId) : nil,
             isStreaming: false,
-            embedRefs: nil
+            embedRefs: nil,
+            encryptedPIIMappings: payload.encryptedPiiMappings
         )
         chatStore.appendMessage(message, to: payload.chatId)
         NativeSyncPerfLog.info("phase=newChatMessageSync chat=\(payload.chatId.prefix(8)) message=\(payload.messageId.prefix(8))")
@@ -2835,6 +2891,7 @@ private struct NewChatMessagePayload: Decodable {
     let encryptedChatKey: String?
     let encryptedTitle: String?
     let encryptedCategory: String?
+    let encryptedPiiMappings: String?
     let parentId: String?
     let isSubChat: Bool?
 }
@@ -3438,6 +3495,7 @@ struct NewChatWelcomeView: View {
     let onOpenChat: (String) -> Void
     let onInspirationViewed: (String) -> Void
     let onOpenAuth: () -> Void
+    var canSendAnonymously = false
     @State private var messageText = ""
     @State private var suggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var hiddenSuggestionIds = Set<String>()
@@ -3550,6 +3608,7 @@ struct NewChatWelcomeView: View {
                     isExpanded: $isComposerExpanded,
                     isFocused: $isFocused,
                     isAuthenticated: isAuthenticated,
+                    canSendAnonymously: canSendAnonymously,
                     onSend: { createChatWith(message: messageText) },
                     onOpenAuth: onOpenAuth
                 )
@@ -3755,8 +3814,8 @@ struct NewChatWelcomeView: View {
     private func createChatWith(message: String) {
         guard !message.isEmpty else { return }
 
-        // Unauthenticated users: open auth flow instead of creating a chat
-        guard isAuthenticated else {
+        // Self-hosted or exhausted anonymous usage still goes through signup.
+        guard isAuthenticated || canSendAnonymously else {
             onOpenAuth()
             return
         }
@@ -3954,6 +4013,7 @@ private struct WelcomeComposer: View {
     @Binding var isExpanded: Bool
     @FocusState.Binding var isFocused: Bool
     let isAuthenticated: Bool
+    let canSendAnonymously: Bool
     let onSend: () -> Void
     let onOpenAuth: () -> Void
 
@@ -3963,6 +4023,10 @@ private struct WelcomeComposer: View {
 
     private var isOpen: Bool {
         hasContent || isFocused || isExpanded
+    }
+
+    private var canSubmit: Bool {
+        isAuthenticated || canSendAnonymously
     }
 
     var body: some View {
@@ -3977,7 +4041,7 @@ private struct WelcomeComposer: View {
                 showActionButtonsWhenCompact: isOpen,
                 expandedMinHeight: 112,
                 accessibilityHint: AppStrings.typeMessage,
-                onSubmit: { isAuthenticated ? onSend() : onOpenAuth() }
+                onSubmit: { canSubmit ? onSend() : onOpenAuth() }
             ) {
                 HStack(spacing: .spacing5) {
                     Icon("files", size: 22)
@@ -3993,9 +4057,9 @@ private struct WelcomeComposer: View {
                         .foregroundStyle(Color.fontSecondary)
                     if hasContent {
                         Button {
-                            isAuthenticated ? onSend() : onOpenAuth()
+                            canSubmit ? onSend() : onOpenAuth()
                         } label: {
-                            Text(isAuthenticated ? AppStrings.sendAction : AppStrings.signUp)
+                            Text(canSubmit ? AppStrings.sendAction : AppStrings.signUp)
                                 .font(.omSmall)
                                 .fontWeight(.semibold)
                                 .foregroundStyle(Color.fontButton)

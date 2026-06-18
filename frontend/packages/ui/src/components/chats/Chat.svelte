@@ -496,6 +496,25 @@
       return;
     }
 
+    if (currentChat.is_anonymous) {
+      draftTextContent = '';
+      cachedMetadata = null;
+      try {
+        const { anonymousChatStorage } = await import('../../services/anonymousChatStorage');
+        const messages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
+        lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+      } catch (error) {
+        console.debug(`[Chat] Error loading anonymous messages for ${currentChat.chat_id}:`, error);
+        lastMessage = null;
+      }
+      chatCategory = currentChat.category || null;
+      const iconField = currentChat.icon;
+      chatIcon = iconField ? iconField.split(',')[0] || null : null;
+      displayLabel = '';
+      displayText = '';
+      return;
+    }
+
     // PUBLIC CHAT HANDLING (demo + legal): Public chats have plaintext titles and categories, no encryption
     if (isPublicChat(currentChat.chat_id)) {
       // CRITICAL: For non-authenticated users, check sessionStorage for drafts

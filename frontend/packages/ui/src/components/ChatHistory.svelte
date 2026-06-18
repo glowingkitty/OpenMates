@@ -49,11 +49,16 @@
   // The permission dialog is rendered as part of the chat history (scrollable with messages)
   // rather than as a fixed overlay, so users can scroll while the dialog is visible
   import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
+  import ConnectedAccountPermissionDialog from './ConnectedAccountPermissionDialog.svelte';
   import { 
     appSettingsMemoriesPermissionStore,
     isPermissionDialogVisible,
     currentPermissionRequest
   } from '../stores/appSettingsMemoriesPermissionStore';
+  import {
+    currentConnectedAccountPermissionRequest,
+    isConnectedAccountPermissionVisible
+  } from '../stores/connectedAccountPermissionStore';
   import type { PendingPermissionRequest, AppSettingsMemoriesCategory } from '../services/chatSyncServiceHandlersAppSettings';
   import { formatDisplayName, getAppGradient } from '../services/chatSyncServiceHandlersAppSettings';
   import { text } from '@repo/ui'; // Used for compression summary UI labels
@@ -64,6 +69,9 @@
   import { chatDB } from '../services/db';
   import { webSocketService } from '../services/websocketService';
   import { activeChatStore } from '../stores/activeChatStore';
+  import { reportIssueStore } from '../stores/reportIssueStore';
+  import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
+  import { panelState } from '../stores/panelStateStore';
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -766,6 +774,18 @@
     return null;
   });
 
+  const ASSISTANT_RATING_VALUES = [1, 2, 3, 4, 5] as const;
+  const ASSISTANT_FEEDBACK_STORAGE_KEY = 'openmates.assistantFeedback.submitted.v1';
+  const ASSISTANT_FEEDBACK_THANKS_VISIBLE_MS = 2600;
+  const ASSISTANT_FEEDBACK_THANKS_FADE_MS = 260;
+  let assistantFeedbackMessageId = $state<string | null>(null);
+  let selectedAssistantRating = $state<number | null>(null);
+  let assistantFeedbackSubmitted = $state(false);
+  let submittedAssistantFeedbackKeys = $state<string[]>([]);
+  let assistantFeedbackThanksState = $state<'hidden' | 'visible' | 'hiding'>('hidden');
+  let assistantFeedbackThanksTimer: ReturnType<typeof setTimeout> | null = null;
+  let assistantFeedbackThanksCleanupTimer: ReturnType<typeof setTimeout> | null = null;
+
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
   let showMessages = $state(true);
 
@@ -898,7 +918,7 @@
     followUpSuggestions?: string[];
     quickTipSlugs?: string[];
     /** Callback fired when the user clicks a follow-up suggestion. */
-    onSuggestionClick?: (suggestion: string, mentionSyntax?: string) => void;
+    onSuggestionClick?: (suggestion: string) => void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
   } = $props();
 
@@ -967,6 +987,13 @@
     $currentPermissionRequest?.chatId && 
     currentChatId && 
     $currentPermissionRequest.chatId === currentChatId
+  );
+
+  let shouldShowConnectedAccountPermissionDialog = $derived(
+    $isConnectedAccountPermissionVisible &&
+    $currentConnectedAccountPermissionRequest?.chatId &&
+    currentChatId &&
+    $currentConnectedAccountPermissionRequest.chatId === currentChatId
   );
 
   /**
@@ -1093,8 +1120,103 @@
     !isCurrentlyStreaming
   );
 
+  let showAssistantFeedback = $derived(
+    lastAssistantMessageId !== null &&
+    !isCurrentlyStreaming
+  );
+
+  let assistantFeedbackKey = $derived(
+    currentChatId && lastAssistantMessageId ? `${currentChatId}:${lastAssistantMessageId}` : null
+  );
+
   function handleQuickTipAction(tip: QuickTipDefinition): void {
     dispatch('quickTipAction', tip);
+  }
+
+  $effect(() => {
+    const submittedForCurrentMessage = assistantFeedbackKey !== null && submittedAssistantFeedbackKeys.includes(assistantFeedbackKey);
+    if (assistantFeedbackMessageId === lastAssistantMessageId && assistantFeedbackSubmitted === submittedForCurrentMessage) return;
+
+    assistantFeedbackMessageId = lastAssistantMessageId;
+    selectedAssistantRating = null;
+    assistantFeedbackSubmitted = submittedForCurrentMessage;
+    assistantFeedbackThanksState = 'hidden';
+    clearAssistantFeedbackThanksTimers();
+  });
+
+  onMount(() => {
+    submittedAssistantFeedbackKeys = loadSubmittedAssistantFeedbackKeys();
+  });
+
+  onDestroy(() => {
+    clearAssistantFeedbackThanksTimers();
+  });
+
+  function loadSubmittedAssistantFeedbackKeys(): string[] {
+    try {
+      const stored = localStorage.getItem(ASSISTANT_FEEDBACK_STORAGE_KEY);
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === 'string') : [];
+    } catch (error) {
+      console.warn('[ChatHistory] Failed to load submitted assistant feedback state', error);
+      return [];
+    }
+  }
+
+  function persistSubmittedAssistantFeedbackKey(key: string): void {
+    const nextKeys = [key, ...submittedAssistantFeedbackKeys.filter((existing) => existing !== key)].slice(0, 200);
+    submittedAssistantFeedbackKeys = nextKeys;
+    try {
+      localStorage.setItem(ASSISTANT_FEEDBACK_STORAGE_KEY, JSON.stringify(nextKeys));
+    } catch (error) {
+      console.warn('[ChatHistory] Failed to persist submitted assistant feedback state', error);
+    }
+  }
+
+  function clearAssistantFeedbackThanksTimers(): void {
+    if (assistantFeedbackThanksTimer) clearTimeout(assistantFeedbackThanksTimer);
+    if (assistantFeedbackThanksCleanupTimer) clearTimeout(assistantFeedbackThanksCleanupTimer);
+    assistantFeedbackThanksTimer = null;
+    assistantFeedbackThanksCleanupTimer = null;
+  }
+
+  function showAssistantFeedbackThanks(): void {
+    clearAssistantFeedbackThanksTimers();
+    assistantFeedbackThanksState = 'visible';
+    assistantFeedbackThanksTimer = setTimeout(() => {
+      assistantFeedbackThanksState = 'hiding';
+      assistantFeedbackThanksCleanupTimer = setTimeout(() => {
+        assistantFeedbackThanksState = 'hidden';
+        assistantFeedbackThanksCleanupTimer = null;
+      }, ASSISTANT_FEEDBACK_THANKS_FADE_MS);
+      assistantFeedbackThanksTimer = null;
+    }, ASSISTANT_FEEDBACK_THANKS_VISIBLE_MS);
+  }
+
+  function openReportIssue(issueType: 'bug_report' | 'feature_request', title?: string): void {
+    reportIssueStore.set({
+      title: title ?? (issueType === 'feature_request'
+        ? $text('chat.request_feature_prefill')
+        : ''),
+      issueType,
+      shareChat: true,
+    });
+    settingsDeepLink.set('report_issue');
+    panelState.openSettings();
+  }
+
+  function handleAssistantFeedbackSubmit(): void {
+    if (selectedAssistantRating === null) return;
+
+    if (assistantFeedbackKey) {
+      persistSubmittedAssistantFeedbackKey(assistantFeedbackKey);
+    }
+    assistantFeedbackSubmitted = true;
+    showAssistantFeedbackThanks();
+
+    if (selectedAssistantRating <= 3) {
+      openReportIssue('bug_report', $text('chat.assistant_feedback.report_title'));
+    }
   }
   
   // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
@@ -2275,6 +2397,12 @@
                 </div>
             {/if}
 
+            {#if shouldShowConnectedAccountPermissionDialog}
+                <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
+                    <ConnectedAccountPermissionDialog />
+                </div>
+            {/if}
+
             
             <!-- Bottom spacer: fills remaining viewport space below messages during streaming.
                  Creates the ChatGPT-like effect where the user message sits near the top
@@ -2304,6 +2432,63 @@
                     />
                 </div>
             {/if}
+
+            {#if showAssistantFeedback}
+                <div class="assistant-response-feedback" data-testid="assistant-response-feedback" in:fade={{ duration: 200 }}>
+                    {#if assistantFeedbackSubmitted && assistantFeedbackThanksState !== 'hidden'}
+                        <p
+                            class="assistant-feedback-thanks"
+                            class:hiding={assistantFeedbackThanksState === 'hiding'}
+                            data-testid="assistant-feedback-thanks"
+                        >
+                            {$text('chat.assistant_feedback.thanks')}
+                        </p>
+                    {:else if !assistantFeedbackSubmitted}
+                        <div class="assistant-feedback-rating-row">
+                            <span class="assistant-feedback-label">
+                                {$text('chat.assistant_feedback.rate_label')}
+                            </span>
+                            <div class="assistant-feedback-stars" role="radiogroup" aria-label={$text('chat.assistant_feedback.rate_label')}>
+                                {#each ASSISTANT_RATING_VALUES as rating}
+                                    <button
+                                        type="button"
+                                        class="assistant-feedback-star"
+                                        class:selected={selectedAssistantRating !== null && rating <= selectedAssistantRating}
+                                        role="radio"
+                                        aria-checked={selectedAssistantRating === rating}
+                                        aria-label={$text('chat.assistant_feedback.star_label', { values: { count: rating } })}
+                                        data-testid={`assistant-feedback-star-${rating}`}
+                                        onclick={() => selectedAssistantRating = rating}
+                                    >
+                                        ★
+                                    </button>
+                                {/each}
+                            </div>
+                            {#if selectedAssistantRating !== null}
+                                <button
+                                    type="button"
+                                    class="assistant-feedback-submit"
+                                    data-testid="assistant-feedback-submit"
+                                    onclick={handleAssistantFeedbackSubmit}
+                                >
+                                    {selectedAssistantRating <= 3
+                                        ? $text('settings.report_issue')
+                                        : $text('chat.assistant_feedback.submit')}
+                                </button>
+                            {/if}
+                        </div>
+                    {/if}
+                    <button
+                        type="button"
+                        class="chat-history-feedback-link"
+                        data-testid="chat-history-request-feature"
+                        onclick={() => openReportIssue('feature_request')}
+                    >
+                        {$text('chat.request_feature')}
+                    </button>
+                </div>
+            {/if}
+
         </div>
     {/if}
     
@@ -2477,9 +2662,134 @@
     width: 100%;
   }
 
+  .assistant-response-feedback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-4);
+    padding: 14px 20px 18px;
+    box-sizing: border-box;
+    width: 100%;
+    text-align: center;
+  }
+
+  .assistant-feedback-rating-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+  }
+
+  .assistant-feedback-label,
+  .assistant-feedback-thanks {
+    margin: 0;
+    color: var(--color-grey-60);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .assistant-feedback-thanks {
+    max-height: 2rem;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+      max-height 260ms var(--easing-default),
+      opacity 220ms var(--easing-default),
+      transform 220ms var(--easing-default);
+  }
+
+  .assistant-feedback-thanks.hiding {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  .assistant-feedback-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .assistant-feedback-star {
+    all: unset;
+    cursor: pointer;
+    color: var(--color-grey-40);
+    font-size: 15px;
+    line-height: 1;
+    transition: color var(--duration-fast) var(--easing-default), transform var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-feedback-star.selected,
+  .assistant-feedback-star:hover,
+  .assistant-feedback-star:focus-visible {
+    color: var(--color-orange-50, #f59e0b);
+  }
+
+  .assistant-feedback-star:hover {
+    transform: translateY(-1px);
+  }
+
+  .assistant-feedback-star:focus-visible,
+  .assistant-feedback-submit:focus-visible {
+    outline: 2px solid var(--color-grey-70);
+    outline-offset: 3px;
+    border-radius: var(--radius-3);
+  }
+
+  .assistant-feedback-submit {
+    all: unset;
+    cursor: pointer;
+    color: var(--color-grey-100);
+    background: var(--color-grey-15);
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-6);
+    padding: 4px 10px;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    line-height: 1.25;
+    transition: background-color var(--duration-fast) var(--easing-default), border-color var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-feedback-submit:hover {
+    background: var(--color-grey-20);
+    border-color: var(--color-grey-40);
+  }
+
+  .chat-history-feedback-link {
+    all: unset;
+    cursor: pointer;
+    color: var(--color-grey-60);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    line-height: 1.35;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color var(--duration-fast) var(--easing-default);
+  }
+
+  .chat-history-feedback-link:hover,
+  .chat-history-feedback-link:focus-visible {
+    color: var(--color-grey-100);
+  }
+
+  .chat-history-feedback-link:focus-visible {
+    outline: 2px solid var(--color-grey-70);
+    outline-offset: 3px;
+    border-radius: var(--radius-3);
+  }
+
   @media (max-width: 500px) {
     .quick-tips-wrapper,
     .follow-up-suggestions-wrapper {
+      padding-inline-start: 10px;
+      padding-inline-end: 10px;
+    }
+
+    .assistant-response-feedback {
       padding-inline-start: 10px;
       padding-inline-end: 10px;
     }

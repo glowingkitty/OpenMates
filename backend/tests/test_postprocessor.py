@@ -1,7 +1,7 @@
 # backend/tests/test_postprocessor.py
 #
-# Unit tests for postprocessor pure functions: skill/focus extraction from app
-# metadata, and suggestion sanitization (prefix validation, min-word enforcement).
+# Unit tests for postprocessor pure functions: skill extraction from app
+# metadata, plain suggestion sanitization, and 50/50 suggestion merging.
 #
 # Architecture: docs/architecture/follow_up_suggestions.md
 # Run: python -m pytest backend/tests/test_postprocessor.py -v
@@ -11,9 +11,9 @@ import pytest
 try:
     from backend.apps.ai.processing.postprocessor import (
         extract_available_skills,
-        extract_available_focus_modes,
         handle_postprocessing,
-        sanitize_suggestions,
+        combine_suggestion_halves,
+        sanitize_plain_suggestions,
     )
     from backend.apps.ai.processing.quick_tips import (
         sanitize_quick_tip_slug,
@@ -25,7 +25,7 @@ except ImportError as _exc:
 
 
 # ---------------------------------------------------------------------------
-# Helpers — lightweight stand-ins for AppYAML / Skill / Focus dataclasses
+# Helpers — lightweight stand-ins for AppYAML / Skill dataclasses
 # ---------------------------------------------------------------------------
 
 class FakeSkill:
@@ -36,17 +36,9 @@ class FakeSkill:
         self.preprocessor_hint = preprocessor_hint
 
 
-class FakeFocus:
-    def __init__(self, id: str, stage: str = "production", preprocessor_hint: str = ""):
-        self.id = id
-        self.stage = stage
-        self.preprocessor_hint = preprocessor_hint
-
-
 class FakeAppYAML:
-    def __init__(self, skills=None, focuses=None):
+    def __init__(self, skills=None):
         self.skills = skills or []
-        self.focuses = focuses or []
 
 
 # ===========================================================================
@@ -128,172 +120,85 @@ class TestExtractAvailableSkills:
 
 
 # ===========================================================================
-# extract_available_focus_modes
+# sanitize_plain_suggestions / combine_suggestion_halves
 # ===========================================================================
 
-class TestExtractAvailableFocusModes:
-    def test_empty_apps(self):
-        assert extract_available_focus_modes({}) == []
+class TestPlainSuggestions:
+    """Tests natural-language-only suggestion sanitization and 50/50 merging."""
 
-    def test_production_focuses_included(self):
-        apps = {
-            "jobs": FakeAppYAML(focuses=[
-                FakeFocus("career_insights", stage="production", preprocessor_hint="Career help"),
-            ])
-        }
-        result = extract_available_focus_modes(apps)
-        assert len(result) == 1
-        assert result[0]["id"] == "jobs-career_insights"
-        assert result[0]["hint"] == "Career help"
-
-    def test_non_production_excluded(self):
-        apps = {
-            "jobs": FakeAppYAML(focuses=[
-                FakeFocus("career_insights", stage="production"),
-                FakeFocus("beta_mode", stage="development"),
-            ])
-        }
-        result = extract_available_focus_modes(apps)
-        assert len(result) == 1
-
-    def test_hint_truncated(self):
-        long_hint = "y" * 200
-        apps = {
-            "jobs": FakeAppYAML(focuses=[
-                FakeFocus("career", preprocessor_hint=long_hint),
-            ])
-        }
-        result = extract_available_focus_modes(apps)
-        assert len(result[0]["hint"]) == 150
-        assert result[0]["hint"].endswith("...")
-
-    def test_app_with_no_focuses(self):
-        apps = {"web": FakeAppYAML(focuses=[])}
-        assert extract_available_focus_modes(apps) == []
-
-
-# ===========================================================================
-# sanitize_suggestions
-# ===========================================================================
-
-class TestSanitizeSuggestions:
-    """Tests for the suggestion prefix validator and MIN_BODY_WORDS enforcer."""
-
-    VALID_SKILLS = {"web-search", "web-read", "images-generate"}
-    VALID_FOCUSES = {"jobs-career_insights"}
-    VALID_MEMORIES = {"ai-chat_history"}
-    VALID_APPS = {"ai", "web", "images", "jobs"}
-
-    def test_valid_skill_prefix_kept(self):
-        suggestions = ["[web-search] Find the latest Python docs"]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
+    def test_plain_suggestion_kept(self):
+        result = sanitize_plain_suggestions(
+            ["Find upcoming drawing workshops in Berlin"], "test", "follow-up app-skill"
         )
-        assert result == ["[web-search] Find the latest Python docs"]
+        assert result == ["Find upcoming drawing workshops in Berlin"]
 
-    def test_valid_app_only_prefix_kept(self):
-        suggestions = ["[ai] Explain quantum computing in simple terms"]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
-        )
-        assert result == ["[ai] Explain quantum computing in simple terms"]
-
-    def test_invalid_prefix_replaced_with_ai_fallback(self):
-        suggestions = ["[fake-skill] Explain quantum computing in detail"]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
-        )
-        assert len(result) == 1
-        assert result[0].startswith("[ai] ")
-        assert "Explain quantum computing" in result[0]
-
-    def test_no_prefix_gets_ai_prepended(self):
-        suggestions = ["Explain quantum computing in simple terms"]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
-        )
-        assert result == ["[ai] Explain quantum computing in simple terms"]
-
-    def test_min_body_words_enforced_with_prefix(self):
-        """Suggestions with <4 words in body (after prefix) are dropped."""
-        suggestions = ["[ai] Too short"]  # 2 words
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
+    def test_bracket_prefix_rejected(self):
+        result = sanitize_plain_suggestions(
+            ["[events-search] Find upcoming drawing workshops in Berlin"],
+            "test",
+            "follow-up app-skill",
         )
         assert result == []
 
-    def test_min_body_words_enforced_without_prefix(self):
-        suggestions = ["Short one"]  # 2 words, no prefix
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
+    def test_skill_mention_rejected(self):
+        result = sanitize_plain_suggestions(
+            ["@skill:events:search Find upcoming drawing workshops in Berlin"],
+            "test",
+            "follow-up app-skill",
         )
+        assert result == []
+
+    def test_min_words_enforced(self):
+        result = sanitize_plain_suggestions(["Short one"], "test", "follow-up general")
         assert result == []
 
     def test_exactly_4_words_kept(self):
-        suggestions = ["[ai] Four words body here"]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
-        )
+        result = sanitize_plain_suggestions(["Four words body here"], "test", "follow-up general")
         assert len(result) == 1
 
-    def test_empty_suggestions_dropped(self):
-        suggestions = ["", "   ", None, 42]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
-        )
-        assert result == []
+    def test_cjk_suggestion_without_spaces_kept(self):
+        result = sanitize_plain_suggestions(["搜索柏林附近的绘画工作坊"], "test", "follow-up app-skill")
+        assert result == ["搜索柏林附近的绘画工作坊"]
 
-    def test_memory_prefix_blocked_when_not_allowed(self):
-        suggestions = ["[ai-chat_history] Recall what we discussed about Python"]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, allow_memory_prefixes=False, task_id="test",
-            valid_app_ids=self.VALID_APPS,
+    def test_combines_strict_50_50_in_pairs(self):
+        result = combine_suggestion_halves(
+            app_skill_suggestions=[
+                "Find upcoming drawing workshops in Berlin",
+                "Search for iPhone recording apps",
+                "Compare wireless microphones for interviews",
+            ],
+            general_suggestions=[
+                "Explain why microphones may fail",
+                "List common outdoor recording mistakes",
+                "Compare wired and Bluetooth tradeoffs",
+            ],
+            task_id="test",
+            label="follow-up",
         )
-        # Memory prefix is not in skill/focus/app sets, should be replaced with [ai]
-        assert len(result) == 1
-        assert result[0].startswith("[ai] ")
-
-    def test_memory_prefix_allowed_when_flag_set(self):
-        suggestions = ["[ai-chat_history] Recall what we discussed about Python"]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, allow_memory_prefixes=True, task_id="test",
-            valid_app_ids=self.VALID_APPS,
-        )
-        assert result == ["[ai-chat_history] Recall what we discussed about Python"]
-
-    def test_focus_prefix_kept(self):
-        suggestions = ["[jobs-career_insights] Help me prepare for interviews"]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
-        )
-        assert result == ["[jobs-career_insights] Help me prepare for interviews"]
-
-    def test_mixed_valid_and_invalid(self):
-        suggestions = [
-            "[web-search] Find the latest Python release notes",  # valid
-            "[hallucinated-skill] Do something cool and fun",     # invalid prefix
-            "No prefix but enough words here",                     # no prefix
-            "[ai] Short",                                          # too short
+        assert result == [
+            "Find upcoming drawing workshops in Berlin",
+            "Explain why microphones may fail",
+            "Search for iPhone recording apps",
+            "List common outdoor recording mistakes",
+            "Compare wireless microphones for interviews",
+            "Compare wired and Bluetooth tradeoffs",
         ]
-        result = sanitize_suggestions(
-            suggestions, self.VALID_SKILLS, self.VALID_FOCUSES,
-            self.VALID_MEMORIES, False, "test", self.VALID_APPS,
+
+    def test_combination_preserves_ratio_by_not_filling_missing_half(self):
+        result = combine_suggestion_halves(
+            app_skill_suggestions=["Find upcoming drawing workshops in Berlin"],
+            general_suggestions=[
+                "Explain why microphones may fail",
+                "List common outdoor recording mistakes",
+                "Compare wired and Bluetooth tradeoffs",
+            ],
+            task_id="test",
+            label="follow-up",
         )
-        assert len(result) == 3
-        assert result[0] == "[web-search] Find the latest Python release notes"
-        assert result[1].startswith("[ai] Do something cool")
-        assert result[2] == "[ai] No prefix but enough words here"
+        assert result == [
+            "Find upcoming drawing workshops in Berlin",
+            "Explain why microphones may fail",
+        ]
 
 
 class TestQuickTips:
@@ -337,8 +242,10 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
     async def fake_call_preprocessing_llm(**kwargs):
         return LLMPreprocessingCallResult(
             arguments={
-                "follow_up_request_suggestions": ["[ai] Schreibe den nächsten Abschnitt"],
-                "new_chat_request_suggestions": ["[ai] Create another job application draft"],
+                "follow_up_app_skill_suggestions": ["Finde passende Stellenangebote in Berlin"],
+                "follow_up_general_suggestions": ["Schreibe den nächsten Abschnitt weiter"],
+                "new_chat_app_skill_suggestions": ["Find matching job openings in Berlin"],
+                "new_chat_general_suggestions": ["Create another job application draft"],
                 "harmful_response": 0.0,
                 "top_recommended_apps_for_user": ["ai"],
                 "chat_summary": "Nutzer erstellt deutsche Bewerbungsunterlagen.",
@@ -400,7 +307,7 @@ async def test_postprocessing_translates_metadata_even_when_output_language_matc
     ]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(monkeypatch):
     captured_tool = {}
 
@@ -408,7 +315,8 @@ async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(mo
         captured_tool.update(kwargs["tool_definition"])
         return LLMPreprocessingCallResult(
             arguments={
-                "new_chat_request_suggestions": ["[ai] Explain another related concept"],
+                "new_chat_app_skill_suggestions": ["Find recent articles about learning science"],
+                "new_chat_general_suggestions": ["Explain another related concept clearly"],
                 "harmful_response": 0.0,
                 "top_recommended_apps_for_user": [],
                 "chat_summary": "A concise summary.",
@@ -443,14 +351,18 @@ async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(mo
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "follow_up_request_suggestions": {"type": "array"},
-                    "new_chat_request_suggestions": {"type": "array"},
+                    "follow_up_app_skill_suggestions": {"type": "array"},
+                    "follow_up_general_suggestions": {"type": "array"},
+                    "new_chat_app_skill_suggestions": {"type": "array"},
+                    "new_chat_general_suggestions": {"type": "array"},
                     "quick_tip_slug": {"type": "string"},
                     "chat_summary": {"type": "string"},
                 },
                 "required": [
-                    "follow_up_request_suggestions",
-                    "new_chat_request_suggestions",
+                    "follow_up_app_skill_suggestions",
+                    "follow_up_general_suggestions",
+                    "new_chat_app_skill_suggestions",
+                    "new_chat_general_suggestions",
                     "quick_tip_slug",
                     "chat_summary",
                 ],
@@ -475,9 +387,11 @@ async def test_handle_postprocessing_removes_disabled_fields_from_tool_schema(mo
 
     properties = captured_tool["function"]["parameters"]["properties"]
     required = captured_tool["function"]["parameters"]["required"]
-    assert "follow_up_request_suggestions" not in properties
+    assert "follow_up_app_skill_suggestions" not in properties
+    assert "follow_up_general_suggestions" not in properties
     assert "quick_tip_slug" not in properties
-    assert "follow_up_request_suggestions" not in required
+    assert "follow_up_app_skill_suggestions" not in required
+    assert "follow_up_general_suggestions" not in required
     assert "quick_tip_slug" not in required
     assert result.follow_up_request_suggestions == []
     assert result.quick_tip_slugs == []

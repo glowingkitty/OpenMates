@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Chickpea Spinach Protein Dinners"
   en: "Chickpea Spinach Protein Dinners"
-  de: "Chickpea Spinach Protein Dinners"
+  de: Kichererbsen-Spinat-Protein-Abendessen
   zh: "Chickpea Spinach Protein Dinners"
   es: "Chickpea Spinach Protein Dinners"
   fr: "Chickpea Spinach Protein Dinners"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Chickpea Spinach Protein Dinners"
   en: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
-  de: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
+  de: Finde schnelle vegetarische Abendessen mit Kichererbsen und Spinat mit Edamam-Rezeptkarten, Anleitungen und Proteinangaben.
   zh: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
   es: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
   fr: "Find quick vegetarian chickpea and spinach dinners with Edamam recipe cards, instructions, and protein details."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Chickpea Spinach Protein Dinners. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
-  de: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
+  de: Finde 3 vegetarische Rezepte für Abendessen mit Kichererbsen und Spinat unter 35 Minuten mit Schritt-für-Schritt-Anleitungen und Proteinangaben.
   zh: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
   es: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
   fr: "Find 3 vegetarian chickpea and spinach dinner recipes under 35 minutes with step-by-step instructions and protein details"
@@ -171,94 +171,94 @@ message_2:
     ```json
     {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}
     ```
-
-    Here are three delicious, protein-packed vegetarian chickpea and spinach dinner recipes that you can whip up in under 35 minutes.
-
-    ### 1. 10-Minute Chickpea and Spinach Curry
-    This is an incredibly fast [curry](wiki:Curry) that relies on aromatics and pantry staples for a rich, satisfying flavor in record time.
-
+    
+    Hier sind drei köstliche, proteinreiche vegetarische Abendessen-Rezepte mit Kichererbsen und Spinat, die du in weniger als 35 Minuten zubereiten kannst.
+    
+    ### 1. 10-Minuten-Kichererbsen-Spinat-Curry
+    Dies ist ein unglaublich schnelles [Curry](wiki:Curry), das auf Aromen und Vorratskammer-Basics setzt, um in Rekordzeit einen reichhaltigen, sättigenden Geschmack zu erzielen.
+    
     [!](embed:thefieryvegetarian.com-3sr)
     [!](embed:vegancocotte.com-IZt)
     [!](embed:vegancocotte.com-rFn)
-
-    *   **Total Time:** 10 minutes
-    *   **Protein Content:** ~10.5g per serving
-    *   **Servings:** 4
-
-    **Ingredients:**
-    *   1 (15 oz) can [chickpeas](wiki:Chickpea) (drained and rinsed)
-    *   1 (15 oz) can diced [tomatoes](wiki:Tomato)
-    *   1 [onion](wiki:Onion), 4 [garlic](wiki:Garlic) cloves, 1 red chili, 1 tbsp ginger (all finely diced)
-    *   3 tbsp curry paste & 2 tbsp [tomato paste](wiki:Tomato_paste)
-    *   3 cups fresh [spinach](wiki:Spinach)
-    *   1 tsp vegetable oil
-
-    **Instructions:**
-    1.  **Sauté Aromatics:** Heat oil in a large pot. Add diced onion, garlic, ginger, and chili. Sauté for about 1 minute until fragrant.
-    2.  **Build Flavor:** Stir in the tomato paste and curry paste, sautéing for another minute to release the oils.
-    3.  **Simmer:** Pour in the canned tomatoes and chickpeas. Cover and simmer on medium-high heat for 3–5 minutes.
-    4.  **Wilt Spinach:** Stir in the fresh spinach leaves until they wilt (about 1–2 minutes). Serve immediately.
-
+    
+    *   **Gesamtzeit:** 10 Minuten
+    *   **Proteingehalt:** ~10,5 g pro Portion
+    *   **Portionen:** 4
+    
+    **Zutaten:**
+    *   1 Dose (15 oz) [Kichererbsen](wiki:Chickpea) (abgetropft und abgespült)
+    *   1 Dose (15 oz) gewürfelte [Tomaten](wiki:Tomato)
+    *   1 [Zwiebel](wiki:Onion), 4 [Knoblauchzehen](wiki:Garlic), 1 rote Chili, 1 EL Ingwer (alles fein gewürfelt)
+    *   3 EL Currypaste & 2 EL [Tomatenmark](wiki:Tomato_paste)
+    *   3 Tassen frischer [Spinat](wiki:Spinach)
+    *   1 TL Pflanzenöl
+    
+    **Anleitung:**
+    1.  **Aromen anbraten:** Öl in einem großen Topf erhitzen. Gewürfelte Zwiebel, Knoblauch, Ingwer und Chili hinzufügen. Etwa 1 Minute anbraten, bis es duftet.
+    2.  **Geschmack aufbauen:** Tomatenmark und Currypaste einrühren und eine weitere Minute anbraten, damit sich die Aromen entfalten.
+    3.  **Köcheln lassen:** Tomaten aus der Dose und Kichererbsen hinzufügen. Abdecken und bei mittlerer bis hoher Hitze 3–5 Minuten köcheln lassen.
+    4.  **Spinat unterheben:** Frische Spinatblätter einrühren, bis sie zusammenfallen (etwa 1–2 Minuten). Sofort servieren.
+    
     ---
-
-    ### 2. 15-Minute Skillet Chickpeas with Spinach and Tomatoes
-    This Mediterranean-style dish uses spices like [turmeric](wiki:Turmeric) and a finishing touch of lemon juice for a bright, healthy meal.
-
+    
+    ### 2. 15-Minuten-Pfannen-Kichererbsen mit Spinat und Tomaten
+    Dieses mediterrane Gericht verwendet Gewürze wie [Kurkuma](wiki:Turmeric) und einen Schuss Zitronensaft für eine frische, gesunde Mahlzeit.
+    
     [!](embed:runningonrealfood.com-R8H)
     [!](embed:americanhomecook.com-Alt)
     [!](embed:shortgirltallorder.com-QXv)
-
-    *   **Total Time:** 15 minutes
-    *   **Protein Content:** ~23.1g per serving
-    *   **Servings:** 2
-
-    **Ingredients:**
-    *   1 (15 oz) can chickpeas (drained and rinsed)
-    *   1 (14.5 oz) can diced tomatoes
-    *   5 oz baby spinach
-    *   1 small onion (diced) & 4 garlic cloves (sliced)
-    *   ½ tsp ground turmeric & ½ tsp [red pepper flakes](wiki:Crushed_red_pepper)
-    *   3 tbsp [olive oil](wiki:Olive_oil), lemon juice, and fresh herbs ([cilantro](wiki:Coriander) or [parsley](wiki:Parsley))
-
-    **Instructions:**
-    1.  **Fry Aromatics:** Heat oil in a skillet over low heat. Cook onion and garlic until translucent and slightly browned (3–5 minutes).
-    2.  **Toast Spices:** Add turmeric and red pepper flakes. Toast for 1 minute, then add chickpeas with a drizzle of oil and salt/pepper. Sizzle for 5–7 minutes.
-    3.  **Combine:** Stir in the tomatoes and simmer until the liquid reduces slightly.
-    4.  **Finish:** Add spinach and stir until wilted. Off the heat, stir in lemon juice and top with fresh herbs and a dollop of [yogurt](wiki:Yogurt).
-
+    
+    *   **Gesamtzeit:** 15 Minuten
+    *   **Proteingehalt:** ~23,1 g pro Portion
+    *   **Portionen:** 2
+    
+    **Zutaten:**
+    *   1 Dose (15 oz) Kichererbsen (abgetropft und abgespült)
+    *   1 Dose (14,5 oz) gewürfelte Tomaten
+    *   5 oz Babyspinat
+    *   1 kleine Zwiebel (gewürfelt) & 4 Knoblauchzehen (in Scheiben geschnitten)
+    *   ½ TL gemahlener Kurkuma & ½ TL [Chiliflocken](wiki:Crushed_red_pepper)
+    *   3 EL [Olivenöl](wiki:Olive_oil), Zitronensaft und frische Kräuter ([Koriander](wiki:Coriander) oder [Petersilie](wiki:Parsley))
+    
+    **Anleitung:**
+    1.  **Aromen anbraten:** Öl in einer Pfanne bei niedriger Hitze erhitzen. Zwiebel und Knoblauch glasig und leicht gebräunt dünsten (3–5 Minuten).
+    2.  **Gewürze anrösten:** Kurkuma und Chiliflocken hinzufügen. 1 Minute anrösten, dann Kichererbsen mit einem Schuss Öl sowie Salz/Pfeffer hinzufügen. 5–7 Minuten braten.
+    3.  **Kombinieren:** Tomaten einrühren und köcheln lassen, bis die Flüssigkeit etwas reduziert ist.
+    4.  **Vollenden:** Spinat hinzufügen und rühren, bis er zusammenfällt. Von der Kochstelle nehmen, Zitronensaft einrühren und mit frischen Kräutern sowie einem Klecks [Joghurt](wiki:Yogurt) garnieren.
+    
     ---
-
-    ### 3. 20-Minute Middle Eastern Spinach and Chickpeas
-    A simpler, cleaner version of the classic [tapas](wiki:Tapas) dish, focusing on the natural sweetness of sautéed onions and white beans.
-
+    
+    ### 3. 20-Minuten-Kichererbsen mit Spinat nach nahöstlicher Art
+    Eine einfachere, puristischere Version des klassischen [Tapas](wiki:Tapas)-Gerichts, die auf die natürliche Süße von gedünsteten Zwiebeln und weißen Bohnen setzt.
+    
     [!](embed:carolinescooking.com-Dy7)
     [!](embed:simpleveganblog.com-8dt)
     [!](embed:ourplantbasedworld.com-Krr)
-
-    *   **Total Time:** 20 minutes
-    *   **Protein Content:** ~8.7g per serving
-    *   **Servings:** 4
-
-    **Ingredients:**
-    *   3 cups low-sodium canned chickpeas (drained and rinsed)
-    *   2 cups baby spinach
-    *   2/3 cup diced tomatoes
-    *   ½ large white onion (diced)
-    *   2 tsp minced garlic
-    *   1½ tbsp [extra-virgin olive oil](wiki:Olive_oil#Grades)
-
-    **Instructions:**
-    1.  **Soften Onions:** Heat olive oil in a pan. Sauté the onion for 2–3 minutes.
-    2.  **Add Seasoning:** Stir in the garlic and sauté for another minute.
-    3.  **Cook Down:** Pour in the tomatoes and cook for 1 minute.
-    4.  **Simmer Beans:** Add the chickpeas and about 3–4 tablespoons of water (or [vegetable broth](wiki:Broth)). Cook for 10 minutes.
-    5.  **Fold Spinach:** Gently fold in the baby spinach until just wilted. Season to taste and serve.
-
+    
+    *   **Gesamtzeit:** 20 Minuten
+    *   **Proteingehalt:** ~8,7 g pro Portion
+    *   **Portionen:** 4
+    
+    **Zutaten:**
+    *   3 Tassen natriumarme Kichererbsen aus der Dose (abgetropft und abgespült)
+    *   2 Tassen Babyspinat
+    *   2/3 Tasse gewürfelte Tomaten
+    *   ½ große weiße Zwiebel (gewürfelt)
+    *   2 TL gehackter Knoblauch
+    *   1½ EL [natives Olivenöl extra](wiki:Olive_oil#Grades)
+    
+    **Anleitung:**
+    1.  **Zwiebeln dünsten:** Olivenöl in einer Pfanne erhitzen. Die Zwiebel 2–3 Minuten dünsten.
+    2.  **Würzen:** Knoblauch einrühren und eine weitere Minute dünsten.
+    3.  **Einkochen:** Tomaten hinzufügen und 1 Minute garen.
+    4.  **Bohnen köcheln:** Kichererbsen und etwa 3–4 Esslöffel Wasser (oder [Gemüsebrühe](wiki:Broth)) hinzufügen. 10 Minuten garen.
+    5.  **Spinat unterheben:** Den Babyspinat vorsichtig unterheben, bis er gerade so zusammengefallen ist. Nach Geschmack würzen und servieren.
+    
     ---
-
-    **Next steps for your meal prep:**
-    *   Would you like to find some side dish suggestions, like a [basmati rice](wiki:Basmati) or [naan](wiki:Naan) recipe, to go with these?
-    *   Are you interested in seeing some high-protein vegan dessert ideas to round out your dinner?
+    
+    **Nächste Schritte für deine Essensplanung:**
+    *   Möchtest du Vorschläge für Beilagen finden, wie zum Beispiel ein Rezept für [Basmati-Reis](wiki:Basmati) oder [Naan](wiki:Naan), die dazu passen?
+    *   Hast du Interesse an proteinreichen veganen Dessert-Ideen, um dein Abendessen abzurunden?
   zh: |
     ```json
     {"type":"app_skill_use","embed_id":"d7f21a46-8f13-4f14-82c4-d868ba62bb8a","app_id":"nutrition","skill_id":"search_recipes","query":"chickpea and spinach dinner","provider":"Edamam","status":"finished"}

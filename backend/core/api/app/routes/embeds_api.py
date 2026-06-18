@@ -65,6 +65,121 @@ def _hash_value(value: str) -> str:
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
 
 
+async def _get_user_vault_key_id(directus_service: DirectusService, user_id: str) -> str:
+    """Load the user's Vault key id needed to decrypt server-side version rows."""
+    success, profile, error_msg = await directus_service.get_user_profile(user_id)
+    if not success or not profile or not profile.get("vault_key_id"):
+        logger.error("Failed to load vault_key_id for embed version request: %s", error_msg)
+        raise HTTPException(status_code=500, detail="User encryption key not found")
+    return profile["vault_key_id"]
+
+
+async def _assert_embed_owner(
+    embed_id: str,
+    hashed_user_id: str,
+    directus_service: DirectusService,
+) -> dict:
+    """Return embed metadata if the authenticated user owns it, else 404."""
+    embed = await directus_service.embed.get_embed_by_id(embed_id)
+    if not embed or embed.get("hashed_user_id") != hashed_user_id:
+        raise HTTPException(status_code=404, detail="Embed not found")
+    return embed
+
+
+async def _read_version_rows(
+    directus_service: DirectusService,
+    embed_id: str,
+    hashed_user_id: str,
+    max_version: int | None = None,
+) -> list[dict]:
+    filters = {
+        "embed_id": {"_eq": embed_id},
+        "hashed_user_id": {"_eq": hashed_user_id},
+    }
+    if max_version is not None:
+        filters["version_number"] = {"_lte": max_version}
+    params = {
+        "filter": filters,
+        "fields": "version_number,created_at,encrypted_snapshot,encrypted_patch",
+        "sort": ["version_number"],
+    }
+    if hasattr(directus_service, "read_items"):
+        rows = await directus_service.read_items("embed_diffs", params=params)
+    else:
+        rows = await directus_service.get_items("embed_diffs", params=params)
+    return list(rows or [])
+
+
+@router.get("/{embed_id}/versions")
+@limiter.limit("120/minute")
+async def list_embed_versions(
+    embed_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """List encrypted version rows for an owned embed without server decryption."""
+    hashed_user_id = _hash_value(current_user.id)
+    embed = await _assert_embed_owner(embed_id, hashed_user_id, directus_service)
+    rows = await _read_version_rows(directus_service, embed_id, hashed_user_id)
+    versions = [
+        {
+            "version_number": row["version_number"],
+            "created_at": row.get("created_at"),
+            "has_snapshot": row.get("encrypted_snapshot") is not None,
+            "has_patch": row.get("encrypted_patch") is not None,
+            "encrypted_snapshot": row.get("encrypted_snapshot"),
+            "encrypted_patch": row.get("encrypted_patch"),
+        }
+        for row in rows
+    ]
+    current_version = embed.get("version_number") or (versions[-1]["version_number"] if versions else 1)
+    return {
+        "embed_id": embed_id,
+        "current_version": current_version,
+        "versions": versions,
+        "readonly": False,
+    }
+
+
+@router.get("/{embed_id}/versions/{version_number}")
+@limiter.limit("120/minute")
+async def get_embed_version(
+    embed_id: str,
+    version_number: int,
+    request: Request,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Return encrypted rows needed to reconstruct an owned historical version client-side."""
+    hashed_user_id = _hash_value(current_user.id)
+    embed = await _assert_embed_owner(embed_id, hashed_user_id, directus_service)
+    rows = await _read_version_rows(directus_service, embed_id, hashed_user_id, version_number)
+    if not rows or rows[-1].get("version_number") != version_number:
+        raise HTTPException(status_code=404, detail="Version not found")
+    return {
+        "embed_id": embed_id,
+        "version_number": version_number,
+        "current_version": embed.get("version_number") or version_number,
+        "rows": rows,
+        "readonly": False,
+    }
+
+
+@router.post("/{embed_id}/versions/{version_number}/restore")
+@limiter.limit("30/minute")
+async def restore_embed_version(
+    embed_id: str,
+    version_number: int,
+    request: Request,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Reject server-side restore; clients must reconstruct and encrypt restores."""
+    del version_number, directus_service
+    raise HTTPException(status_code=400, detail="Restore must be performed client-side with encrypted storage")
+
+
 def _generate_filename_from_prompt(prompt: str | None, extension: str = "png") -> str:
     """
     Generate a clean, human-readable filename from an image generation prompt.

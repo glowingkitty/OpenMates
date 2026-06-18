@@ -40,8 +40,8 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
         app.descendants(matching: .any)["settings-all-app-row-weather"].tap()
         XCTAssertTrue(waitForElement("settings-app-detail-page", in: app, timeout: 8))
         XCTAssertTrue(waitForElement("settings-app-skill-row-forecast", in: app, timeout: 5))
-        XCTAssertTrue(waitForElement("settings-app-focus-row-travel_weather", in: app, timeout: 5))
         assertElementInsideWindow(app.descendants(matching: .any)["settings-app-skill-row-forecast"], in: app)
+        XCTAssertTrue(waitForElement("settings-app-focus-row-travel_weather", in: app, timeout: 5))
 
         app.descendants(matching: .any)["settings-app-skill-row-forecast"].tap()
         XCTAssertTrue(waitForElement("settings-skill-detail-page", in: app, timeout: 5))
@@ -61,23 +61,28 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
 
     private func waitForElement(_ identifier: String, in app: XCUIApplication, timeout: TimeInterval) -> Bool {
         let element = app.descendants(matching: .any)[identifier]
-        if element.waitForExistence(timeout: timeout) { return true }
+        if element.waitForExistence(timeout: timeout), isElementInsideWindow(element, in: app) { return true }
 
         let scrollView = app.scrollViews.firstMatch
         for _ in 0..<6 where scrollView.exists {
             scrollView.swipeUp()
-            if element.waitForExistence(timeout: 1) { return true }
+            if element.waitForExistence(timeout: 1), isElementInsideWindow(element, in: app) { return true }
         }
-        return false
+        return element.exists
     }
 
     private func assertElementInsideWindow(_ element: XCUIElement, in app: XCUIApplication) {
         XCTAssertTrue(element.exists, "Expected element to exist before checking its frame")
-        let windowFrame = app.windows.firstMatch.frame.insetBy(dx: -1, dy: -1)
         XCTAssertTrue(
-            windowFrame.contains(element.frame),
-            "Expected element frame \(element.frame) to fit within window frame \(windowFrame)"
+            isElementInsideWindow(element, in: app),
+            "Expected element frame \(element.frame) to fit within window frame \(app.windows.firstMatch.frame.insetBy(dx: -1, dy: -1))"
         )
+    }
+
+    private func isElementInsideWindow(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        guard element.exists else { return false }
+        let windowFrame = app.windows.firstMatch.frame.insetBy(dx: -1, dy: -1)
+        return windowFrame.contains(element.frame)
     }
 
     private func attachScreenshot(name: String) {

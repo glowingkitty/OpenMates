@@ -415,7 +415,10 @@
   /* Container query: narrow fullscreen -> single column */
   @container fullscreen (max-width: 500px) {
     .search-template-grid {
+      width: 100%;
       grid-template-columns: 1fr;
+      gap: var(--spacing-5);
+      padding: var(--spacing-8) var(--spacing-3) 96px;
     }
   }
 

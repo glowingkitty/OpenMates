@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Berlin Weather and Bike Commute Advice"
   en: "Berlin Weather and Bike Commute Advice"
-  de: "Berlin Weather and Bike Commute Advice"
+  de: Wetter in Berlin und Tipps für Radpendler
   zh: "Berlin Weather and Bike Commute Advice"
   es: "Berlin Weather and Bike Commute Advice"
   fr: "Berlin Weather and Bike Commute Advice"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Berlin Weather and Bike Commute Advice"
   en: "Check Berlin's upcoming forecast and get practical clothing and cycling advice."
-  de: "Check Berlin's upcoming forecast and get practical clothing and cycling advice."
+  de: Schau dir die Wettervorhersage für Berlin an und hol dir praktische Tipps für Kleidung und das Radfahren.
   zh: "Check Berlin's upcoming forecast and get practical clothing and cycling advice."
   es: "Check Berlin's upcoming forecast and get practical clothing and cycling advice."
   fr: "Check Berlin's upcoming forecast and get practical clothing and cycling advice."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Berlin Weather and Bike Commute Advice. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "What will the weather be like in Berlin over the next few days? Give me practical clothing and bike-commute advice."
-  de: "What will the weather be like in Berlin over the next few days? Give me practical clothing and bike-commute advice."
+  de: "Wie wird das Wetter in Berlin in den nächsten Tagen? Gib mir praktische Tipps zu Kleidung und für Radpendler."
   zh: "What will the weather be like in Berlin over the next few days? Give me practical clothing and bike-commute advice."
   es: "What will the weather be like in Berlin over the next few days? Give me practical clothing and bike-commute advice."
   fr: "What will the weather be like in Berlin over the next few days? Give me practical clothing and bike-commute advice."
@@ -134,57 +134,57 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "5d80260f-35df-4dd9-ac4f-925c37abc955", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "15f125e6-cd71-4a54-9b1b-05d4d5502ed3", "app_id": "images", "skill_id": "search", "query": "Berlin street style June clothing", "provider": "Brave Search"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "b2001641-f4c6-4fd5-adfd-660e74df56f3", "app_id": "images", "skill_id": "search", "query": "Berlin bicycle commuting summer", "provider": "Brave Search"}
     ```
-
-    The weather in [Berlin](wiki:Berlin) over the next few days will be a mix of warm sunshine and a brief rainy spell, followed by cooler, breezy conditions. Here is the forecast and what it means for your daily routine.
-
-    ### 🌤️ Weather Forecast (June 8 – June 12)
-
-    *   **Monday (June 8):** The warmest day of the week. Expect a high of **24.3°C** and a low of **12.1°C**. It will be mostly dry and partly cloudy.
-    *   **Tuesday (June 9):** A noticeable shift. Temperatures drop to a high of **18.3°C** with a **44% chance of rain** throughout the day. Expect roughly 10 hours of light rain and gusty winds up to 40 km/h.
-    *   **Wednesday – Friday (June 10-12):** Consistent "Berlin grey" but mostly dry. Highs will hover between **16°C and 19°C**, with chilly mornings around **10°C**. Friday will be particularly breezy with gusts reaching 40 km/h.
-
+    
+    Das Wetter in [Berlin](wiki:Berlin) wird in den nächsten Tagen eine Mischung aus warmem Sonnenschein und einer kurzen Regenperiode sein, gefolgt von kühleren, windigen Bedingungen. Hier ist die Vorhersage und was sie für deinen Alltag bedeutet.
+    
+    ### 🌤️ Wettervorhersage (8. Juni – 12. Juni)
+    
+    *   **Montag (8. Juni):** Der wärmste Tag der Woche. Erwarte eine Höchsttemperatur von **24,3 °C** und eine Tiefsttemperatur von **12,1 °C**. Es wird überwiegend trocken und teils bewölkt sein.
+    *   **Dienstag (9. Juni):** Ein spürbarer Umschwung. Die Temperaturen sinken auf maximal **18,3 °C** bei einer **Regenwahrscheinlichkeit von 44 %** über den Tag verteilt. Erwarte etwa 10 Stunden leichten Regen und böigen Wind bis zu 40 km/h.
+    *   **Mittwoch – Freitag (10.–12. Juni):** Beständiges „Berliner Grau“, aber meist trocken. Die Höchstwerte liegen zwischen **16 °C und 19 °C**, mit kühlen Morgenstunden um **10 °C**. Der Freitag wird besonders windig mit Böen bis zu 40 km/h.
+    
     [!](embed:berlin-weather-2026-KeQ)
     [!](embed:berlin-weather-2026-ywP)
     [!](embed:berlin-weather-2026-4Gl)
-
+    
     ---
-
-    ### 🧥 Practical Clothing Advice
-
-    The key for this week is **layering**. Berlin’s temperature swings between early morning and late afternoon can be significant.
-
-    1.  **Monday:** Standard summer attire like t-shirts and light trousers. Keep a light sweatshirt or denim jacket in your bag for the morning or if you're staying out late.
-    2.  **Tuesday (The Rain Day):** You will need a reliable waterproof shell or raincoat. Since temperatures are mild (18°C), avoid heavy insulated coats; a breathable rain jacket over a light layer is best to prevent overheating while walking.
-    3.  **Wed-Fri:** Transition back to "spring" mode. A light bomber jacket, windbreaker, or a medium-weight sweater will be necessary. If you're sensitive to the cold, a light scarf can help against the constant breeze.
-
+    
+    ### 🧥 Praktische Kleidungstipps
+    
+    Der Schlüssel für diese Woche ist der **Zwiebellook**. Die Temperaturunterschiede in Berlin zwischen dem frühen Morgen und dem späten Nachmittag können erheblich sein.
+    
+    1.  **Montag:** Standard-Sommerkleidung wie T-Shirts und leichte Hosen. Packe einen leichten Pullover oder eine Jeansjacke für den Morgen oder späte Abende ein.
+    2.  **Dienstag (der Regentag):** Du brauchst eine zuverlässige wasserdichte Shell oder einen Regenmantel. Da die Temperaturen mild sind (18 °C), vermeide schwere, gefütterte Mäntel; eine atmungsaktive Regenjacke über einer leichten Schicht ist am besten, um beim Gehen nicht zu überhitzen.
+    3.  **Mi–Fr:** Übergang zurück in den „Frühlingsmodus“. Eine leichte Bomberjacke, ein Windbreaker oder ein mittelschwerer Pullover sind ratsam. Wenn du kälteempfindlich bist, hilft ein leichter Schal gegen die ständige Brise.
+    
     [!](embed:vogue.com-d6E)
     [!](embed:vogue.com-mqs)
     [!](embed:vogue.com-sZU)
-
+    
     ---
-
-    ### 🚲 Bike-Commute Advice
-
-    Bicycle culture in Berlin is resilient, but the wind and rain this week require some preparation.
-
-    *   **Mind the Wind:** Gusts of 40 km/h on Tuesday and Friday can create a significant [wind chill](wiki:Wind_chill) and make pedaling into a headwind much more exhausting. If you have an e-bike, bump up the assistance; if not, leave 5-10 minutes earlier than usual.
-    *   **The Tuesday Rain:** If you must cycle on Tuesday, full mudguards (fenders) are a lifesaver for your clothes. Wear waterproof trousers or carry a change of pants. Be cautious of "Berlin cobbles" (Pflasterstein) and tram tracks, as they become incredibly slippery when wet.
-    *   **Visibility:** With cloudier skies and rain, ensure your bike lights are charged. Even during the day, lights can help you stay visible to drivers during grey, rainy spells.
-
+    
+    ### 🚲 Tipps für den Arbeitsweg mit dem Rad
+    
+    Die Berliner Fahrradkultur ist hart im Nehmen, aber Wind und Regen in dieser Woche erfordern etwas Vorbereitung.
+    
+    *   **Achte auf den Wind:** Böen von 40 km/h am Dienstag und Freitag können einen erheblichen [Windchill-Effekt](wiki:Wind_chill) erzeugen und das Treten gegen den Gegenwind deutlich anstrengender machen. Wenn du ein E-Bike hast, erhöhe die Unterstützung; wenn nicht, fahre 5–10 Minuten früher los als sonst.
+    *   **Der Regen am Dienstag:** Wenn du am Dienstag radeln musst, sind Schutzbleche ein Lebensretter für deine Kleidung. Trage eine Regenhose oder nimm Wechselkleidung mit. Sei vorsichtig bei Kopfsteinpflaster („Berliner Pflaster“) und Straßenbahnschienen, da diese bei Nässe extrem rutschig werden.
+    *   **Sichtbarkeit:** Bei bewölktem Himmel und Regen solltest du darauf achten, dass deine Fahrradbeleuchtung geladen ist. Auch tagsüber hilft Licht, bei grauem Regenwetter für Autofahrer sichtbar zu bleiben.
+    
     !
     [!](embed:gettyimages.com-Wh8)
-
-    **Next Steps:**
-    *   Would you like me to find a [local bike shop](/#settings/apps/maps) for a quick tune-up before the windy days?
-    *   I can also [set a reminder](/#settings/apps/reminder) for Tuesday morning to grab your umbrella or rain gear.
+    
+    **Nächste Schritte:**
+    *   Soll ich einen [Fahrradladen in der Nähe](/#settings/apps/maps) für einen kurzen Check-up vor den windigen Tagen suchen?
+    *   Ich kann auch eine [Erinnerung einstellen](/#settings/apps/reminder), damit du am Dienstagmorgen an deinen Regenschirm oder deine Regenkleidung denkst.
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "5d80260f-35df-4dd9-ac4f-925c37abc955", "app_id": "weather", "skill_id": "forecast", "query": "Berlin weather forecast", "provider": "Deutscher Wetterdienst (DWD) + Open-Meteo"}

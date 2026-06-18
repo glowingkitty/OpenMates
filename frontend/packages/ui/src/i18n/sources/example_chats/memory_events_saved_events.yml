@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Events Saved Events"
   en: "Memory Events Saved Events"
-  de: "Memory Events Saved Events"
+  de: Memory Events Gespeicherte Events
   zh: "Memory Events Saved Events"
   es: "Memory Events Saved Events"
   fr: "Memory Events Saved Events"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Events Saved Events"
   en: "OpenMates uses saved events saved_events memory in a real chat."
-  de: "OpenMates uses saved events saved_events memory in a real chat."
+  de: OpenMates nutzt gespeicherte Events aus dem Event-Memory in einem echten Chat.
   zh: "OpenMates uses saved events saved_events memory in a real chat."
   es: "OpenMates uses saved events saved_events memory in a real chat."
   fr: "OpenMates uses saved events saved_events memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Events Saved Events. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze mein Event-Memory, um mir bei der Erstellung einer praktischen Checkliste für mein nächstes gespeichertes Event zu helfen. Du kannst dieses gespeicherte Memory anfordern und verwenden. Suche nach der Verwendung des Memorys nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Rückfragen.
   zh: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved events memory to help me prepare a practical checklist for my upcoming saved event. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -89,18 +89,18 @@ message_2:
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   de: |
-    It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
-
-    Based on the specific notes you've saved for this event, here is a practical checklist to help you prepare:
-
-    *   **Draft your 30-second builder intro:** Focus on who you are, what you are currently building, and what you’re looking to learn or collaborate on.
-    *   **Finalize your demo idea:** Since you noted you need one demo idea, make sure it’s something you can explain clearly in a casual conversation without needing a full presentation.
-    *   **Practice your pitch:** Run through your intro out loud a few times so it feels natural when you meet new people.
-    *   **Plan your commute:** The event is at Factory Berlin in Kreuzberg. Check your travel time so you can arrive relaxed and ready to network.
-    *   **Pack the essentials:** Bring a notebook or a charged device to jot down interesting ideas or contact info from other builders.
-    *   **Review your goals:** Remind yourself of what you want to get out of this specific meetup—whether it's feedback on your demo or meeting potential collaborators.
+    Es sieht so aus, als stünde das **Berlin AI Builders Meetup** Berlin_AI_Builders als Nächstes am **18. Juni 2026** in der **Factory Berlin** Factory_Berlin in Kreuzberg an.
+    
+    Basierend auf den spezifischen Notizen, die du für dieses Event gespeichert hast, findest du hier eine praktische Checkliste zur Vorbereitung:
+    
+    *   **Entwirf dein 30-sekündiges Builder-Intro:** Konzentriere dich darauf, wer du bist, woran du gerade baust und was du lernen oder woran du mitarbeiten möchtest.
+    *   **Finalisiere deine Demo-Idee:** Da du notiert hast, dass du eine Demo-Idee brauchst, stelle sicher, dass es etwas ist, das du in einem lockeren Gespräch klar erklären kannst, ohne eine vollständige Präsentation zu benötigen.
+    *   **Übe deinen Pitch:** Gehe dein Intro ein paar Mal laut durch, damit es sich natürlich anfühlt, wenn du neue Leute triffst.
+    *   **Plane deine Anfahrt:** Das Event findet in der Factory Berlin in Kreuzberg statt. Prüfe deine Fahrzeit, damit du entspannt ankommst und bereit zum Netzwerken bist.
+    *   **Packe das Nötigste ein:** Bring ein Notizbuch oder ein geladenes Gerät mit, um interessante Ideen oder Kontaktinfos von anderen Buildern zu notieren.
+    *   **Überprüfe deine Ziele:** Erinnere dich daran, was du von diesem speziellen Meetup erwartest – sei es Feedback zu deiner Demo oder das Kennenlernen potenzieller Partner.
     ---
-    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+    *⚠️ Dies dient nur zu Informationszwecken und ist keine professionelle psychologische Beratung. Bei psychischen Problemen wende dich bitte an einen qualifizierten Therapeuten oder Berater. Wenn du dich in einer Krise befindest, kontaktiere sofort den Notruf oder eine Krisen-Hotline.*
   zh: |
     It looks like you have the **Berlin AI Builders Meetup** Berlin_AI_Builders coming up next on **June 18, 2026**, at **Factory Berlin** Factory_Berlin in Kreuzberg.
 

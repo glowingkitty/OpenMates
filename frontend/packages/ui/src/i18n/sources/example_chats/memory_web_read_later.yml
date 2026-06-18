@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Web Read Later"
   en: "Memory Web Read Later"
-  de: "Memory Web Read Later"
+  de: Web-Leseliste-Speicher
   zh: "Memory Web Read Later"
   es: "Memory Web Read Later"
   fr: "Memory Web Read Later"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Web Read Later"
   en: "OpenMates uses saved web read_later memory in a real chat."
-  de: "OpenMates uses saved web read_later memory in a real chat."
+  de: OpenMates nutzt gespeicherte Web-Leselisten in einem echten Chat.
   zh: "OpenMates uses saved web read_later memory in a real chat."
   es: "OpenMates uses saved web read_later memory in a real chat."
   fr: "OpenMates uses saved web read_later memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Web Read Later. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meine gespeicherte Leseliste, um mir vorzuschlagen, warum ein gespeicherter Artikel für meine nächste Engineering-Planungssitzung nützlich sein könnte. Du kannst diesen Speicher anfordern und nutzen. Suche nach der Nutzung des Speichers nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Anschlussfrage.
   zh: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved read-later memory to suggest why one saved article might be useful for my next engineering planning session. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -80,9 +80,9 @@ message_2:
 
     According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
   de: |
-    Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
-
-    According to your notes, this resource provides a framework for developing a comprehensive [testing strategy](wiki:Software_testing) and ensuring adequate [regression coverage](wiki:Regression_testing). During planning, it can help your team decide where to invest in [automated tests](wiki:Test_automation) by emphasizing a balance between fast, isolated [unit tests](wiki:Unit_testing) and more complex [integration tests](wiki:Integration_testing). By following the pyramid model, you can plan for a suite that provides high confidence without the maintenance burden of over-relying on UI-driven tests, ultimately helping your team allocate engineering resources more effectively during the upcoming sprint or project phase.
+    Basierend auf deinem Speicher ist der Artikel „The Practical Test Pyramid“ von [Martin Fowler](wiki:Martin_Fowler) aus mehreren Gründen für deine nächste Engineering-Planungssitzung sehr relevant.
+    
+    Laut deinen Notizen bietet diese Ressource einen Rahmen für die Entwicklung einer umfassenden [Teststrategie](wiki:Software_testing) und die Gewährleistung einer angemessenen [Regressionsabdeckung](wiki:Regression_testing). Während der Planung kann sie deinem Team helfen zu entscheiden, wo in [automatisierte Tests](wiki:Test_automation) investiert werden soll, indem sie ein Gleichgewicht zwischen schnellen, isolierten [Unit-Tests](wiki:Unit_testing) und komplexeren [Integrationstests](wiki:Integration_testing) betont. Indem du dem Pyramidenmodell folgst, kannst du eine Suite planen, die hohes Vertrauen bietet, ohne den Wartungsaufwand einer übermäßigen Abhängigkeit von UI-gesteuerten Tests zu haben, was deinem Team letztendlich hilft, Engineering-Ressourcen während des kommenden Sprints oder der Projektphase effektiver zuzuweisen.
   zh: |
     Based on your saved memory, the article The Practical Test Pyramid by [Martin Fowler](wiki:Martin_Fowler) is highly relevant for your next engineering planning session for several reasons.
 

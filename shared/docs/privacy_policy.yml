@@ -112,13 +112,19 @@ data_categories:
     description: >
       Service usage data such as basic server logs, event timestamps, feature
       usage, error logs, and device recognition identifiers (hashed). IP
-      addresses may be temporarily processed for security and rate limiting.
+      addresses may be temporarily processed for security, rate limiting, and
+      anonymous free-usage budget checks. Anonymous free usage stores a
+      first-party random local identifier in the client and sends only a
+      server-side HMAC-hashed form for per-identity abuse limits.
   content:
     description: >
       User-provided content necessary to deliver the service, such as chat
       messages, prompts, attachments, reminders, and uploaded images/videos
       (subject to moderation when applicable). All content is client-side
-      encrypted before transmission.
+      encrypted before transmission. Anonymous free-usage chats are stored only
+      on the user's device before signup, protected by normal per-chat keys;
+      they are uploaded only if the user signs up and promotes them into account
+      sync.
   payments:
     description: >
       Payment-related data processed by our payment processors (Stripe and
@@ -843,7 +849,7 @@ data_retention:
   account:
     period: Until account deletion and completion of related legal obligations
   usage_and_logs:
-    period: Routine operational logs kept up to 30 days (Caddy access logs); application-level error logs up to 14 days in context streams; IPs tied to failed logins up to 30 days for security
+    period: Routine operational logs kept up to 30 days (Caddy access logs); application-level error logs up to 14 days in context streams; IPs tied to failed logins up to 30 days for security; anonymous free-usage budget reservations and HMAC-hashed identity cap records kept only for short budget/reset windows
   device_fingerprints:
     period: Until account deletion, manual removal from account settings, or 90 days of inactivity (enforced by a daily cleanup task)
   content:

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -42,10 +41,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -113,9 +110,27 @@ async function createTestChat(
 }
 
 /**
+ * Ensure the sidebar is open before interacting with sidebar chat rows.
+ * The app intentionally defaults to a closed sidebar at the test viewport.
+ */
+async function ensureSidebarOpen(page: any, logCheckpoint?: (msg: string) => void): Promise<void> {
+	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+	if (await activeChatItem.isVisible({ timeout: 1000 }).catch(() => false)) {
+		return;
+	}
+
+	const sidebarToggle = page.getByTestId('sidebar-toggle');
+	await expect(sidebarToggle).toBeVisible({ timeout: 10000 });
+	await sidebarToggle.click();
+	logCheckpoint?.('Opened sidebar for hidden-chat interaction.');
+	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
+}
+
+/**
  * Right-click the active chat in the sidebar to open its context menu.
  */
 async function openContextMenuForActiveChat(page: any): Promise<void> {
+	await ensureSidebarOpen(page);
 	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	await expect(activeChatItem).toBeVisible({ timeout: 10000 });
 	await activeChatItem.click({ button: 'right' });
@@ -182,6 +197,7 @@ test('hides a chat using the inline vault form and chat disappears from visible 
 	await screenshot(page, 'test-chat-created');
 
 	// Get the active chat item reference before hiding
+	await ensureSidebarOpen(page, log);
 	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	const chatTitleText = await activeChatItem
 		.getByTestId('chat-title')
@@ -335,6 +351,7 @@ test('shows error in inline vault form on wrong password without closing the for
 	}
 
 	// Delete the active chat if still present
+	await ensureSidebarOpen(page, log).catch(() => undefined);
 	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
 	if (await activeChatItem.isVisible({ timeout: 3000 }).catch(() => false)) {
 		await activeChatItem.click({ button: 'right' });
@@ -513,6 +530,9 @@ test('hides second chat directly without inline form when vault is already unloc
 	// Step 3: Try to hide the second chat — since vault is unlocked in memory,
 	// it should hide DIRECTLY without showing the inline unlock form
 	await openContextMenuForActiveChat(page);
+	const secondActiveChatId = await page
+		.locator('[data-testid="chat-item-wrapper"].active')
+		.getAttribute('data-chat-id');
 	const hideButton2 = page.getByTestId('chat-context-hide');
 	await expect(hideButton2).toBeVisible({ timeout: 5000 });
 
@@ -543,13 +563,18 @@ test('hides second chat directly without inline form when vault is already unloc
 		await screenshot(page, 'second-chat-hidden-via-form');
 		log('Second chat hidden (required form re-entry).');
 	} else {
-		// No form — the chat should disappear immediately (vault was already unlocked)
-		const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
-		await expect(async () => {
-			const stillVisible = await activeChatItem.isVisible();
-			expect(stillVisible).toBe(false);
-		}).toPass({ timeout: 15000 });
-		log('Second chat hidden directly without inline form — vault was already unlocked.');
+		// No form — vault was already unlocked, so the hidden chat remains visible
+		// in the unlocked hidden chats section rather than disappearing from the UI.
+		const hiddenSection = page.getByTestId('hidden-chats-section');
+		await expect(hiddenSection).toBeVisible({ timeout: 15000 });
+		if (secondActiveChatId) {
+			await expect(
+				hiddenSection.locator(
+					`[data-testid="chat-item-wrapper"][data-chat-id="${secondActiveChatId}"]`
+				)
+			).toBeVisible({ timeout: 15000 });
+		}
+		log('Second chat hidden directly into the unlocked hidden chats section.');
 	}
 
 	await screenshot(page, 'test-done');

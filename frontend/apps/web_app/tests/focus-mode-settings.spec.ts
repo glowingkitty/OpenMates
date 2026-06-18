@@ -18,7 +18,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
  * Focus mode settings / Apps page tests.
  *
  * Verifies that focus modes (sourced from SKILL.md files at build time)
- * appear correctly in the app store settings panel:
+ * appear correctly in the Apps settings panel:
  *
  * 1. The Jobs app page lists the "Career insights" focus mode with name + description
  * 2. Clicking the focus mode opens its detail page with process summary bullets
@@ -44,8 +44,8 @@ const SELECTORS = {
 	/** Settings menu container (visible state) */
 	settingsMenu: '[data-testid="settings-menu"]',
 	/** Apps menu item inside settings */
-	appStoreMenuItem: '[data-testid="settings-menu-item-app_store"]',
-	/** Individual app card in app store list */
+	appStoreMenuItem: '[data-testid="settings-menu-item-apps"]',
+	/** Individual app card in Apps list */
 	appCard: (appId: string) => `[data-testid="app-card-${appId}"]`,
 	/** Focus mode item in the app detail page */
 	focusModeItem: (focusId: string) => `[data-testid="focus-mode-item-${focusId}"]`,
@@ -101,7 +101,7 @@ async function navigateToApp(
 	appId: string,
 	logCheckpoint: (message: string) => void
 ): Promise<void> {
-	// Look for the app card in the app store list, falling back to text-based search
+	// Look for the app card in the Apps list, falling back to text-based search
 	const appCard = page.getByTestId(`app-store-card`).filter({ hasText: new RegExp(appId, 'i') });
 	const cardVisible = await appCard.first().isVisible({ timeout: 5000 }).catch(() => false);
 
@@ -119,7 +119,7 @@ async function navigateToApp(
 }
 
 // ---------------------------------------------------------------------------
-// Test 1: Focus mode appears in app store with name and description
+// Test 1: Focus mode appears in Apps with name and description
 // ---------------------------------------------------------------------------
 
 test('Career insights focus mode appears in Jobs app settings with name and description', async ({

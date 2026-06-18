@@ -15,7 +15,7 @@ import hashlib
 import os
 
 from typing import Dict, Any, Optional, List
-from fastapi import APIRouter, HTTPException, Request, Depends, Body, FastAPI, Cookie
+from fastapi import APIRouter, HTTPException, Request, Response, Depends, Body, FastAPI, Cookie
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.limiter import limiter
@@ -27,6 +27,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.provider_health import map_provider_name_to_id
+from backend.core.api.app.services.rest_skill_execution_policy import assert_rest_skill_execution_allowed
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
 # Import comprehensive ASCII smuggling sanitization
@@ -153,6 +154,7 @@ async def get_directus_service(request: Request) -> DirectusService:
 
 async def get_session_or_api_key_info(
     request: Request,
+    response: Response,
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
     refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),
@@ -171,6 +173,8 @@ async def get_session_or_api_key_info(
                 directus_service=directus_service,
                 cache_service=cache_service,
                 refresh_token=refresh_token,
+                response=response,
+                request=request,
             )
             # Detect CLI callers by User-Agent and generate a device_hash so
             # usage entries are trackable in the API/device usage tab.
@@ -739,6 +743,9 @@ async def call_app_skill(
     """
     from backend.core.api.app.services.skill_registry import get_global_registry
 
+    registry = get_global_registry()
+    assert_rest_skill_execution_allowed(registry, app_id, skill_id)
+
     # SECURITY: Sanitize all text in input_data to prevent ASCII smuggling attacks
     user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
     log_prefix = f"[API {app_id}/{skill_id}][User {user_id_short}...] "
@@ -755,7 +762,6 @@ async def call_app_skill(
     request_payload['_device_hash'] = user_info.get('device_hash')
     request_payload['_external_request'] = True
 
-    registry = get_global_registry()
     try:
         return await registry.dispatch_skill(app_id, skill_id, request_payload)
     except HTTPException:

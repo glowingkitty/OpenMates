@@ -53,3 +53,19 @@ export function renderElectronicsSearch(
 
 	return lines.join('\n');
 }
+
+/** electronics-pcb-schematic - Atopile source and prepared PCB project files */
+export function renderPcbSchematic(c: Record<string, unknown>): string {
+	const filename = str(c.filename) ?? str(c.title) ?? 'board.ato';
+	const language = str(c.language) ?? 'atopile';
+	const status = str(c.compile_status) ?? str(c.status) ?? '';
+	const lineCount = typeof c.line_count === 'number' ? c.line_count : null;
+	const code = str(c.code) ?? '';
+	const lines: string[] = [`**PCB Schematic** - ${filename}`];
+
+	lines.push(lineCount !== null ? `${lineCount} lines, ${language}` : language);
+	if (status) lines.push(`compile_status: ${status}`);
+	if (code) lines.push('', trunc(code, 500));
+
+	return lines.join('\n');
+}

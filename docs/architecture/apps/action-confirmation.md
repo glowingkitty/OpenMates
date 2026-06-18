@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-15
 key_files:
 - backend/core/api/app/routes/apps_api.py
 - backend/apps/base_skill.py
@@ -45,6 +45,21 @@ claims:
 Write operations (send email, create calendar event, delete file) need safeguards. The web app uses real-time confirmation because the user is present; programmatic access skips confirmation for automation usability but compensates with scoped keys, rate limiting, and logging.
 
 ## How It Works
+
+### Connected-Account Exception
+
+Provider-backed connected-account skills, such as planned Calendar, Mail send,
+Contacts, Drive, Finance, or other user-account actions, do **not** use the older
+programmatic-access shortcut described below. Those actions require the
+connected-account permission broker across web, CLI, and Apple because the
+provider refresh tokens are client-held and submitted only through the active-turn
+token broker.
+
+REST/API-key skill execution cannot invoke connected-account provider skills
+unless a future explicit offline automation grant exists for the exact account,
+app, action, schedule, expiry, and operation limits. In other words, API keys may
+skip the legacy UX confirmation for ordinary scoped skills, but they are not a
+bypass around connected-account authorization.
 
 ### Web App: Confirmation Flow
 

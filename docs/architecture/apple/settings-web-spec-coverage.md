@@ -40,7 +40,7 @@ backend mutation.
 Recommended implementation order:
 
 1. Safe preference tests: language, font, model toggles, default models, debug logs.
-2. App Store examples and provider icon visual/testability expansion.
+2. Apps examples and provider icon visual/testability expansion.
 3. Reminder and memory CRUD/mention flows.
 4. Reserved-account sensitive live flows.
 5. StoreKit sandbox purchase/refund equivalents.

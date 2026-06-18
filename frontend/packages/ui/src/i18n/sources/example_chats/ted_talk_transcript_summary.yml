@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: TED Talk Transcript Summary"
   en: "TED Talk Transcript Summary"
-  de: "TED Talk Transcript Summary"
+  de: Zusammenfassung eines TED-Talk-Transkripts
   zh: "TED Talk Transcript Summary"
   es: "TED Talk Transcript Summary"
   fr: "TED Talk Transcript Summary"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: TED Talk Transcript Summary"
   en: "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
-  de: "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
+  de: Hol dir das Transkript eines YouTube-Vortrags und fasse das Kernargument des Sprechers in fünf Stichpunkten zusammen.
   zh: "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
   es: "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
   fr: "Get a YouTube talk transcript and summarize the speaker's core argument in five bullets."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: TED Talk Transcript Summary. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
-  de: "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
+  de: "Hol dir das Transkript für diesen TED-Talk und fasse das Kernargument in fünf Stichpunkten zusammen: https://www.youtube.com/watch?v=8S0FDjFBj8o"
   zh: "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
   es: "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
   fr: "Get the transcript for this TED talk and summarize the core argument in five bullets: https://www.youtube.com/watch?v=8S0FDjFBj8o"
@@ -99,22 +99,22 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "59da3895-7f69-4e16-b430-cc2280c70f2e", "app_id": "videos", "skill_id": "get_transcript"}
     ```
-
-    This TEDx Talk by Will Stephen is a satirical performance titled "How to sound smart in your TEDx Talk." The speaker spends the entire duration explaining that he has absolutely nothing to say, yet he uses the conventions of public speaking to make it *seem* like he is delivering a brilliant presentation.
-
-    ### Core Argument Summary
-
-    *   **Delivery Over Substance:** The talk demonstrates that the "how" of a presentation (tone, pacing, and confidence) can often overshadow the "what," leading audiences to feel like they’ve learned something even when no information was shared.
-    *   **Physical Manipulation:** Stephen highlights how specific gestures—like hand movements, adjusting glasses, and purposeful pacing—are calculated tropes used to project authority and endear a speaker to the audience.
-    *   **The Illusion of Data:** He shows how visual aids like [pie charts](wiki:Pie_chart), [bar graphs](wiki:Bar_chart), and large numbers can be used to imply rigorous research and "homework," regardless of whether the data is actually relevant or meaningful.
-    *   **Narrative Formulae:** The performance parodies the standard [TED](wiki:TED_(conference)) narrative arc, including the "embarrassing personal anecdote" and the "intellectual shift," to show how these structures are used to build a false sense of momentum.
-    *   **Satire of "The TED Style":** The core message is a critique of the formulaic nature of modern [public speaking](wiki:Public_speaking), suggesting that audiences should be more critical of speakers who rely on polished presentation styles to mask a lack of actual content.
-
+    
+    Dieser TEDx-Talk von Will Stephen ist eine satirische Performance mit dem Titel „How to sound smart in your TEDx Talk“. Der Sprecher verbringt die gesamte Zeit damit, zu erklären, dass er absolut nichts zu sagen hat, nutzt aber die Konventionen des öffentlichen Redens, um es so *aussehen* zu lassen, als würde er eine brillante Präsentation halten.
+    
+    ### Zusammenfassung der Kernargumente
+    
+    *   **Vortragsweise vor Inhalt:** Der Talk zeigt, dass das „Wie“ einer Präsentation (Tonfall, Tempo und Selbstvertrauen) oft das „Was“ überschatten kann, was dazu führt, dass das Publikum das Gefühl hat, etwas gelernt zu haben, selbst wenn keine Informationen vermittelt wurden.
+    *   **Physische Manipulation:** Stephen hebt hervor, wie spezifische Gesten – wie Handbewegungen, das Zurechtrücken der Brille und gezieltes Auf-und-ab-Gehen – kalkulierte Tropen sind, die dazu dienen, Autorität auszustrahlen und den Sprecher beim Publikum beliebt zu machen.
+    *   **Die Illusion von Daten:** Er zeigt, wie visuelle Hilfsmittel wie [Tortendiagramme](wiki:Pie_chart), [Balkendiagramme](wiki:Bar_chart) und große Zahlen verwendet werden können, um gründliche Recherche und „Hausaufgaben“ zu suggerieren, unabhängig davon, ob die Daten tatsächlich relevant oder aussagekräftig sind.
+    *   **Narrative Formeln:** Die Performance parodiert den Standard-Erzählbogen von [TED](wiki:TED_(conference)), einschließlich der „peinlichen persönlichen Anekdote“ und der „intellektuellen Wende“, um zu zeigen, wie diese Strukturen genutzt werden, um eine falsche Dynamik aufzubauen.
+    *   **Satire des „TED-Stils“:** Die Kernbotschaft ist eine Kritik an der formelhaften Natur des modernen [öffentlichen Redens](wiki:Public_speaking). Sie legt nahe, dass das Publikum Rednern gegenüber kritischer sein sollte, die sich auf einen geschliffenen Präsentationsstil verlassen, um einen Mangel an tatsächlichem Inhalt zu kaschieren.
+    
     ---
-
-    **What would you like to explore next?**
-    *   Would you like to see a comparison with a [genuinely informative TED talk](/#settings/apps/videos) on a similar topic?
-    *   Are you interested in tips for [effective public speaking](/#settings/apps/web) that goes beyond just "sounding" smart?
+    
+    **Was möchtest du als Nächstes erkunden?**
+    *   Möchtest du einen Vergleich mit einem [wirklich informativen TED-Talk](/#settings/apps/videos) zu einem ähnlichen Thema sehen?
+    *   Interessierst du dich für Tipps für [effektives öffentliches Reden](/#settings/apps/web), die darüber hinausgehen, nur schlau zu „klingen“?
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "59da3895-7f69-4e16-b430-cc2280c70f2e", "app_id": "videos", "skill_id": "get_transcript"}

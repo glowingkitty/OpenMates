@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: SQLite STRICT Tables for App Developers"
   en: "SQLite STRICT Tables for App Developers"
-  de: "SQLite STRICT Tables for App Developers"
+  de: SQLite STRICT-Tabellen für App-Entwickler
   zh: "SQLite STRICT Tables for App Developers"
   es: "SQLite STRICT Tables for App Developers"
   fr: "SQLite STRICT Tables for App Developers"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: SQLite STRICT Tables for App Developers"
   en: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
-  de: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
+  de: Ein Website-Lesebeispiel, das SQLite STRICT-Tabellen zusammenfasst und erklärt, wann App-Entwickler sie verwenden sollten.
   zh: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
   es: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
   fr: "A website-reading example that summarizes SQLite STRICT tables and when app developers should use them."
@@ -59,13 +59,13 @@ message_1:
     }
     ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
   de: |
-    @skill:web:read Read ```json
+    @skill:web:read Lies ```json
     {
       "type": "website",
       "embed_id": "ba10b9f4-6d3e-495e-a5d6-7658434e52b1",
       "url": "https://www.sqlite.org/stricttables.html"
     }
-    ``` and summarize what STRICT tables change for application developers. Include when they are useful and one migration caveat.
+    ``` und fasse zusammen, was sich durch STRICT-Tabellen für App-Entwickler ändert. Erwähne, wann sie nützlich sind und nenne einen Fallstrick bei der Migration.
   zh: |
     @skill:web:read Read ```json
     {
@@ -256,30 +256,30 @@ message_2:
     {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}
     ```
     
-    Introduced in version 3.37.0, STRICT tables allow [SQLite](wiki:SQLite) to move away from its traditional "flexible" typing system toward a rigid system similar to [PostgreSQL](wiki:PostgreSQL) or [Oracle Database](wiki:Oracle_Database).
+    Eingeführt in Version 3.37.0 ermöglichen STRICT-Tabellen [SQLite](wiki:SQLite), sich von seinem traditionellen „flexiblen“ Typisierungssystem hin zu einem starren System zu bewegen, das [PostgreSQL](wiki:PostgreSQL) oder [Oracle Database](wiki:Oracle_Database) ähnelt.
     
-    ### Changes for Application Developers
-    The `STRICT` keyword, added to the end of a `CREATE TABLE` statement, enforces several new rules:
-    *   **Mandatory Datatypes:** Every column definition must include a datatype; datatypeless columns are no longer permitted.
-    *   **Restricted Type Names:** You can only use six specific types: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB`, and `ANY`.
-    *   **Lossless Coercion:** SQLite still attempts to coerce data (e.g., converting the string `'123'` to an integer `123`), but if the conversion cannot be done losslessly (like inserting `'abc'` into an `INT` column), it now throws an `SQLITE_CONSTRAINT_DATATYPE` error instead of silently storing the original string.
-    *   **The `ANY` Datatype:** A new `ANY` type is introduced for columns that truly need to store mixed data. Unlike flexible tables, `ANY` in a `STRICT` table preserves the exact input without any numeric conversion (e.g., the string `'000123'` remains a string rather than becoming the integer `123`).
-    *   **Implicit Constraints:** `PRIMARY KEY` columns in `STRICT` tables are implicitly `NOT NULL`.
+    ### Änderungen für Anwendungsentwickler
+    Das Schlüsselwort `STRICT`, das am Ende einer `CREATE TABLE`-Anweisung hinzugefügt wird, erzwingt mehrere neue Regeln:
+    *   **Verpflichtende Datentypen:** Jede Spaltendefinition muss einen Datentyp enthalten; Spalten ohne Datentyp sind nicht mehr zulässig.
+    *   **Eingeschränkte Typnamen:** Du kannst nur sechs spezifische Typen verwenden: `INT`, `INTEGER`, `REAL`, `TEXT`, `BLOB` und `ANY`.
+    *   **Verlustfreie Koerzition:** SQLite versucht weiterhin, Daten umzuwandeln (z. B. den String `'123'` in die Ganzzahl `123`), aber wenn die Umwandlung nicht verlustfrei durchgeführt werden kann (wie das Einfügen von `'abc'` in eine `INT`-Spalte), wird nun ein `SQLITE_CONSTRAINT_DATATYPE`-Fehler ausgegeben, anstatt den ursprünglichen String stillschweigend zu speichern.
+    *   **Der Datentyp `ANY`:** Ein neuer `ANY`-Typ wird für Spalten eingeführt, die tatsächlich gemischte Daten speichern müssen. Im Gegensatz zu flexiblen Tabellen bewahrt `ANY` in einer `STRICT`-Tabelle die exakte Eingabe ohne numerische Konvertierung (z. B. bleibt der String `'000123'` ein String, anstatt zur Ganzzahl `123` zu werden).
+    *   **Implizite Constraints:** `PRIMARY KEY`-Spalten in `STRICT`-Tabellen sind implizit `NOT NULL`.
     
-    ### When They Are Useful
-    STRICT tables are particularly beneficial in the following scenarios:
-    *   **Data Integrity:** When you want to ensure that a "dirty" input (like an empty string or a non-numeric identifier) doesn't pollute an integer column.
-    *   **Matching Other Systems:** If your application is designed to be database-agnostic, using `STRICT` makes SQLite's behavior more predictable and consistent with other enterprise SQL engines.
-    *   **Debugging:** It catches type-mismatch bugs at the insertion layer rather than letting them persist as silent data corruption that causes issues during later calculations.
+    ### Wann sie nützlich sind
+    STRICT-Tabellen sind besonders in den folgenden Szenarien vorteilhaft:
+    *   **Datenintegrität:** Wenn du sicherstellen willst, dass eine „unsaubere“ Eingabe (wie ein leerer String oder ein nicht-numerischer Bezeichner) eine Integer-Spalte nicht verunreinigt.
+    *   **Anpassung an andere Systeme:** Wenn deine Anwendung datenbankunabhängig konzipiert ist, macht die Verwendung von `STRICT` das Verhalten von SQLite vorhersehbarer und konsistenter mit anderen Enterprise-SQL-Engines.
+    *   **Debugging:** Es fängt Typkonflikt-Fehler bereits auf der Einfügungsebene ab, anstatt sie als stille Datenkorruption bestehen zu lassen, die später bei Berechnungen Probleme verursacht.
     
-    ### Migration Caveat: Restricted Type Names
-    One significant caveat when migrating existing schemas is that **standard SQL type names like `VARCHAR`, `NUMERIC`, or `DATETIME` are not allowed.** 
+    ### Migrationshinweis: Eingeschränkte Typnamen
+    Ein wichtiger Hinweis bei der Migration bestehender Schemata ist, dass **Standard-SQL-Typnamen wie `VARCHAR`, `NUMERIC` oder `DATETIME` nicht erlaubt sind.** 
     
-    If you are converting an existing table that uses `VARCHAR(255)`, you must change it to `TEXT`. Similarly, `BOOLEAN` or `DATETIME` columns must be converted to `INT`, `REAL`, or `TEXT` depending on how you store those values.
+    Wenn du eine bestehende Tabelle konvertierst, die `VARCHAR(255)` verwendet, musst du dies in `TEXT` ändern. Ebenso müssen `BOOLEAN`- oder `DATETIME`-Spalten in `INT`, `REAL` oder `TEXT` umgewandelt werden, je nachdem, wie du diese Werte speicherst.
     
-    **Next Steps:**
-    * Would you like to see a code example of a `CREATE TABLE` statement using `STRICT`?
-    * Are you interested in learning about the `WITHOUT ROWID` optimization which can be combined with `STRICT`?
+    **Nächste Schritte:**
+    * Möchtest du ein Codebeispiel für eine `CREATE TABLE`-Anweisung mit `STRICT` sehen?
+    * Bist du daran interessiert, mehr über die `WITHOUT ROWID`-Optimierung zu erfahren, die mit `STRICT` kombiniert werden kann?
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "c5d97a24-2211-4169-9ac3-39353e923e24", "app_id": "web", "skill_id": "read"}

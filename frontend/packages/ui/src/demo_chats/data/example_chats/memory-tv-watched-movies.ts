@@ -23,6 +23,18 @@ export const memoryTvWatchedMoviesChat: ExampleChat = {
         "created_at": 1781280521
     },
     {
+        "id": "7909540d-9830-48b0-a7ea-ec3438cb7ff6-memory-response",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"7909540d-9830-48b0-a7ea-ec3438cb7ff6\",\"action\":\"included\",\"categories\":[{\"appId\":\"tv\",\"itemType\":\"watched_movies\",\"entryCount\":2}]}",
+        "created_at": 1781280522
+    },
+    {
+        "id": "7909540d-9830-48b0-a7ea-ec3438cb7ff6-memory-request",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"7909540d-9830-48b0-a7ea-ec3438cb7ff6\",\"request_id\":\"7909540d-9830-48b0-a7ea-ec3438cb7ff6-memory-request\",\"requested_keys\":[\"tv-watched_movies\"],\"categories\":[{\"appId\":\"tv\",\"itemType\":\"watched_movies\",\"entryCount\":0}]}",
+        "created_at": 1781280522
+    },
+    {
         "id": "0bc111c3-32e3-4451-aa54-cae5dfcd1d8a",
         "role": "assistant",
         "content": "example_chats.memory_tv_watched_movies.message_2",

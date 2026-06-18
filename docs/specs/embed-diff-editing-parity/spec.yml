@@ -1,0 +1,795 @@
+id: embed-diff-editing-parity
+title: Embed Diff Editing Parity
+status: implementing
+
+goal: >
+  Complete diff-based editing for code, document, sheet, mail, and Remotion
+  video-create embeds across the shared backend, OpenMates CLI, web app, and
+  Apple app. A user can ask the assistant to generate an embed, ask it to update
+  that same embed, see the existing embed patched in place, browse and compare
+  every previous version in fullscreen timeline UI, and restore any old version
+  without destroying the version history.
+
+scope:
+  in:
+    - Assistant-generated and assistant-updated embeds for code, docs, sheets, mail, and Remotion/video-create.
+    - Unified diff fence generation, parsing, exact/fuzzy application, visual failure fallback, and full-regeneration fallback when the change is too large.
+    - Append-only `embed_diffs` history with v1 snapshot, v2+ encrypted patches, latest full snapshot on the parent embed, version metadata sync, and reconstruction of any historical version.
+    - Non-destructive restore semantics where restoring an older version creates a new latest version and never truncates or mutates prior history.
+    - Web fullscreen timeline for supported embeds, including list, select, current-vs-selected comparison, and restore controls.
+    - OpenMates CLI commands for `embeds versions list`, `embeds versions show`, and `embeds versions restore` plus normal `chats send` diff-update flow.
+    - Apple native fullscreen timeline and restore flow for the same supported embed types, using web-rendered behavior as the parity source of truth.
+    - Owner-device sync across web, CLI, and Apple; shared-chat recipients can view version history read-only.
+    - Deterministic unit/contract tests plus real-inference E2E tests in CLI first, web second, Apple third order.
+  out:
+    - Branching version graphs, merge UI, CRDTs, or collaborative concurrent editing.
+    - Destructive restore that overwrites or truncates existing `embed_diffs` history.
+    - Letting shared-chat recipients restore or mutate the owner's embed history.
+    - Real provider calls, private user data, raw production logs, secrets, or private identifiers in committed fixtures.
+    - Exact pixel-perfect Apple/web screenshot gating for the timeline in v1; material parity and deterministic accessibility/state checks are required.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"\\\"diff based editing\\\" OR \\\"embed diff\\\" OR \\\"version timeline\\\" OR \\\"previous versions\\\"\" --state all --limit 10` was used."
+    - "#424 Add diff-based editing support for Video Create Remotion embeds: directly in scope for Remotion/video-create diffs and timeline updates."
+    - "#459 Prepare chat storage architecture for agentic coding scale: adjacent concern for future hot/cold storage scale; this spec keeps current history model append-only and indexed."
+  docs:
+    - docs/architecture/messaging/embed-diff-editing.md
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/specs/remotion-video-create-embeds/spec.yml
+    - docs/specs/code-run-cli-app-skill/spec.yml
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+  code_patterns:
+    - backend/apps/ai/instructions/base_diff_editing_instruction.md
+    - backend/apps/ai/processing/main_processor.py:1824 conditionally injects diff instructions for diffable embeds in history.
+    - backend/apps/ai/tasks/stream_consumer.py:3831 handles `diff:<embed_ref>` fences and currently applies patches from cache.
+    - backend/core/api/app/services/embed_diff_service.py parses and applies runtime diffs; it must not persist, decrypt, reconstruct, or restore `embed_diffs` server-side.
+    - backend/core/directus/schemas/embed_diffs.yml defines append-only version rows.
+    - backend/core/directus/schemas/embeds.yml includes `version_number`, `parent_embed_id`, and `content_hash` fields.
+    - frontend/packages/ui/src/services/embedDiffStore.ts stores encrypted version rows locally and reconstructs historical content client-side with the parent embed key.
+    - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte renders timeline selection and performs owner restore by encrypting the restored parent snapshot plus append-only diff row client-side.
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte, docs/DocsEmbedFullscreen.svelte, and sheets/SheetEmbedFullscreen.svelte mount the timeline when `version_number > 1`.
+    - frontend/packages/openmates-cli/src/ws.ts carries `version_number` on `send_embed_data` frames.
+    - frontend/packages/openmates-cli/src/client.ts encrypts and persists `send_embed_data` embeds but has no version-history commands yet.
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift models native embeds but does not expose version history yet.
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift is the native fullscreen container that should host the timeline.
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift and EmbedContentView.swift are relevant renderers for code/docs/sheets/video-create parity.
+  tests:
+    - backend/core/api/app/services/tests/test_embed_diff_service.py
+    - backend/tests/test_remotion_embed_diff_versions.py
+    - backend/tests/test_store_embed_diff_authorization.py
+    - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    - frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/RemotionVideoCreateRenderer.swift
+    - apple/OpenMatesUITests/EmbedDiffEditingParityUITests.swift
+    - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+  parity_expectations:
+    - The Apple app must support the same version-history data contract as web and CLI for supported embed types.
+    - Native fullscreen timeline controls must mirror the web behavior and visual intent using OpenMates custom primitives and generated tokens, not default platform controls.
+    - Apple can render terminal-native or native-specific comparison presentation, but it must expose the same states: latest, selected historical version, diff/changes view, restore confirmation, and read-only shared mode.
+  verification:
+    - "Run or attempt `python3 scripts/apple_remote.py status` before native verification."
+    - "Run or attempt `python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\"`."
+    - "Run or attempt `python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing \"OpenMatesUITests/EmbedDiffEditingParityUITests\"` after CLI and web evidence are green."
+  intentional_native_differences:
+    - Native timeline controls may use touch-appropriate spacing and platform scrolling physics if the same states, labels, and actions are present.
+    - Shared-chat read-only timeline may use native disabled/locked button styling when visually equivalent intent is clear.
+
+clarification:
+  rounds:
+    - question: Which embed types should be fully supported in the first parity slice?
+      answer: Code, docs, sheets, mail, and Remotion/video-create.
+    - question: Should previous-version viewing include restore in v1?
+      answer: View and restore previous versions across web, CLI, and Apple.
+    - question: What should CLI parity look like?
+      answer: "`openmates chats send` creates/updates embeds, and `openmates embeds versions list/show/restore` manages history."
+    - question: Should E2E tests use real assistant inference or deterministic fixtures?
+      answer: Real inference test to confirm the actual process works for real, first through OpenMates CLI, then web app, then Apple app, plus deterministic tests.
+    - question: Should version history sync/share across devices and shared chats in v1?
+      answer: Sync across the owner's web/CLI/Apple devices; shared-chat recipients can view timeline read-only.
+  vision_summary: >
+    Diff-based editing should become a real product workflow rather than a backend
+    prototype: the assistant generates a supported embed, later emits a diff for
+    that embed, the system patches the existing embed in place, and every client
+    can view and restore the append-only version history. The history is
+    effectively non-destructive because diffs are stored as separate encrypted
+    model elements, the latest snapshot is only an optimization, and restore
+    creates a new version instead of changing older rows. Verification must prove
+    both model-independent deterministic behavior and the real assistant workflow
+    in CLI -> web -> Apple order.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Assistant updates an existing code embed with a diff
+    given:
+      - Alice is logged in and has an active non-incognito chat.
+      - The assistant previously generated a Python code embed with an `embed_ref` visible in the message history.
+    when:
+      - Alice asks the assistant to rename a function and add a small return type hint.
+      - The assistant emits a valid ```` ```diff:<embed_ref> ```` block.
+    then:
+      - The backend resolves the embed ref to the existing embed id.
+      - The backend applies the diff to the current embed content without creating a second code embed.
+      - The parent embed `version_number` increments from 1 to 2 and stores the patched full snapshot as the latest content.
+      - "`embed_diffs` contains v1 as the original encrypted snapshot and v2 as the encrypted patch."
+      - Alice's active client receives updated content and version metadata for the same embed id.
+
+  - id: S-2
+    title: Docs, sheets, mail, and Remotion embeds use the same version contract
+    given:
+      - Alice has one generated embed of each supported type: document, sheet, mail, and Remotion/video-create.
+      - Each embed has current content and a stable embed ref in chat history.
+    when:
+      - Alice asks for a small type-appropriate edit to each embed.
+    then:
+      - Document diffs patch structured document content without losing title, filename, generated artifact metadata, or DOCX regeneration requirements.
+      - Sheet diffs patch table content without losing headers, row/column metadata, or sheet renderer compatibility.
+      - Mail diffs patch receiver, subject, body, or footer while preserving structured fields.
+      - Remotion diffs patch the TSX/source-of-truth, refresh timeline metadata, mark existing render artifacts stale when needed, and trigger rerender.
+      - All supported types use the same append-only version-history API and restore semantics.
+
+  - id: S-3
+    title: Failed or unsafe diffs degrade visibly without corrupting content
+    given:
+      - Alice has a supported embed at version 3.
+    when:
+      - The assistant emits a malformed diff, a diff whose context does not match, or a diff targeting an unknown embed ref.
+    then:
+      - The system does not mutate the existing embed content or version number.
+      - Alice sees a visible suggested-changes/diff card explaining that automatic application failed.
+      - Logs include enough non-sensitive context to debug the failure.
+      - The assistant can retry with a corrected diff or fall back to full regeneration according to the instruction contract.
+
+  - id: S-4
+    title: Web fullscreen timeline views, compares, and restores versions
+    given:
+      - Alice has a code embed with versions v1, v2, and v3.
+      - Alice opens the embed fullscreen view in the web app.
+    when:
+      - Alice opens the timeline, selects v1, toggles the changes view, and chooses restore.
+    then:
+      - The fullscreen view shows a timeline with v1, v2, v3, timestamps, selected version, and current version.
+      - Selecting v1 shows the reconstructed v1 content without replacing the current content.
+      - The changes view clearly shows additions/removals between the selected version and current version.
+      - Restore asks for confirmation and then creates v4 whose content equals v1.
+      - v1, v2, and v3 remain visible and reconstructable after restore.
+
+  - id: S-5
+    title: CLI sends real chat update and manages version history
+    given:
+      - Alice is logged in through OpenMates CLI.
+      - Alice creates a chat and asks the assistant to generate a code embed.
+    when:
+      - Alice sends a second CLI chat message asking for a small edit.
+      - The assistant emits a diff and the backend patches the embed.
+      - Alice runs `openmates embeds versions list <embed_id>`, `openmates embeds versions show <embed_id> --version 1`, and `openmates embeds versions restore <embed_id> --version 1`.
+    then:
+      - The CLI prints the updated embed id and version after the second chat response.
+      - The list command shows all versions and timestamps without exposing encrypted blobs.
+      - The show command prints or writes reconstructed historical content for the requested version.
+      - The restore command creates a new latest version and prints the new version number.
+
+  - id: S-6
+    title: Apple native fullscreen timeline matches product behavior
+    given:
+      - Alice has the same versioned embed synced to the Apple app.
+    when:
+      - Alice opens the native fullscreen embed view, selects an older version, views changes, and restores it.
+    then:
+      - The Apple fullscreen view shows version history using native OpenMates product UI.
+      - Selecting a version updates the displayed content without mutating the current version.
+      - Restore creates a new latest version and keeps older versions visible.
+      - The Apple app stores and syncs version metadata for cold boot and reconnect.
+
+  - id: S-7
+    title: Version history syncs across owner devices and shared chats are read-only
+    given:
+      - Alice updates an embed from the CLI and later opens the same chat in the web app and Apple app.
+      - Alice shares the chat with Bob through the normal share-chat flow.
+    when:
+      - Alice and Bob open the versioned embed timeline.
+    then:
+      - Alice sees the same latest content, version list, historical content, and restore controls on web, CLI, and Apple.
+      - Bob can view the version timeline and historical content through the shared chat link.
+      - Bob cannot restore, mutate, or create new owner versions from the shared view.
+      - No plaintext content, private user id, or encryption key leaks in version-history payloads or URLs.
+
+  - id: S-8
+    title: Real inference verification runs in required client order
+    given:
+      - Deterministic tests for patching, version storage, sync, and UI timeline behavior are green.
+    when:
+      - The real-inference verification ladder runs.
+    then:
+      - A real OpenMates CLI chat first proves the assistant generates a supported embed and updates it through a diff.
+      - After CLI passes, a Playwright web E2E proves the same real assistant flow and fullscreen timeline restore on `app.dev.openmates.org`.
+      - After web passes, an Apple native E2E or remote Mac test proves the same real assistant flow or a replayed server-backed chat with real inference-created history.
+      - The spec is not considered verified until all required phases have recorded evidence or a sanitized infrastructure failure class is documented.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Real assistant diff fences targeting existing embed refs patch the existing embed in place and increment `version_number` without creating duplicate embeds.
+  - id: AC-2
+    scenario: S-2
+    text: Code, docs, sheets, mail, and Remotion/video-create embeds all use the same append-only version-history contract while preserving type-specific metadata and post-processing needs.
+  - id: AC-3
+    scenario: S-3
+    text: Malformed, unresolvable, or unapplicable diffs never corrupt embed content and surface a visible suggested-changes fallback.
+  - id: AC-4
+    scenario: S-4
+    text: Web fullscreen timeline lists, selects, compares, and restores versions for every supported embed type.
+  - id: AC-5
+    scenario: S-5
+    text: CLI chat send can trigger real assistant diff updates, and CLI version commands can list, show, and restore embed versions.
+  - id: AC-6
+    scenario: S-6
+    text: Apple fullscreen embed UI supports equivalent timeline, compare, and restore behavior with native OpenMates product UI.
+  - id: AC-7
+    scenario: S-7
+    text: Version history syncs across owner web, CLI, and Apple devices, and shared-chat recipients can view history read-only.
+  - id: AC-8
+    scenario: S-8
+    text: Verification includes deterministic coverage and real-inference E2E evidence in CLI first, web second, Apple third order.
+
+contracts:
+  ai_prompting:
+    - Diff editing instructions are injected only when supported diffable embeds exist in the conversation history.
+    - The assistant must use ```` ```diff:<embed_ref> ```` fences for small edits to supported existing embeds.
+    - The assistant must regenerate full content instead of diffing when a change affects more than 60 percent of content, changes the content type, or the user asks to start over.
+    - Remotion-specific instructions must cover scene additions, duration changes, scene reorderings, captions, assets, and rerender implications.
+  websocket:
+    - event: send_embed_data
+      direction: server_to_client
+      payload: "{ embed_id, type, content, status, chat_id, message_id, version_number, content_hash?, version_history_rows?, updatedAt }"
+      behavior:
+        - Successful diff updates must publish updated plaintext content for client-side encryption even when the embed was already finished.
+        - "`version_history_rows` carries plaintext snapshot/patch rows only during the active server-to-owner-client delivery; clients encrypt each row with the parent embed key before storage."
+        - Clients must persist the new encrypted latest snapshot and encrypted version metadata for the same embed id.
+    - event: store_embed_diff
+      direction: client_to_server
+      payload: "{ embed_id, version_number, encrypted_snapshot?, encrypted_patch?, hashed_user_id, created_at }"
+      behavior:
+        - Owner clients send only client-encrypted version rows to the server.
+        - "The server validates parent embed ownership and derives `hashed_user_id` from the authenticated session instead of trusting the payload."
+    - event: request_embed_diffs
+      direction: client_to_server
+      payload: "{ embed_id }"
+      behavior:
+        - Server returns only version rows the caller may access.
+    - event: embed_diffs_response
+      direction: server_to_client
+      payload: "{ embed_id, diffs: [{ id, version_number, encrypted_snapshot?, encrypted_patch?, created_at }] }"
+      behavior:
+        - Owner clients may request full history lazily; shared recipients receive read-only history for shared embeds.
+  api:
+    - route: GET /v1/embeds/{embed_id}/versions
+      response: "{ embed_id, current_version, versions: [{ version_number, created_at, has_snapshot, has_patch, encrypted_snapshot?, encrypted_patch? }], readonly: boolean }"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the caller has no owner or share access.
+        - 404 when the embed does not exist or version history is unavailable.
+    - route: GET /v1/embeds/{embed_id}/versions/{version_number}
+      response: "{ embed_id, version_number, current_version, rows: [{ version_number, created_at, encrypted_snapshot?, encrypted_patch? }], readonly: boolean }"
+      errors:
+        - 403 when the caller cannot access the embed or version.
+        - 404 when version rows are unavailable.
+    - route: POST /v1/embeds/{embed_id}/versions/{version_number}/restore
+      response: "400 error because restore is a client-side encrypted append/update flow"
+      errors:
+        - 400 because server-side plaintext restore is forbidden.
+  data:
+    - "`embeds.encrypted_content` remains the latest full snapshot for fast rendering."
+    - "`embeds.version_number` is the latest linear version number and increments for every successful diff, full-regeneration update to an existing embed, and restore."
+    - "`embed_diffs` is append-only for v1 original snapshot and v2+ patches or restore patches."
+    - Restore creates a new version row and updates the latest parent snapshot; it never changes or deletes older rows.
+    - Version rows are encrypted client-side with the same embed key as the parent embed and follow embed deletion/account deletion cleanup.
+  cli:
+    - "`openmates chats send <chat> <prompt>` must preserve embed refs in context and report updated embed/version metadata when a diff edit succeeds."
+    - "`openmates embeds versions list <embed_id>` lists version numbers, current marker, timestamps, and read-only status."
+    - "`openmates embeds versions show <embed_id> --version <n>` prints reconstructed content or writes it to a path when requested."
+    - "`openmates embeds versions restore <embed_id> --version <n>` asks for confirmation unless `--yes` is supplied, reconstructs content locally, and sends only encrypted `store_embed` plus `store_embed_diff` WebSocket payloads."
+  ui_states:
+    - Timeline loading, empty/no-history, current selected, historical selected, diff/changes view, restore confirmation, restore success, restore failure, read-only shared mode, and unavailable/offline states must be explicit.
+    - The visual fallback diff card must be distinguishable from an applied version and must not imply content was changed.
+  privacy_security:
+    - Version-history payloads must not expose plaintext content to the server beyond existing active-turn plaintext processing boundaries.
+    - Shared-chat recipients may decrypt/view only the history included in the share contract and cannot mutate owner history.
+    - Logs must redact private content, emails, keys, raw encrypted blobs, and private identifiers.
+    - Version history must be cleaned up with embed deletion, chat deletion, account deletion, and share revocation where applicable.
+
+tests:
+  - id: T-PYTEST-DIFF-SERVICE
+    type: pytest
+    file: backend/core/api/app/services/tests/test_embed_diff_service.py
+    command: python3 -m pytest backend/core/api/app/services/tests/test_embed_diff_service.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - Unified diffs parse into hunks with target embed refs.
+      - Exact and fuzzy patch tiers produce expected content.
+      - Failed patches return visual fallback without content mutation.
+      - Mail reconstruction and reparse preserve receiver, subject, body, and footer fields.
+      - Document, sheet, and code sample patches preserve type-specific content.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: docker-pytest-2026-06-15-1828
+        timestamp: "2026-06-15T18:28:00+00:00"
+
+  - id: T-PYTEST-DIFF-CONTRACT
+    type: pytest
+    file: backend/tests/test_embed_diff_version_contract.py
+    command: python3 -m pytest backend/tests/test_embed_diff_version_contract.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-7
+    assertions:
+      - Server-side diff snapshot/patch persistence raises an explicit error because clients must encrypt version rows.
+      - Server-side version reconstruction raises an explicit error because clients must decrypt and apply rows locally.
+      - Server-side restore raises an explicit error because clients must append encrypted restore rows and encrypted parent updates.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-2026-06-15-1305
+        timestamp: "2026-06-15T13:05:23+00:00"
+
+  - id: T-PYTEST-VERSION-ROUTES
+    type: pytest
+    file: backend/tests/test_embed_version_routes.py
+    command: python3 -m pytest backend/tests/test_embed_version_routes.py
+    covers:
+      - AC-3
+      - AC-5
+      - AC-7
+    assertions:
+      - Owner can list version metadata with encrypted row blobs and no plaintext content.
+      - Owner can fetch encrypted rows needed for client-side historical reconstruction.
+      - Server-side restore is rejected without appending a version row or updating parent metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-2026-06-15-1305
+        timestamp: "2026-06-15T13:05:23+00:00"
+
+  - id: T-PYTEST-STORE-EMBED-DIFF
+    type: pytest
+    file: backend/tests/test_store_embed_diff_authorization.py
+    command: python3 -m pytest backend/tests/test_store_embed_diff_authorization.py
+    covers:
+      - AC-5
+      - AC-7
+    assertions:
+      - Owner clients can store client-encrypted snapshot or patch rows.
+      - Shared recipients cannot write owner embed diff history.
+      - Empty or unencrypted diff rows are rejected before persistence.
+      - The server derives `hashed_user_id` from the authenticated session and ignores spoofed payload hashes.
+      - Re-sent existing version rows do not create duplicate append-only history.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-2026-06-15-1305
+        timestamp: "2026-06-15T13:05:23+00:00"
+
+  - id: T-PYTEST-REMOTION-DIFF
+    type: pytest
+    file: backend/tests/test_remotion_embed_diff_versions.py
+    command: python3 -m pytest backend/tests/test_remotion_embed_diff_versions.py
+    covers:
+      - AC-2
+    assertions:
+      - Remotion diff updates patch source, increment source version, refresh timeline metadata, and mark stale render artifacts for rerender.
+      - Restoring older Remotion source creates a new latest linear version and triggers rerender without destroying older version history.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: docker-pytest-2026-06-15-1828
+        timestamp: "2026-06-15T18:28:00+00:00"
+
+  - id: T-VITEST-WEB-TIMELINE
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-4
+      - AC-7
+    assertions:
+      - Timeline renders loading, no-history, current, selected historical, diff view, restore confirmation, and read-only shared states.
+      - Selecting a historical version decrypts encrypted rows locally and does not mutate current content.
+      - Restore encrypts the parent update and append-only diff row client-side before syncing.
+      - Shared/read-only mode hides or disables restore while keeping version viewing available.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: gha-27547558504
+        timestamp: "2026-06-15T12:53:49+00:00"
+
+  - id: T-CLI-DETERMINISTIC
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.test.ts
+    covers:
+      - AC-5
+      - AC-7
+    assertions:
+      - "`embeds versions list` renders version metadata without encrypted blobs."
+      - "`embeds versions show` prints reconstructed historical content when content is returned directly and can reconstruct encrypted row responses through the CLI client."
+      - "`embeds versions restore` requires login/WebSocket and never calls the forbidden plaintext server-side restore endpoint."
+      - The CLI client restore implementation sends encrypted `store_embed` and `store_embed_diff` payloads over WebSocket for logged-in sessions.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-node-test-2026-06-15-1252
+        timestamp: "2026-06-15T12:52:00+00:00"
+
+  - id: T-CLI-REAL-INFERENCE
+    type: playwright
+    file: frontend/apps/web_app/tests/cli-embed-diff-versions.spec.ts
+    command: python3 scripts/run_tests.py --spec cli-embed-diff-versions.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-5
+      - AC-8
+    assertions:
+      - A real OpenMates CLI chat asks the assistant to create a code embed.
+      - A second real CLI message asks for a small update and produces an applied diff update, not a duplicate embed.
+      - CLI version list/show/restore commands work against the real versioned embed.
+      - This run is completed before web and Apple real-inference verification.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: gha-27564408150
+        timestamp: "2026-06-15T17:36:00+00:00"
+
+  - id: T-PLAYWRIGHT-WEB-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    command: python3 scripts/run_tests.py --spec embed-diff-editing.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-7
+      - AC-8
+    assertions:
+      - Real assistant inference creates and then updates at least one supported embed with an applied diff.
+      - The same embed id remains present and `version_number` increments.
+      - Fullscreen timeline shows all versions, selected historical content, changes view, and restore.
+      - Restore creates a new latest version and keeps older versions visible.
+      - Shared-chat view shows read-only timeline and no restore action.
+      - The spec does not accept old content as success when the requested diff update failed.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: gha-27566713218
+        timestamp: "2026-06-15T18:19:21+00:00"
+
+  - id: T-APPLE-UNIT
+    type: unit
+    file: apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/EmbedDiffEditingParityTests"
+    covers:
+      - AC-6
+      - AC-7
+    assertions:
+      - Apple models decode version metadata and version-history rows.
+      - Native timeline view state selects historical versions without mutating current content.
+      - Restore action creates a new latest version request only for owner/editable embeds.
+      - Shared/read-only mode prevents restore while keeping viewing available.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-macos-peer-apple-unit-2026-06-15-1835
+        timestamp: "2026-06-15T18:35:39+00:00"
+
+  - id: T-APPLE-E2E
+    type: manual
+    covers:
+      - AC-1
+      - AC-6
+      - AC-7
+      - AC-8
+    assertions:
+      - After CLI and web real-inference tests pass, Apple opens a real inference-created versioned embed from sync or performs the same real chat flow where supported.
+      - Native fullscreen timeline shows versions, historical content, changes, restore confirmation, and restored new latest version.
+      - Native shared/read-only mode allows viewing and blocks restore.
+      - Evidence records sanitized remote Mac status/build/test result or a sanitized infrastructure failure class.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-macos-peer-apple-ui-2026-06-15-1918
+        timestamp: "2026-06-15T19:18:31+00:00"
+
+implementation_plan:
+  existing_patterns:
+    - backend/core/api/app/services/embed_diff_service.py for parsing, patching, storing, and reconstructing versions.
+    - backend/core/api/app/services/embed_service.py for sending plaintext `send_embed_data` to clients for client-side encryption.
+    - frontend/packages/ui/src/services/embedStore.ts and embedDiffStore.ts for encrypted IndexedDB embed persistence patterns.
+    - frontend/packages/openmates-cli/src/client.ts for CLI websocket `send_embed_data` encryption and `store_embed` persistence.
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift for native fullscreen composition.
+  architecture: >
+    Keep the parent embed as the latest full snapshot and use `embed_diffs` as
+    append-only history. Server routes list encrypted rows only; clients decrypt
+    and reconstruct historical versions with the parent embed key. Restore is
+    linear and non-destructive on the client: it reconstructs a selected version,
+    encrypts a new latest parent snapshot, and appends a new encrypted history row.
+  data_flow:
+    - Assistant sees supported embed refs in history and emits a diff fence for a small edit.
+    - Stream consumer resolves the ref, fetches current content with cache plus database fallback, applies the patch, and stores version history.
+    - Backend publishes updated latest content and diff metadata to owner clients.
+    - Web/CLI/Apple encrypt and persist latest content and version rows locally.
+    - Timeline requests full history or a reconstructed version on demand.
+    - Restore reconstructs the selected content server-side, creates a new latest version, and syncs it to owner clients.
+  affected_files:
+    - path: backend/apps/ai/instructions/base_diff_editing_instruction.md
+      reason: Add supported type and Remotion-specific diff guidance.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Ensure diff instruction detection covers all supported embed refs reliably.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Apply diffs, handle fallbacks, and publish update/version events for already-finished embeds.
+    - path: backend/core/api/app/services/embed_diff_service.py
+      reason: Complete version history, reconstruction, restore, access checks, and non-destructive semantics.
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Ensure patched finished embeds still send updated content and version metadata to clients.
+    - path: backend/core/api/app/routes/embeds.py
+      reason: Add REST endpoints for CLI/version history access if websocket-only is insufficient.
+    - path: backend/core/api/app/routes/websockets.py
+      reason: Add websocket handlers for version history and restore events.
+    - path: frontend/packages/ui/src/services/embedDiffStore.ts
+      reason: Store, fetch, and decrypt version rows and reconstructed version data.
+    - path: frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+      reason: Implement timeline list, select, compare, restore, loading/error/read-only states.
+    - path: frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+      reason: Wire version content selection and restore.
+    - path: frontend/packages/ui/src/components/embeds/docs/DocsEmbedFullscreen.svelte
+      reason: Wire version content selection and restore.
+    - path: frontend/packages/ui/src/components/embeds/sheets/SheetEmbedFullscreen.svelte
+      reason: Wire version content selection and restore.
+    - path: frontend/packages/ui/src/components/embeds/mail/MailEmbedFullscreen.svelte
+      reason: Add timeline integration if mail fullscreen exists or add supported surface.
+    - path: frontend/packages/ui/src/components/embeds/videos/RemotionVideoCreateEmbedFullscreen.svelte
+      reason: Add Remotion source/timeline diff history and rerender restore controls.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Add `embeds versions` commands.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Implement list/show/restore calls and persist version metadata from websocket events.
+    - path: frontend/packages/openmates-cli/src/ws.ts
+      reason: Type version-history websocket frames.
+    - path: apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      reason: Model version metadata and history rows.
+    - path: apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+      reason: Host native version timeline and restore controls.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/embed-diff-editing-parity/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/embed-diff-editing-parity/spec.yml --phase red
+    - Deterministic backend, CLI, web, and Apple tests.
+    - Real-inference CLI test first.
+    - Deploy, wait for Vercel Ready, then Playwright web real-inference test.
+    - Remote Mac Apple build/test after CLI and web evidence are green.
+  verification_order:
+    - Backend deterministic tests.
+    - CLI deterministic tests.
+    - CLI real-inference test.
+    - Web deterministic tests.
+    - Deploy and wait for Vercel Ready.
+    - Web Playwright real-inference test.
+    - Apple unit/UI deterministic tests.
+    - Apple real synced-chat/native E2E evidence.
+
+tasks:
+  - id: TASK-1
+    title: Complete backend version contract
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-7
+    expected_files:
+      - backend/core/api/app/services/embed_diff_service.py
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_embed_diff_version_contract.py
+    verification:
+      - T-PYTEST-DIFF-SERVICE
+      - T-PYTEST-DIFF-CONTRACT
+      - T-PYTEST-REMOTION-DIFF
+    independently_deployable: true
+  - id: TASK-2
+    title: Implement web timeline and restore
+    covers:
+      scenarios:
+        - S-4
+        - S-7
+      acceptance_criteria:
+        - AC-4
+        - AC-7
+    expected_files:
+      - frontend/packages/ui/src/services/embedDiffStore.ts
+      - frontend/packages/ui/src/components/embeds/shared/EmbedVersionTimeline.svelte
+      - frontend/apps/web_app/tests/embed-diff-editing.spec.ts
+    verification:
+      - T-VITEST-WEB-TIMELINE
+      - T-PLAYWRIGHT-WEB-E2E
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement CLI version commands and real-inference proof
+    covers:
+      scenarios:
+        - S-5
+        - S-8
+      acceptance_criteria:
+        - AC-5
+        - AC-8
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/ws.ts
+      - frontend/packages/openmates-cli/tests/embed-diff-editing.test.ts
+    verification:
+      - T-CLI-DETERMINISTIC
+      - T-CLI-REAL-INFERENCE
+    independently_deployable: false
+  - id: TASK-4
+    title: Implement Apple timeline parity
+    covers:
+      scenarios:
+        - S-6
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-6
+        - AC-7
+        - AC-8
+    expected_files:
+      - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+      - apple/OpenMatesTests/EmbedDiffEditingParityTests.swift
+      - apple/OpenMatesUITests/EmbedDiffEditingParityUITests.swift
+    verification:
+      - T-APPLE-UNIT
+      - T-APPLE-E2E
+    independently_deployable: false
+
+risks:
+  - Real model behavior may choose full regeneration instead of a diff; deterministic tests must isolate product behavior while real-inference tests validate prompt reliability.
+  - Existing finished-embed update suppression can prevent patched content from reaching clients unless explicitly fixed.
+  - Version reconstruction depends on every patch applying cleanly from v1; corrupted or missing rows need explicit error surfaces.
+  - Remotion rerender side effects can make restore slower and require clear stale/rendering status.
+  - Shared-chat history must not widen access beyond the existing share key and permission boundary.
+
+open_questions:
+  - Should full-regeneration updates to an existing embed be represented as a synthetic patch row, a full snapshot row, or a separate version-row type beyond v1 snapshot?
+  - Should version history have retention limits before the larger hot/cold storage architecture from GitHub issue #459 is designed?
+  - Should timeline diff comparison be selected-vs-current by default, or selected-vs-previous for each historical version?

@@ -18,6 +18,7 @@ import Foundation
 enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case audio
     case code
+    case diagrams
     case docs
     case electronics
     case health
@@ -46,6 +47,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         switch self {
         case .audio: return "Audio"
         case .code: return "Code"
+        case .diagrams: return "Diagrams"
         case .docs: return "Docs"
         case .electronics: return "Electronics"
         case .health: return "Health"
@@ -85,7 +87,9 @@ enum DevEmbedPreviewFixtures {
         case .audio:
             return [recording]
         case .code:
-            return [codeRepoSearch, codeRepo, codeEmbed, codeApplication, codeGetDocs]
+            return [codeEmbed, codeRepoSearch, codeRepo, codeApplication, codeGetDocs]
+        case .diagrams:
+            return [diagramsMermaid]
         case .docs:
             return [docsDocument]
         case .electronics:
@@ -173,7 +177,14 @@ enum DevEmbedPreviewFixtures {
                   }
                 </style>
                 """
-            ]
+            ],
+            versionNumber: 3,
+            versionHistory: [
+                EmbedVersionMetadata(versionNumber: 1, createdAt: 1760000000, hasSnapshot: true, hasPatch: false, contentHash: "preview-code-v1"),
+                EmbedVersionMetadata(versionNumber: 2, createdAt: 1760000100, hasSnapshot: false, hasPatch: true, contentHash: "preview-code-v2"),
+                EmbedVersionMetadata(versionNumber: 3, createdAt: 1760000200, hasSnapshot: false, hasPatch: true, contentHash: "preview-code-v3")
+            ],
+            versionHistoryReadonly: false
         )
         return skill(id: "code-code", label: "Code", primary: embed)
     }
@@ -522,6 +533,38 @@ enum DevEmbedPreviewFixtures {
         return skill(id: "code-application", label: "Application", primary: embed)
     }
 
+    private static var diagramsMermaid: DevEmbedPreviewSkill {
+        let embed = record(
+            id: "preview-diagrams-mermaid-1",
+            type: EmbedType.diagramsMermaid.rawValue,
+            appId: "diagrams",
+            skillId: "mermaid",
+            data: [
+                "type": "mermaid",
+                "app_id": "diagrams",
+                "skill_id": "mermaid",
+                "title": "Signup Flow",
+                "diagram_kind": "sequenceDiagram",
+                "diagram_code": """
+                sequenceDiagram
+                    participant User
+                    participant App
+                    participant API
+                    User->>App: Enter email
+                    App->>API: Request verification code
+                    API-->>User: Send email code
+                    User->>App: Submit code
+                    App->>API: Verify code
+                    API-->>App: Create session
+                """,
+                "line_count": 9,
+                "status": "finished"
+            ],
+            versionNumber: 1
+        )
+        return skill(id: "diagrams-mermaid", label: "Mermaid", primary: embed)
+    }
+
     private static var docsDocument: DevEmbedPreviewSkill {
         let embed = record(id: "preview-docs-doc-1", type: EmbedType.docsDoc.rawValue, appId: "docs", data: ["filename": "architecture.docx", "title": "Architecture Notes", "summary": "PostgreSQL serves as the primary data store."])
         return skill(id: "docs-doc", label: "Document", primary: embed)
@@ -740,7 +783,10 @@ enum DevEmbedPreviewFixtures {
         skillId: String? = nil,
         data: [String: Any],
         parentEmbedId: String? = nil,
-        embedIds: String? = nil
+        embedIds: String? = nil,
+        versionNumber: Int? = nil,
+        versionHistory: [EmbedVersionMetadata] = [],
+        versionHistoryReadonly: Bool = false
     ) -> EmbedRecord {
         EmbedRecord(
             id: id,
@@ -751,6 +797,9 @@ enum DevEmbedPreviewFixtures {
             appId: appId,
             skillId: skillId,
             embedIds: embedIds,
+            versionNumber: versionNumber,
+            versionHistory: versionHistory,
+            versionHistoryReadonly: versionHistoryReadonly,
             createdAt: "2026-03-15T08:30:00Z"
         )
     }

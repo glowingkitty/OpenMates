@@ -130,7 +130,7 @@
   function handleClick() {
     if (reminderId && status === 'finished') {
       import('../../../stores/settingsDeepLinkStore').then(({ settingsDeepLink }) => {
-        settingsDeepLink.set(`app_store/reminder/entry/${reminderId}`);
+        settingsDeepLink.set(`apps/reminder/entry/${reminderId}`);
       });
     } else {
       // Fallback to default fullscreen for processing/error states

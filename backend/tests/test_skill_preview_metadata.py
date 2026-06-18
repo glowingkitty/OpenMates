@@ -372,6 +372,48 @@ def test_generic_result_list_parent_preview_metadata_caps_results() -> None:
     assert metadata["preview_results"][-1]["title"] == "Recipe 5"
 
 
+def test_weather_forecast_parent_preview_metadata_contains_day_summaries() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._build_parent_preview_metadata(
+        "weather",
+        "forecast",
+        [
+            {
+                "type": "weather_day",
+                "date": "2026-06-19",
+                "location_name": "Berlin",
+                "provider": "Deutscher Wetterdienst (DWD)",
+                "condition": "partly cloudy",
+                "icon": "partly-cloudy-day",
+                "temperature_min_c": 18,
+                "temperature_max_c": 32,
+                "precipitation_total_mm": 0,
+                "precipitation_probability_max_pct": 4,
+                "rain_hours": 0,
+                "hourly": [{"large": "child-only hourly details"}],
+            }
+        ],
+    )
+
+    assert metadata == {
+        "preview_results": [
+            {
+                "date": "2026-06-19",
+                "location_name": "Berlin",
+                "provider": "Deutscher Wetterdienst (DWD)",
+                "condition": "partly cloudy",
+                "icon": "partly-cloudy-day",
+                "temperature_min_c": 18,
+                "temperature_max_c": 32,
+                "precipitation_total_mm": 0,
+                "precipitation_probability_max_pct": 4,
+                "rain_hours": 0,
+            }
+        ]
+    }
+
+
 def test_non_search_parent_preview_metadata_is_empty() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 
@@ -414,3 +456,31 @@ def test_web_search_preview_component_stays_parent_metadata_only() -> None:
 
     for token in forbidden_child_hydration_tokens:
         assert token not in component_source
+
+
+def test_weather_forecast_preview_component_consumes_parent_preview_results() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    component_path = repo_root / "frontend/packages/ui/src/components/embeds/weather/WeatherForecastEmbedPreview.svelte"
+    component_source = component_path.read_text(encoding="utf-8")
+
+    assert "preview_results" in component_source
+
+
+def test_weather_forecast_inline_renderers_pass_parent_preview_results() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    app_skill_renderer = (
+        repo_root / "frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts"
+    ).read_text(encoding="utf-8")
+    group_renderer = (
+        repo_root / "frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts"
+    ).read_text(encoding="utf-8")
+
+    weather_function = app_skill_renderer.split("private renderWeatherForecastComponent", 1)[1]
+    weather_function = weather_function.split("private renderWeatherRainRadarComponent", 1)[0]
+    weather_branch = group_renderer.split('if (appId === "weather" && skillId === "forecast")', 1)[1]
+    weather_branch = weather_branch.split('if (appId === "weather" && skillId === "rain_radar")', 1)[0]
+
+    for renderer_source in (weather_function, weather_branch):
+        assert "preview_results" in renderer_source
+        assert "previewResults" in renderer_source
+        assert "WeatherForecastEmbedPreview" in renderer_source

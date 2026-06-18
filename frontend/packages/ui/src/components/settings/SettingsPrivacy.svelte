@@ -13,12 +13,20 @@ Based on Figma design: settings/privacy (node 1895:20576)
     import { personalDataStore } from '../../stores/personalDataStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
 
+    const CALENDAR_UPDATE_ACCOUNT_KEY = 'openmates_calendar_update_account_id';
+
     const dispatch = createEventDispatcher();
 
     // ─── Load from encrypted storage on mount ────────────────────────────────
 
     onMount(() => {
         personalDataStore.loadFromStorage();
+    });
+
+    $effect(() => {
+        if ($authStore.isAuthenticated && hasPendingConnectedAccountOAuthUpdate()) {
+            navigateToConnectedAccounts();
+        }
     });
 
     // ─── PII Detection Settings (Anonymization section) ──────────────────────
@@ -55,6 +63,26 @@ Based on Figma design: settings/privacy (node 1895:20576)
             icon: 'anonym',
             title: $text('settings.privacy.hide_personal_data')
         });
+    }
+
+    function navigateToConnectedAccounts() {
+        if (!$authStore.isAuthenticated) {
+            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            return;
+        }
+
+        dispatch('openSettings', {
+            settingsPath: 'privacy/connected-accounts',
+            direction: 'forward',
+            icon: 'privacy',
+            title: $text('settings.privacy.connected_accounts.title')
+        });
+    }
+
+    function hasPendingConnectedAccountOAuthUpdate(): boolean {
+        if (typeof window === 'undefined') return false;
+        const hasHandoff = new URLSearchParams(window.location.search).has('oauth_handoff_id');
+        return hasHandoff && Boolean(sessionStorage.getItem(CALENDAR_UPDATE_ACCOUNT_KEY));
     }
 
     // ─── Ephemeral Log Forwarding Opt-out ──────────────────────────────────
@@ -171,6 +199,14 @@ Based on Figma design: settings/privacy (node 1895:20576)
     hasToggle={true}
     checked={hidePersonalDataEnabled}
     onClick={navigateToHidePersonalData}
+/>
+
+<SettingsItem
+    type="subsubmenu"
+    icon="privacy"
+    subtitleTop={$text('settings.privacy.connected_accounts.subtitle')}
+    title={$text('settings.privacy.connected_accounts.title')}
+    onClick={navigateToConnectedAccounts}
 />
 
 <!-- Nearby by default (Maps/Location) -->

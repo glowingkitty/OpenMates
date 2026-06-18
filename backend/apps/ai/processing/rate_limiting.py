@@ -47,17 +47,26 @@ def _get_provider_rate_limit(provider_id: str) -> Optional[Dict[str, Any]]:
             logger.debug(f"No rate_limits section in provider config for '{provider_id}'")
             return None
         
-        # Determine which plan to use
-        # Check for provider-specific plan env var (e.g., BRAVE_SEARCH_PLAN)
-        # Format: {PROVIDER_ID}_PLAN (uppercase, with underscores)
-        plan_env_var = f"{provider_id.upper().replace('-', '_')}_PLAN"
-        plan_env_val = os.getenv(plan_env_var)
+        # Determine which plan to use. Most providers use {PROVIDER_ID}_PLAN,
+        # but Brave's documented config is BRAVE_SEARCH_PLAN because one API key
+        # backs web, news, video, and image search endpoints.
+        plan_env_vars = [f"{provider_id.upper().replace('-', '_')}_PLAN"]
+        if provider_id == "brave":
+            plan_env_vars = ["BRAVE_SEARCH_PLAN", "BRAVE_PLAN"]
+
+        plan_env_val = None
+        for candidate_env_var in plan_env_vars:
+            candidate_env_val = os.getenv(candidate_env_var)
+            if candidate_env_val:
+                plan_env_val = candidate_env_val
+                break
+
         if plan_env_val:
             plan = plan_env_val.lower()
         else:
-            plan = "free" if provider_id == "brave" else "pro"
+            plan = "pro"
             logger.warning(
-                f"{plan_env_var} not set for provider '{provider_id}'. Using '{plan}' plan defaults."
+                f"None of {plan_env_vars} set for provider '{provider_id}'. Using '{plan}' plan defaults."
             )
         
         # Get plan-specific rate limits

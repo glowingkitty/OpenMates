@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/settings/AppSettingsMemoriesEntryDetail.svelte
      Component for viewing and editing a specific app settings/memories entry.
      
-     This component is used for the app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id} nested route.
+     This component is used for the apps/{app_id}/settings_memories/{category_id}/entry/{entry_id} nested route.
      
      **Features**:
      - View mode: Shows all entry details with option to edit or delete
@@ -257,7 +257,7 @@
      */
     function goBack() {
         dispatch('openSettings', {
-            settingsPath: `app_store/${appId}/settings_memories/${categoryId}`,
+            settingsPath: `apps/${appId}/settings_memories/${categoryId}`,
             direction: 'back',
             icon: getIconName(app?.icon_image),
             title: category?.name_translation_key ? $text(category.name_translation_key) : categoryId

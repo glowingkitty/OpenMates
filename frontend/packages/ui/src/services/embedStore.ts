@@ -63,6 +63,7 @@ const embedRefToIdIndex = new Map<string, EmbedRefEntry>();
 const MAX_CHILD_EMBEDS_TO_INDEX = 50;
 const MAX_REF_REPAIR_CANDIDATES = 200;
 const DIRECT_EMBED_REF_ID_PREFIX_RE = /^[0-9a-f]{6}$/i;
+const YOUTUBE_VIDEO_ID_RE = /^[a-zA-Z0-9_-]{11}$/;
 
 const FILE_SEARCH_RESULT_LIMIT = 6;
 const FILE_LIKE_EMBED_TYPES = new Set([
@@ -76,6 +77,11 @@ const FILE_LIKE_EMBED_TYPES = new Set([
 ]);
 
 export interface PreviewBackfillMergeResult {
+  updated: boolean;
+  storePayload?: StoreEmbedPayload;
+}
+
+export interface VersionRestoreUpdateResult {
   updated: boolean;
   storePayload?: StoreEmbedPayload;
 }
@@ -589,12 +595,16 @@ export class EmbedStore {
     }
   }
 
-  private async extractRefFromResolvedEmbed(
+  private async extractRefsFromResolvedEmbed(
     embed: Record<string, unknown> | string | undefined,
-  ): Promise<{ embedRef: string | null; appId: string | null }> {
-    if (!embed) return { embedRef: null, appId: null };
+  ): Promise<{ embedRefs: string[]; appId: string | null }> {
+    if (!embed) return { embedRefs: [], appId: null };
 
     let decodedSource: unknown = embed;
+    const embedType =
+      typeof embed === "object" && typeof embed.type === "string"
+        ? embed.type
+        : null;
     if (typeof embed === "object" && typeof embed.content === "string") {
       decodedSource = await decodeToonContentLocal(embed.content);
     } else if (typeof embed === "string") {
@@ -602,13 +612,30 @@ export class EmbedStore {
     }
 
     if (!decodedSource || typeof decodedSource !== "object") {
-      return { embedRef: null, appId: null };
+      return { embedRefs: [], appId: null };
     }
 
     const decoded = decodedSource as Record<string, unknown>;
+    const embedRefs = new Set<string>();
+    if (typeof decoded.embed_ref === "string") {
+      embedRefs.add(decoded.embed_ref);
+    }
+    const videoId =
+      typeof decoded.video_id === "string" ? decoded.video_id : null;
+    const hasYouTubeVideoId =
+      videoId !== null && YOUTUBE_VIDEO_ID_RE.test(videoId);
+    if (hasYouTubeVideoId) {
+      embedRefs.add(videoId);
+    }
+
     return {
-      embedRef: typeof decoded.embed_ref === "string" ? decoded.embed_ref : null,
-      appId: typeof decoded.app_id === "string" ? decoded.app_id : null,
+      embedRefs: Array.from(embedRefs),
+      appId:
+        typeof decoded.app_id === "string"
+          ? decoded.app_id
+          : embedType === "video" || hasYouTubeVideoId
+            ? "videos"
+            : null,
     };
   }
 
@@ -2031,6 +2058,112 @@ export class EmbedStore {
   }
 
   /**
+   * Replace the latest parent embed snapshot with client-encrypted restored
+   * content. This mirrors normal `store_embed` persistence and never sends
+   * plaintext restored content to the backend.
+   */
+  async prepareVersionRestoreUpdate(
+    embedId: string,
+    restoredToonContent: string,
+    versionNumber: number,
+    contentHash: string,
+  ): Promise<VersionRestoreUpdateResult> {
+    const contentRef = `embed:${embedId}`;
+    const existing = await this.get(contentRef);
+    if (!existing || typeof existing !== "object") {
+      return { updated: false };
+    }
+
+    const rawEntry = embedCache.get(contentRef);
+    if (!rawEntry || !canStorePreviewBackfillLocally(rawEntry)) {
+      return { updated: false };
+    }
+
+    const embedKey = await this.getEmbedKey(embedId, rawEntry.hashed_chat_id);
+    if (!embedKey) {
+      return { updated: false };
+    }
+
+    const encryptedContent = await encryptWithEmbedKey(
+      restoredToonContent,
+      embedKey,
+    );
+    if (!encryptedContent) {
+      return { updated: false };
+    }
+
+    const nowMs = Date.now();
+    const updatedAtSeconds = Math.floor(nowMs / 1000);
+    const createdAt = rawEntry.createdAt || nowMs;
+    const createdAtSeconds =
+      createdAt > 10_000_000_000 ? Math.floor(createdAt / 1000) : createdAt;
+
+    const encryptedData = {
+      embed_id: embedId,
+      encrypted_type: rawEntry.encrypted_type,
+      encrypted_content: encryptedContent,
+      encrypted_text_preview: rawEntry.encrypted_text_preview,
+      status: rawEntry.status || "finished",
+      hashed_chat_id: rawEntry.hashed_chat_id,
+      hashed_message_id: rawEntry.hashed_message_id,
+      hashed_task_id: rawEntry.hashed_task_id,
+      hashed_user_id: rawEntry.hashed_user_id,
+      embed_ids: rawEntry.embed_ids,
+      parent_embed_id: rawEntry.parent_embed_id,
+      version_number: versionNumber,
+      file_path: rawEntry.file_path,
+      content_hash: contentHash,
+      text_length_chars: restoredToonContent.length,
+      is_private: rawEntry.is_private ?? false,
+      is_shared: rawEntry.is_shared ?? false,
+      createdAt: rawEntry.createdAt,
+      updatedAt: nowMs,
+    };
+
+    await this.putEncrypted(
+      contentRef,
+      encryptedData,
+      rawEntry.type,
+      restoredToonContent,
+      {
+        app_id: rawEntry.app_id,
+        skill_id: rawEntry.skill_id,
+        encryption_mode: rawEntry.encryption_mode,
+        vault_key_id: rawEntry.vault_key_id,
+      },
+    );
+
+    if (!canPersistPreviewBackfill(rawEntry)) {
+      return { updated: true };
+    }
+
+    return {
+      updated: true,
+      storePayload: {
+        embed_id: embedId,
+        encrypted_type: rawEntry.encrypted_type,
+        encrypted_content: encryptedContent,
+        encrypted_text_preview: rawEntry.encrypted_text_preview,
+        status: rawEntry.status || "finished",
+        hashed_chat_id: rawEntry.hashed_chat_id,
+        hashed_message_id: rawEntry.hashed_message_id,
+        hashed_task_id: rawEntry.hashed_task_id,
+        hashed_user_id: rawEntry.hashed_user_id,
+        embed_ids: rawEntry.embed_ids,
+        parent_embed_id: rawEntry.parent_embed_id,
+        version_number: versionNumber,
+        file_path: rawEntry.file_path,
+        content_hash: contentHash,
+        text_length_chars: restoredToonContent.length,
+        is_private: rawEntry.is_private ?? false,
+        is_shared: rawEntry.is_shared ?? false,
+        created_at: createdAtSeconds,
+        updated_at: updatedAtSeconds,
+      },
+    };
+  }
+
+  /**
    * Remove an embed from the in-memory cache.
    * Used to clean up "processing" placeholders when an embed transitions to
    * error/cancelled status without being persisted to IndexedDB.
@@ -3159,9 +3292,9 @@ export class EmbedStore {
       const registeredEmbedId = this.resolveByRef(embedRef);
       if (registeredEmbedId) return registeredEmbedId;
 
-      const { embedRef: verifiedRef, appId } =
-        await this.extractRefFromResolvedEmbed(resolvedEmbed);
-      if (verifiedRef === embedRef) {
+      const { embedRefs: verifiedRefs, appId } =
+        await this.extractRefsFromResolvedEmbed(resolvedEmbed);
+      if (verifiedRefs.includes(embedRef)) {
         this.registerEmbedRef(embedRef, candidateEmbedId, appId);
         return candidateEmbedId;
       }

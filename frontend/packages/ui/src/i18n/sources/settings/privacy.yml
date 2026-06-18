@@ -166,6 +166,90 @@ hide_personal_data.description:
   sv: OpenMates ersätter automatiskt känslig data med platshållare innan de skickas till OpenMates-servern och externa leverantörer för att skydda din integritet. Ersatt data är visuellt markerad. Du kan alltid klicka på en ersatt datapost för att skriva över ersättningen, eller stänga av funktionaliteten helt här.
   he: OpenMates תחליף באופן אוטומטי נתונים רגישים בממלאי מקום, לפני שליחתם לשרת של OpenMates ולכל ספק חיצוני, כדי להגן על הפרטיות שלך. נתונים שהוחלפו מודגשים באופן חזותי. תמיד ניתן ללחוץ על ערך נתונים שהוחלף כדי לדרוס את ההחלפה, או לכבות את הפונקציונליות לחלוטין כאן.
   verified_by_human: []
+connected_accounts.title:
+  context: Privacy settings sub-page title for encrypted third-party connected accounts.
+  en: Connected accounts
+  verified_by_human: [en]
+connected_accounts.subtitle:
+  context: Subtitle for the Privacy settings connected accounts row.
+  en: Apps | Providers
+  verified_by_human: [en]
+connected_accounts.description:
+  context: Description for the Privacy connected accounts page.
+  en: Connected accounts are stored as encrypted browser-managed records. OpenMates only receives encrypted account data and opaque hashes.
+  verified_by_human: [en]
+connected_accounts.loading:
+  context: Status while connected account summaries are loading.
+  en: Loading connected accounts...
+  verified_by_human: [en]
+connected_accounts.empty:
+  context: Empty state when the user has no connected accounts.
+  en: No connected accounts yet.
+  verified_by_human: [en]
+connected_accounts.accounts:
+  context: Section heading for connected account rows.
+  en: Accounts
+  verified_by_human: [en]
+connected_accounts.details:
+  context: Section heading for selected connected account details.
+  en: Account details
+  verified_by_human: [en]
+connected_accounts.account_label:
+  context: Detail row label for an encrypted connected account label.
+  en: Account label
+  verified_by_human: [en]
+connected_accounts.provider:
+  context: Detail row label for connected account provider.
+  en: Provider
+  verified_by_human: [en]
+connected_accounts.provider_google_calendar:
+  context: Provider display name for Google Calendar connected accounts.
+  en: Google Calendar
+  verified_by_human: [en]
+connected_accounts.app:
+  context: Detail row label for connected account app scope.
+  en: App
+  verified_by_human: [en]
+connected_accounts.capabilities:
+  context: Detail row label for connected account capabilities.
+  en: Capabilities
+  verified_by_human: [en]
+connected_accounts.runtime_modes:
+  context: Detail row label for connected account runtime permission modes.
+  en: Runtime modes
+  verified_by_human: [en]
+connected_accounts.none:
+  context: Placeholder for an empty connected account detail value.
+  en: None
+  verified_by_human: [en]
+connected_accounts.add_calendar_write:
+  context: Button label to request incremental Google Calendar write capability for an existing connected account.
+  en: Add Calendar write access
+  verified_by_human: [en]
+connected_accounts.finalizing:
+  context: Status while an OAuth handoff is being encrypted into an existing connected account.
+  en: Encrypting and saving connected account update...
+  verified_by_human: [en]
+connected_accounts.updated_success:
+  context: Success message after a connected account update is encrypted and stored.
+  en: Connected account updated. New access was encrypted before saving.
+  verified_by_human: [en]
+connected_accounts.sign_in_required:
+  context: Message shown when an unauthenticated user opens connected-account settings.
+  en: Sign in to manage connected accounts.
+  verified_by_human: [en]
+connected_accounts.load_error:
+  context: Safe generic error when encrypted connected account summaries cannot load.
+  en: Could not load connected accounts.
+  verified_by_human: [en]
+connected_accounts.update_error:
+  context: Safe generic error when an account update OAuth flow cannot start.
+  en: Could not start connected account update.
+  verified_by_human: [en]
+connected_accounts.finalize_error:
+  context: Safe generic error when an account update OAuth handoff cannot be saved.
+  en: Could not finish updating connected account.
+  verified_by_human: [en]
 nearby_by_default:
   context: Toggle label for nearby by default location setting
   en: Nearby by default

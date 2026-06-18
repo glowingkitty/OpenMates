@@ -5,7 +5,7 @@
  *
  * Names of specific businesses, doctors, venues and organisers are
  * hand-crafted and clearly fictional (most marked "(fictional)") so
- * the app store never promotes real-world entities. Geography and
+ * the Apps never promotes real-world entities. Geography and
  * street names are REAL (EU cities) so maps and addresses render
  * authentically. A "Sample data" banner is shown above the fullscreen
  * via the is_store_example flag set by SkillExamplesSection.

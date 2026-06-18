@@ -15,7 +15,7 @@
 # via scripts/auto_translate.py.
 
 web.search.1:
-  context: Query label for the first web search example in the app store. Shown on a preview card that opens a real Brave Search result set for quick and healthy everyday dinner recipes.
+  context: Query label for the first web search example in the Apps. Shown on a preview card that opens a real Brave Search result set for quick and healthy everyday dinner recipes.
   en: Quick healthy dinner recipes under 30 minutes
   de: Schnelle gesunde Abendessen-Rezepte unter 30 Minuten
   zh: 30分钟内快速健康晚餐食谱
@@ -39,7 +39,7 @@ web.search.1:
   it: Ricette per cene sane e veloci in meno di 30 minuti
   verified_by_human: [en]
 web.search.2:
-  context: Query label for the second web search example in the app store. Shown on a preview card that opens a real Brave Search result set for family-friendly beaches across southern Europe.
+  context: Query label for the second web search example in the Apps. Shown on a preview card that opens a real Brave Search result set for family-friendly beaches across southern Europe.
   en: Best family-friendly beaches in southern Europe
   de: Beste familienfreundliche Strände in Südeuropa
   zh: 南欧最佳亲子海滩
@@ -63,7 +63,7 @@ web.search.2:
   it: "Migliori spiagge per famiglie nell'Europa meridionale"
   verified_by_human: [en]
 web.search.3:
-  context: Query label for the third web search example in the app store. Shown on a preview card that opens a real Brave Search result set for everyday, non-medical tips to improve your sleep naturally.
+  context: Query label for the third web search example in the Apps. Shown on a preview card that opens a real Brave Search result set for everyday, non-medical tips to improve your sleep naturally.
   en: Natural ways to improve your sleep
   de: Natürliche Wege, deinen Schlaf zu verbessern
   zh: 改善睡眠的自然方法
@@ -88,7 +88,7 @@ web.search.3:
   verified_by_human: [en]
 
 news.search.1:
-  context: Query label for the first news search example in the app store. Shown on a preview card that opens a real Brave news result set about European travel trends for summer 2026.
+  context: Query label for the first news search example in the Apps. Shown on a preview card that opens a real Brave news result set about European travel trends for summer 2026.
   en: European travel trends for summer 2026
   de: Europäische Reisetrends für den Sommer 2026
   zh: 2026年夏季欧洲旅游趋势
@@ -112,7 +112,7 @@ news.search.1:
   it: "Tendenze di viaggio in Europa per l'estate 2026"
   verified_by_human: [en]
 news.search.2:
-  context: Query label for the second news search example in the app store. Shown on a preview card that opens a real Brave news result set about healthy eating recommendations and dietary guidance across Europe.
+  context: Query label for the second news search example in the Apps. Shown on a preview card that opens a real Brave news result set about healthy eating recommendations and dietary guidance across Europe.
   en: Healthy eating recommendations in Europe
   de: Empfehlungen für gesunde Ernährung in Europa
   zh: 欧洲健康饮食建议
@@ -136,7 +136,7 @@ news.search.2:
   it: "Consigli per un'alimentazione sana in Europa"
   verified_by_human: [en]
 news.search.3:
-  context: Query label for the third news search example in the app store. Shown on a preview card that opens a real Brave news result set about cultural festivals happening across Europe this summer.
+  context: Query label for the third news search example in the Apps. Shown on a preview card that opens a real Brave news result set about cultural festivals happening across Europe this summer.
   en: Cultural festivals in Europe this summer
   de: Kulturfestivals in Europa diesen Sommer
   zh: 今年夏天欧洲的文化节
@@ -161,7 +161,7 @@ news.search.3:
   verified_by_human: [en]
 
 videos.search.1:
-  context: Query label for the first videos search example in the app store. Shown on a preview card that opens real Brave video results for videos about NASA's Artemis II Moon mission.
+  context: Query label for the first videos search example in the Apps. Shown on a preview card that opens real Brave video results for videos about NASA's Artemis II Moon mission.
   en: Artemis II mission videos
   de: Videos zur Artemis-II-Mission
   zh: 阿耳忒弥斯2号任务视频
@@ -185,7 +185,7 @@ videos.search.1:
   it: Video della missione Artemis II
   verified_by_human: [en]
 videos.search.2:
-  context: Query label for the second videos search example in the app store. Shown on a preview card that opens real Brave video results for easy weeknight pasta recipe tutorials.
+  context: Query label for the second videos search example in the Apps. Shown on a preview card that opens real Brave video results for easy weeknight pasta recipe tutorials.
   en: Easy weeknight pasta recipes
   de: Einfache Pasta-Rezepte für unter der Woche
   zh: 简单的工作日意面食谱
@@ -209,7 +209,7 @@ videos.search.2:
   it: Ricette di pasta facili e veloci
   verified_by_human: [en]
 videos.search.3:
-  context: Query label for the third videos search example in the app store. Shown on a preview card that opens real Brave video results for a beginner morning yoga routine.
+  context: Query label for the third videos search example in the Apps. Shown on a preview card that opens real Brave video results for a beginner morning yoga routine.
   en: Beginner morning yoga routine
   de: Morgenyoga-Routine für Anfänger
   zh: 初学者晨间瑜伽练习
@@ -234,7 +234,7 @@ videos.search.3:
   verified_by_human: [en]
 
 maps.search.1:
-  context: Query label for the first maps search example in the app store. Shown on a preview card that opens a map of bakeries and cafés across central Paris.
+  context: Query label for the first maps search example in the Apps. Shown on a preview card that opens a map of bakeries and cafés across central Paris.
   en: Bakeries and cafés in central Paris
   de: Bäckereien und Cafés im Zentrum von Paris
   zh: 巴黎市中心的烘焙店和咖啡馆
@@ -258,7 +258,7 @@ maps.search.1:
   it: Panetterie e caffè nel centro di Parigi
   verified_by_human: [en]
 maps.search.2:
-  context: Query label for the second maps search example in the app store. Shown on a preview card that opens a map of family-friendly parks across Berlin.
+  context: Query label for the second maps search example in the Apps. Shown on a preview card that opens a map of family-friendly parks across Berlin.
   en: Family-friendly parks in Berlin
   de: Familienfreundliche Parks in Berlin
   zh: 柏林的亲子公园
@@ -282,7 +282,7 @@ maps.search.2:
   it: Parchi per famiglie a Berlino
   verified_by_human: [en]
 maps.search.3:
-  context: Query label for the third maps search example in the app store. Shown on a preview card that opens a map of tapas bars in central Barcelona.
+  context: Query label for the third maps search example in the Apps. Shown on a preview card that opens a map of tapas bars in central Barcelona.
   en: Tapas bars in central Barcelona
   de: Tapas-Bars im Zentrum von Barcelona
   zh: 巴塞罗那市中心的塔帕斯酒吧
@@ -307,7 +307,7 @@ maps.search.3:
   verified_by_human: [en]
 
 shopping.search_products.1:
-  context: Query label for the first shopping search example in the app store. Shown on a preview card that opens real REWE supermarket product results for organic dark chocolate bars.
+  context: Query label for the first shopping search example in the Apps. Shown on a preview card that opens real REWE supermarket product results for organic dark chocolate bars.
   en: Organic dark chocolate
   de: Bio-Zartbitterschokolade
   zh: 有机黑巧克力
@@ -331,7 +331,7 @@ shopping.search_products.1:
   he: שוקולד מריר אורגני
   verified_by_human: [en]
 shopping.search_products.2:
-  context: Query label for the second shopping search example in the app store. Shown on a preview card that opens real REWE supermarket product results for extra virgin olive oil.
+  context: Query label for the second shopping search example in the Apps. Shown on a preview card that opens real REWE supermarket product results for extra virgin olive oil.
   en: Extra virgin olive oil
   de: Natives Olivenöl extra
   zh: 特级初榨橄榄油
@@ -355,7 +355,7 @@ shopping.search_products.2:
   he: שמן זית כתית מעולה
   verified_by_human: [en]
 shopping.search_products.3:
-  context: Query label for the third shopping search example in the app store. Shown on a preview card that opens real REWE supermarket product results for spaghetti pasta.
+  context: Query label for the third shopping search example in the Apps. Shown on a preview card that opens real REWE supermarket product results for spaghetti pasta.
   en: Spaghetti pasta
   de: Spaghetti
   zh: 意大利面
@@ -380,7 +380,7 @@ shopping.search_products.3:
   verified_by_human: [en]
 
 travel.search_stays.1:
-  context: Query label for the first travel stays example in the app store. Shown on a preview card that opens hotel options in central Lisbon, Portugal.
+  context: Query label for the first travel stays example in the Apps. Shown on a preview card that opens hotel options in central Lisbon, Portugal.
   en: Hotels in central Lisbon
   de: Hotels im Zentrum von Lissabon
   zh: 里斯本市中心的酒店
@@ -404,7 +404,7 @@ travel.search_stays.1:
   it: Hotel nel centro di Lisbona
   verified_by_human: [en]
 travel.search_stays.2:
-  context: Query label for the second travel stays example in the app store. Shown on a preview card that opens mountain cabin options in the Austrian Alps.
+  context: Query label for the second travel stays example in the Apps. Shown on a preview card that opens mountain cabin options in the Austrian Alps.
   en: Mountain cabins in the Austrian Alps
   de: Berghütten in den österreichischen Alpen
   zh: 奥地利阿尔卑斯山脉的山间木屋
@@ -428,7 +428,7 @@ travel.search_stays.2:
   it: Baite di montagna nelle Alpi austriache
   verified_by_human: [en]
 travel.search_stays.3:
-  context: Query label for the third travel stays example in the app store. Shown on a preview card that opens family-friendly hotel options across the Greek islands.
+  context: Query label for the third travel stays example in the Apps. Shown on a preview card that opens family-friendly hotel options across the Greek islands.
   en: Family hotels in the Greek islands
   de: Familienhotels auf den griechischen Inseln
   zh: 希腊群岛的亲子酒店
@@ -453,7 +453,7 @@ travel.search_stays.3:
   verified_by_human: [en]
 
 events.search.1:
-  context: Query label for the first events search example in the app store. Shown on a preview card that opens results for farmers markets and food festivals in Lyon, France.
+  context: Query label for the first events search example in the Apps. Shown on a preview card that opens results for farmers markets and food festivals in Lyon, France.
   en: Farmers markets and food festivals in Lyon
   de: Wochenmärkte und Food-Festivals in Lyon
   zh: 里昂的农贸市场和美食节
@@ -477,7 +477,7 @@ events.search.1:
   it: Mercati agricoli e festival gastronomici a Lione
   verified_by_human: [en]
 events.search.2:
-  context: Query label for the second events search example in the app store. Shown on a preview card that opens results for family-friendly weekend events in Vienna, Austria.
+  context: Query label for the second events search example in the Apps. Shown on a preview card that opens results for family-friendly weekend events in Vienna, Austria.
   en: Family weekend events in Vienna
   de: Wochenend-Events für Familien in Wien
   zh: 维也纳的家庭周末活动
@@ -501,7 +501,7 @@ events.search.2:
   it: Eventi per famiglie nel weekend a Vienna
   verified_by_human: [en]
 events.search.3:
-  context: Query label for the third events search example in the app store. Shown on a preview card that opens results for outdoor summer concerts in Amsterdam, Netherlands.
+  context: Query label for the third events search example in the Apps. Shown on a preview card that opens results for outdoor summer concerts in Amsterdam, Netherlands.
   en: Summer concerts in Amsterdam
   de: Sommerkonzerte in Amsterdam
   zh: 阿姆斯特丹的夏季音乐会
@@ -526,7 +526,7 @@ events.search.3:
   verified_by_human: [en]
 
 images.search.1:
-  context: Query label for the first images search example in the app store. Shown on a preview card that opens real Brave image results for the Artemis II Moon mission.
+  context: Query label for the first images search example in the Apps. Shown on a preview card that opens real Brave image results for the Artemis II Moon mission.
   en: Artemis II mission
   de: Artemis-II-Mission
   zh: 阿耳忒弥斯2号任务
@@ -550,7 +550,7 @@ images.search.1:
   it: Missione Artemis II
   verified_by_human: [en]
 images.search.2:
-  context: Query label for the second images search example in the app store. Shown on a preview card that opens real Brave image results for a Mediterranean coastal village at sunset.
+  context: Query label for the second images search example in the Apps. Shown on a preview card that opens real Brave image results for a Mediterranean coastal village at sunset.
   en: Mediterranean coast village at sunset
   de: Dorf an der Mittelmeerküste bei Sonnenuntergang
   zh: 日落时分的地中海沿岸村庄
@@ -574,7 +574,7 @@ images.search.2:
   it: Villaggio costiero mediterraneo al tramonto
   verified_by_human: [en]
 images.search.3:
-  context: Query label for the third images search example in the app store. Shown on a preview card that opens real Brave image results for a cozy winter breakfast table setting.
+  context: Query label for the third images search example in the Apps. Shown on a preview card that opens real Brave image results for a cozy winter breakfast table setting.
   en: Cozy winter breakfast table
   de: Gemütlicher Frühstückstisch im Winter
   zh: 温馨的冬季早餐桌
@@ -599,7 +599,7 @@ images.search.3:
   verified_by_human: [en]
 
 code.get_docs.1:
-  context: Query label for the first code get_docs example in the app store. Shown on a preview card that opens real Context7 documentation for the Svelte 5 $state rune.
+  context: Query label for the first code get_docs example in the Apps. Shown on a preview card that opens real Context7 documentation for the Svelte 5 $state rune.
   en: Svelte 5 $state rune
   de: Svelte 5 $state-Rune
   zh: Svelte 5 $state 符文
@@ -623,7 +623,7 @@ code.get_docs.1:
   he: רון $state ב-Svelte 5
   verified_by_human: [en]
 code.get_docs.2:
-  context: Query label for the second code get_docs example in the app store. Shown on a preview card that opens real Context7 documentation for the React useState hook.
+  context: Query label for the second code get_docs example in the Apps. Shown on a preview card that opens real Context7 documentation for the React useState hook.
   en: React useState hook
   de: React useState-Hook
   zh: React useState 钩子
@@ -647,7 +647,7 @@ code.get_docs.2:
   he: הוק useState ב-React
   verified_by_human: [en]
 code.get_docs.3:
-  context: Query label for the third code get_docs example in the app store. Shown on a preview card that opens real Context7 documentation for FastAPI path parameters.
+  context: Query label for the third code get_docs example in the Apps. Shown on a preview card that opens real Context7 documentation for FastAPI path parameters.
   en: FastAPI path parameters
   de: FastAPI-Pfadparameter
   zh: FastAPI 路径参数
@@ -672,7 +672,7 @@ code.get_docs.3:
   verified_by_human: [en]
 
 health.search_appointments.1:
-  context: Query label for the first health appointments example in the app store. Shown on a preview card that opens real Doctolib appointment results for ophthalmologists (eye doctors) in Berlin, Germany.
+  context: Query label for the first health appointments example in the Apps. Shown on a preview card that opens real Doctolib appointment results for ophthalmologists (eye doctors) in Berlin, Germany.
   en: Eye doctor in Berlin
   de: Augenarzt in Berlin
   zh: 柏林的眼科医生
@@ -696,7 +696,7 @@ health.search_appointments.1:
   he: רופא עיניים בברלין
   verified_by_human: [en]
 health.search_appointments.2:
-  context: Query label for the second health appointments example in the app store. Shown on a preview card that opens real appointment results for dermatologists (skin doctors) in Munich, Germany.
+  context: Query label for the second health appointments example in the Apps. Shown on a preview card that opens real appointment results for dermatologists (skin doctors) in Munich, Germany.
   en: Dermatologist in Munich
   de: Hautarzt in München
   zh: 慕尼黑的皮肤科医生
@@ -720,7 +720,7 @@ health.search_appointments.2:
   he: רופא עור במינכן
   verified_by_human: [en]
 health.search_appointments.3:
-  context: Query label for the third health appointments example in the app store. Shown on a preview card that opens real appointment results for gynecologists in Hamburg, Germany.
+  context: Query label for the third health appointments example in the Apps. Shown on a preview card that opens real appointment results for gynecologists in Hamburg, Germany.
   en: Gynecologist in Hamburg
   de: Frauenarzt in Hamburg
   zh: 汉堡的妇科医生
@@ -745,7 +745,7 @@ health.search_appointments.3:
   verified_by_human: [en]
 
 home.search.1:
-  context: Query label for the first home listings example in the app store. Shown on a preview card that opens real rental listings for apartments in Berlin, Germany.
+  context: Query label for the first home listings example in the Apps. Shown on a preview card that opens real rental listings for apartments in Berlin, Germany.
   en: Apartments for rent in Berlin
   de: Mietwohnungen in Berlin
   zh: 柏林的待租公寓
@@ -769,7 +769,7 @@ home.search.1:
   he: דירות להשכרה בברלין
   verified_by_human: [en]
 home.search.2:
-  context: Query label for the second home listings example in the app store. Shown on a preview card that opens real purchase listings for apartments in Munich, Germany.
+  context: Query label for the second home listings example in the Apps. Shown on a preview card that opens real purchase listings for apartments in Munich, Germany.
   en: Apartments to buy in Munich
   de: Eigentumswohnungen in München
   zh: 慕尼黑的待售公寓
@@ -793,7 +793,7 @@ home.search.2:
   he: דירות לקנייה במינכן
   verified_by_human: [en]
 home.search.3:
-  context: Query label for the third home listings example in the app store. Shown on a preview card that opens real listings for homes in the old town district of Hamburg, Germany.
+  context: Query label for the third home listings example in the Apps. Shown on a preview card that opens real listings for homes in the old town district of Hamburg, Germany.
   en: Homes in Hamburg Altstadt
   de: Häuser in Hamburg Altstadt
   zh: 汉堡老城区的住宅
@@ -818,7 +818,7 @@ home.search.3:
   verified_by_human: [en]
 
 travel.search_connections.1:
-  context: Query label for the first travel connections example in the app store. Shown on a preview card that opens real Google Flights results for flights from Munich, Germany to London, United Kingdom.
+  context: Query label for the first travel connections example in the Apps. Shown on a preview card that opens real Google Flights results for flights from Munich, Germany to London, United Kingdom.
   en: Flights from Munich to London
   de: Flüge von München nach London
   zh: 慕尼黑飞往伦敦的航班
@@ -842,7 +842,7 @@ travel.search_connections.1:
   he: טיסות ממינכן ללונדון
   verified_by_human: [en]
 travel.search_connections.2:
-  context: Query label for the second travel connections example in the app store. Shown on a preview card that opens real Google Flights results for flights from Berlin, Germany to Barcelona, Spain.
+  context: Query label for the second travel connections example in the Apps. Shown on a preview card that opens real Google Flights results for flights from Berlin, Germany to Barcelona, Spain.
   en: Flights from Berlin to Barcelona
   de: Flüge von Berlin nach Barcelona
   zh: 柏林飞往巴塞罗那的航班
@@ -866,7 +866,7 @@ travel.search_connections.2:
   he: טיסות מברלין לברצלונה
   verified_by_human: [en]
 travel.search_connections.3:
-  context: Query label for the third travel connections example in the app store. Shown on a preview card that opens real Google Flights results for flights from Frankfurt, Germany to Paris, France.
+  context: Query label for the third travel connections example in the Apps. Shown on a preview card that opens real Google Flights results for flights from Frankfurt, Germany to Paris, France.
   en: Flights from Frankfurt to Paris
   de: Flüge von Frankfurt nach Paris
   zh: 法兰克福飞往巴黎的航班
@@ -891,7 +891,7 @@ travel.search_connections.3:
   verified_by_human: [en]
 
 travel.price_calendar.1:
-  context: Query label for the first travel price calendar example in the app store. Shown on a preview card that opens a monthly fare calendar for flights from Munich, Germany to London, United Kingdom in May 2026.
+  context: Query label for the first travel price calendar example in the Apps. Shown on a preview card that opens a monthly fare calendar for flights from Munich, Germany to London, United Kingdom in May 2026.
   en: Munich → London, May 2026
   de: München → London, Mai 2026
   zh: 慕尼黑 → 伦敦，2026年5月
@@ -915,7 +915,7 @@ travel.price_calendar.1:
   he: מינכן ← לונדון, מאי 2026
   verified_by_human: [en]
 travel.price_calendar.2:
-  context: Query label for the second travel price calendar example in the app store. Shown on a preview card that opens a monthly fare calendar for flights from Berlin, Germany to Barcelona, Spain in June 2026.
+  context: Query label for the second travel price calendar example in the Apps. Shown on a preview card that opens a monthly fare calendar for flights from Berlin, Germany to Barcelona, Spain in June 2026.
   en: Berlin → Barcelona, June 2026
   de: Berlin → Barcelona, Juni 2026
   zh: 柏林 → 巴塞罗那，2026年6月
@@ -939,7 +939,7 @@ travel.price_calendar.2:
   he: ברלין ← ברצלונה, יוני 2026
   verified_by_human: [en]
 travel.price_calendar.3:
-  context: Query label for the third travel price calendar example in the app store. Shown on a preview card that opens a monthly fare calendar for flights from Frankfurt, Germany to Paris, France in July 2026.
+  context: Query label for the third travel price calendar example in the Apps. Shown on a preview card that opens a monthly fare calendar for flights from Frankfurt, Germany to Paris, France in July 2026.
   en: Frankfurt → Paris, July 2026
   de: Frankfurt → Paris, Juli 2026
   zh: 法兰克福 → 巴黎，2026年7月
@@ -964,7 +964,7 @@ travel.price_calendar.3:
   verified_by_human: [en]
 
 videos.get_transcript.1:
-  context: Query label for the first video transcript example in the app store. Shown on a preview card that opens the transcript of a famous life-advice commencement speech on YouTube.
+  context: Query label for the first video transcript example in the Apps. Shown on a preview card that opens the transcript of a famous life-advice commencement speech on YouTube.
   en: A famous life-advice speech
   de: Eine berühmte Rede mit Lebensweisheiten
   zh: 一场著名的生活建议演讲
@@ -988,7 +988,7 @@ videos.get_transcript.1:
   it: Un famoso discorso con consigli di vita
   verified_by_human: [en]
 videos.get_transcript.2:
-  context: Query label for the second video transcript example in the app store. Shown on a preview card that opens the transcript of a popular TED talk about body language.
+  context: Query label for the second video transcript example in the Apps. Shown on a preview card that opens the transcript of a popular TED talk about body language.
   en: A popular TED talk on body language
   de: Ein beliebter TED-Talk über Körpersprache
   zh: 关于肢体语言的热门 TED 演讲
@@ -1012,7 +1012,7 @@ videos.get_transcript.2:
   it: Un popolare TED talk sul linguaggio del corpo
   verified_by_human: [en]
 videos.get_transcript.3:
-  context: Query label for the third video transcript example in the app store. Shown on a preview card that opens the transcript of a popular TED talk about human connection and vulnerability.
+  context: Query label for the third video transcript example in the Apps. Shown on a preview card that opens the transcript of a popular TED talk about human connection and vulnerability.
   en: A popular TED talk on connection
   de: Ein beliebter TED-Talk über Verbundenheit
   zh: 关于人际连接的热门 TED 演讲
@@ -1037,7 +1037,7 @@ videos.get_transcript.3:
   verified_by_human: [en]
 
 nutrition.search_recipes.1:
-  context: Query label for the first nutrition recipe search example in the app store. Shown on a preview card that displays vegetarian pasta recipes from the Edamam-backed nutrition recipe search skill.
+  context: Query label for the first nutrition recipe search example in the Apps. Shown on a preview card that displays vegetarian pasta recipes from the Edamam-backed nutrition recipe search skill.
   en: Vegetarian pasta recipes
   de: Vegetarische Pasta-Rezepte
   zh: 素食意面食谱
@@ -1062,7 +1062,7 @@ nutrition.search_recipes.1:
   verified_by_human: [en]
 
 nutrition.search_recipes.2:
-  context: Query label for the second nutrition recipe search example in the app store. Shown on a preview card that displays easy recipe results from the Edamam-backed nutrition recipe search skill.
+  context: Query label for the second nutrition recipe search example in the Apps. Shown on a preview card that displays easy recipe results from the Edamam-backed nutrition recipe search skill.
   en: Easy casserole recipes
   de: Einfache Auflauf-Rezepte
   zh: 快速碗食谱
@@ -1087,7 +1087,7 @@ nutrition.search_recipes.2:
   verified_by_human: [en]
 
 nutrition.search_recipes.3:
-  context: Query label for the third nutrition recipe search example in the app store. Shown on a preview card that displays low-carb dinner recipes from the Edamam-backed nutrition recipe search skill.
+  context: Query label for the third nutrition recipe search example in the Apps. Shown on a preview card that displays low-carb dinner recipes from the Edamam-backed nutrition recipe search skill.
   en: Low carb dinner recipes
   de: Low-Carb-Abendessen-Rezepte
   zh: 低碳晚餐食谱
@@ -1112,7 +1112,7 @@ nutrition.search_recipes.3:
   verified_by_human: [en]
 
 math.calculate.1:
-  context: Expression label for the first math calculate example in the app store. Shows a square root and exponent calculation.
+  context: Expression label for the first math calculate example in the Apps. Shows a square root and exponent calculation.
   en: "sqrt(144) + 3^4"
   de: "sqrt(144) + 3^4"
   zh: "sqrt(144) + 3^4"
@@ -1137,7 +1137,7 @@ math.calculate.1:
   verified_by_human: [en]
 
 math.calculate.2:
-  context: Expression label for the second math calculate example in the app store. Shows a unit conversion from km/h to mph.
+  context: Expression label for the second math calculate example in the Apps. Shows a unit conversion from km/h to mph.
   en: 150 km/h to mph
   de: 150 km/h in mph
   zh: 150 km/h 转换为 mph
@@ -1162,7 +1162,7 @@ math.calculate.2:
   verified_by_human: [en]
 
 math.calculate.3:
-  context: Expression label for the third math calculate example in the app store. Shows a trigonometric calculation.
+  context: Expression label for the third math calculate example in the Apps. Shows a trigonometric calculation.
   en: "sin(π/4) × cos(π/4)"
   de: "sin(π/4) × cos(π/4)"
   zh: "sin(π/4) × cos(π/4)"
@@ -1187,7 +1187,7 @@ math.calculate.3:
   verified_by_human: [en]
 
 weather.forecast.1:
-  context: Query label for the first weather forecast example in the app store. Shows a Berlin forecast using the Bright Sky / DWD provider path.
+  context: Query label for the first weather forecast example in the Apps. Shows a Berlin forecast using the Bright Sky / DWD provider path.
   en: Berlin weather forecast for this week
   de: Wettervorhersage für Berlin für diese Woche
   zh: 柏林本周天气预报
@@ -1212,7 +1212,7 @@ weather.forecast.1:
   verified_by_human: [en]
 
 weather.forecast.2:
-  context: Query label for the second weather forecast example in the app store. Shows a Tokyo forecast using the Open-Meteo provider path.
+  context: Query label for the second weather forecast example in the Apps. Shows a Tokyo forecast using the Open-Meteo provider path.
   en: Tokyo weather forecast for the next few days
   de: Wettervorhersage für Tokio für die nächsten Tage
   zh: 东京未来几天天气预报
@@ -1237,7 +1237,7 @@ weather.forecast.2:
   verified_by_human: [en]
 
 travel.get_flight.1:
-  context: Query label for the first flight tracking example in the app store. Shows a Lufthansa flight from Munich to London.
+  context: Query label for the first flight tracking example in the Apps. Shows a Lufthansa flight from Munich to London.
   en: Flight LH2472 Munich → London
   de: Flug LH2472 München → London
   zh: LH2472航班 慕尼黑→伦敦
@@ -1262,7 +1262,7 @@ travel.get_flight.1:
   verified_by_human: [en]
 
 travel.get_flight.2:
-  context: Query label for the second flight tracking example in the app store. Shows a British Airways flight from London to Rome.
+  context: Query label for the second flight tracking example in the Apps. Shows a British Airways flight from London to Rome.
   en: Flight BA918 London → Rome
   de: Flug BA918 London → Rom
   zh: BA918航班 伦敦→罗马
@@ -1287,7 +1287,7 @@ travel.get_flight.2:
   verified_by_human: [en]
 
 travel.get_flight.3:
-  context: Query label for the third flight tracking example in the app store. Shows a Eurowings flight from Berlin to Barcelona.
+  context: Query label for the third flight tracking example in the Apps. Shows a Eurowings flight from Berlin to Barcelona.
   en: Flight EW8614 Berlin → Barcelona
   de: Flug EW8614 Berlin → Barcelona
   zh: EW8614航班 柏林→巴塞罗那
@@ -1312,7 +1312,7 @@ travel.get_flight.3:
   verified_by_human: [en]
 
 images.generate.1:
-  context: Query label for the first image generate example in the app store. Shows a product photography result generated by Google Gemini.
+  context: Query label for the first image generate example in the Apps. Shows a product photography result generated by Google Gemini.
   en: Ceramic bowls with berries
   de: Keramikschalen mit Beeren
   zh: 陶瓷碗与浆果
@@ -1337,7 +1337,7 @@ images.generate.1:
   verified_by_human: [en]
 
 images.generate.2:
-  context: Query label for the second image generate example in the app store. Shows an architectural photograph generated by Google Gemini.
+  context: Query label for the second image generate example in the Apps. Shows an architectural photograph generated by Google Gemini.
   en: Concrete house with mountain view
   de: Betonhaus mit Bergblick
   zh: 混凝土房屋与山景
@@ -1362,7 +1362,7 @@ images.generate.2:
   verified_by_human: [en]
 
 images.generate.3:
-  context: Query label for the third image generate example in the app store. Shows a macro photograph generated by Google Gemini.
+  context: Query label for the third image generate example in the Apps. Shows a macro photograph generated by Google Gemini.
   en: Morning dew on spider web
   de: Morgentau auf Spinnennetz
   zh: 蜘蛛网上的晨露
@@ -1387,7 +1387,7 @@ images.generate.3:
   verified_by_human: [en]
 
 images.generate_draft.1:
-  context: Query label for the first image generate draft example in the app store. Shows a flat illustration generated by Flux.
+  context: Query label for the first image generate draft example in the Apps. Shows a flat illustration generated by Flux.
   en: Weekly meal planner illustration
   de: Wochenplan-Illustration für Mahlzeiten
   zh: 每周膳食计划插图
@@ -1412,7 +1412,7 @@ images.generate_draft.1:
   verified_by_human: [en]
 
 images.generate_draft.2:
-  context: Query label for the second image generate draft example in the app store. Shows a desk workspace photo generated by Flux.
+  context: Query label for the second image generate draft example in the Apps. Shows a desk workspace photo generated by Flux.
   en: Organized desk workspace
   de: Aufgeräumter Schreibtisch-Arbeitsplatz
   zh: 整洁的办公桌工作区
@@ -1437,7 +1437,7 @@ images.generate_draft.2:
   verified_by_human: [en]
 
 images.generate_draft.3:
-  context: Query label for the third image generate draft example in the app store. Shows a watercolor street scene generated by Flux.
+  context: Query label for the third image generate draft example in the Apps. Shows a watercolor street scene generated by Flux.
   en: European cobblestone street at dusk
   de: Europäische Kopfsteinpflasterstraße in der Abenddämmerung
   zh: 黄昏时分的欧洲鹅卵石街道
@@ -1462,7 +1462,7 @@ images.generate_draft.3:
   verified_by_human: [en]
 
 electronics.search_components.1:
-  context: Query label for the first electronics component search example in the app store. Shown on a preview card that opens real TI WEBENCH buck converter recommendations for converting 12V to 5V.
+  context: Query label for the first electronics component search example in the Apps. Shown on a preview card that opens real TI WEBENCH buck converter recommendations for converting 12V to 5V.
   en: 12V to 5V buck converter
   de: 12V zu 5V Abwärtswandler
   zh: 12V 转 5V 降压转换器
@@ -1486,7 +1486,7 @@ electronics.search_components.1:
   he: ממיר buck מ-12V ל-5V
   verified_by_human: [en]
 electronics.search_components.2:
-  context: Query label for the second electronics component search example in the app store. Shown on a preview card that opens real TI WEBENCH regulator recommendations for converting 24V to 3.3V.
+  context: Query label for the second electronics component search example in the Apps. Shown on a preview card that opens real TI WEBENCH regulator recommendations for converting 24V to 3.3V.
   en: 24V to 3.3V regulator module
   de: 24V zu 3,3V Reglermodul
   zh: 24V 转 3.3V 稳压模块
@@ -1511,7 +1511,7 @@ electronics.search_components.2:
   verified_by_human: [en]
 
 social_media.search.1:
-  context: Query label for the first social media search example in the app store. Shown on a preview card that opens sample social posts about indie coffee setup inspiration.
+  context: Query label for the first social media search example in the Apps. Shown on a preview card that opens sample social posts about indie coffee setup inspiration.
   en: Indie coffee setup inspiration
   de: Inspiration für Indie-Kaffee-Setups
   zh: 独立咖啡馆布置灵感
@@ -1535,7 +1535,7 @@ social_media.search.1:
   he: השראה לעמדת קפה אינדי
   verified_by_human: [en]
 social_media.search.2:
-  context: Query label for the second social media search example in the app store. Shown on a preview card that opens sample social posts about remote workshop facilitation tips.
+  context: Query label for the second social media search example in the Apps. Shown on a preview card that opens sample social posts about remote workshop facilitation tips.
   en: Remote workshop facilitation tips
   de: Tipps zur Moderation von Remote-Workshops
   zh: 远程工作坊引导技巧
@@ -1559,7 +1559,7 @@ social_media.search.2:
   he: טיפים להנחיית סדנאות מרחוק
   verified_by_human: [en]
 social_media.get_posts.1:
-  context: Query label for the first social media get-posts example in the app store. Shown on a preview card that opens sample posts from a fictional garden account.
+  context: Query label for the first social media get-posts example in the Apps. Shown on a preview card that opens sample posts from a fictional garden account.
   en: Garden account posts
   de: Beiträge von Garten-Accounts
   zh: 园艺账号帖子
@@ -1583,7 +1583,7 @@ social_media.get_posts.1:
   he: פוסטים מחשבון גינון
   verified_by_human: [en]
 social_media.get_posts.2:
-  context: Query label for the second social media get-posts example in the app store. Shown on a preview card that opens sample posts from a fictional travel community.
+  context: Query label for the second social media get-posts example in the Apps. Shown on a preview card that opens sample posts from a fictional travel community.
   en: Travel community posts
   de: Beiträge von Reise-Communities
   zh: 旅行社区帖子
@@ -1608,7 +1608,7 @@ social_media.get_posts.2:
   verified_by_human: [en]
 
 code.search_repos.1:
-  context: Query label for the first code repository search example in the app store. Shown on a preview card that opens real GitHub search results for svelte, including sveltejs/svelte.
+  context: Query label for the first code repository search example in the Apps. Shown on a preview card that opens real GitHub search results for svelte, including sveltejs/svelte.
   en: svelte
   de: svelte
   zh: svelte
@@ -1632,7 +1632,7 @@ code.search_repos.1:
   he: svelte
   verified_by_human: [en]
 code.search_repos.2:
-  context: Query label for the second code repository search example in the app store. Shown on a preview card that opens public GitHub metadata for sveltejs/kit.
+  context: Query label for the second code repository search example in the Apps. Shown on a preview card that opens public GitHub metadata for sveltejs/kit.
   en: SvelteKit framework
   de: SvelteKit-Framework
   zh: SvelteKit 框架
@@ -1656,7 +1656,7 @@ code.search_repos.2:
   he: פריימוורק SvelteKit
   verified_by_human: [en]
 code.search_repos.3:
-  context: Query label for the third code repository search example in the app store. Shown on a preview card that opens public GitHub metadata for fastapi/fastapi.
+  context: Query label for the third code repository search example in the Apps. Shown on a preview card that opens public GitHub metadata for fastapi/fastapi.
   en: FastAPI framework
   de: FastAPI-Framework
   zh: FastAPI 框架
@@ -1681,7 +1681,7 @@ code.search_repos.3:
   verified_by_human: [en]
 
 music.generate.1:
-  context: Query label for the music generation example in the app store. Shown on a preview card that opens a real generated lo-fi audio clip.
+  context: Query label for the music generation example in the Apps. Shown on a preview card that opens a real generated lo-fi audio clip.
   en: Warm lo-fi writing loop
   de: Warmer Lo-Fi-Schreib-Loop
   zh: 温暖的 lo-fi 写作循环乐曲
@@ -1706,7 +1706,7 @@ music.generate.1:
   verified_by_human: [en]
 
 videos.generate.1:
-  context: Query label for the video generation example in the app store. Shown on a preview card that opens a real generated alpine meadow video.
+  context: Query label for the video generation example in the Apps. Shown on a preview card that opens a real generated alpine meadow video.
   en: Alpine sunrise meadow
   de: Alpenwiese bei Sonnenaufgang
   zh: 阿尔卑斯日出草甸

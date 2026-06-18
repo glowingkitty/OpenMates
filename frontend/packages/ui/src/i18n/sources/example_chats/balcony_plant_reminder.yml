@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Balcony Plant Reminder"
   en: "Balcony Plant Reminder"
-  de: "Balcony Plant Reminder"
+  de: "Erinnerung: Balkonpflanzen gießen"
   zh: "Balcony Plant Reminder"
   es: "Balcony Plant Reminder"
   fr: "Balcony Plant Reminder"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Balcony Plant Reminder"
   en: "Set a simple reminder to water balcony plants at a specific time."
-  de: "Set a simple reminder to water balcony plants at a specific time."
+  de: Richte eine einfache Erinnerung ein, um Balkonpflanzen zu einer bestimmten Zeit zu gießen.
   zh: "Set a simple reminder to water balcony plants at a specific time."
   es: "Set a simple reminder to water balcony plants at a specific time."
   fr: "Set a simple reminder to water balcony plants at a specific time."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Balcony Plant Reminder. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Remind me tomorrow at 9:00 AM to water the balcony plants."
-  de: "Remind me tomorrow at 9:00 AM to water the balcony plants."
+  de: "Erinnere mich morgen um 9:00 Uhr daran, die Balkonpflanzen zu gießen."
   zh: "Remind me tomorrow at 9:00 AM to water the balcony plants."
   es: "Remind me tomorrow at 9:00 AM to water the balcony plants."
   fr: "Remind me tomorrow at 9:00 AM to water the balcony plants."
@@ -93,16 +93,16 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}
     ```
-
-    OK. I've set a reminder for you to water the balcony plants tomorrow, June 8th, at 9:00 AM UTC.
-
-    To make sure you don't miss the notification even if you aren't using the app, you might want to [enable email notifications](/#settings/apps/reminder) in your account settings.
-
-    Is there anything else you'd like to schedule, or perhaps some tips on balcony gardening?
-
-    **Follow-up suggestions:**
-    *   Would you like to make this a recurring weekly reminder?
-    *   Do you need help identifying which plants need more or less water?
+    
+    OK. Ich habe eine Erinnerung für dich eingerichtet, die Balkonpflanzen morgen, am 8. Juni, um 9:00 Uhr UTC zu gießen.
+    
+    Um sicherzustellen, dass du die Benachrichtigung auch dann nicht verpasst, wenn du die App gerade nicht nutzt, möchtest du vielleicht in deinen Kontoeinstellungen [E-Mail-Benachrichtigungen aktivieren](/#settings/apps/reminder).
+    
+    Gibt es noch etwas, das du planen möchtest, oder hättest du gerne ein paar Tipps zur Balkongärtnerei?
+    
+    **Vorschläge für das weitere Vorgehen:**
+    *   Möchtest du daraus eine wöchentlich wiederkehrende Erinnerung machen?
+    *   Benötigst du Hilfe bei der Bestimmung, welche Pflanzen mehr oder weniger Wasser benötigen?
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "d2acf0ee-89b9-4476-9a35-9de4895158aa", "app_id": "reminder", "skill_id": "set-reminder"}

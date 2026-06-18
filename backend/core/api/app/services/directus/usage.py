@@ -930,11 +930,11 @@ class UsageMethods:
         logger.info(f"{log_prefix} Fetching usage entries for user '{user_id_hash}'")
         
         try:
-            # Build query parameters - don't use sort parameter due to Directus permission issues
-            # We'll sort client-side instead to avoid 403 errors
-            # Fetch more entries than needed for pagination (we'll sort and slice client-side)
-            # Use a reasonable max limit to avoid fetching too much data
-            fetch_limit = (limit or 10) * 2 if limit else 100  # Fetch 2x the requested limit for sorting buffer
+            # Fetch the requested page in deterministic newest-first order. Usage
+            # history is user-facing billing evidence; fetching an arbitrary
+            # unsorted subset can hide fresh charges even when the usage row exists.
+            requested_sort = sort or "-created_at"
+            fetch_limit = min(limit or 100, 1000)
             params = {
                 "filter": {
                     "user_id_hash": {
@@ -942,15 +942,32 @@ class UsageMethods:
                     }
                 },
                 "fields": "*",
-                "limit": min(fetch_limit, 1000)  # Cap at 1000 to avoid performance issues
+                "limit": fetch_limit,
+                "sort": [requested_sort],
             }
-            
-            # Note: Not using sort parameter in Directus query due to permission issues
-            # We'll sort client-side after fetching and decrypting
-            # Also not using offset in Directus query - we'll apply it after sorting
-            
+
+            if offset is not None:
+                params["offset"] = offset
+
             # Fetch usage entries from Directus using the SDK's get_items method
-            entries = await self.sdk.get_items(self.collection, params=params, no_cache=True)
+            server_paginated = True
+            try:
+                entries = await self.sdk.get_items(self.collection, params=params, no_cache=True)
+            except Exception as sort_error:
+                logger.warning(
+                    "%s Sorted usage query failed; falling back to client-side sorting: %s",
+                    log_prefix,
+                    sort_error,
+                    exc_info=True,
+                )
+                fallback_limit = min(max((limit or 100) + (offset or 0), 100), 1000)
+                fallback_params = {
+                    "filter": params["filter"],
+                    "fields": "*",
+                    "limit": fallback_limit,
+                }
+                entries = await self.sdk.get_items(self.collection, params=fallback_params, no_cache=True)
+                server_paginated = False
             
             if not entries:
                 logger.info(f"{log_prefix} No usage entries found for user '{user_id_hash}'")
@@ -1130,11 +1147,9 @@ class UsageMethods:
             # This avoids Directus permission issues with sort parameter
             processed_entries.sort(key=lambda x: x.get("created_at", 0), reverse=True)
             
-            # Apply pagination after sorting (if limit/offset were specified)
-            # Note: For efficiency, we should ideally sort in Directus, but due to permission issues
-            # we sort client-side. For large datasets, consider increasing the limit or implementing
-            # server-side cursor-based pagination.
-            if limit or offset:
+            # Apply pagination only on the fallback path. The primary query already
+            # uses Directus limit/offset after server-side sorting.
+            if not server_paginated and (limit or offset):
                 start_idx = offset or 0
                 end_idx = start_idx + (limit or len(processed_entries))
                 processed_entries = processed_entries[start_idx:end_idx]

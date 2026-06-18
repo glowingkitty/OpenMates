@@ -182,6 +182,54 @@ view.ai_generated:
   verified_by_human:
     - en
 
+view.authentic:
+  context: Label shown on an uploaded image embed when the AI detection service reports a low AI-generated probability.
+  en: Authentic
+  verified_by_human:
+    - en
+
+view.ai_generated_chance:
+  context: Expanded uploaded-image authenticity badge text. {percentage} is the provider confidence that the image is AI-generated.
+  en: "{percentage} chance it's AI generated"
+  verified_by_human:
+    - en
+
+view.via_provider_prefix:
+  context: Short source prefix shown before a linked AI detection provider name in uploaded-image authenticity badges.
+  en: via
+  verified_by_human:
+    - en
+
+view.via_provider:
+  context: Accessible provider attribution for uploaded-image AI detection badges. {provider} is the provider name, such as Sightengine.
+  en: "via {provider}"
+  verified_by_human:
+    - en
+
+view.detection_limitations:
+  context: "Explanation shown when hovering, focusing, or clicking an uploaded-image authenticity badge. Based on Sightengine docs: pixel-based detection, robust to redistribution artifacts, but not a substitute for human judgment."
+  en: "Pixel-based detection is useful for photos and art, including many compressed or re-shared images. It is not definitive; heavy degradation, UI-heavy screenshots, screen or print recaptures, and new generators may need human judgment."
+  verified_by_human:
+    - en
+
+view.detection_failed_title:
+  context: Accessible title for an uploaded-image authenticity badge when the AI detection provider did not return a usable result.
+  en: AI detection unavailable
+  verified_by_human:
+    - en
+
+view.detection_failed_retry:
+  context: Expanded uploaded-image authenticity badge text when AI detection failed temporarily.
+  en: "AI detection failed temporarily. Try again later."
+  verified_by_human:
+    - en
+
+view.detection_failed_description:
+  context: Explanation shown when hovering, focusing, or clicking an uploaded-image authenticity badge when AI detection failed temporarily.
+  en: "The image upload succeeded, but Sightengine did not return a usable AI-detection score for this attempt."
+  verified_by_human:
+    - en
+
 view.signup_to_upload:
   context: Status text shown on image embed card when user is not authenticated (demo mode)
   en: "Signup to upload\u2026"

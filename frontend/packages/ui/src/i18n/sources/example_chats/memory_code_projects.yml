@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Code Projects"
   en: "Memory Code Projects"
-  de: "Memory Code Projects"
+  de: Speicher Code Projekte
   zh: "Memory Code Projects"
   es: "Memory Code Projects"
   fr: "Memory Code Projects"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Code Projects"
   en: "OpenMates uses saved code projects memory in a real chat."
-  de: "OpenMates uses saved code projects memory in a real chat."
+  de: OpenMates nutzt den gespeicherten Code-Speicher „projects“ in einem echten Chat.
   zh: "OpenMates uses saved code projects memory in a real chat."
   es: "OpenMates uses saved code projects memory in a real chat."
   fr: "OpenMates uses saved code projects memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Code Projects. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen gespeicherten Speicher für Programmierprojekte, um die nächsten zwei gezielten Engineering-Aufgaben vorzuschlagen, die ich heute Abend für mein gespeichertes Projekt erledigen sollte. Du darfst diesen gespeicherten Speicher anfordern und verwenden. Nachdem du den Speicher verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved coding projects memory to suggest the next two focused engineering tasks I should do this evening for my saved project. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -81,10 +81,10 @@ message_2:
     1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
     2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
   de: |
-    Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
-
-    1.  **Implement Watering Recency Logic**: Create a backend utility or a derived store that calculates the "Thirst Status" of each plant. This involves comparing the `last_watering_date` against a plant-specific `watering_interval` (e.g., every 3 days). You can focus on writing a clean function to return a status (e.g., "Satisfied," "Due," or "Overdue") which can then be used to drive visual indicators in your UI.
-    2.  **Develop the Pest Incident Logger**: Build a dedicated SvelteKit Form Action to handle pest sightings. This task involves defining a Zod schema to validate inputs like pest type, date of discovery, and the treatment applied (such as [neem oil](wiki:Neem_oil)). Implementing this now will allow you to start building a historical record of plant health and treatment effectiveness.
+    Basierend auf deinem Projekt **Garden Ledger** – der [SvelteKit](wiki:Svelte)-App, die du entwickelst, um deine Balkonpflanzen zu verfolgen – sind hier zwei gezielte Engineering-Aufgaben für deinen Abend:
+    
+    1.  **Logik für Gieß-Aktualität implementieren**: Erstelle ein Backend-Utility oder einen abgeleiteten Store, der den „Durst-Status“ jeder Pflanze berechnet. Dabei wird das `last_watering_date` mit einem pflanzenspezifischen `watering_interval` (z. B. alle 3 Tage) verglichen. Du kannst dich darauf konzentrieren, eine saubere Funktion zu schreiben, die einen Status zurückgibt (z. B. „Zufrieden“, „Fällig“ oder „Überfällig“), der dann zur Steuerung visueller Indikatoren in deiner UI verwendet werden kann.
+    2.  **Schädlings-Ereignis-Logger entwickeln**: Erstelle eine dedizierte SvelteKit Form Action, um Schädlingssichtungen zu verarbeiten. Diese Aufgabe umfasst die Definition eines Zod-Schemas zur Validierung von Eingaben wie Schädlingsart, Entdeckungsdatum und angewendeter Behandlung (wie [Neemöl](wiki:Neem_oil)). Wenn du dies jetzt implementierst, kannst du damit beginnen, eine historische Aufzeichnung der Pflanzengesundheit und der Wirksamkeit von Behandlungen aufzubauen.
   zh: |
     Based on your **Garden Ledger** project—the [SvelteKit](wiki:Svelte) app you are developing to track your balcony plants—here are two focused engineering tasks for your evening:
 

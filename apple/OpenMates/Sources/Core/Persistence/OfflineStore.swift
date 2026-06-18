@@ -110,6 +110,8 @@ final class PersistedMessage {
     var appId: String?
     var modelName: String?
     var embedRefsJSON: Data?
+    var piiMappingsJSON: Data?
+    var encryptedPIIMappings: String?
 
     var chat: PersistedChat?
 
@@ -124,10 +126,13 @@ final class PersistedMessage {
         self.appId = message.appId
         self.modelName = message.modelName
         self.embedRefsJSON = try? JSONEncoder().encode(message.embedRefs)
+        self.piiMappingsJSON = try? JSONEncoder().encode(message.piiMappings)
+        self.encryptedPIIMappings = message.encryptedPIIMappings
     }
 
     func toMessage() -> Message {
         let embedRefs = embedRefsJSON.flatMap { try? JSONDecoder().decode([EmbedRef].self, from: $0) }
+        let piiMappings = piiMappingsJSON.flatMap { try? JSONDecoder().decode([PIIMapping].self, from: $0) }
         return Message(
             id: id, chatId: chatId,
             role: MessageRole(rawValue: role) ?? .user,
@@ -135,7 +140,9 @@ final class PersistedMessage {
             createdAt: createdAt,
             updatedAt: updatedAt, appId: appId,
             isStreaming: false, embedRefs: embedRefs,
-            modelName: modelName
+            modelName: modelName,
+            piiMappings: piiMappings,
+            encryptedPIIMappings: encryptedPIIMappings
         )
     }
 }

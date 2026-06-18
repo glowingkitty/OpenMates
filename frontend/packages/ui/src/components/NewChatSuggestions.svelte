@@ -25,7 +25,6 @@
   import { locale } from 'svelte-i18n';
   import NewChatSuggestionContextMenu from './NewChatSuggestionContextMenu.svelte';
   import Icon from './Icon.svelte';
-  import { appSkillsStore } from '../stores/appSkillsStore';
   import { search as performSearch } from '../services/searchService';
   import { chatMetadataCache } from '../services/chatMetadataCache';
   import { getLucideIcon, getValidIconName, getFallbackIconForCategory, getCategoryGradientColors } from '../utils/categoryUtils';
@@ -41,22 +40,19 @@
 
   /** Minimum character count for CJK text (Chinese, Japanese, Korean).
    *  CJK languages don't use spaces between words, so word-splitting is meaningless.
-   *  A 4-word English suggestion is roughly 4+ CJK characters. */
-  const MIN_CJK_CHARS = 4;
+   *  Match backend postprocessor validation to avoid displaying filtered suggestions. */
+  const MIN_CJK_CHARS = 8;
 
   /** Regex matching CJK Unified Ideographs, Hiragana, Katakana, and Hangul blocks. */
-  const CJK_REGEX = /[\u3000-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]/;
+  const CJK_REGEX = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/g;
 
   /**
    * Check if a suggestion body has enough content to be meaningful.
    * For CJK text (no spaces), counts characters instead of words.
    */
   function hasEnoughWords(body: string): boolean {
-    if (CJK_REGEX.test(body)) {
-      // Count actual CJK + non-whitespace characters (ignore brackets, spaces)
-      const stripped = body.replace(/\s+/g, '');
-      return stripped.length >= MIN_CJK_CHARS;
-    }
+    const cjkMatches = body.match(CJK_REGEX);
+    if (cjkMatches) return cjkMatches.length >= MIN_CJK_CHARS;
     return body.split(/\s+/).filter(Boolean).length >= MIN_BODY_WORDS;
   }
 
@@ -75,118 +71,11 @@
     messageInputContent?: string;
   } = $props();
 
-  // Apps metadata for icon resolution
-  let appsMetadata = $state(appSkillsStore.getState());
-
   /**
-   * Parsed suggestion: splits "[app_id-skill_id] body text" or "[app_id] body text".
-   * Returns null appId/subId if no valid prefix is present (fallback to 'ai' app).
+   * Get the CSS variable name for the neutral suggestion-card gradient.
    */
-  interface ParsedSuggestionMeta {
-    appId: string;               // e.g. "web", "ai" (always set — defaults to 'ai')
-    subId: string | null;        // e.g. "search" (null when app-only prefix)
-    body: string;                // Text to insert on click (without prefix)
-  }
-
-  /**
-   * Parse a raw suggestion string of the form "[app_id-skill_id] body text" or
-   * "[app_id] body text". LLMs sometimes generate dashes in the skill name portion
-   * (e.g. "reminder-set-reminder") instead of underscores ("reminder-set_reminder").
-   * We correct for this by replacing dashes in the subId portion with underscores,
-   * then validate against the known app skills store.
-   *
-   * If no valid prefix is found, defaults to appId='ai' with no skill.
-   */
-  function parseSuggestion(raw: string): ParsedSuggestionMeta {
-    // Match [prefix] at the start — prefix can contain alphanumerics, underscores, dashes
-    const match = raw.match(/^\[([a-z0-9_-]+)\]\s*(.+)$/i);
-    if (!match) {
-      return { appId: 'ai', subId: null, body: raw };
-    }
-    const prefix = match[1];
-    const body = match[2].trim();
-    const dashIdx = prefix.indexOf('-');
-
-    if (dashIdx === -1) {
-      // App-only prefix like [ai], [code], [mail]
-      const appId = prefix;
-      const app = appsMetadata?.apps?.[appId];
-      if (app) {
-        return { appId, subId: null, body };
-      }
-      // Unknown app — fallback to 'ai'
-      return { appId: 'ai', subId: null, body };
-    }
-
-    // App + skill prefix like [web-search], [images-generate], [reminder-set-reminder]
-    const appId = prefix.substring(0, dashIdx);
-    const subIdRaw = prefix.substring(dashIdx + 1);
-    // Replace dashes with underscores to correct LLM errors (e.g. "set_reminder" variant).
-    // Some YAML skill IDs use dashes (e.g. "set-reminder"), so we check both forms.
-    const subIdUnderscored = subIdRaw.replace(/-/g, '_');
-
-    // Validate against the known app skills/focus modes store — try both dash and underscore forms
-    const app = appsMetadata?.apps?.[appId];
-    const matchedSkill = app?.skills?.find(s => s.id === subIdRaw || s.id === subIdUnderscored);
-    const matchedFocus = !matchedSkill
-      ? app?.focus_modes?.find(f => f.id === subIdRaw || f.id === subIdUnderscored)
-      : undefined;
-
-    if (app && (matchedSkill || matchedFocus)) {
-      // Return the actual stored ID (preserves dashes if the YAML uses dashes)
-      const actualSubId = (matchedSkill ?? matchedFocus)!.id;
-      return { appId, subId: actualSubId, body };
-    }
-
-    // Valid app but unknown skill — show app icon only
-    if (app) {
-      return { appId, subId: null, body };
-    }
-
-    // Unknown app entirely — fallback to 'ai'
-    return { appId: 'ai', subId: null, body };
-  }
-
-  /**
-   * Resolve the icon name for the suggestion card.
-   * Priority: skill/focus icon_image > app icon_image > appId fallback.
-   * Returns the icon name string (svg filename without extension).
-   */
-  function resolveIconName(appId: string, subId: string | null): string {
-    const app = appsMetadata?.apps?.[appId];
-    if (!app) return appId;
-
-    if (subId) {
-      // Check skills first — try exact match and dash↔underscore variant
-      const subIdAlt = subId.includes('-') ? subId.replace(/-/g, '_') : subId.replace(/_/g, '-');
-      const skill = app.skills?.find(s => s.id === subId || s.id === subIdAlt);
-      if (skill?.icon_image) return skill.icon_image.replace(/\.svg$/i, '').trim();
-
-      // Check focus modes
-      const focus = app.focus_modes?.find(f => f.id === subId || f.id === subIdAlt);
-      if (focus?.icon_image) return focus.icon_image.replace(/\.svg$/i, '').trim();
-    }
-
-    // Fallback to app icon
-    if (app.icon_image) return app.icon_image.replace(/\.svg$/i, '').trim();
-
-    // Last resort: use appId as icon name
-    return appId;
-  }
-
-  /**
-   * Get the CSS variable name for the app's gradient color.
-   * Maps icon names to app IDs where they differ (mirrors Icon.svelte logic).
-   */
-  function getAppCssGradient(appId: string): string {
-    // Mirror Icon.svelte's getAppIdForCssVariable mappings
-    const mappings: Record<string, string> = {
-      'image': 'images',
-      'book': 'books',
-      'heart': 'health'
-    };
-    const cssAppId = mappings[appId] || appId;
-    return `var(--color-app-${cssAppId})`;
+  function getSuggestionGradient(): string {
+    return 'var(--color-app-ai)';
   }
 
   /**
@@ -198,6 +87,10 @@
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || '';
+  }
+
+  function stripLegacySuggestionPrefix(text: string): string {
+    return text.replace(/^\s*\[[^\]]+\]\s*/, '').trim();
   }
 
   /**
@@ -415,7 +308,7 @@
   function buildDefaultSuggestions(): Array<{ text: string; encrypted: string; id: string }> {
     const t = get(text);
     const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
-    const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+    const plainTextSuggestions = translatedSuggestions.map(s => stripLegacySuggestionPrefix(stripHtmlTags(s)));
     return shuffleArray(plainTextSuggestions.map(text => ({
       text,
       encrypted: '',
@@ -477,7 +370,7 @@
         all.map(async s => {
           const decrypted = await decryptWithMasterKey(s.encrypted_suggestion);
           if (!decrypted) return null;
-          const plainText = stripHtmlTags(decrypted);
+          const plainText = stripLegacySuggestionPrefix(stripHtmlTags(decrypted));
           return {
             text: plainText,
             encrypted: s.encrypted_suggestion,
@@ -558,14 +451,11 @@
         return true;
       })
       .map(s => {
-        const meta = parseSuggestion(s.text);
-        const iconName = resolveIconName(meta.appId, meta.subId);
+        const body = s.text.trim();
         return {
           text: s.text,
-          body: meta.body,
-          appId: meta.appId,
-          subId: meta.subId,
-          iconName,
+          body,
+          iconName: 'ai',
           encrypted: s.encrypted,
           id: s.id
         };
@@ -576,8 +466,7 @@
     // Apply search filter when query is active
     const filtered = filterQuery
       ? parsed.filter(s =>
-          s.body.toLowerCase().includes(filterQuery) ||
-          s.appId.toLowerCase().includes(filterQuery)
+          s.body.toLowerCase().includes(filterQuery)
         )
       : parsed;
 
@@ -597,9 +486,8 @@
     fullSuggestionsWithEncrypted
       .filter(s => !hiddenSuggestionTexts.has(s.text))
       .every(s => {
-        const body = parseSuggestion(s.text).body.toLowerCase();
-        const appId = parseSuggestion(s.text).appId.toLowerCase();
-        return !body.includes(filterQuery) && !appId.includes(filterQuery);
+        const body = s.text.trim().toLowerCase();
+        return !body.includes(filterQuery);
       })
   );
 
@@ -630,7 +518,7 @@
       }
     }
 
-    // Pass body text only to parent (no mentionSyntax)
+    // Pass the natural-language suggestion text directly to the parent.
     onSuggestionClick(body);
   }
 
@@ -801,7 +689,7 @@
         {/if}
         <button
           class="suggestion-card"
-          style="background: {getAppCssGradient(suggestion.appId)};"
+          style="background: {getSuggestionGradient()};"
           onclick={() => handleSuggestionClick(suggestion.text, suggestion.body, suggestion.id, suggestion.encrypted)}
           oncontextmenu={(event) => handleContextMenu(event, suggestion.text, suggestion.id)}
           ontouchstart={(event) => handleTouchStart(event, suggestion.text, suggestion.id)}

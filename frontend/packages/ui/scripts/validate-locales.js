@@ -4,13 +4,13 @@
  * Validation script for locale JSON files and translation integrity
  * 
  * This script performs 7 validation steps:
- * 1. Reads LANGUAGE_CODES from languages.json (single source of truth)
- * 2. Checks if each required locale JSON file exists and is valid JSON
- * 3. Validates that all .text leaf values are strings (catches [object Object] bugs)
- * 4. Validates YAML source files for non-string language values
- * 5. Scans .svelte/.ts files for $text() calls and validates keys exist in en.json
+ * 1. Checks if each required locale JSON file exists and is valid JSON
+ * 2. Validates that all .text leaf values are strings (catches [object Object] bugs)
+ * 3. Validates YAML source files for non-string language values
+ * 4. Scans .svelte/.ts files for $text() calls and validates keys exist in en.json
  *    — scans both packages/ui/src AND apps/web_app/src
- * 6. Validates translation keys in matesMetadata.ts against en.json
+ * 5. Validates translation keys in matesMetadata.ts against en.json
+ * 6. Validates legal document builder keys against en.json
  * 7. Cross-locale completeness: checks all non-English locales have the same keys as en.json
  * 
  * This ensures the build fails early if locale files are missing, malformed,
@@ -36,6 +36,7 @@ const SOURCES_DIR = path.join(__dirname, '../src/i18n/sources');
 const SRC_DIR = path.join(__dirname, '../src');
 // Also scan the web_app source directory for $text() calls (routes, pages, etc.)
 const WEB_APP_SRC_DIR = path.join(__dirname, '../../apps/web_app/src');
+const LEGAL_CONTENT_PATH = path.join(SRC_DIR, 'legal', 'buildLegalContent.ts');
 
 // ─── Helper: walk a directory tree ──────────────────────────────────────────
 
@@ -326,7 +327,72 @@ function validateMatesMetadataKeys(enLocale) {
     return { missingKeys };
 }
 
-// ─── 6. Cross-locale completeness check ─────────────────────────────────────
+// ─── 6. Validate legal content translation keys ─────────────────────────────
+
+/**
+ * Legal documents build markdown from a translation function passed into
+ * buildLegalContent.ts. Some keys are dynamic provider bases, so static $text()
+ * scanning cannot see them.
+ *
+ * @param {Object} enLocale - Parsed en.json
+ * @returns {{ missingKeys: Array<{key: string, file: string, line: number}>, objectKeys: Array<{key: string, file: string, line: number}> }}
+ */
+function validateLegalContentKeys(enLocale) {
+    const missingKeys = [];
+    const objectKeys = [];
+
+    if (!fs.existsSync(LEGAL_CONTENT_PATH)) {
+        console.warn('⚠️  buildLegalContent.ts not found — skipping legal content key validation');
+        return { missingKeys, objectKeys };
+    }
+
+    const content = fs.readFileSync(LEGAL_CONTENT_PATH, 'utf-8');
+    const lines = content.split('\n');
+    const keys = new Map();
+
+    function addKey(key, line) {
+        if (!keys.has(key)) {
+            keys.set(key, line);
+        }
+    }
+
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        const lineNumber = lineIdx + 1;
+
+        const tCallRegex = /\bt\(\s*['"]([^'"$]+)['"]/g;
+        let tMatch;
+        while ((tMatch = tCallRegex.exec(line)) !== null) {
+            addKey(tMatch[1], lineNumber);
+        }
+
+        const providerRegex = /\brenderProvider\(\s*['"]([^'"]+)['"]/g;
+        let providerMatch;
+        while ((providerMatch = providerRegex.exec(line)) !== null) {
+            const baseKey = providerMatch[1];
+            addKey(`${baseKey}.heading`, lineNumber);
+            addKey(`${baseKey}.description`, lineNumber);
+        }
+    }
+
+    for (const [key, line] of keys.entries()) {
+        const resolved = resolveDotKey(enLocale, key);
+        if (resolved === undefined) {
+            missingKeys.push({ key, file: 'src/legal/buildLegalContent.ts', line });
+        } else if (
+            typeof resolved !== 'object' ||
+            resolved === null ||
+            !('text' in resolved) ||
+            typeof resolved.text !== 'string'
+        ) {
+            objectKeys.push({ key, file: 'src/legal/buildLegalContent.ts', line });
+        }
+    }
+
+    return { missingKeys, objectKeys };
+}
+
+// ─── 7. Cross-locale completeness check ─────────────────────────────────────
 
 /**
  * Collect all leaf key paths (dot-notation paths ending in .text) from a locale object.
@@ -498,10 +564,42 @@ function validateLocales() {
         console.warn('⚠️  en.json not available — skipping matesMetadata key validation');
     }
 
-    // ── Step 6: Cross-locale completeness check ──
+    // ── Step 6: Validate legal content translation keys ──
+    console.log('\n🔍 Step 6: Validating legal content translation keys against en.json...\n');
+    let legalMissingKeyCount = 0;
+    let legalObjectKeyCount = 0;
+    if (enLocale) {
+        const { missingKeys: legalMissing, objectKeys: legalObjects } = validateLegalContentKeys(enLocale);
+        legalMissingKeyCount = legalMissing.length;
+        legalObjectKeyCount = legalObjects.length;
+
+        if (legalObjects.length > 0) {
+            hasErrors = true;
+            console.error(`❌ Found ${legalObjects.length} legal content key(s) that do not resolve to string .text leaves:\n`);
+            for (const { key, file, line } of legalObjects) {
+                console.error(`   '${key}'  →  ${file}:${line}`);
+            }
+        }
+
+        if (legalMissing.length > 0) {
+            hasErrors = true;
+            console.error(`\n❌ Found ${legalMissing.length} legal content key(s) not found in en.json:\n`);
+            for (const { key, file, line } of legalMissing) {
+                console.error(`   '${key}'  →  ${file}:${line}`);
+            }
+        }
+
+        if (legalObjects.length === 0 && legalMissing.length === 0) {
+            console.log('✓ All legal content translation keys resolve to valid translations');
+        }
+    } else {
+        console.warn('⚠️  en.json not available — skipping legal content key validation');
+    }
+
+    // ── Step 7: Cross-locale completeness check ──
     // Verifies that every key present in en.json also exists in all other locales.
     // Missing keys in non-English locales cause [T:key] placeholders for those languages.
-    console.log('\n🔍 Step 6: Checking cross-locale completeness (all locales vs en.json)...\n');
+    console.log('\n🔍 Step 7: Checking cross-locale completeness (all locales vs en.json)...\n');
     if (enLocale) {
         const { missingByLocale, totalMissing } = validateCrossLocaleCompleteness(parsedLocales);
 
@@ -559,6 +657,12 @@ function validateLocales() {
         }
         if (objectKeyCount > 0) {
             console.error(`\n   Broken $text() keys (resolve to objects): ${objectKeyCount}`);
+        }
+        if (legalMissingKeyCount > 0) {
+            console.error(`\n   Missing legal content keys: ${legalMissingKeyCount}`);
+        }
+        if (legalObjectKeyCount > 0) {
+            console.error(`\n   Broken legal content keys: ${legalObjectKeyCount}`);
         }
 
         console.error('\n⚠️  The build cannot proceed with translation errors.');

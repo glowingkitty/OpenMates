@@ -1,0 +1,855 @@
+id: anonymous-free-usage-budget
+title: Anonymous Free Usage Budget
+status: implementing
+
+goal: >
+  Let new, unauthenticated users try OpenMates on official cloud clients with a
+  shared daily and weekly free-usage budget, while keeping anonymous chat content
+  client-side encrypted, local-only, and automatically removable unless the user
+  signs up and promotes the chats into their encrypted account sync.
+
+scope:
+  in:
+    - Official-cloud-only anonymous free chat for web, CLI, and Apple clients.
+    - Server-admin settings for monthly budget, derived daily hard cap percentage, weekly cap, and per-identity daily cap.
+    - Shared daily and weekly free budget accounting that subtracts actual charged credits from the budget like normal user credit charging.
+    - Per-identity daily abuse cap using a first-party anonymous local identifier plus HMAC-hashed request IP metadata.
+    - Reuse of existing per-chat encryption for anonymous chats, with chat keys stored locally until signup.
+    - Anonymous local chat/embed storage in an explicit local anonymous scope guarded by a tab/session-scoped anonymous marker and purged on unauthenticated client start when that marker is absent.
+    - Signup conversion that wraps anonymous chat keys with the new account master key and uploads encrypted chats, messages, and embeds through normal sync.
+    - App skills that do not require connected accounts, determined by machine-readable connected-account requirement metadata.
+    - Signup-gated file uploads from anonymous chat, including composer UI that replaces suggestions above the message input with an account-required notice and replaces Send with Signup while a file is attached.
+    - Terms/privacy notice before first anonymous message and legal/privacy/browser-storage documentation updates.
+  out:
+    - Granting credits to anonymous users or creating anonymous credit balances.
+    - Server-side persistence of anonymous prompts, responses, encrypted chat blobs, or embed content before signup.
+    - Anonymous memories, custom PII entries, connected accounts, reminders, notifications, billing, teams, sharing, or export.
+    - Anonymous file uploads, transient upload processing, durable S3 objects, Directus upload_files rows, or Directus embed records before signup.
+    - Anonymous availability on self-hosted editions.
+    - Strong bot/fraud prevention beyond practical local ID, IP hash, rate limit, and global budget caps.
+    - Retroactive import of older demo chats or shared chats into anonymous free usage.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"anonymous free usage budget credits guest unauthenticated free chat\" --state all --limit 10` found no matching issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/free-testing-credits-budget/spec.yml
+    - docs/architecture/core/chat-encryption-implementation.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/compliance/gdpr-audit.md
+    - docs/architecture/privacy/privacy-promises.md
+    - docs/architecture/platforms/cli-package.md
+  code_patterns:
+    - backend/core/api/app/services/free_testing_credits_service.py
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/core/api/app/routes/websockets.py
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/services/cryptoService.ts
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/stores/serverStatusStore.ts
+    - frontend/packages/ui/src/utils/lastAuthMethod.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/services/embed_service.py
+  tests:
+    - backend/tests/test_free_testing_credits_budget.py
+    - backend/tests/test_server_status_response.py
+    - frontend/packages/ui/src/stores/__tests__/serverStatusStore.test.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/**
+  parity_expectations:
+    - Apple must expose the same anonymous free chat availability, intro notice, local-only storage semantics, signup promotion flow, and budget exhaustion CTA as web.
+    - Apple must use platform-local encrypted anonymous chat storage and purge it when no authenticated session or active anonymous session marker exists unless the user promotes it during signup.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or targeted test-ios after web/API green evidence
+  intentional_native_differences:
+    - Native storage APIs may differ from IndexedDB, but anonymous data must remain local-only, encrypted with per-chat keys, and purgeable under the same product rules.
+
+clarification:
+  rounds:
+    - question: Should anonymous chats reuse the existing per-chat encryption system and only wrap chat keys with the master key after signup?
+      answer: Yes. Anonymous chats should use normal per-chat keys locally, then signup wraps those keys with the account master key and uploads the encrypted chat through normal sync.
+    - question: Should anonymous free use be cross-platform or web-only for v1?
+      answer: Cross-platform for web app, CLI, and Apple app.
+    - question: Should anonymous chats be stored in sessionStorage, or can IndexedDB be reused with auto-deletion when unauthenticated?
+      answer: Prefer reusing IndexedDB as usual with clear anonymous scoping and a sessionStorage-backed anonymous session marker, so same-tab reload can recover encrypted local data but closing the tab/window and reopening purges it.
+    - question: Should the anonymous free-credit notice appear before the user sends a message?
+      answer: No. It should be inserted as a local system message in the chat history immediately before the first anonymous user message, including when the user replies to an existing example chat.
+    - question: Should anonymous mode support file uploads before signup?
+      answer: No. File upload requires creating an account. If an anonymous user attaches a file, the composer replaces suggestions above the input with text explaining that file uploads require an account and replaces the Send button with Signup.
+    - question: If an anonymous user starts signup from a pending file upload, should the typed message and file be preserved through signup?
+      answer: Preserve the typed message as a draft, but do not preserve the file. After account creation, the user must attach the file again through the normal authenticated upload flow.
+    - question: Should app skills be limited to plain chat first, or should all skills without connected-account requirements be available?
+      answer: All app skills that do not require connected accounts should be accessible, gated by explicit metadata.
+    - question: Should the server retain weekly/monthly per-user usage metadata?
+      answer: No. The system only needs shared daily/weekly budget counters and short-lived per-identity daily cap records to make simple circumvention harder.
+  vision_summary: >
+    New users can try real OpenMates chat and non-connected-account skills for free on official cloud clients while global daily/weekly budget remains available.
+    The user sees a normal Send input. When they send the first anonymous message, the client inserts a local system message immediately before it explaining free daily credits and local-only storage.
+    Anonymous content is encrypted locally with normal chat keys, every follow-up sends the needed full chat context from the client, no anonymous server inference cache is written, file uploads are signup-only, and signup can promote the local encrypted chats into normal account sync.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Admin configures anonymous free usage budget
+    given:
+      - Alice is an authenticated server admin on the official cloud.
+    when:
+      - Alice sets monthly budget to 60000 credits, daily hard cap to 5 percent, weekly cap to 25 percent, and per-identity daily cap to 400 credits.
+    then:
+      - Server settings shows monthly budget 60000, daily hard cap 3000, weekly cap 15000, per-identity daily cap 400, used counters, remaining counters, and active state.
+      - Non-admin and unauthenticated callers cannot read or write the admin budget endpoint.
+  - id: S-2
+    title: New unauthenticated web user sees free chat entry
+    given:
+      - The official-cloud anonymous daily and weekly budget has remaining credits.
+      - The browser has no last-auth-method marker.
+    when:
+      - Bob opens the web app while logged out.
+    then:
+      - Bob sees a free chat entry or CTA instead of only Login/Signup.
+      - The empty chat history does not show the free-credit notice before Bob sends.
+      - The message input button still says Send.
+  - id: S-3
+    title: Previously logged-in browser does not see anonymous free chat CTA
+    given:
+      - The browser has the existing local last-auth-method marker.
+      - Anonymous free budget is still available.
+    when:
+      - Clara opens the web app while logged out.
+    then:
+      - Clara sees the Login button as usual.
+      - The anonymous free chat CTA is hidden.
+  - id: S-4
+    title: Anonymous chat content is encrypted locally and not persisted server-side
+    given:
+      - Bob starts an anonymous free chat.
+    when:
+      - Bob sends a message and receives an assistant response.
+    then:
+      - The client creates a per-chat key using the existing chat key flow.
+      - The client inserts a local system message immediately before Bob's first anonymous user message explaining free daily credits, local-only storage, and signup benefits.
+      - Chat messages, metadata, PII mappings, and embeds are encrypted locally with the chat key.
+      - The server stores no anonymous prompt, response, encrypted message blob, or embed content.
+      - The local records are marked as anonymous and are eligible for unauthenticated purge.
+  - id: S-5
+    title: Anonymous local data is session-scoped and purgeable
+    given:
+      - Bob has anonymous encrypted chats in the local anonymous IndexedDB scope.
+      - Bob has not signed up or logged in.
+    when:
+      - Bob reloads the same tab with the sessionStorage anonymous marker still present, or later closes the tab/window and opens OpenMates again without that marker.
+    then:
+      - Same-tab reload can recover the encrypted anonymous chat for continuity.
+      - Closing the tab/window destroys the marker.
+      - A later unauthenticated start without the marker deletes anonymous local chat, message, key, draft, and embed records before normal unauthenticated chat loading.
+      - Authenticated user data cleanup protections remain unchanged.
+  - id: S-6
+    title: Anonymous chat converts to account after signup
+    given:
+      - Bob has an anonymous encrypted chat in local storage.
+    when:
+      - Bob signs up from the anonymous free chat CTA.
+    then:
+      - The account master key is created through the normal signup flow.
+      - Each anonymous chat key is wrapped with the master key.
+      - Encrypted chats, messages, embeds, and metadata are uploaded through normal sync.
+      - The local anonymous marker is replaced by normal authenticated chat records.
+  - id: S-7
+    title: Shared daily and weekly budgets are charged by actual credits
+    given:
+      - The daily hard cap is 3000 credits and weekly cap is 15000 credits.
+    when:
+      - Anonymous users complete requests that cost 125 credits total.
+    then:
+      - The service subtracts 125 credits from the daily and weekly remaining budgets.
+      - The service does not create user credit balances or grant credits.
+      - Public status becomes inactive when either daily or weekly remaining budget cannot cover the minimum request cost.
+  - id: S-8
+    title: Per-identity daily cap makes simple circumvention harder
+    given:
+      - Bob's anonymous local ID or HMAC IP hash has used 400 credits today.
+    when:
+      - Bob sends another anonymous request before the daily reset.
+    then:
+      - The request is rejected even if global budget remains.
+      - The response asks Bob to sign up to keep using OpenMates.
+      - The server does not expose raw IP addresses or stable plaintext identifiers.
+  - id: S-9
+    title: Budget reservation prevents concurrent overspend
+    given:
+      - The daily remaining budget is 100 credits.
+    when:
+      - Two anonymous requests concurrently attempt to reserve 100 credits each.
+    then:
+      - Only one reservation succeeds.
+      - The rejected request receives a budget-exhausted response.
+      - Failed or unused reservations expire and release unused budget.
+  - id: S-10
+    title: Anonymous app skills are available unless they require connected accounts
+    given:
+      - A skill does not require a connected account.
+      - A second skill requires OAuth or connected account data.
+    when:
+      - Bob asks the anonymous chat to use both capabilities.
+    then:
+      - The skill without connected-account requirements can run and charge the free budget.
+      - The connected-account skill is blocked with a signup/connect-account CTA.
+      - Skills missing machine-readable connected-account metadata fail a deterministic metadata audit before release.
+  - id: S-13
+    title: Anonymous file upload requires signup
+    given:
+      - Bob is using anonymous free chat.
+      - Bob attaches an image, PDF, audio recording, or other supported file.
+    when:
+      - The file is inserted into the anonymous chat.
+    then:
+      - The file is not uploaded, processed, stored as an anonymous embed, or sent to the backend.
+      - The new chat suggestion area above the message input is replaced by a notice explaining that file uploads require creating an account.
+      - The Send button is replaced by a Signup button while the file attachment is pending.
+      - Clicking Signup starts signup from the anonymous chat context and preserves Bob's typed message as a draft.
+      - The pending file is discarded during signup because file bytes are not retained before account creation.
+      - After account creation, Bob can reattach the file through the normal authenticated upload flow.
+      - Removing the pending file restores the normal anonymous composer and suggestions.
+  - id: S-14
+    title: Anonymous follow-up uses text-only local chat context
+    given:
+      - Bob has an anonymous chat with prior text-only messages stored locally.
+      - The prior turn has already completed and no anonymous inference cache exists on the server.
+    when:
+      - Bob asks a follow-up question about the prior text conversation.
+    then:
+      - The client decrypts the needed local chat history.
+      - The request sends the full required text conversation.
+      - The server processes the follow-up without reading from or writing to the authenticated server inference cache for anonymous messages.
+      - The server never requests anonymous chat history from a durable cache; missing anonymous history fails the request with a client-actionable retry/signup error.
+      - The new answer is encrypted locally with the same anonymous chat key.
+  - id: S-11
+    title: Terms and privacy notice is inserted as a local system message on first anonymous send
+    given:
+      - Bob opens anonymous free chat for the first time.
+    when:
+      - Bob sends the first anonymous message in a new chat or replies to an existing example chat.
+    then:
+      - The empty chat state did not show the notice before sending.
+      - The chat history contains a local system message immediately before Bob's first user message.
+      - The system message states that free daily credits are being used and chats are stored only locally unless Bob signs up.
+      - The system message links to Terms of Use and Privacy Policy.
+  - id: S-12
+    title: Self-hosted editions do not expose anonymous free usage
+    given:
+      - A request is made from localhost or a self-hosted domain.
+    when:
+      - Public status, admin settings, CLI, Apple, or anonymous free usage endpoints are loaded.
+    then:
+      - Public status omits anonymous free usage metadata.
+      - Admin settings hides anonymous free usage budget management.
+      - Direct anonymous free usage endpoints return not found.
+      - CLI and Apple hide anonymous free chat for self-hosted servers.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Admins can configure official-cloud anonymous monthly budget, daily hard-cap percentage, weekly-cap percentage, per-identity daily cap, enabled state, and view derived caps plus used/remaining counters.
+  - id: AC-2
+    scenario: S-1
+    text: Anonymous free usage admin endpoints require admin auth and return 404 on self-hosted editions.
+  - id: AC-3
+    scenario: S-2
+    text: Public server status exposes only safe anonymous free usage availability metadata needed by clients, without exact budget totals, IP hashes, local ID hashes, or internal ledger IDs.
+  - id: AC-4
+    scenario: S-2
+    text: New unauthenticated users with no last-auth-method marker see anonymous free chat availability and a normal Send input when budget is available, without showing the free-credit notice before the first send.
+  - id: AC-5
+    scenario: S-3
+    text: Browsers with the existing last-auth-method marker see Login as usual and do not see anonymous free chat CTA while logged out.
+  - id: AC-6
+    scenario: S-4
+    text: Anonymous chats reuse existing per-chat encryption locally and do not send chat keys, encrypted chat blobs, prompts, responses, or embed content to server persistence before signup.
+  - id: AC-7
+    scenario: S-5
+    text: Anonymous local chat data stored in IndexedDB is explicitly scoped as anonymous, recoverable during same-tab reload while the sessionStorage marker exists, and purged after tab/window close on the next unauthenticated start when no anonymous session marker is present.
+  - id: AC-8
+    scenario: S-6
+    text: Signup conversion wraps anonymous chat keys with the account master key and uploads encrypted chats, messages, embeds, and metadata through normal authenticated sync.
+  - id: AC-9
+    scenario: S-7
+    text: Actual charged credits are subtracted from shared daily and weekly anonymous budgets without creating anonymous credit balances or incrementing credits_sold.
+  - id: AC-10
+    scenario: S-8
+    text: A per-identity daily cap, default 400 credits, is enforced using the anonymous local ID hash and HMAC IP hash, while storing no raw IP addresses.
+  - id: AC-11
+    scenario: S-9
+    text: Reservation/finalization accounting prevents concurrent anonymous requests from overspending daily, weekly, or per-identity caps and releases unused reservations on failure or timeout.
+  - id: AC-12
+    scenario: S-10
+    text: Anonymous app skill execution is allowed for every skill that has machine-readable metadata proving it does not require connected accounts; skills requiring connected accounts are blocked with a signup/connect-account CTA.
+  - id: AC-13
+    scenario: S-13
+    text: Anonymous file attachments are signup-gated; attaching a file while anonymous does not upload or process the file, replaces the suggestions above the message input with account-required copy, replaces Send with Signup until the file is removed or the user signs up, preserves typed message text as a draft through signup, and requires the user to reattach the file after account creation.
+  - id: AC-14
+    scenario: S-11
+    text: Anonymous free chat shows a pre-send Terms of Use and Privacy Policy reminder before submission and inserts a separate local system message with free-credit, local-only storage, and signup benefit information immediately before the first anonymous user message, including when replying to an existing example chat.
+  - id: AC-15
+    scenario: S-11
+    text: Terms, privacy policy, and browser/local storage documentation describe anonymous free usage, local encrypted storage, HMAC IP/local ID budget checks, retention, and signup conversion.
+  - id: AC-16
+    scenario: S-12
+    text: Self-hosted editions do not expose, mention, or permit anonymous free usage through public metadata, admin settings, web, CLI, Apple, or direct API calls.
+  - id: AC-17
+    scenario: S-14
+    text: Anonymous follow-up requests are text-only before signup, send required full chat history from local encrypted storage, and never read from or write to an anonymous server inference cache.
+
+contracts:
+  api:
+    - route: GET /v1/settings/server-status
+      response_delta: "{ anonymous_free_usage?: { active: boolean, reset_at: string, cta: string } }"
+      notes:
+        - Omitted entirely on self-hosted editions.
+        - Must not expose exact remaining budget, used budget, local ID hash, IP hash, or ledger IDs.
+    - route: GET /v1/anonymous/free-usage/status
+      auth: public official-cloud only
+      request_headers:
+        - X-OpenMates-Anonymous-ID optional client-generated UUID-like identifier.
+      response: "{ active, reason?, reset_at, per_identity_remaining_hint?, client_message_key }"
+      notes:
+        - Remaining hints may be coarse buckets only, not exact global budget totals.
+    - route: POST /v1/anonymous/chat/stream
+      auth: public official-cloud only
+      request: "{ anonymous_id, client_chat_id, client_message_id, plaintext_message, message_history, encrypted_context_metadata?, requested_skill_ids? }"
+      response: streamed assistant response plus budget_exhausted or signup_required terminal errors
+      notes:
+        - Server may process plaintext transiently for model/app execution but must not persist prompt or response content.
+        - message_history is mandatory on every anonymous turn and is the client-decrypted, chronological full context needed for inference.
+        - Anonymous requests must reject file/embed upload payloads with signup_required; file processing is available only after account creation through the normal authenticated upload flow.
+        - Anonymous message history must not be recached.
+        - Endpoint reserves budget before provider execution and finalizes actual charged credits after usage is known.
+    - route: POST /v1/anonymous/apps/{app_id}/{skill_id}
+      auth: public official-cloud only
+      notes:
+        - Optional REST counterpart for CLI and non-chat clients.
+        - Rejects skills with connected-account requirements.
+        - Metadata audit must fail if a skill cannot be classified as connected-account-required or not-connected-account-required.
+    - route: GET /v1/admin/anonymous-free-usage-budget
+      auth: admin only official-cloud only
+      response: "{ enabled, monthly_budget_credits, daily_hard_cap_percent, daily_hard_cap_credits, weekly_cap_percent, weekly_cap_credits, per_identity_daily_cap_credits, daily_used_credits, weekly_used_credits, active, updated_at }"
+    - route: PUT /v1/admin/anonymous-free-usage-budget
+      auth: admin only official-cloud only
+      request: "{ enabled, monthly_budget_credits, daily_hard_cap_percent, weekly_cap_percent, per_identity_daily_cap_credits }"
+      response: same as GET
+  data:
+    - Add singleton/monthly anonymous free usage budget config for admin settings.
+    - Add daily and weekly aggregate counters for used credits and active reservations.
+    - Add short-lived per-identity daily counter keyed by HMAC anonymous local ID and HMAC IP hash.
+    - Add short-lived reservation records with request_id, reserved_credits, finalized_credits, expires_at, and status.
+    - Delete or expire raw reservation/event rows after 24 hours where possible; keep only aggregate budget counters needed for current daily/weekly windows and admin reporting.
+    - Do not store anonymous prompts, responses, encrypted chat payloads, durable embed payloads, raw IPs, or plaintext local IDs server-side.
+  ui_states:
+    - Anonymous available, budget exhausted globally, per-identity exhausted, self-hosted hidden, previously logged-in hidden, signup conversion pending, signup conversion success, signup conversion failed with local data retained.
+  privacy_security:
+    - IP hashes are treated as pseudonymous personal data, not fully anonymous data.
+    - Use server-secret HMAC for IP and local ID hashing; never store raw IP.
+    - Rate-limit anonymous status, chat, and skill endpoints by IP and local ID.
+    - Do not log anonymous prompts, responses, local IDs, raw IPs, or encrypted local chat payloads.
+    - Anonymous budget metadata must not be used to track behavior beyond abuse prevention and aggregate budget enforcement.
+    - Anonymous clients must not send file bytes or embed payloads before signup; file upload attempts are handled client-side with signup UI and server-side routes reject any direct anonymous upload attempt.
+  i18n:
+    - Add anonymous free chat CTA, first-send local system message, file-upload-requires-account composer notice, signup button label, budget-exhausted CTA, per-device exhausted CTA, terms/privacy line, signup conversion success/failure, and admin setting labels in source YAML files.
+  app_metadata:
+    - Add or normalize connected-account requirement metadata if not already represented in a machine-checkable way.
+    - Anonymous mode allows skills by default when connected-account requirement metadata is false.
+    - Anonymous mode blocks skills when connected-account requirement metadata is true.
+    - A deterministic metadata audit must fail when any skill lacks connected-account requirement classification.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_anonymous_free_usage_budget.py
+    command: python3 -m pytest backend/tests/test_anonymous_free_usage_budget.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-9
+      - AC-10
+      - AC-11
+      - AC-16
+    assertions:
+      - admin budget save derives daily and weekly caps from monthly budget percentages
+      - public status exposes active/reset/can_send_text metadata only
+      - admin budget state exposes monthly remaining credits for settings freshness
+      - budget rows are read as the newest singleton row, not only the legacy default ID
+      - self-host status and endpoints omit or reject anonymous free usage
+      - enabled budgets reject a zero per-identity cap, and legacy zero-cap rows are not advertised as active
+      - finalized charges decrement daily and weekly aggregate counters
+      - per-identity cap rejects local ID hash or IP hash after 400 daily credits
+      - concurrent reservations cannot overspend available budget
+      - failed or expired reservations release unused budget
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "27749545866"
+        timestamp: "2026-06-18T09:21:40Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-d973-pytest-2026-06-17T21:52:00Z"
+        timestamp: "2026-06-17T21:52:00Z"
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_anonymous_skill_access.py
+    command: python3 -m pytest backend/tests/test_anonymous_skill_access.py
+    covers:
+      - AC-12
+      - AC-13
+    assertions:
+      - skill without connected-account requirement can execute through anonymous meter without an explicit anonymous allowlist flag
+      - connected-account skill is rejected for anonymous callers
+      - missing connected-account classification fails metadata audit
+      - anonymous skill execution rejects file or upload payloads with signup_required
+      - anonymous chat stream rejects message or history payloads containing file/embed upload references before inference starts
+      - direct anonymous upload attempts are not accepted before account creation
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "27749545866"
+        timestamp: "2026-06-18T09:21:40Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-d973-pytest-2026-06-17T21:52:00Z"
+        timestamp: "2026-06-17T21:52:00Z"
+  - id: T-VITEST-001
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-13
+      - AC-17
+    assertions:
+      - anonymous chat creation uses ChatKeyManager per-chat keys
+      - anonymous IndexedDB records are marked with anonymous scope
+      - same-tab reload with the anonymous session marker can recover anonymous chat, key, message, draft, and embed records
+      - unauthenticated boot without the anonymous session marker purges anonymous chat, key, message, draft, and embed records
+      - anonymous file attachment attempts do not store local file embeds or send file bytes
+      - anonymous file attachment attempts replace composer suggestions with account-required copy and replace Send with Signup
+      - signup started from a pending anonymous file attachment preserves typed message text as a draft but discards the pending file
+      - anonymous follow-up payload assembly decrypts and includes required local text chat history
+      - anonymous follow-up payload assembly does not rely on server inference cache state or request_chat_history recovery
+      - signup conversion wraps anonymous chat keys with the master key and prepares normal sync payloads
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "27694480270"
+        timestamp: "2026-06-17T14:00:21Z"
+  - id: T-PLAYWRIGHT-001
+    type: playwright
+    file: frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    command: python3 scripts/run_tests.py --spec anonymous-free-chat.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-14
+      - AC-17
+    assertions:
+      - new logged-out browser with available budget sees free chat CTA
+      - browser with last-auth-method marker sees Login instead of free chat CTA
+      - empty anonymous chat does not show the free daily credits notice before first send
+      - pre-send UI shows Terms and Privacy reminder before anonymous message submission
+      - first anonymous send inserts a local system message with free daily credits, local-only storage, and signup benefits before the user message
+      - message input button says Send
+      - sent anonymous message receives assistant response without authenticated websocket sync
+      - attaching a file while anonymous replaces suggestions above the input with account-required text and replaces Send with Signup
+      - clicking Signup from that state preserves typed message text after account creation but requires reattaching the file
+      - removing the pending file restores normal suggestions and Send behavior
+      - same-tab reload preserves anonymous chat while the anonymous session marker exists
+      - new unauthenticated session clears anonymous chat from local storage
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "27691323193"
+        timestamp: "2026-06-17T13:11:34Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: "27696104408"
+        timestamp: "2026-06-17T14:26:13Z"
+  - id: T-VITEST-002
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/anonymousChatPromotionService.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-8
+    assertions:
+      - completed signup wraps anonymous chat key with the authenticated master key
+      - completed signup uploads encrypted anonymous chat history through the normal sync client
+      - completed signup clears anonymous local storage after successful promotion
+      - failed upload rolls back locally promoted chats and preserves anonymous storage
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "2026-06-17T03:00:01Z"
+        timestamp: "2026-06-17T03:00:01Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "27694480270"
+        timestamp: "2026-06-17T14:00:21Z"
+  - id: T-PLAYWRIGHT-003
+    type: playwright
+    file: frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    command: python3 scripts/run_tests.py --spec server-anonymous-free-usage-budget.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-16
+    assertions:
+      - admin can view and save anonymous free usage budget settings
+      - derived daily and weekly caps are displayed from monthly budget percentages
+      - non-admin users do not see the Server settings entry
+      - self-host fixture hides anonymous free usage settings
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: "27750992362"
+        timestamp: "2026-06-18T09:47:48Z"
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-4
+      - AC-6
+      - AC-9
+      - AC-12
+      - AC-16
+    assertions:
+      - CLI can discover anonymous free usage status on official cloud
+      - CLI anonymous chat sends anonymous ID and uses local encrypted chat storage
+      - CLI blocks anonymous free usage on self-hosted server status
+      - CLI rejects connected-account skills before execution
+      - CLI anonymous file attachment attempts return signup_required before reading or uploading file bytes
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "27694480270"
+        timestamp: "2026-06-17T14:00:21Z"
+  - id: T-MANUAL-APPLE-001
+    type: manual
+    covers:
+      - AC-4
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-16
+    assertions:
+      - Apple app shows anonymous free chat only on official cloud with available budget
+      - Apple anonymous chat stores encrypted local-only records and purges them when unauthenticated without an active anonymous session marker
+      - Apple signup conversion promotes anonymous encrypted chat into normal account sync
+      - Apple anonymous file attachment attempts show account-required copy, route Signup, preserve typed text as a draft, and require reattaching the file after signup
+      - Apple hides anonymous free usage on self-hosted status
+    red_phase:
+      required: false
+      expected: manual_before_implementation
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "remote-mac-build-ios-4f340ad-2026-06-18T08:47:35Z"
+        timestamp: "2026-06-18T09:00:52Z"
+  - id: T-DOCS-001
+    type: lint
+    file: frontend/packages/ui/scripts/build-translations.js
+    command: cd frontend/packages/ui && npm run build:translations
+    covers:
+      - AC-15
+    assertions:
+      - privacy policy source references anonymous free usage storage and pseudonymous budget checks
+      - browser storage inventory includes anonymous local ID and anonymous IndexedDB scope
+      - terms source references anonymous fair-use limits and availability
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local-d973-missing-docs-2026-06-17T21:49:00Z"
+        timestamp: "2026-06-17T21:49:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-d973-build-translations-2026-06-17T21:58:00Z"
+        timestamp: "2026-06-17T21:58:00Z"
+
+implementation_plan:
+  existing_patterns:
+    - Mirror free-testing budget admin/public status patterns, but do not grant credits to users.
+    - Reuse ChatKeyManager and existing chat/message/embed encryption for local anonymous records.
+    - Reuse authenticated sync only after signup conversion wraps chat keys with the account master key.
+  architecture: >
+    Add an AnonymousFreeUsageService that owns budget config, public availability, HMAC identity checks,
+    reservation/finalization accounting, and short-lived anonymous usage metadata. Add a platform-neutral
+    anonymous chat/app execution API that routes through a shared usage meter instead of BillingService.
+    Client platforms store anonymous encrypted chats locally in a marked anonymous scope guarded by an
+    anonymous session marker. Same-session reload can recover the chat for UX, while a new unauthenticated
+    session without that marker purges the anonymous scope before normal loading unless signup conversion is
+    actively promoting the records.
+  data_flow:
+    - Client creates or loads first-party anonymous local ID.
+    - Client creates a short-lived anonymous session marker for local encrypted chat continuity.
+    - Client checks public anonymous free usage status.
+    - Client creates local anonymous chat and per-chat key.
+    - Client sends plaintext message for transient AI/app processing plus anonymous ID.
+    - Client includes full decrypted anonymous text history on every anonymous AI/app turn.
+    - Client blocks file attachments before upload, replaces suggestions above the input with account-required copy, and replaces Send with Signup while the pending file remains attached.
+    - Backend HMACs local ID and request IP, reserves budget, executes allowed model/skills, finalizes actual credits, and streams response.
+    - Client encrypts user and assistant messages locally with the chat key and stores them in anonymous local scope.
+    - On signup, client wraps anonymous chat keys with master key and syncs encrypted records as normal authenticated chats.
+  affected_files:
+    - path: backend/core/api/app/services/anonymous_free_usage_service.py
+      reason: Budget, identity, reservation, and status service.
+    - path: backend/core/api/app/routes/admin.py
+      reason: Admin budget endpoints.
+    - path: backend/core/api/app/routes/settings.py
+      reason: Public safe status metadata.
+    - path: backend/core/api/app/routes/anonymous.py
+      reason: Anonymous status/chat/skill endpoints, full-history payload validation, and signup_required rejection for file/upload payloads.
+    - path: backend/core/directus/schemas/anonymous_free_usage_budget.yml
+      reason: Budget config schema.
+    - path: backend/core/directus/schemas/anonymous_free_usage_counters.yml
+      reason: Daily/weekly aggregate counters and reservations.
+    - path: backend/apps/**/app.yml
+      reason: connected-account requirement metadata for anonymous skill gating.
+    - path: frontend/packages/ui/src/services/anonymousChatStorage.ts
+      reason: Anonymous local encrypted storage and purge/promote flow.
+    - path: frontend/packages/ui/src/stores/serverStatusStore.ts
+      reason: Anonymous availability state.
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Anonymous first-send local system message and send flow integration.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI anonymous status/chat API.
+    - path: apple/OpenMates/Sources/**
+      reason: Native anonymous free chat parity.
+    - path: shared/docs/privacy_policy.yml
+      reason: Privacy policy update.
+    - path: frontend/packages/ui/src/i18n/sources/legal/**
+      reason: Legal text updates.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/anonymous-free-usage-budget/spec.yml
+    - Backend pytest for service accounting and endpoint gating.
+    - Vitest for anonymous local storage and signup conversion payload preparation.
+    - Web Playwright after deploy for user-visible anonymous flow.
+    - CLI unit tests for status/chat/skill gating.
+    - Apple remote build or targeted test for native parity.
+  verification_order:
+    - Backend/service and CLI contracts first.
+    - Web Playwright second after deploy.
+    - Apple remote verification third.
+
+tasks:
+  - id: TASK-1
+    title: Add anonymous free usage budget service and schemas
+    covers:
+      scenarios:
+        - S-1
+        - S-7
+        - S-8
+        - S-9
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-9
+        - AC-10
+        - AC-11
+    expected_files:
+      - backend/core/api/app/services/anonymous_free_usage_service.py
+      - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+      - backend/core/directus/schemas/anonymous_free_usage_counters.yml
+      - backend/tests/test_anonymous_free_usage_budget.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+  - id: TASK-2
+    title: Add anonymous execution API and connected-account skill gating
+    covers:
+      scenarios:
+        - S-4
+        - S-10
+        - S-13
+      acceptance_criteria:
+        - AC-6
+        - AC-12
+        - AC-13
+    expected_files:
+      - backend/core/api/app/routes/anonymous.py
+      - backend/tests/test_anonymous_skill_access.py
+      - backend/apps/**/app.yml
+    verification:
+      - T-PYTEST-002
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement web anonymous encrypted local chat and signup conversion
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-11
+        - S-13
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-13
+        - AC-14
+    expected_files:
+      - frontend/packages/ui/src/services/anonymousChatStorage.ts
+      - frontend/packages/ui/src/stores/serverStatusStore.ts
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+      - frontend/packages/ui/src/services/__tests__/anonymousChatPromotionService.test.ts
+    verification:
+      - T-VITEST-001
+      - T-VITEST-002
+      - T-PLAYWRIGHT-001
+    independently_deployable: false
+  - id: TASK-4
+    title: Add admin settings UI and legal/privacy documentation
+    covers:
+      scenarios:
+        - S-1
+        - S-11
+        - S-12
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-15
+        - AC-16
+    expected_files:
+      - frontend/packages/ui/src/components/settings/server/SettingsAnonymousFreeUsageBudget.svelte
+      - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+      - shared/docs/privacy_policy.yml
+      - frontend/packages/ui/src/i18n/sources/legal/**
+    verification:
+      - T-PLAYWRIGHT-003
+      - T-DOCS-001
+    independently_deployable: false
+  - id: TASK-5
+    title: Add CLI and Apple anonymous free usage parity
+    covers:
+      scenarios:
+        - S-2
+        - S-4
+        - S-5
+        - S-6
+        - S-10
+        - S-13
+        - S-12
+      acceptance_criteria:
+        - AC-4
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-12
+        - AC-13
+        - AC-16
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+      - apple/OpenMates/Sources/**
+    verification:
+      - T-CLI-001
+      - T-MANUAL-APPLE-001
+    independently_deployable: false
+
+risks:
+  - IndexedDB reuse can leak stale anonymous records if session-marker purge gating is incomplete; tests must cover same-session reload, new unauthenticated session, and auth-state transitions.
+  - Connected-account metadata drift can accidentally expose a skill that needs user credentials; deterministic metadata audits are required.
+  - IP HMAC records remain pseudonymous personal data under GDPR; privacy policy and retention must be explicit.
+  - Reservation accounting must be atomic enough to prevent budget overspend under concurrent streaming requests.
+  - Cross-platform parity makes this larger than a web-only feature and should be implemented in slices behind feature flags.
+
+open_questions:
+  - none
+
+decisions:
+  - Anonymous local storage uses IndexedDB plus a sessionStorage-backed anonymous session marker; same-tab reload can recover encrypted local chats, but closing the tab/window removes the marker and the next unauthenticated start purges them.
+  - Anonymous file uploads require signup. Before account creation, attaching a file only changes the composer UI: suggestions above the input are replaced by account-required copy and Send is replaced by Signup; no file bytes, upload metadata, or embed payloads are sent to the backend. If the user starts signup from this state, preserve the typed message as a draft but discard the pending file so it must be reattached after account creation.
+  - Per-identity abuse prevention is daily-only for v1; weekly protection is enforced through the shared weekly budget, not weekly per-identity metadata.
+  - Public status exposes active/inactive and reset timing only; exact global remaining budget is admin-only.

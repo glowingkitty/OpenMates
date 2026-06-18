@@ -7,6 +7,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import WeatherConditionIcon from './WeatherConditionIcon.svelte';
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
 
@@ -28,6 +29,7 @@
     provider?: string;
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     results?: WeatherDaySummary[];
+    previewResults?: WeatherDaySummary[];
     taskId?: string;
     skillTaskId?: string;
     isMobile?: boolean;
@@ -39,6 +41,7 @@
     provider: providerProp = 'Weather',
     status: statusProp,
     results: resultsProp = [],
+    previewResults: previewResultsProp = [],
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     isMobile = false,
@@ -54,7 +57,7 @@
   $effect(() => {
     localProvider = providerProp;
     localStatus = statusProp || 'processing';
-    localResults = resultsProp || [];
+    localResults = resultsProp.length > 0 ? resultsProp : previewResultsProp;
     localTaskId = taskIdProp;
     localSkillTaskId = skillTaskIdProp;
   });
@@ -74,7 +77,11 @@
     const content = data.decodedContent;
     if (!content) return;
     if (typeof content.provider === 'string') localProvider = content.provider;
-    if (Array.isArray(content.results)) localResults = content.results as WeatherDaySummary[];
+    if (Array.isArray(content.results) && content.results.length > 0) {
+      localResults = content.results as WeatherDaySummary[];
+    } else if (Array.isArray(content.preview_results)) {
+      localResults = content.preview_results as WeatherDaySummary[];
+    }
     if (typeof content.skill_task_id === 'string') localSkillTaskId = content.skill_task_id;
   }
 
@@ -99,14 +106,10 @@
   }
 
   function getDayLabel(date?: string): string {
-    return date ? date.slice(5) : '—';
-  }
-
-  function getConditionIcon(condition?: string): string {
-    const normalized = condition?.toLowerCase() ?? '';
-    if (normalized.includes('rain')) return '☔';
-    if (normalized.includes('cloud')) return '☁';
-    return '☀';
+    if (!date) return '—';
+    const parsed = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return date.slice(5);
+    return new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(parsed);
   }
 </script>
 
@@ -131,7 +134,7 @@
           {#each visibleDays as day}
             <div class="forecast-column" data-testid="weather-forecast-day-pill">
               <span class="day-date">{getDayLabel(day.date)}</span>
-              <span class="day-icon" aria-hidden="true">{getConditionIcon(day.condition)}</span>
+              <WeatherConditionIcon icon={day.icon} condition={day.condition} size="sm" />
               <span class="day-temp">{formatTemp(day.temperature_min_c, day.temperature_max_c)}</span>
               <span class="day-rain">{day.precipitation_probability_max_pct ?? 0}% rain</span>
             </div>
@@ -167,7 +170,7 @@
   .forecast-columns {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
+    gap: 7px;
     margin-top: 2px;
   }
 
@@ -179,11 +182,15 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 7px 4px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--color-grey-10) 88%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-grey-30) 65%, transparent);
+    gap: 4px;
+    min-width: 0;
+    padding: 8px 4px 9px;
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--color-app-weather) 20%, transparent), transparent 54%),
+      color-mix(in srgb, var(--color-grey-0) 86%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-app-weather) 15%, var(--color-grey-20));
+    box-shadow: 0 7px 18px color-mix(in srgb, var(--color-grey-100) 7%, transparent);
   }
 
   .day-date,
@@ -194,14 +201,9 @@
 
   .day-temp {
     color: var(--color-grey-100);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-  }
-
-  .day-icon {
-    color: var(--color-grey-100);
-    font-size: 18px;
-    line-height: 1;
+    white-space: nowrap;
   }
 
   .error-indicator {

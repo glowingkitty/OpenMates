@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { writable, derived, get } from "svelte/store";
 import { authStore } from "./authStore";
 import { isInSignupProcess, isLoggingOut } from "./signupState";
@@ -221,7 +220,7 @@ const intendedSettingsOpen = derived(
       return false; // Close settings if logging out
     }
     // Otherwise, respect the current state (_isSettingsOpen) set by actions
-    // This allows non-authenticated users to open settings for app_store/interface
+    // This allows non-authenticated users to open settings for Apps/interface
     return $isSettingsOpen;
   },
 );

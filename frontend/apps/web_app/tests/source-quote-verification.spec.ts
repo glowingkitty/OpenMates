@@ -35,6 +35,11 @@ const SHARED_CHAT_WITH_WEBSITE_QUOTE = 'https://app.dev.openmates.org/s/aUc6RjnR
 const WEBSITE_SOURCE_QUOTE =
 	'xHain is a hack+makespace in the heart of Berlin, Germany. You can drop in on our Open Monday night from 18h until late at night.';
 
+const SHARED_CHAT_WITH_VIDEO_QUOTE = 'https://app.dev.openmates.org/s/Is8cygIa#fBhhCJ';
+const VIDEO_SOURCE_QUOTE =
+	'LLMs can get you 80% there, but the other 20%, man, if you’re not an expert, you are gonna have a hard time.';
+const VIDEO_SOURCE_LABEL = '"I had Fable build several projects for me. I\'m disturbed by what I saw." by Mo Bitar';
+
 test.describe('Source quote verification', () => {
 	test.setTimeout(240_000);
 
@@ -104,6 +109,36 @@ test.describe('Source quote verification', () => {
 		});
 		expect(styles.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
 		expect(styles.boxShadow).not.toBe('none');
+	});
+
+	test('clicking a video source quote opens transcript fullscreen', async ({ page }: { page: any }) => {
+		test.setTimeout(120_000);
+
+		const response = await page.goto(SHARED_CHAT_WITH_VIDEO_QUOTE, { waitUntil: 'networkidle' });
+		expect(response?.status()).toBe(200);
+
+		const sourceQuote = page.getByTestId('source-quote-block').filter({ hasText: VIDEO_SOURCE_QUOTE }).first();
+		await expect(sourceQuote).toBeVisible({ timeout: 30_000 });
+		await expect(sourceQuote).toContainText(VIDEO_SOURCE_LABEL);
+		await expect(sourceQuote).not.toContainText('vS-gfLhxYDg');
+
+		await sourceQuote.click();
+
+		const overlay = page.getByTestId('embed-fullscreen-overlay').last();
+		await expect(overlay).toBeVisible({ timeout: 30_000 });
+		await expect(overlay).toContainText('YouTube Video', { timeout: 10_000 });
+
+		const highlights = overlay.getByTestId('embed-source-text-highlight');
+		await expect(highlights.first()).toBeVisible({ timeout: 10_000 });
+		const highlightedText = await highlights.evaluateAll((elements: HTMLElement[]) =>
+			elements
+				.map((element) => element.textContent || '')
+				.join(' ')
+				.replace(/\s+/g, ' ')
+				.trim()
+		);
+		expect(highlightedText).toContain('LLMs can get you 80% there');
+		expect(highlightedText).not.toMatch(/\b\d{1,2}:\d{2}:\d{2}(?:\.\d+)?\b/);
 	});
 
 });

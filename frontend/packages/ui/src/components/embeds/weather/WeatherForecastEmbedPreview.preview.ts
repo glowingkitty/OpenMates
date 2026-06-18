@@ -7,6 +7,7 @@ const results = [
   {
     date: '2026-06-02',
     condition: 'dry',
+    icon: 'clear-day',
     temperature_min_c: 15,
     temperature_max_c: 26,
     precipitation_total_mm: 0,
@@ -16,6 +17,7 @@ const results = [
   {
     date: '2026-06-03',
     condition: 'rain',
+    icon: 'rain',
     temperature_min_c: 14,
     temperature_max_c: 19,
     precipitation_total_mm: 5.8,
@@ -24,12 +26,23 @@ const results = [
   },
   {
     date: '2026-06-04',
-    condition: 'rain',
+    condition: 'cloudy',
+    icon: 'cloudy',
     temperature_min_c: 13,
     temperature_max_c: 21,
     precipitation_total_mm: 4.9,
     precipitation_probability_max_pct: 37,
     rain_hours: 9,
+  },
+  {
+    date: '2026-06-05',
+    condition: 'thunderstorm',
+    icon: 'thunderstorms-day-rain',
+    temperature_min_c: 16,
+    temperature_max_c: 22,
+    precipitation_total_mm: 12.4,
+    precipitation_probability_max_pct: 82,
+    rain_hours: 6,
   },
 ];
 

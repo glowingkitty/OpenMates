@@ -31,7 +31,7 @@
     // Navigate to the Apps (available for unauthenticated users)
     function openAppStore() {
         dispatch('openSettings', {
-            settingsPath: 'app_store',
+            settingsPath: 'apps',
             direction: 'forward',
             icon: 'app',
             title: $text('settings.app_store')

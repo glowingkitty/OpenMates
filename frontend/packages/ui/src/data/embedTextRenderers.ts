@@ -64,12 +64,12 @@ import { renderMusicGenerate } from '../components/embeds/music/musicEmbedText';
 import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/mathEmbedText';
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
 import { renderShoppingSearch, renderShoppingProduct } from '../components/embeds/shopping/shoppingEmbedText';
-import { renderElectronicsSearch, renderElectronicsComponent } from '../components/embeds/electronics/electronicsEmbedText';
+import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
-import { renderWeatherDay, renderWeatherForecast } from '../components/embeds/weather/weatherEmbedText';
+import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
 
 // ── Renderer type ────────────────────────────────────────────────────────
 
@@ -144,6 +144,10 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:pdf:search': renderGenericAppSkill,
 	'app:pdf:view': renderGenericAppSkill,
 	'app:mail:search': renderMailSearch,
+	'app:calendar:get-events': renderGenericAppSkill,
+	'app:calendar:create-event': renderGenericAppSkill,
+	'app:calendar:update-event': renderGenericAppSkill,
+	'app:calendar:delete-event': renderGenericAppSkill,
 	'app:math:calculate': renderMathCalculate,
 	'app:reminder:set-reminder': renderReminder,
 	'app:reminder:list-reminders': renderReminder,
@@ -152,6 +156,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:social_media:get-posts': renderSocialMediaGetPosts,
 	'app:social_media:search': renderSocialMediaSearch,
 	'app:weather:forecast': renderWeatherForecast,
+	'app:weather:rain_radar': renderWeatherRainRadar,
 
 	// ── Direct embeds ────────────────────────────────────────────────
 	'web-website': renderWebsite,
@@ -175,6 +180,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'health-appointment': renderAppointment,
 	'home-listing': renderListing,
 	'shopping-product': renderShoppingProduct,
+	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,
 	'nutrition-recipe': renderNutritionRecipe,
 	'weather-day': renderWeatherDay,

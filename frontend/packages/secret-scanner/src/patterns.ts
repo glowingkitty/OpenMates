@@ -3,9 +3,8 @@
  * @file Vendor-specific secret detection patterns.
  *
  * Ported from piiDetectionService.ts (frontend/packages/ui) for reuse
- * in both CLI output scanning and web app file processing. Only includes
- * patterns for API keys, tokens, and credentials — NOT personal data
- * (email, phone, SSN, etc.) which remain in piiDetectionService.ts.
+ * in both CLI output scanning and web app file processing. Also includes
+ * the high-confidence email/phone PII patterns used by the web composer.
  *
  * No generic high-entropy heuristic is included — only patterns with
  * proven low false-positive rates from production use.
@@ -181,5 +180,36 @@ export const SECRET_PATTERNS: SecretPattern[] = [
     regex: /\beyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+/g,
     label: "JWT Token",
     placeholderPrefix: "JWT_TOKEN",
+  },
+];
+
+/**
+ * High-confidence general PII patterns shared with the web composer.
+ * Keep these in sync with piiDetectionService.ts for CLI/web parity.
+ */
+export const GENERAL_PII_PATTERNS: SecretPattern[] = [
+  {
+    type: "EMAIL",
+    regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+    label: "Email Address",
+    placeholderPrefix: "EMAIL",
+  },
+  {
+    type: "PHONE",
+    regex:
+      /(?:(?:\+|00)[1-9]\d{0,2}[-.\s/]?(?:\(?\d{1,5}\)?[-.\s/]?){1,4}\d{2,4})|(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}|(?:0\d[-.\s/]?(?:\(?\d{1,5}\)?[-.\s/]?){1,4}\d{2,4})/g,
+    label: "Phone Number",
+    placeholderPrefix: "PHONE",
+    validate: (match: string) => {
+      const trimmed = match.trim();
+      const digits = trimmed.replace(/\D/g, "");
+      if (digits.length < 7 || digits.length > 15) return false;
+      if (/^\d{4}$/.test(trimmed)) return false;
+      if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(trimmed)) return false;
+      if (/^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}$/.test(trimmed)) return false;
+      if (/^(?:19|20)\d{6}$/.test(trimmed)) return false;
+      if (/^0\d{1,2}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(trimmed)) return false;
+      return true;
+    },
   },
 ];

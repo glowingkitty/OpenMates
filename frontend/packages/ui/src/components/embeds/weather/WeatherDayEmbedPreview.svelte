@@ -7,6 +7,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import WeatherConditionIcon from './WeatherConditionIcon.svelte';
   import { text } from '@repo/ui';
 
   interface Props {
@@ -62,20 +63,13 @@
     if (!value) return $text('apps.weather.day');
     const parsed = new Date(`${value}T00:00:00`);
     if (Number.isNaN(parsed.getTime())) return value;
-    const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(parsed);
-    return `${weekday}, ${value}`;
+    return new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' }).format(parsed);
   }
 
-  function getConditionIcon(): string {
-    if (icon) return icon;
-    const normalized = (condition || '').toLowerCase();
-    if (normalized.includes('rain')) return '☔';
-    if (normalized.includes('cloud')) return '☁';
-    if (normalized.includes('snow')) return '❄';
-    if (normalized.includes('storm')) return '⛈';
-    return '☀';
+  function formatCondition(value?: string): string {
+    if (!value) return '—';
+    return value.replace(/[-_]/g, ' ');
   }
-
 </script>
 
 <UnifiedEmbedPreview
@@ -94,14 +88,20 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="weather-day-details" class:mobile={isMobileLayout} data-testid="weather-day-preview">
-      <div class="day-title" data-testid="weather-day-date">{dayTitle}</div>
-      <div class="day-weather-icon" data-testid="weather-day-icon" aria-hidden="true">{getConditionIcon()}</div>
-      <div class="day-temp" data-testid="weather-day-temperature">{formatTemp(temperatureMinC, temperatureMaxC)}</div>
-      <div class="day-condition" data-testid="weather-day-condition">{condition || '—'}</div>
+      <div class="day-copy">
+        <div class="day-title" data-testid="weather-day-date">{dayTitle}</div>
+        <div class="day-condition" data-testid="weather-day-condition">{formatCondition(condition)}</div>
+      </div>
+      <div class="day-hero">
+        <div data-testid="weather-day-icon">
+          <WeatherConditionIcon {icon} {condition} size={isMobileLayout ? 'md' : 'lg'} />
+        </div>
+        <div class="day-temp" data-testid="weather-day-temperature">{formatTemp(temperatureMinC, temperatureMaxC)}</div>
+      </div>
       <div class="day-metrics" data-testid="weather-day-metrics">
+        <span>{precipitationProbabilityMaxPct ?? 0}% rain</span>
         <span>{precipitationTotalMm ?? 0} mm</span>
-        <span>{precipitationProbabilityMaxPct ?? 0}%</span>
-        <span>{rainHours ?? 0}h rain</span>
+        <span>{rainHours ?? 0}h</span>
       </div>
     </div>
   {/snippet}
@@ -111,13 +111,32 @@
   .weather-day-details {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 5px;
+    justify-content: space-between;
+    gap: 10px;
     height: 100%;
+    min-height: 145px;
+    padding: 12px;
+    border-radius: 20px;
+    background:
+      radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--color-app-weather) 28%, transparent), transparent 42%),
+      linear-gradient(145deg, color-mix(in srgb, var(--color-app-weather) 14%, var(--color-grey-0)), var(--color-grey-0));
+    border: 1px solid color-mix(in srgb, var(--color-app-weather) 18%, var(--color-grey-20));
   }
 
   .weather-day-details.mobile {
-    justify-content: flex-start;
+    min-height: 132px;
+    padding: 10px;
+  }
+
+  .day-copy {
+    min-width: 0;
+  }
+
+  .day-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
   }
 
   .day-title,
@@ -128,22 +147,25 @@
 
   .day-title {
     font-size: 15px;
-  }
-
-  .day-weather-icon {
-    color: var(--color-grey-100);
-    font-size: 30px;
-    line-height: 1;
+    line-height: 1.15;
   }
 
   .day-temp {
-    font-size: 24px;
+    font-size: 25px;
+    line-height: 1;
+    text-align: right;
+    white-space: nowrap;
   }
 
   .day-condition,
   .day-metrics {
     color: var(--color-grey-70);
     font-size: 13px;
+  }
+
+  .day-condition {
+    margin-top: 3px;
+    text-transform: capitalize;
   }
 
   .day-metrics {
@@ -154,8 +176,9 @@
 
   .day-metrics span {
     border-radius: 999px;
-    background: var(--color-grey-10);
-    border: 1px solid var(--color-grey-20);
-    padding: 3px 7px;
+    background: color-mix(in srgb, var(--color-grey-0) 82%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-app-weather) 16%, var(--color-grey-20));
+    padding: 4px 8px;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--color-grey-100) 6%, transparent);
   }
 </style>

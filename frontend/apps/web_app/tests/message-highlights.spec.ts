@@ -201,20 +201,26 @@ async function assertHighlightsAtViewport(
 	expect(count, `[${viewportLabel}] mark count`).toBe(expectedTexts.size);
 	const seen = new Set<string>();
 	for (let i = 0; i < count; i++) {
+		await expect(async () => {
+			const m = marks.nth(i);
+			await expect(m, `[${viewportLabel}] mark ${i} visible`).toBeVisible({ timeout: 1000 });
+			const txt = (await m.textContent() ?? '').trim();
+			expect(expectedTexts.has(txt), `[${viewportLabel}] mark ${i} text "${txt}" is expected`).toBe(true);
+			const style = await m.evaluate((el: HTMLElement) => {
+				const cs = window.getComputedStyle(el);
+				return { color: cs.color, bg: cs.backgroundColor };
+			});
+			expect(style.color, `[${viewportLabel}] mark ${i} text readable`).not.toBe(style.bg);
+		}).toPass({ timeout: 5000 });
+
 		const m = marks.nth(i);
 		const txt = (await m.textContent() ?? '').trim();
-		expect(expectedTexts.has(txt), `[${viewportLabel}] mark ${i} text "${txt}" is expected`).toBe(true);
 		seen.add(txt);
 		await expect(m, `[${viewportLabel}] mark ${i} visible`).toBeVisible();
 		const box = await m.boundingBox();
 		expect(box, `[${viewportLabel}] mark ${i} has bounding box`).not.toBeNull();
 		expect(box.width, `[${viewportLabel}] mark ${i} width > 0`).toBeGreaterThan(0);
 		expect(box.height, `[${viewportLabel}] mark ${i} height > 0`).toBeGreaterThan(0);
-		const style = await m.evaluate((el: HTMLElement) => {
-			const cs = window.getComputedStyle(el);
-			return { color: cs.color, bg: cs.backgroundColor };
-		});
-		expect(style.color, `[${viewportLabel}] mark ${i} text readable`).not.toBe(style.bg);
 	}
 	expect(seen.size, `[${viewportLabel}] all expected texts found`).toBe(expectedTexts.size);
 	await takeStepScreenshot(page, screenshotLabel);
@@ -400,14 +406,16 @@ test('message highlights: correctness, lifecycle, viewport resize', async ({ pag
 	// STEP 6 — Click commented highlight → view popover
 	// ───────────────────────────────────────────────────────────
 	logCheckpoint('Clicking commented highlight...');
-	// Find the "old bridge" mark specifically
-	let commentedMarkIdx = 0;
-	for (let i = 0; i < 2; i++) {
-		const txt = (await marks.nth(i).textContent() ?? '').trim();
-		if (txt === 'old bridge') { commentedMarkIdx = i; break; }
-	}
-	await marks.nth(commentedMarkIdx).click({ force: true });
-	await expect(popover).toBeVisible({ timeout: 5000 });
+	await expect(async () => {
+		let commentedMarkIdx = 0;
+		const markCount = await marks.count();
+		for (let i = 0; i < markCount; i++) {
+			const txt = (await marks.nth(i).textContent() ?? '').trim();
+			if (txt === 'old bridge') { commentedMarkIdx = i; break; }
+		}
+		await marks.nth(commentedMarkIdx).click({ force: true });
+		await expect(popover).toBeVisible({ timeout: 1500 });
+	}).toPass({ timeout: 15000 });
 	await expect(commentView).toHaveText(COMMENT_TEXT);
 	await expect(page.locator(SELECTORS.commentEdit)).toBeVisible();
 	await expect(page.locator(SELECTORS.commentDelete)).toBeVisible();

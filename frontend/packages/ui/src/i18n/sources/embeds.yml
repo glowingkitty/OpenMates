@@ -1,3 +1,195 @@
+weather.rain_radar.no_rain:
+  context: Rain radar fallback text when no rain is visible
+  en: No rain visible near this location.
+  de: Kein Regen in der Nähe dieses Ortes sichtbar.
+  zh: No rain visible near this location.
+  es: No rain visible near this location.
+  fr: No rain visible near this location.
+  pt: No rain visible near this location.
+  ru: No rain visible near this location.
+  ja: No rain visible near this location.
+  ko: No rain visible near this location.
+  it: No rain visible near this location.
+  tr: No rain visible near this location.
+  vi: No rain visible near this location.
+  id: No rain visible near this location.
+  pl: No rain visible near this location.
+  nl: No rain visible near this location.
+  ar: No rain visible near this location.
+  hi: No rain visible near this location.
+  th: No rain visible near this location.
+  cs: No rain visible near this location.
+  sv: No rain visible near this location.
+  he: No rain visible near this location.
+  verified_by_human: [en, de]
+weather.rain_radar.unavailable:
+  context: Rain radar unavailable state
+  en: Rain radar is unavailable for this location.
+  de: Regenradar ist für diesen Ort nicht verfügbar.
+  zh: Rain radar is unavailable for this location.
+  es: Rain radar is unavailable for this location.
+  fr: Rain radar is unavailable for this location.
+  pt: Rain radar is unavailable for this location.
+  ru: Rain radar is unavailable for this location.
+  ja: Rain radar is unavailable for this location.
+  ko: Rain radar is unavailable for this location.
+  it: Rain radar is unavailable for this location.
+  tr: Rain radar is unavailable for this location.
+  vi: Rain radar is unavailable for this location.
+  id: Rain radar is unavailable for this location.
+  pl: Rain radar is unavailable for this location.
+  nl: Rain radar is unavailable for this location.
+  ar: Rain radar is unavailable for this location.
+  hi: Rain radar is unavailable for this location.
+  th: Rain radar is unavailable for this location.
+  cs: Rain radar is unavailable for this location.
+  sv: Rain radar is unavailable for this location.
+  he: Rain radar is unavailable for this location.
+  verified_by_human: [en, de]
+weather.rain_radar.peak:
+  context: Label for peak radar intensity
+  en: Peak
+  de: Spitze
+  zh: Peak
+  es: Peak
+  fr: Peak
+  pt: Peak
+  ru: Peak
+  ja: Peak
+  ko: Peak
+  it: Peak
+  tr: Peak
+  vi: Peak
+  id: Peak
+  pl: Peak
+  nl: Peak
+  ar: Peak
+  hi: Peak
+  th: Peak
+  cs: Peak
+  sv: Peak
+  he: Peak
+  verified_by_human: [en, de]
+weather.rain_radar.at_location:
+  context: Label for rainfall at selected location
+  en: At location
+  de: Am Ort
+  zh: At location
+  es: At location
+  fr: At location
+  pt: At location
+  ru: At location
+  ja: At location
+  ko: At location
+  it: At location
+  tr: At location
+  vi: At location
+  id: At location
+  pl: At location
+  nl: At location
+  ar: At location
+  hi: At location
+  th: At location
+  cs: At location
+  sv: At location
+  he: At location
+  verified_by_human: [en, de]
+weather.rain_radar.play:
+  context: Button label to play the rain radar timeline animation
+  en: Play
+  de: Abspielen
+  zh: Play
+  es: Play
+  fr: Play
+  pt: Play
+  ru: Play
+  ja: Play
+  ko: Play
+  it: Play
+  tr: Play
+  vi: Play
+  id: Play
+  pl: Play
+  nl: Play
+  ar: Play
+  hi: Play
+  th: Play
+  cs: Play
+  sv: Play
+  he: Play
+  verified_by_human: [en, de]
+weather.rain_radar.pause:
+  context: Button label to pause the rain radar timeline animation
+  en: Pause
+  de: Pause
+  zh: Pause
+  es: Pause
+  fr: Pause
+  pt: Pause
+  ru: Pause
+  ja: Pause
+  ko: Pause
+  it: Pause
+  tr: Pause
+  vi: Pause
+  id: Pause
+  pl: Pause
+  nl: Pause
+  ar: Pause
+  hi: Pause
+  th: Pause
+  cs: Pause
+  sv: Pause
+  he: Pause
+  verified_by_human: [en, de]
+weather.rain_radar.frames:
+  context: Label after the number of frames in the rain radar timeline
+  en: frames
+  de: Bilder
+  zh: frames
+  es: frames
+  fr: frames
+  pt: frames
+  ru: frames
+  ja: frames
+  ko: frames
+  it: frames
+  tr: frames
+  vi: frames
+  id: frames
+  pl: frames
+  nl: frames
+  ar: frames
+  hi: frames
+  th: frames
+  cs: frames
+  sv: frames
+  he: frames
+  verified_by_human: [en, de]
+weather.rain_radar.load_failed:
+  context: Message shown when the encrypted rain radar grid blob cannot be loaded
+  en: Radar data could not be loaded. Showing the summary view instead.
+  de: Radardaten konnten nicht geladen werden. Stattdessen wird die Zusammenfassung angezeigt.
+  zh: Radar data could not be loaded. Showing the summary view instead.
+  es: Radar data could not be loaded. Showing the summary view instead.
+  fr: Radar data could not be loaded. Showing the summary view instead.
+  pt: Radar data could not be loaded. Showing the summary view instead.
+  ru: Radar data could not be loaded. Showing the summary view instead.
+  ja: Radar data could not be loaded. Showing the summary view instead.
+  ko: Radar data could not be loaded. Showing the summary view instead.
+  it: Radar data could not be loaded. Showing the summary view instead.
+  tr: Radar data could not be loaded. Showing the summary view instead.
+  vi: Radar data could not be loaded. Showing the summary view instead.
+  id: Radar data could not be loaded. Showing the summary view instead.
+  pl: Radar data could not be loaded. Showing the summary view instead.
+  nl: Radar data could not be loaded. Showing the summary view instead.
+  ar: Radar data could not be loaded. Showing the summary view instead.
+  hi: Radar data could not be loaded. Showing the summary view instead.
+  th: Radar data could not be loaded. Showing the summary view instead.
+  cs: Radar data could not be loaded. Showing the summary view instead.
+  sv: Radar data could not be loaded. Showing the summary view instead.
+  he: Radar data could not be loaded. Showing the summary view instead.
+  verified_by_human: [en, de]
 search:
   context: Search skill label
   en: Search
@@ -2935,7 +3127,7 @@ context_menu.deactivate:
   he: השבתה
   verified_by_human: []
 context_menu.details:
-  context: Context menu action to view focus mode details in app store
+  context: Context menu action to view focus mode details in Apps
   en: Details
   de: Details
   zh: 详情
@@ -5820,6 +6012,343 @@ electronics.electrical:
   he: נתונים חשמליים
   verified_by_human: [en, de]
 
+electronics.pcb_schematic.title:
+  context: Title for an Electronics PCB schematic embed containing Atopile source
+  en: PCB schematic
+  de: PCB-Schaltplan
+  zh: PCB schematic
+  es: PCB schematic
+  fr: PCB schematic
+  pt: PCB schematic
+  ru: PCB schematic
+  ja: PCB schematic
+  ko: PCB schematic
+  it: PCB schematic
+  tr: PCB schematic
+  vi: PCB schematic
+  id: PCB schematic
+  pl: PCB schematic
+  nl: PCB schematic
+  ar: PCB schematic
+  hi: PCB schematic
+  th: PCB schematic
+  cs: PCB schematic
+  sv: PCB schematic
+  he: PCB schematic
+  verified_by_human: [en, de]
+electronics.pcb_schematic.prepare_files:
+  context: Button label to compile Atopile source and prepare KiCad/project files
+  en: Prepare PCB files
+  de: PCB-Dateien vorbereiten
+  zh: Prepare PCB files
+  es: Prepare PCB files
+  fr: Prepare PCB files
+  pt: Prepare PCB files
+  ru: Prepare PCB files
+  ja: Prepare PCB files
+  ko: Prepare PCB files
+  it: Prepare PCB files
+  tr: Prepare PCB files
+  vi: Prepare PCB files
+  id: Prepare PCB files
+  pl: Prepare PCB files
+  nl: Prepare PCB files
+  ar: Prepare PCB files
+  hi: Prepare PCB files
+  th: Prepare PCB files
+  cs: Prepare PCB files
+  sv: Prepare PCB files
+  he: Prepare PCB files
+  verified_by_human: [en, de]
+electronics.pcb_schematic.preparing:
+  context: Busy button label while PCB files are being prepared
+  en: Preparing PCB files
+  de: PCB-Dateien werden vorbereitet
+  zh: Preparing PCB files
+  es: Preparing PCB files
+  fr: Preparing PCB files
+  pt: Preparing PCB files
+  ru: Preparing PCB files
+  ja: Preparing PCB files
+  ko: Preparing PCB files
+  it: Preparing PCB files
+  tr: Preparing PCB files
+  vi: Preparing PCB files
+  id: Preparing PCB files
+  pl: Preparing PCB files
+  nl: Preparing PCB files
+  ar: Preparing PCB files
+  hi: Preparing PCB files
+  th: Preparing PCB files
+  cs: Preparing PCB files
+  sv: Preparing PCB files
+  he: Preparing PCB files
+  verified_by_human: [en, de]
+electronics.pcb_schematic.prepared:
+  context: Toast shown after PCB project files were prepared successfully
+  en: PCB files prepared
+  de: PCB-Dateien vorbereitet
+  zh: PCB files prepared
+  es: PCB files prepared
+  fr: PCB files prepared
+  pt: PCB files prepared
+  ru: PCB files prepared
+  ja: PCB files prepared
+  ko: PCB files prepared
+  it: PCB files prepared
+  tr: PCB files prepared
+  vi: PCB files prepared
+  id: PCB files prepared
+  pl: PCB files prepared
+  nl: PCB files prepared
+  ar: PCB files prepared
+  hi: PCB files prepared
+  th: PCB files prepared
+  cs: PCB files prepared
+  sv: PCB files prepared
+  he: PCB files prepared
+  verified_by_human: [en, de]
+electronics.pcb_schematic.prepare_failed:
+  context: Generic error shown when PCB file preparation fails
+  en: PCB file preparation failed
+  de: PCB-Dateien konnten nicht vorbereitet werden
+  zh: PCB file preparation failed
+  es: PCB file preparation failed
+  fr: PCB file preparation failed
+  pt: PCB file preparation failed
+  ru: PCB file preparation failed
+  ja: PCB file preparation failed
+  ko: PCB file preparation failed
+  it: PCB file preparation failed
+  tr: PCB file preparation failed
+  vi: PCB file preparation failed
+  id: PCB file preparation failed
+  pl: PCB file preparation failed
+  nl: PCB file preparation failed
+  ar: PCB file preparation failed
+  hi: PCB file preparation failed
+  th: PCB file preparation failed
+  cs: PCB file preparation failed
+  sv: PCB file preparation failed
+  he: PCB file preparation failed
+  verified_by_human: [en, de]
+electronics.pcb_schematic.show_logs:
+  context: Button label to reveal Atopile/E2B compile logs
+  en: Show logs
+  de: Logs anzeigen
+  zh: Show logs
+  es: Show logs
+  fr: Show logs
+  pt: Show logs
+  ru: Show logs
+  ja: Show logs
+  ko: Show logs
+  it: Show logs
+  tr: Show logs
+  vi: Show logs
+  id: Show logs
+  pl: Show logs
+  nl: Show logs
+  ar: Show logs
+  hi: Show logs
+  th: Show logs
+  cs: Show logs
+  sv: Show logs
+  he: Show logs
+  verified_by_human: [en, de]
+electronics.pcb_schematic.hide_logs:
+  context: Button label to hide Atopile/E2B compile logs
+  en: Hide logs
+  de: Logs ausblenden
+  zh: Hide logs
+  es: Hide logs
+  fr: Hide logs
+  pt: Hide logs
+  ru: Hide logs
+  ja: Hide logs
+  ko: Hide logs
+  it: Hide logs
+  tr: Hide logs
+  vi: Hide logs
+  id: Hide logs
+  pl: Hide logs
+  nl: Hide logs
+  ar: Hide logs
+  hi: Hide logs
+  th: Hide logs
+  cs: Hide logs
+  sv: Hide logs
+  he: Hide logs
+  verified_by_human: [en, de]
+electronics.pcb_schematic.logs:
+  context: Section heading for Atopile/E2B compile logs
+  en: Compile logs
+  de: Kompilierungslogs
+  zh: Compile logs
+  es: Compile logs
+  fr: Compile logs
+  pt: Compile logs
+  ru: Compile logs
+  ja: Compile logs
+  ko: Compile logs
+  it: Compile logs
+  tr: Compile logs
+  vi: Compile logs
+  id: Compile logs
+  pl: Compile logs
+  nl: Compile logs
+  ar: Compile logs
+  hi: Compile logs
+  th: Compile logs
+  cs: Compile logs
+  sv: Compile logs
+  he: Compile logs
+  verified_by_human: [en, de]
+electronics.pcb_schematic.no_logs:
+  context: Empty state text when no PCB compile logs are available
+  en: No logs available.
+  de: Keine Logs verfügbar.
+  zh: No logs available.
+  es: No logs available.
+  fr: No logs available.
+  pt: No logs available.
+  ru: No logs available.
+  ja: No logs available.
+  ko: No logs available.
+  it: No logs available.
+  tr: No logs available.
+  vi: No logs available.
+  id: No logs available.
+  pl: No logs available.
+  nl: No logs available.
+  ar: No logs available.
+  hi: No logs available.
+  th: No logs available.
+  cs: No logs available.
+  sv: No logs available.
+  he: No logs available.
+  verified_by_human: [en, de]
+electronics.pcb_schematic.artifacts:
+  context: Section heading for generated PCB/KiCad artifact list
+  en: Prepared files
+  de: Vorbereitete Dateien
+  zh: Prepared files
+  es: Prepared files
+  fr: Prepared files
+  pt: Prepared files
+  ru: Prepared files
+  ja: Prepared files
+  ko: Prepared files
+  it: Prepared files
+  tr: Prepared files
+  vi: Prepared files
+  id: Prepared files
+  pl: Prepared files
+  nl: Prepared files
+  ar: Prepared files
+  hi: Prepared files
+  th: Prepared files
+  cs: Prepared files
+  sv: Prepared files
+  he: Prepared files
+  verified_by_human: [en, de]
+electronics.pcb_schematic.safety_note:
+  context: Explains that PCB compilation happens in the sandboxed backend service
+  en: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  de: Atopile-Quellcode wird in einer Sandbox kompiliert, bevor KiCad- und Projektdateien vorbereitet werden.
+  zh: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  es: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  fr: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  pt: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  ru: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  ja: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  ko: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  it: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  tr: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  vi: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  id: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  pl: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  nl: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  ar: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  hi: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  th: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  cs: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  sv: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  he: Atopile source is compiled in a sandbox before KiCad and project files are prepared.
+  verified_by_human: [en, de]
+electronics.pcb_schematic.copied:
+  context: Toast shown after copying PCB schematic source code
+  en: PCB schematic copied
+  de: PCB-Schaltplan kopiert
+  zh: PCB schematic copied
+  es: PCB schematic copied
+  fr: PCB schematic copied
+  pt: PCB schematic copied
+  ru: PCB schematic copied
+  ja: PCB schematic copied
+  ko: PCB schematic copied
+  it: PCB schematic copied
+  tr: PCB schematic copied
+  vi: PCB schematic copied
+  id: PCB schematic copied
+  pl: PCB schematic copied
+  nl: PCB schematic copied
+  ar: PCB schematic copied
+  hi: PCB schematic copied
+  th: PCB schematic copied
+  cs: PCB schematic copied
+  sv: PCB schematic copied
+  he: PCB schematic copied
+  verified_by_human: [en, de]
+electronics.pcb_schematic.copy_failed:
+  context: Error toast shown when copying PCB schematic source fails
+  en: Could not copy PCB schematic
+  de: PCB-Schaltplan konnte nicht kopiert werden
+  zh: Could not copy PCB schematic
+  es: Could not copy PCB schematic
+  fr: Could not copy PCB schematic
+  pt: Could not copy PCB schematic
+  ru: Could not copy PCB schematic
+  ja: Could not copy PCB schematic
+  ko: Could not copy PCB schematic
+  it: Could not copy PCB schematic
+  tr: Could not copy PCB schematic
+  vi: Could not copy PCB schematic
+  id: Could not copy PCB schematic
+  pl: Could not copy PCB schematic
+  nl: Could not copy PCB schematic
+  ar: Could not copy PCB schematic
+  hi: Could not copy PCB schematic
+  th: Could not copy PCB schematic
+  cs: Could not copy PCB schematic
+  sv: Could not copy PCB schematic
+  he: Could not copy PCB schematic
+  verified_by_human: [en, de]
+electronics.pcb_schematic.download_failed:
+  context: Error toast shown when downloading PCB schematic source fails
+  en: Could not download PCB schematic
+  de: PCB-Schaltplan konnte nicht heruntergeladen werden
+  zh: Could not download PCB schematic
+  es: Could not download PCB schematic
+  fr: Could not download PCB schematic
+  pt: Could not download PCB schematic
+  ru: Could not download PCB schematic
+  ja: Could not download PCB schematic
+  ko: Could not download PCB schematic
+  it: Could not download PCB schematic
+  tr: Could not download PCB schematic
+  vi: Could not download PCB schematic
+  id: Could not download PCB schematic
+  pl: Could not download PCB schematic
+  nl: Could not download PCB schematic
+  ar: Could not download PCB schematic
+  hi: Could not download PCB schematic
+  th: Could not download PCB schematic
+  cs: Could not download PCB schematic
+  sv: Could not download PCB schematic
+  he: Could not download PCB schematic
+  verified_by_human: [en, de]
+
 math.calculate:
   context: Math Calculate skill label shown in BasicInfosBar
   en: Calculate
@@ -5868,6 +6397,31 @@ math.plot:
   cs: Graf
   sv: Graf
   he: שרטוט
+  verified_by_human: []
+
+diagrams.mermaid:
+  context: Mermaid diagram embed label shown in BasicInfosBar
+  en: Mermaid Diagram
+  de: Mermaid-Diagramm
+  zh: Mermaid 图表
+  es: Diagrama Mermaid
+  fr: Diagramme Mermaid
+  pt: Diagrama Mermaid
+  ru: Диаграмма Mermaid
+  ja: Mermaid 図
+  ko: Mermaid 다이어그램
+  it: Diagramma Mermaid
+  tr: Mermaid Diyagramı
+  vi: Sơ đồ Mermaid
+  id: Diagram Mermaid
+  pl: Diagram Mermaid
+  nl: Mermaid-diagram
+  ar: مخطط Mermaid
+  hi: Mermaid डायग्राम
+  th: ไดอะแกรม Mermaid
+  cs: Mermaid diagram
+  sv: Mermaid-diagram
+  he: תרשים Mermaid
   verified_by_human: []
 
 mail.email:

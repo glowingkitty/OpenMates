@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Ai Communication Style"
   en: "Memory Ai Communication Style"
-  de: "Memory Ai Communication Style"
+  de: "Gedächtnis: KI-Kommunikationsstil"
   zh: "Memory Ai Communication Style"
   es: "Memory Ai Communication Style"
   fr: "Memory Ai Communication Style"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Ai Communication Style"
   en: "OpenMates uses saved ai communication_style memory in a real chat."
-  de: "OpenMates uses saved ai communication_style memory in a real chat."
+  de: OpenMates nutzt das gespeicherte KI-Kommunikationsstil-Gedächtnis in einem echten Chat.
   zh: "OpenMates uses saved ai communication_style memory in a real chat."
   es: "OpenMates uses saved ai communication_style memory in a real chat."
   fr: "OpenMates uses saved ai communication_style memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Ai Communication Style. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze mein gespeichertes KI-Kommunikationsstil-Gedächtnis, um einen fokussierten Arbeitsblock für Montagmorgen zu planen. Du darfst dieses gespeicherte Gedächtnis anfordern und verwenden. Nachdem du das gespeicherte Gedächtnis verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved AI communication style memory to plan a focused Monday morning work block. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -96,25 +96,25 @@ message_2:
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   de: |
-    Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
-
-    ### Monday Deep Work Block
-
-    **09:00 – 09:30 | Technical Triage**
-    *   Review logs, PR comments, and urgent tickets.
-    *   Filter noise; identify the single highest-priority technical bottleneck for the morning.
-
-    **09:30 – 11:30 | Core Execution (Deep Work)**
-    *   Execute the primary technical task (e.g., refactoring, feature implementation, or debugging).
-    *   Minimize context switching; stay within the IDE or primary terminal.
-
-    **11:30 – 12:00 | Documentation & Sync**
-    *   Commit code with concise, descriptive messages.
-    *   Update relevant documentation or brief the team on progress/blockers.
-
-    This schedule prioritizes technical momentum while maintaining the professional and concise flow you prefer.
+    Basierend auf deinem gespeicherten Kommunikationsstil als **Prägnanter technischer Mitarbeiter** ist hier ein fokussierter Arbeitsblock für Montagmorgen, der auf hohen Output ausgelegt ist:
+    
+    ### Deep-Work-Block am Montag
+    
+    **09:00 – 09:30 | Technische Triage**
+    *   Logs, PR-Kommentare und dringende Tickets prüfen.
+    *   Rauschen filtern; den wichtigsten technischen Engpass für den Vormittag identifizieren.
+    
+    **09:30 – 11:30 | Kernausführung (Deep Work)**
+    *   Primäre technische Aufgabe ausführen (z. B. Refactoring, Feature-Implementierung oder Debugging).
+    *   Kontextwechsel minimieren; in der IDE oder im primären Terminal bleiben.
+    
+    **11:30 – 12:00 | Dokumentation & Sync**
+    *   Code mit prägnanten, aussagekräftigen Nachrichten committen.
+    *   Relevante Dokumentation aktualisieren oder das Team kurz über Fortschritte/Blocker informieren.
+    
+    Dieser Zeitplan priorisiert den technischen Schwung und behält gleichzeitig den professionellen und prägnanten Fluss bei, den du bevorzugst.
     ---
-    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+    *⚠️ Dies dient nur zu Bildungszwecken und ist keine professionelle psychologische Beratung. Bei psychischen Problemen wende dich bitte an einen qualifizierten Therapeuten oder Berater. Wenn du dich in einer Krise befindest, kontaktiere sofort den Notruf oder eine Krisen-Hotline.*
   zh: |
     Based on your saved communication style as a **Concise Technical Collaborator**, here is a focused Monday morning work block designed for high-impact output:
 

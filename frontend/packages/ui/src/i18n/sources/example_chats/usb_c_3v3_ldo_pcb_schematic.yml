@@ -1,0 +1,396 @@
+title:
+  context: "Title of example chat: USB-C 3.3V LDO PCB Schematic"
+  en: "USB-C 3.3V LDO PCB Schematic"
+  de: USB-C 3,3V LDO PCB-Schaltplan
+  zh: USB-C 3.3V LDO PCB 原理图
+  es: Esquema de PCB para LDO de 3.3V por USB-C
+  fr: Schéma PCB LDO 3.3V USB-C
+  pt: Esquema de PCB LDO 3.3V USB-C
+  ru: Схема печатной платы LDO 3,3 В с питанием от USB-C
+  ja: USB-C 3.3V LDO PCB回路図
+  ko: USB-C 3.3V LDO PCB 회로도
+  it: Schema PCB LDO 3.3V USB-C
+  tr: USB-C 3.3V LDO PCB Şeması
+  vi: Sơ đồ PCB LDO 3.3V USB-C
+  id: Skematik PCB LDO 3.3V USB-C
+  pl: Schemat PCB LDO 3,3 V z USB-C
+  nl: USB-C 3.3V LDO PCB-schema
+  ar: مخطط PCB لمنظم LDO بجهد 3.3 فولت عبر USB-C
+  hi: USB-C 3.3V LDO PCB स्कीमेटिक
+  th: ผังวงจร PCB สำหรับ LDO 3.3V จาก USB-C
+  cs: PCB schéma USB-C 3,3V LDO regulátoru
+  sv: USB-C 3,3V LDO PCB-schema
+  he: סכימת PCB למייצב LDO 3.3V מ-USB-C
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: USB-C 3.3V LDO PCB Schematic"
+  en: "Design and prepare a compilable Atopile PCB schematic for a USB-C powered 3.3V regulator circuit."
+  de: Entwirf und bereite einen kompilierbaren Atopile-PCB-Schaltplan für eine USB-C-betriebene 3,3V-Reglerschaltung vor.
+  zh: 设计并准备一个可编译的 Atopile PCB 原理图，用于 USB-C 供电的 3.3V 稳压电路。
+  es: Diseña y prepara un esquema de PCB en Atopile compilable para un circuito regulador de 3.3V alimentado por USB-C.
+  fr: Conçois et prépare un schéma PCB Atopile compilable pour un circuit régulateur 3.3V alimenté par USB-C.
+  pt: Projetar e preparar um esquema de PCB Atopile compilável para um circuito regulador de 3.3V alimentado por USB-C.
+  ru: Проектирование и подготовка компилируемой схемы печатной платы Atopile для стабилизатора 3,3 В с питанием от USB-C.
+  ja: USB-C電源の3.3Vレギュレータ回路用の、コンパイル可能なAtopile PCB回路図を設計・準備します。
+  ko: USB-C 전원 방식의 3.3V 레귤레이터 회로를 위한 컴파일 가능한 Atopile PCB 회로도를 설계하고 준비합니다.
+  it: Progetta e prepara uno schema PCB Atopile compilabile per un circuito regolatore da 3.3V alimentato via USB-C.
+  tr: USB-C destekli 3.3V regülatör devresi için derlenebilir bir Atopile PCB şeması tasarla ve hazırla.
+  vi: Thiết kế và chuẩn bị sơ đồ PCB Atopile có thể biên dịch cho mạch ổn áp 3.3V cấp nguồn qua USB-C.
+  id: Rancang dan siapkan skematik PCB Atopile yang dapat dikompilasi untuk sirkuit regulator 3.3V bertenaga USB-C.
+  pl: Zaprojektuj i przygotuj kompilowalny schemat PCB Atopile dla układu regulatora 3,3 V zasilanego z USB-C.
+  nl: Ontwerp en bereid een compileerbaar Atopile PCB-schema voor een USB-C gevoed 3.3V regelaarcircuit.
+  ar: تصميم وإعداد مخطط PCB قابل للتجميع باستخدام Atopile لدائرة منظم جهد 3.3 فولت تعمل عبر USB-C.
+  hi: USB-C संचालित 3.3V रेगुलेटर सर्किट के लिए एक कंपाइलेबल Atopile PCB स्कीमेटिक डिज़ाइन और तैयार करें।
+  th: ออกแบบและเตรียมผังวงจร PCB ด้วย Atopile ที่สามารถคอมไพล์ได้ สำหรับวงจรเรกูเลเตอร์ 3.3V ที่ใช้ไฟจาก USB-C
+  cs: Navrhni a připrav kompilovatelné PCB schéma v Atopile pro 3,3V regulační obvod napájený přes USB-C.
+  sv: Designa och förbered ett kompilerbart Atopile PCB-schema för en USB-C-driven 3,3V-regulatorkrets.
+  he: תכנון והכנת סכימת PCB ניתנת להידור ב-Atopile עבור מעגל מייצב 3.3V המוזן מ-USB-C.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: USB-C 3.3V LDO PCB Schematic. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create a simple compilable Atopile 0.15.7 PCB schematic for a 5V USB-C input feeding a 3.3V LDO rail with a power indicator diode and input/output decoupling capacitors."
+  de: Erstelle einen einfachen, kompilierbaren Atopile 0.15.7 PCB-Schaltplan für einen 5V USB-C-Eingang, der eine 3,3V LDO-Schiene mit einer Leistungsanzeige-Diode und Eingangs-/Ausgangs-Entkopplungskondensatoren speist.
+  zh: 创建一个简单的可编译 Atopile 0.15.7 PCB 原理图，包含 5V USB-C 输入、3.3V LDO 电源轨、电源指示二极管以及输入/输出去耦电容。
+  es: Crea un esquema de PCB en Atopile 0.15.7 sencillo y compilable para una entrada USB-C de 5V que alimente un riel LDO de 3.3V con un diodo indicador de encendido y condensadores de desacoplo de entrada/salida.
+  fr: "Crée un schéma PCB Atopile 0.15.7 simple et compilable pour une entrée USB-C 5V alimentant un rail LDO 3.3V avec une diode indicatrice de puissance et des condensateurs de découplage d'entrée/sortie."
+  pt: Cria um esquema de PCB Atopile 0.15.7 simples e compilável para uma entrada USB-C de 5V alimentando um barramento LDO de 3.3V com um diodo indicador de energia e capacitores de desacoplamento de entrada/saída.
+  ru: Создай простую компилируемую схему печатной платы Atopile 0.15.7 для входа USB-C 5 В, питающего шину LDO 3,3 В, с индикаторным диодом питания и входными/выходными развязывающими конденсаторами.
+  ja: 5V USB-C入力から3.3V LDOレールに供給し、電源インジケータダイオードと入出力デカップリングコンデンサを備えた、コンパイル可能なシンプルなAtopile 0.15.7 PCB回路図を作成してください。
+  ko: 전원 표시 다이오드와 입출력 디커플링 커패시터가 포함된, 5V USB-C 입력을 3.3V LDO 레일로 공급하는 간단한 컴파일 가능 Atopile 0.15.7 PCB 회로도를 생성해 줘.
+  it: Crea uno schema PCB Atopile 0.15.7 semplice e compilabile per un ingresso USB-C da 5V che alimenta un canale LDO da 3.3V con un diodo indicatore di alimentazione e condensatori di disaccoppiamento in ingresso/uscita.
+  tr: Güç gösterge diyotu ve giriş/çıkış dekuplaj kondansatörlerine sahip, 3.3V LDO hattını besleyen 5V USB-C girişli, basit ve derlenebilir bir Atopile 0.15.7 PCB şeması oluştur.
+  vi: Tạo một sơ đồ PCB Atopile 0.15.7 đơn giản có thể biên dịch cho đầu vào USB-C 5V cấp cho đường LDO 3.3V với diode chỉ báo nguồn và các tụ lọc nhiễu đầu vào/đầu ra.
+  id: Buat skematik PCB Atopile 0.15.7 sederhana yang dapat dikompilasi untuk input USB-C 5V yang menyuplai rel LDO 3.3V dengan dioda indikator daya dan kapasitor decoupling input/output.
+  pl: Stwórz prosty, kompilowalny schemat PCB Atopile 0.15.7 dla wejścia 5 V USB-C zasilającego szynę LDO 3,3 V z diodą sygnalizacyjną zasilania oraz kondensatorami odsprzęgającymi na wejściu i wyjściu.
+  nl: Maak een eenvoudig compileerbaar Atopile 0.15.7 PCB-schema voor een 5V USB-C-ingang die een 3.3V LDO-rail voedt met een stroomindicator-diode en ingangs-/uitgangsontkoppelcondensatoren.
+  ar: أنشئ مخطط PCB بسيطاً وقابلاً للتجميع باستخدام Atopile 0.15.7 لمدخل USB-C بجهد 5 فولت يغذي خط LDO بجهد 3.3 فولت، مع ديود مؤشر للطاقة ومكثفات فصل للمدخل والمخرج.
+  hi: 5V USB-C इनपुट के लिए एक सरल कंपाइलेबल Atopile 0.15.7 PCB स्कीमेटिक बनाएं जो पावर इंडिकेटर डायोड और इनपुट/आउटपुट डिकपलिंग कैपेसिटर के साथ 3.3V LDO रेल को फीड करता हो।
+  th: สร้างผังวงจร PCB ด้วย Atopile 0.15.7 ที่คอมไพล์ได้แบบง่ายๆ สำหรับอินพุต USB-C 5V ที่จ่ายไฟให้ราง LDO 3.3V พร้อมไดโอดแสดงสถานะไฟและตัวเก็บประจุดีคัปปลิ้งที่อินพุต/เอาต์พุต
+  cs: Vytvoř jednoduché kompilovatelné PCB schéma v Atopile 0.15.7 pro 5V USB-C vstup napájející 3,3V LDO větev s indikační diodou napájení a vstupními/výstupními blokovacími kondenzátory.
+  sv: Skapa ett enkelt kompilerbart Atopile 0.15.7 PCB-schema för en 5V USB-C-ingång som matar en 3,3V LDO-skena med en strömindikatordiod och avkopplingskondensatorer för in- och utgång.
+  he: צור סכימת PCB פשוטה וניתנת להידור ב-Atopile 0.15.7 עבור כניסת 5V USB-C המזינה פס 3.3V LDO עם דיודת חיווי מתח וקבלי צימוד בכניסה וביציאה.
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: USB-C 3.3V LDO PCB Schematic. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is a compact Atopile 0.15.7 starting point for a USB-C powered 3.3V regulator stage. It keeps the schematic self-contained, uses `module App` as the build entry, models the USB-C input and LDO as simple power-interface modules, and adds 10uF/1uF decoupling plus a diode indicator on the regulated rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    The source is ready for the PCB preparation flow: OpenMates can send it to the sandboxed Atopile compiler, show the build status, and expose the generated source bundle when the build succeeds.
+  de: |
+    Hier ist ein kompakter Atopile 0.15.7 Ausgangspunkt für eine USB-C-betriebene 3,3V-Reglerstufe. Er hält den Schaltplan in sich geschlossen, verwendet `module App` als Build-Einstiegspunkt, modelliert den USB-C-Eingang und den LDO als einfache Power-Interface-Module und fügt 10uF/1uF Entkopplung sowie eine Diodenanzeige an der geregelten Schiene hinzu.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    Der Quellcode ist bereit für den PCB-Vorbereitungs-Flow: OpenMates kann ihn an den sandboxed Atopile-Compiler senden, den Build-Status anzeigen und das generierte Quellcode-Bundle bereitstellen, sobald der Build erfolgreich war.
+  zh: |
+    这是一个基于 Atopile 0.15.7 的 USB-C 供电 3.3V 稳压级设计起点。它保持了原理图的独立性，使用 `module App` 作为构建入口，将 USB-C 输入和 LDO 建模为简单的电源接口模块，并在稳压轨上添加了 10uF/1uF 去耦电容和二极管指示灯。
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    源码已准备好进入 PCB 准备流程：OpenMates 可以将其发送到沙盒化的 Atopile 编译器，显示构建状态，并在构建成功后提供生成的源码包。
+  es: |
+    Aquí tienes un punto de partida compacto en Atopile 0.15.7 para una etapa de regulación de 3.3V alimentada por USB-C. Mantiene el esquema autónomo, utiliza `module App` como entrada de construcción, modela la entrada USB-C y el LDO como módulos de interfaz de potencia simples, y añade desacoplo de 10uF/1uF más un diodo indicador en el riel regulado.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    El código fuente está listo para el flujo de preparación de la PCB: OpenMates puede enviarlo al compilador Atopile en el entorno aislado, mostrar el estado de la construcción y exponer el paquete de fuentes generado cuando la construcción tenga éxito.
+  fr: |
+    Voici un point de départ compact en Atopile 0.15.7 pour un étage de régulation 3.3V alimenté par USB-C. Il maintient le schéma autonome, utilise `module App` comme entrée de build, modélise l'entrée USB-C et le LDO comme de simples modules d'interface de puissance, et ajoute un découplage de 10uF/1uF ainsi qu'un indicateur à diode sur le rail régulé.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    La source est prête pour le flux de préparation du PCB : OpenMates peut l'envoyer au compilateur Atopile sandboxé, afficher l'état du build et exposer le bundle source généré lorsque le build réussit.
+  pt: |
+    Aqui está um ponto de partida compacto em Atopile 0.15.7 para um estágio regulador de 3.3V alimentado por USB-C. Ele mantém o esquema autocontido, usa `module App` como entrada de compilação, modela a entrada USB-C e o LDO como módulos simples de interface de energia, e adiciona desacoplamento de 10uF/1uF além de um indicador de diodo no barramento regulado.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    O código-fonte está pronto para o fluxo de preparação da PCB: o OpenMates pode enviá-lo para o compilador Atopile em sandbox, mostrar o status da compilação e expor o pacote de origem gerado quando a compilação for bem-sucedida.
+  ru: |
+    Вот компактная заготовка Atopile 0.15.7 для каскада стабилизатора 3,3 В с питанием от USB-C. Схема автономна, использует `module App` в качестве точки входа для сборки, моделирует вход USB-C и LDO как простые модули интерфейса питания, а также добавляет развязку 10 мкФ / 1 мкФ и диодный индикатор на стабилизированной шине.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    Исходный код готов к процессу подготовки печатной платы: OpenMates может отправить его в изолированный компилятор Atopile, показать статус сборки и предоставить доступ к сгенерированному пакету исходных кодов после успешного завершения сборки.
+  ja: |
+    USB-C電源の3.3Vレギュレータステージ用の、コンパクトなAtopile 0.15.7のスターターコードです。回路図を自己完結型に保ち、`module App`をビルドエントリとして使用し、USB-C入力とLDOをシンプルな電源インターフェースモジュールとしてモデル化しています。また、10uF/1uFのデカップリングと、安定化レールにダイオードインジケータを追加しています。
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    ソースはPCB作成フローの準備ができています。OpenMatesはこれをサンドボックス化されたAtopileコンパイラに送信し、ビルドステータスを表示し、ビルドが成功したときに生成されたソースバンドルを公開できます。
+  ko: |
+    USB-C 전원 방식의 3.3V 레귤레이터 단계를 위한 컴팩트한 Atopile 0.15.7 시작 코드입니다. 회로도를 독립적으로 유지하고, `module App`을 빌드 엔트리로 사용하며, USB-C 입력과 LDO를 간단한 전원 인터페이스 모듈로 모델링했습니다. 또한 10uF/1uF 디커플링과 레귤레이션된 레일에 다이오드 표시등을 추가했습니다.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    소스 코드가 PCB 준비 프로세스를 위한 준비가 되었습니다. OpenMates는 이를 샌드박스 처리된 Atopile 컴파일러로 전송하고, 빌드 상태를 표시하며, 빌드 성공 시 생성된 소스 번들을 노출할 수 있습니다.
+  it: |
+    Ecco un punto di partenza compatto in Atopile 0.15.7 per uno stadio regolatore da 3.3V alimentato via USB-C. Mantiene lo schema autonomo, utilizza `module App` come voce di build, modella l'ingresso USB-C e l'LDO come semplici moduli di interfaccia di potenza e aggiunge il disaccoppiamento da 10uF/1uF più un indicatore a diodo sul canale regolato.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    Il sorgente è pronto per il flusso di preparazione del PCB: OpenMates può inviarlo al compilatore Atopile in sandbox, mostrare lo stato della build ed esporre il pacchetto sorgente generato quando la build va a buon fine.
+  tr: |
+    İşte USB-C destekli 3.3V regülatör katı için kompakt bir Atopile 0.15.7 başlangıç noktası. Şemayı bağımsız tutar, derleme girişi olarak `module App` kullanır, USB-C girişini ve LDO'yu basit güç arayüzü modülleri olarak modeller ve regüleli hatta 10uF/1uF dekuplaj ile bir diyot göstergesi ekler.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    Kaynak kod PCB hazırlama akışı için hazırdır: OpenMates bunu korumalı Atopile derleyicisine gönderebilir, derleme durumunu gösterebilir ve derleme başarılı olduğunda oluşturulan kaynak paketini sunabilir.
+  vi: |
+    Dưới đây là điểm bắt đầu Atopile 0.15.7 nhỏ gọn cho tầng ổn áp 3.3V cấp nguồn qua USB-C. Nó giữ cho sơ đồ độc lập, sử dụng `module App` làm điểm bắt đầu xây dựng, mô hình hóa đầu vào USB-C và LDO dưới dạng các mô-đun giao tiếp nguồn đơn giản, đồng thời thêm tụ lọc 10uF/1uF cộng với đèn báo diode trên đường điện áp đã ổn định.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    Nguồn đã sẵn sàng cho quy trình chuẩn bị PCB: OpenMates có thể gửi nó đến trình biên dịch Atopile trong môi trường sandbox, hiển thị trạng thái xây dựng và cung cấp gói nguồn đã tạo khi quá trình xây dựng thành công.
+  id: |
+    Berikut adalah titik awal Atopile 0.15.7 yang ringkas untuk tahap regulator 3.3V bertenaga USB-C. Ini menjaga skematik tetap mandiri, menggunakan `module App` sebagai entri build, memodelkan input USB-C dan LDO sebagai modul antarmuka daya sederhana, serta menambahkan decoupling 10uF/1uF plus indikator dioda pada rel yang teregulasi.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    Sumber ini siap untuk alur persiapan PCB: OpenMates dapat mengirimkannya ke kompiler Atopile sandbox, menampilkan status build, dan mengekspos bundel sumber yang dihasilkan saat build berhasil.
+  pl: |
+    Oto kompaktowy punkt wyjściowy Atopile 0.15.7 dla stopnia regulatora 3,3 V zasilanego z USB-C. Schemat jest samowystarczalny, wykorzystuje `module App` jako punkt wejściowy kompilacji, modeluje wejście USB-C i LDO jako proste moduły interfejsu zasilania oraz dodaje odsprzęganie 10 uF / 1 uF i wskaźnik diodowy na szynie stabilizowanej.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    Kod źródłowy jest gotowy do procesu przygotowania PCB: OpenMates może wysłać go do piaskownicy kompilatora Atopile, wyświetlić status kompilacji i udostępnić wygenerowany pakiet źródłowy po pomyślnym zakończeniu kompilacji.
+  nl: |
+    Hier is een compact Atopile 0.15.7 startpunt voor een USB-C gevoede 3.3V regelaarfase. Het houdt het schema onafhankelijk, gebruikt `module App` als build-entry, modelleert de USB-C ingang en LDO als eenvoudige power-interface modules, en voegt 10uF/1uF ontkoppeling plus een diode-indicator toe op de gereguleerde rail.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    De bron is klaar voor de PCB-voorbereidingsflow: OpenMates kan het naar de gesandboxte Atopile-compiler sturen, de build-status tonen en de gegenereerde bronbundel vrijgeven wanneer de build slaagt.
+  ar: |
+    إليك نقطة بداية مدمجة باستخدام Atopile 0.15.7 لمرحلة منظم جهد 3.3 فولت يعمل عبر USB-C. يحافظ هذا التصميم على المخطط مستقلاً بذاته، ويستخدم `module App` كمدخل للبناء، وينمذج مدخل USB-C والـ LDO كوحدات واجهة طاقة بسيطة، ويضيف مكثفات فصل 10uF/1uF بالإضافة إلى مؤشر ديود على الخط المنظم.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    المصدر جاهز لتدفق إعداد الـ PCB: يمكن لـ OpenMates إرساله إلى مترجم Atopile المعزول، وإظهار حالة البناء، وعرض حزمة المصدر الناتجة عند نجاح عملية البناء.
+  hi: |
+    यहाँ USB-C संचालित 3.3V रेगुलेटर स्टेज के लिए एक कॉम्पैक्ट Atopile 0.15.7 शुरुआती बिंदु है। यह स्कीमेटिक को स्व-निहित रखता है, बिल्ड एंट्री के रूप में `module App` का उपयोग करता है, USB-C इनपुट और LDO को सरल पावर-इंटरफेस मॉड्यूल के रूप में मॉडल करता है, और रेगुलेटेड रेल पर 10uF/1uF डिकपलिंग के साथ एक डायोड इंडिकेटर जोड़ता है।
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    सोर्स PCB तैयारी फ्लो के लिए तैयार है: OpenMates इसे सैंडबॉक्स किए गए Atopile कंपाइलर पर भेज सकता है, बिल्ड स्टेटस दिखा सकता है, और बिल्ड सफल होने पर जेनरेट किए गए सोर्स बंडल को प्रदर्शित कर सकता है।
+  th: |
+    นี่คือจุดเริ่มต้นขนาดกะทัดรัดของ Atopile 0.15.7 สำหรับสเตจเรกูเลเตอร์ 3.3V ที่ใช้ไฟจาก USB-C โดยผังวงจรนี้มีความสมบูรณ์ในตัว ใช้ `module App` เป็นจุดเริ่มต้นการบิลด์ จำลองอินพุต USB-C และ LDO เป็นโมดูลอินเทอร์เฟซพลังงานอย่างง่าย และเพิ่มตัวเก็บประจุดีคัปปลิ้ง 10uF/1uF พร้อมไดโอดแสดงสถานะบนรางไฟที่ควบคุมแล้ว
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    ซอร์สโค้ดนี้พร้อมสำหรับขั้นตอนการเตรียม PCB: OpenMates สามารถส่งไปยัง Atopile คอมไพเลอร์ในแซนด์บ็อกซ์ แสดงสถานะการบิลด์ และแสดงชุดซอร์สโค้ดที่สร้างขึ้นเมื่อการบิลด์สำเร็จ
+  cs: |
+    Zde je kompaktní výchozí bod v Atopile 0.15.7 pro 3,3V regulační stupeň napájený z USB-C. Schéma je samostatné, používá `module App` jako vstupní bod sestavení, modeluje USB-C vstup a LDO jako jednoduché moduly napájecího rozhraní a přidává 10uF/1uF blokování spolu s diodovým indikátorem na regulované větvi.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    Zdrojový kód je připraven pro proces přípravy PCB: OpenMates jej mohou odeslat do sandboxed kompilátoru Atopile, zobrazit stav sestavení a po úspěšném dokončení zpřístupnit vygenerovaný balíček zdrojů.
+  sv: |
+    Här är en kompakt Atopile 0.15.7-utgångspunkt för ett USB-C-drivet 3,3V-regulatorsteg. Det håller schemat fristående, använder `module App` som startpunkt för bygget, modellerar USB-C-ingången och LDO:n som enkla power-interface-moduler, och lägger till 10uF/1uF avkoppling plus en diodindikator på den reglerade skenan.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    Källkoden är redo för PCB-förberedelseflödet: OpenMates kan skicka den till den isolerade Atopile-kompilatorn, visa byggstatus och exponera det genererade källkodspaketet när bygget lyckas.
+  he: |
+    הנה נקודת התחלה קומפקטית ב-Atopile 0.15.7 עבור דרגת מייצב 3.3V המוזנת מ-USB-C. היא שומרת על הסכימה עצמאית, משתמשת ב-`module App` כנקודת הכניסה לבנייה, ממדלת את כניסת ה-USB-C וה-LDO כמודולי ממשק-כוח פשוטים, ומוסיפה קבלי צימוד של 10uF/1uF בתוספת דיודת חיווי על הפס המיוצב.
+    
+    ```json
+    {"type": "pcb_schematic", "embed_id": "46d63593-516e-49b5-8e7d-600c4fe18836"}
+    ```
+    
+    המקור מוכן לתהליך הכנת ה-PCB: OpenMates יכול לשלוח אותו למהדר ה-Atopile המבודד, להציג את סטטוס הבנייה, ולחשוף את חבילת המקור שנוצרה כאשר הבנייה מצליחה.
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Add voltage constraints to the 5V and 3.3V rails"
+  de: Füge Spannungsbeschränkungen für die 5V- und 3.3V-Schienen hinzu
+  zh: 为 5V 和 3.3V 电源轨添加电压约束
+  es: Añade restricciones de voltaje a los rieles de 5V y 3.3V
+  fr: Ajoute des contraintes de tension aux rails 5V et 3.3V
+  pt: Adicionar restrições de tensão aos barramentos de 5V e 3.3V
+  ru: Добавь ограничения по напряжению для шин 5 В и 3,3 В
+  ja: 5Vと3.3Vのレールに電圧制約を追加して
+  ko: 5V 및 3.3V 레일에 전압 제약 조건 추가하기
+  it: Aggiungi vincoli di tensione ai canali da 5V e 3.3V
+  tr: 5V ve 3.3V hatlarına voltaj kısıtlamaları ekle
+  vi: Thêm các ràng buộc điện áp cho đường 5V và 3.3V
+  id: Tambahkan batasan tegangan ke rel 5V dan 3.3V
+  pl: Dodaj ograniczenia napięciowe dla szyn 5 V i 3,3 V
+  nl: Voeg spanningsbeperkingen toe aan de 5V- en 3.3V-rails
+  ar: أضف قيود الجهد إلى خطوط الـ 5 فولت والـ 3.3 فولت
+  hi: 5V और 3.3V रेल में वोल्टेज कंस्ट्रेंट्स जोड़ें
+  th: เพิ่มข้อกำหนดแรงดันไฟฟ้า (voltage constraints) ให้กับรางไฟ 5V และ 3.3V
+  cs: Přidej napěťová omezení pro 5V a 3,3V větve
+  sv: Lägg till spänningsbegränsningar för 5V- och 3,3V-skenorna
+  he: הוסף אילוצי מתח לפסי ה-5V וה-3.3V
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Choose manufacturer parts for the LDO and diode"
+  de: Wähle Hersteller-Bauteile für den LDO und die Diode aus
+  zh: 为 LDO 和二极管选择制造商型号
+  es: Elige componentes de fabricante para el LDO y el diodo
+  fr: Choisis des composants fabricant pour le LDO et la diode
+  pt: Escolher componentes de fabricantes para o LDO e o diodo
+  ru: Выбери компоненты конкретных производителей для LDO и диода
+  ja: LDOとダイオードのメーカー部品を選択して
+  ko: LDO 및 다이오드의 제조사 부품 선택하기
+  it: "Scegli i componenti del produttore per l'LDO e il diodo"
+  tr: LDO ve diyot için üretici parçalarını seç
+  vi: Chọn linh kiện từ nhà sản xuất cho LDO và diode
+  id: Pilih komponen manufaktur untuk LDO dan dioda
+  pl: Wybierz konkretne komponenty producenta dla LDO i diody
+  nl: Kies fabrikantonderdelen voor de LDO en diode
+  ar: اختر أجزاء المصنع لمنظم الجهد (LDO) والديود
+  hi: LDO और डायोड के लिए मैन्युफैक्चरर पार्ट्स चुनें
+  th: เลือกชิ้นส่วนจากผู้ผลิตสำหรับ LDO และไดโอด
+  cs: Vyber konkrétní součástky od výrobců pro LDO a diodu
+  sv: "Välj tillverkarkomponenter för LDO:n och dioden"
+  he: בחר רכיבי יצרן עבור ה-LDO והדיודה
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Add USB-C connector details and CC resistors"
+  de: Füge USB-C-Anschlussdetails und CC-Widerstände hinzu
+  zh: 添加 USB-C 连接器详情和 CC 电阻
+  es: Añade detalles del conector USB-C y resistencias CC
+  fr: Ajoute les détails du connecteur USB-C et les résistances CC
+  pt: Adicionar detalhes do conector USB-C e resistores CC
+  ru: Добавь детали разъема USB-C и резисторы CC
+  ja: USB-Cコネクタの詳細とCC抵抗を追加して
+  ko: USB-C 커넥터 상세 정보 및 CC 저항 추가하기
+  it: Aggiungi i dettagli del connettore USB-C e le resistenze CC
+  tr: USB-C konnektör detaylarını ve CC dirençlerini ekle
+  vi: Thêm chi tiết đầu nối USB-C và điện trở CC
+  id: Tambahkan detail konektor USB-C dan resistor CC
+  pl: Dodaj szczegóły złącza USB-C i rezystory CC
+  nl: Voeg USB-C-connectorgegevens en CC-weerstanden toe
+  ar: أضف تفاصيل موصل USB-C ومقاومات الـ CC
+  hi: USB-C कनेक्टर विवरण और CC रेसिस्टर्स जोड़ें
+  th: เพิ่มรายละเอียดคอนเน็กเตอร์ USB-C และตัวต้านทาน CC
+  cs: Doplň detaily USB-C konektoru a CC rezistory
+  sv: Lägg till detaljer för USB-C-kontakt och CC-motstånd
+  he: הוסף פרטי מחבר USB-C ונגדי CC
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Add an enable pin to the regulator"
+  de: Füge dem Regler einen Enable-Pin hinzu
+  zh: 为稳压器添加使能引脚 (Enable pin)
+  es: Añade un pin de habilitación (enable) al regulador
+  fr: "Ajoute une broche d'activation (enable) au régulateur"
+  pt: Adicionar um pino de habilitação (enable) ao regulador
+  ru: Добавь вывод включения (enable) для стабилизатора
+  ja: レギュレータにイネーブルピンを追加して
+  ko: 레귤레이터에 인에이블(enable) 핀 추가하기
+  it: Aggiungi un pin di abilitazione (enable) al regolatore
+  tr: Regülatöre bir etkinleştirme (enable) pini ekle
+  vi: Thêm chân kích hoạt (enable pin) cho bộ ổn áp
+  id: Tambahkan pin enable ke regulator
+  pl: Dodaj pin Enable do regulatora
+  nl: Voeg een enable-pin toe aan de regelaar
+  ar: أضف دبوس تمكين (enable pin) إلى المنظم
+  hi: रेगुलेटर में एक इनेबल पिन जोड़ें
+  th: เพิ่มพินเปิดใช้งาน (enable pin) ให้กับเรกูเลเตอร์
+  cs: Přidej k regulátoru pin pro povolení (enable)
+  sv: Lägg till en enable-pinne till regulatorn
+  he: הוסף פין אפשור (Enable) למייצב
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Prepare PCB files from this schematic"
+  de: Erstelle PCB-Dateien aus diesem Schaltplan
+  zh: 根据此原理图准备 PCB 文件
+  es: Prepara los archivos de PCB a partir de este esquema
+  fr: Prépare les fichiers PCB à partir de ce schéma
+  pt: Preparar arquivos de PCB a partir deste esquema
+  ru: Подготовь файлы печатной платы на основе этой схемы
+  ja: この回路図からPCBファイルを作成して
+  ko: 이 회로도에서 PCB 파일 준비하기
+  it: Prepara i file PCB da questo schema
+  tr: Bu şemadan PCB dosyalarını hazırla
+  vi: Chuẩn bị các tệp PCB từ sơ đồ này
+  id: Siapkan file PCB dari skematik ini
+  pl: Przygotuj pliki PCB na podstawie tego schematu
+  nl: Bereid PCB-bestanden voor op basis van dit schema
+  ar: قم بإعداد ملفات الـ PCB من هذا المخطط
+  hi: इस स्कीमेटिक से PCB फाइलें तैयार करें
+  th: เตรียมไฟล์ PCB จากผังวงจรนี้
+  cs: Připrav PCB soubory z tohoto schématu
+  sv: Förbered PCB-filer från detta schema
+  he: הכן קבצי PCB מסכימה זו
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Explain the decoupling capacitor choices"
+  de: Erkläre die Auswahl der Entkopplungskondensatoren
+  zh: 解释去耦电容的选择依据
+  es: Explica la elección de los condensadores de desacoplo
+  fr: Explique le choix des condensateurs de découplage
+  pt: Explicar as escolhas dos capacitores de desacoplamento
+  ru: Объясни выбор развязывающих конденсаторов
+  ja: デカップリングコンデンサの選定理由を説明して
+  ko: 디커플링 커패시터 선택 이유 설명하기
+  it: Spiega la scelta dei condensatori di disaccoppiamento
+  tr: Dekuplaj kondansatörü seçimlerini açıkla
+  vi: Giải thích các lựa chọn tụ lọc nhiễu
+  id: Jelaskan pilihan kapasitor decoupling-nya
+  pl: Wyjaśnij dobór kondensatorów odsprzęgających
+  nl: Leg de keuzes voor de ontkoppelcondensatoren uit
+  ar: اشرح أسباب اختيار مكثفات الفصل (decoupling capacitors)
+  hi: डिकपलिंग कैपेसिटर विकल्पों के बारे में बताएं
+  th: อธิบายการเลือกตัวเก็บประจุดีคัปปลิ้ง
+  cs: Vysvětli výběr blokovacích kondenzátorů
+  sv: Förklara valet av avkopplingskondensatorer
+  he: הסבר את הבחירה בקבלי הצימוד (Decoupling)
+  verified_by_human: []

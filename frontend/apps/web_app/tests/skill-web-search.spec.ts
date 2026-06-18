@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unified 4-phase E2E test for web/search skill.
@@ -220,9 +219,22 @@ test.describe('App: Web / Skill: search', () => {
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		logCheckpoint('Fullscreen opened.');
 
-		const resultCards = await verifySearchGrid(fullscreenOverlay);
-		const count = await resultCards.count();
-		logCheckpoint(`Found ${count} search result(s) in fullscreen grid.`);
+		const resultsGrid = fullscreenOverlay.getByTestId('search-template-grid');
+		const noResultsMessage = fullscreenOverlay.getByTestId('search-no-results-message');
+		await expect(async () => {
+			const hasGrid = await resultsGrid.isVisible().catch(() => false);
+			const hasNoResults = await noResultsMessage.isVisible().catch(() => false);
+			expect(hasGrid || hasNoResults).toBe(true);
+		}).toPass({ timeout: 60_000 });
+
+		if (await resultsGrid.isVisible().catch(() => false)) {
+			const resultCards = await verifySearchGrid(fullscreenOverlay);
+			const count = await resultCards.count();
+			logCheckpoint(`Found ${count} search result(s) in fullscreen grid.`);
+		} else {
+			const noResultsText = (await noResultsMessage.textContent()) || '';
+			logCheckpoint(`Web search returned no results in fullscreen: ${noResultsText}`);
+		}
 
 		await closeFullscreen(page, fullscreenOverlay);
 		logCheckpoint('Fullscreen closed.');

@@ -550,7 +550,7 @@ skills.section_description:
   he: "פשוט בקש מהחברים שלך לעשות אחד מהדברים האלה:"
   verified_by_human: []
 skills.examples:
-  context: Section title above real embed examples rendered on a skill detail page in the app store. Shown as a horizontal row of live preview cards.
+  context: Section title above real embed examples rendered on a skill detail page in the Apps. Shown as a horizontal row of live preview cards.
   en: Examples
   de: Beispiele
   zh: 示例
@@ -616,6 +616,94 @@ content.examples_prefix:
 content.not_found:
   context: Error shown when a content type route does not match the generated app-store content catalog.
   en: Content type not found.
+  verified_by_human: [en]
+connected_accounts.title:
+  context: Section title for provider accounts connected to an app.
+  en: Connected accounts
+  verified_by_human: [en]
+connected_accounts.description:
+  context: Description under the connected accounts section on an app detail page.
+  en: Connect provider accounts so mates can ask for permission before using private app data.
+  verified_by_human: [en]
+connected_accounts.google_calendar_title:
+  context: Label for the Google Calendar connected account card.
+  en: Google Calendar
+  verified_by_human: [en]
+connected_accounts.loading:
+  context: Status while encrypted connected accounts are loading.
+  en: Checking connected accounts...
+  verified_by_human: [en]
+connected_accounts.connected_count:
+  context: Status showing how many encrypted Google Calendar accounts are connected. The count replacement is numeric.
+  en: "{count} connected"
+  verified_by_human: [en]
+connected_accounts.not_connected:
+  context: Status shown when no account is connected yet.
+  en: Not connected yet.
+  verified_by_human: [en]
+connected_accounts.connect_button:
+  context: Button label for starting Google Calendar OAuth.
+  en: Connect Google Calendar
+  verified_by_human: [en]
+connected_accounts.manage_account:
+  context: Button label in Calendar app settings that opens the canonical connected-account details page. The label replacement is the encrypted account label.
+  en: "Manage {label}"
+  verified_by_human: [en]
+connected_accounts.capability_read:
+  context: Label for the Google Calendar OAuth read capability checkbox.
+  en: Read events
+  verified_by_human: [en]
+connected_accounts.capability_read_description:
+  context: Description for the Google Calendar OAuth read capability checkbox.
+  en: Let OpenMates request permission before reading calendar events.
+  verified_by_human: [en]
+connected_accounts.capability_write:
+  context: Label for the Google Calendar OAuth write capability checkbox.
+  en: Write events
+  verified_by_human: [en]
+connected_accounts.capability_write_description:
+  context: Description for the Google Calendar OAuth write capability checkbox.
+  en: Let OpenMates request permission before creating or updating events.
+  verified_by_human: [en]
+connected_accounts.capability_delete:
+  context: Label for the Google Calendar OAuth delete capability checkbox.
+  en: Delete events
+  verified_by_human: [en]
+connected_accounts.capability_delete_description:
+  context: Description for the Google Calendar OAuth delete capability checkbox.
+  en: Let OpenMates request permission before deleting events.
+  verified_by_human: [en]
+connected_accounts.oauth_summary:
+  context: Summary of Google Calendar capabilities that will be requested during OAuth. The capabilities replacement is a comma-separated list.
+  en: "OAuth request: {capabilities}"
+  verified_by_human: [en]
+connected_accounts.no_capabilities_selected:
+  context: OAuth summary value shown when no Google Calendar capabilities are selected.
+  en: No access selected
+  verified_by_human: [en]
+connected_accounts.finalizing:
+  context: Status while the browser is encrypting and saving a claimed OAuth handoff.
+  en: Encrypting and saving your connected account...
+  verified_by_human: [en]
+connected_accounts.connected_success:
+  context: Success message after a Google Calendar account is connected.
+  en: Google Calendar connected. Your token was encrypted before saving.
+  verified_by_human: [en]
+connected_accounts.sign_in_required:
+  context: Error shown when OAuth returns without a local authenticated user id.
+  en: Sign in again before connecting Google Calendar.
+  verified_by_human: [en]
+connected_accounts.load_error:
+  context: Generic error shown when encrypted connected accounts cannot be loaded.
+  en: Could not load connected accounts.
+  verified_by_human: [en]
+connected_accounts.start_error:
+  context: Generic error shown when Google Calendar OAuth cannot be started.
+  en: Could not start Google Calendar connection.
+  verified_by_human: [en]
+connected_accounts.finalize_error:
+  context: Generic error shown when OAuth handoff finalization fails.
+  en: Could not finish connecting Google Calendar.
   verified_by_human: [en]
 skills.open_example:
   context: Accessibility label announced when focusing an example card in the skill detail page, so screen readers explain the card is clickable.
@@ -1746,7 +1834,7 @@ app_not_found:
   he: האפליקציה לא נמצאה.
   verified_by_human: []
 back_to_app_store:
-  context: Button text to go back to app store
+  context: Button text to go back to Apps
   en: Back to Apps
   de: Zurück zum Apps
   zh: 返回应用商店
@@ -1761,7 +1849,7 @@ back_to_app_store:
   vi: Quay lại cửa hàng ứng dụng
   id: Kembali ke toko aplikasi
   pl: Powrót do sklepu aplikacji
-  nl: Terug naar app store
+  nl: Terug naar Apps
   ar: العودة إلى متجر التطبيقات
   hi: ऐप स्टोर पर वापस जाएं
   th: กลับไปที่ร้านค้าแอป
@@ -2946,7 +3034,7 @@ settings_memories:
   verified_by_human: []
 
 nav.previous_item:
-  context: Aria-label for the left arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the previous sibling item.
+  context: Aria-label for the left arrow button in the Apps sub-item header (skill/focus mode/settings category). {name} is the display name of the previous sibling item.
   en: "Previous: {name}"
   de: "Vorherige: {name}"
   zh: "上一个：{name}"
@@ -2971,7 +3059,7 @@ nav.previous_item:
   verified_by_human: []
 
 nav.next_item:
-  context: Aria-label for the right arrow button in the app store sub-item header (skill/focus mode/settings category). {name} is the display name of the next sibling item.
+  context: Aria-label for the right arrow button in the Apps sub-item header (skill/focus mode/settings category). {name} is the display name of the next sibling item.
   en: "Next: {name}"
   de: "Nächste: {name}"
   zh: "下一个：{name}"

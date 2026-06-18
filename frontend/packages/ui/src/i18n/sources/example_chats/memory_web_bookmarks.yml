@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Web Bookmarks"
   en: "Memory Web Bookmarks"
-  de: "Memory Web Bookmarks"
+  de: Web-Lesezeichen-Speicher
   zh: "Memory Web Bookmarks"
   es: "Memory Web Bookmarks"
   fr: "Memory Web Bookmarks"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Web Bookmarks"
   en: "OpenMates uses saved web bookmarks memory in a real chat."
-  de: "OpenMates uses saved web bookmarks memory in a real chat."
+  de: OpenMates nutzt gespeicherte Web-Lesezeichen in einem echten Chat.
   zh: "OpenMates uses saved web bookmarks memory in a real chat."
   es: "OpenMates uses saved web bookmarks memory in a real chat."
   fr: "OpenMates uses saved web bookmarks memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Web Bookmarks. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved web bookmarks memory to tell me which saved bookmark I should open first while planning a SvelteKit dashboard, and why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved web bookmarks memory to tell me which saved bookmark I should open first while planning a SvelteKit dashboard, and why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meine gespeicherten Web-Lesezeichen, um mir zu sagen, welches Lesezeichen ich bei der Planung eines SvelteKit-Dashboards zuerst öffnen sollte und warum. Du kannst diesen Speicher anfordern und nutzen. Suche nach der Nutzung des Speichers nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Anschlussfrage.
   zh: "Use my saved web bookmarks memory to tell me which saved bookmark I should open first while planning a SvelteKit dashboard, and why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved web bookmarks memory to tell me which saved bookmark I should open first while planning a SvelteKit dashboard, and why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved web bookmarks memory to tell me which saved bookmark I should open first while planning a SvelteKit dashboard, and why. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -80,9 +80,9 @@ message_2:
 
     This is the most critical resource for planning your dashboard because it serves as the definitive guide for the framework's core features. When building a dashboard, you will need to establish a robust [routing](wiki:Routing) structure, handle complex data fetching from APIs, and manage application state efficiently. The official docs provide the latest best practices for server-side rendering (SSR), [form actions](wiki:Data_validation), and [adapters](wiki:Deployment_environment), ensuring your architecture is scalable and follows the intended patterns of the [Svelte](wiki:Svelte) ecosystem.
   de: |
-    Based on your saved bookmarks, you should open the SvelteKit documentation first.
-
-    This is the most critical resource for planning your dashboard because it serves as the definitive guide for the framework's core features. When building a dashboard, you will need to establish a robust [routing](wiki:Routing) structure, handle complex data fetching from APIs, and manage application state efficiently. The official docs provide the latest best practices for server-side rendering (SSR), [form actions](wiki:Data_validation), and [adapters](wiki:Deployment_environment), ensuring your architecture is scalable and follows the intended patterns of the [Svelte](wiki:Svelte) ecosystem.
+    Basierend auf deinen gespeicherten Lesezeichen solltest du zuerst die SvelteKit-Dokumentation öffnen.
+    
+    Dies ist die wichtigste Ressource für die Planung deines Dashboards, da sie als maßgeblicher Leitfaden für die Kernfunktionen des Frameworks dient. Beim Erstellen eines Dashboards musst du eine robuste [Routing](wiki:Routing)-Struktur etablieren, komplexes Data-Fetching von APIs handhaben und den Anwendungsstatus effizient verwalten. Die offiziellen Dokumente bieten die neuesten Best Practices für Server-Side Rendering (SSR), [Form Actions](wiki:Data_validation) und [Adapter](wiki:Deployment_environment), um sicherzustellen, dass deine Architektur skalierbar ist und den vorgesehenen Mustern des [Svelte](wiki:Svelte)-Ökosystems folgt.
   zh: |
     Based on your saved bookmarks, you should open the SvelteKit documentation first.
 

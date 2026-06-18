@@ -35,6 +35,7 @@ const {
 	createSignupLogger,
 	createStepScreenshotter,
 	getTestAccount,
+	withLiveRecordMarker
 } = require('./signup-flow-helpers');
 
 const fs = require('fs');
@@ -43,6 +44,26 @@ const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = requ
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
+const LIVE_INFERENCE_ENV = 'OPENMATES_EMBED_DIFF_LIVE_INFERENCE';
+const RECORD_FIXTURES_ENV = 'OPENMATES_EMBED_DIFF_RECORD_FIXTURES';
+const CODE_DIFF_LIVE_MOCK_GROUP = 'embed_diff_code_web';
+const SHEET_DIFF_LIVE_MOCK_GROUP = 'embed_diff_sheet_web';
+const DOC_DIFF_LIVE_MOCK_GROUP = 'embed_diff_doc_web';
+
+function withEmbedDiffMockMarker(message: string, groupId: string): string {
+	if (process.env[LIVE_INFERENCE_ENV] === '1') {
+		return message;
+	}
+	if (process.env.E2E_RECORD_LIVE_FIXTURES || process.env[RECORD_FIXTURES_ENV] === '1') {
+		return withLiveRecordMarker(message, groupId);
+	}
+	return `${message} <<<TEST_LIVE_MOCK:${groupId}>>>`;
+}
+
+// All tests in this file use the same long-lived account slot and create new
+// chats with embeds. Running them concurrently races last_opened/chat-key state
+// across browser contexts, leaving first messages stuck in "Sending...".
+test.describe.configure({ mode: 'serial' });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -90,12 +111,20 @@ async function waitForFinishedCodeEmbed(
  */
 async function waitForStreamingComplete(page: any, log: any, previousAssistantCount?: number) {
 	if (previousAssistantCount !== undefined) {
+		const previousAssistantText = (await page.getByTestId('message-assistant').allTextContents()).join('\n');
 		await expect
-			.poll(async () => await getAssistantMessageCount(page), {
+			.poll(async () => {
+				const assistantCount = await getAssistantMessageCount(page);
+				if (assistantCount > previousAssistantCount) {
+					return true;
+				}
+				const currentAssistantText = (await page.getByTestId('message-assistant').allTextContents()).join('\n');
+				return currentAssistantText !== previousAssistantText;
+			}, {
 				timeout: 120000,
 				intervals: [1000, 2000, 5000]
 			})
-			.toBeGreaterThan(previousAssistantCount);
+			.toBe(true);
 	}
 	const typingIndicator = page.getByTestId('typing-indicator');
 	await expect(typingIndicator).not.toBeVisible({ timeout: 120000 });
@@ -107,6 +136,16 @@ async function waitForStreamingComplete(page: any, log: any, previousAssistantCo
  */
 async function getAssistantMessageCount(page: any): Promise<number> {
 	return page.getByTestId('message-assistant').count();
+}
+
+async function getFinishedCodeEmbedIds(page: any): Promise<string[]> {
+	return page
+		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
+		.evaluateAll((elements: Element[]) =>
+			elements
+				.map((element) => element.getAttribute('data-embed-id'))
+				.filter((renderedEmbedId): renderedEmbedId is string => Boolean(renderedEmbedId))
+		);
 }
 
 /**
@@ -122,6 +161,7 @@ async function waitForBackgroundEmbedUpdates(page: any): Promise<void> {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 test.describe('Embed Diff-Based Editing', () => {
+	test.setTimeout(360_000);
 
 	test('code embed is patched in-place when assistant outputs diff', async ({ page }) => {
 		test.slow(); // AI inference takes 60-90s per turn
@@ -138,9 +178,10 @@ test.describe('Embed Diff-Based Editing', () => {
 		await startNewChat(page, log);
 		await screenshot(page, '02-new-chat');
 
-		// Turn 1: Generate a code embed (no mock — requires real AI inference)
+		// Turn 1: Generate a code embed. Live-mock replay is the default so the
+		// spec exercises the real backend pipeline without depending on model drift.
 		const turn1Prompt = 'Write a Python function called calculate_average that takes a list of numbers and returns their average. Keep it simple, just 5-10 lines.';
-		await sendMessage(page, turn1Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn1Prompt, CODE_DIFF_LIVE_MOCK_GROUP), log);
 		log('Turn 1 sent — waiting for code embed...');
 
 		await waitForStreamingComplete(page, log, 0);
@@ -149,15 +190,19 @@ test.describe('Embed Diff-Based Editing', () => {
 		const embedId = await waitForFinishedCodeEmbed(page, 0, log);
 		expect(embedId).toBeTruthy();
 		log(`Turn 1 code embed_id: ${embedId}`);
+		const preEditEmbedIds = await getFinishedCodeEmbedIds(page);
+		log(`Rendered code embed IDs before edit: ${preEditEmbedIds.join(', ')}`);
+		expect(preEditEmbedIds).toContain(embedId);
 		await screenshot(page, '03-turn1-code-embed');
 
 		// Turn 2: Ask to modify the code (should trigger diff)
 		const turn2Prompt = 'Rename the function from calculate_average to compute_mean and add a type hint for the return value (-> float).';
-		await sendMessage(page, turn2Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn2Prompt, CODE_DIFF_LIVE_MOCK_GROUP), log);
 		log('Turn 2 sent — waiting for diff application...');
 
 		await waitForStreamingComplete(page, log, 1);
 		await screenshot(page, '04-turn2-response');
+		await waitForBackgroundEmbedUpdates(page);
 
 		// Verify: the embed should still exist with the same embed_id
 		// After diff application, the embed is updated in-place
@@ -173,43 +218,61 @@ test.describe('Embed Diff-Based Editing', () => {
 		log(`Total finished code embeds on page: ${embedCount}`);
 		expect(embedCount).toBeGreaterThanOrEqual(1);
 
+		const renderedEmbedIds = await getFinishedCodeEmbedIds(page);
+		log(`Rendered code embed IDs after edit: ${renderedEmbedIds.join(', ')}`);
+		expect(new Set(renderedEmbedIds)).toEqual(new Set(preEditEmbedIds));
+		expect(renderedEmbedIds).toContain(embedId);
+
 		// Check that the updated embed contains the new function name
 		// Open fullscreen to see the full code
-		const firstEmbed = allCodeEmbeds.first();
-		await firstEmbed.click();
+		const originalEmbed = page.locator(
+			`[data-testid="embed-preview"][data-app-id="code"][data-status="finished"][data-embed-id="${embedId}"]`
+		).first();
+		await originalEmbed.click();
 		await page.waitForTimeout(1000);
 		await screenshot(page, '05-fullscreen-code');
 
 		// Look for the renamed function in fullscreen content
-		const fullscreenContent = page.locator('[data-testid="embed-fullscreen-content"]');
-		if (await fullscreenContent.isVisible({ timeout: 5000 }).catch(() => false)) {
-			const codeText = await fullscreenContent.textContent();
-			log(`Fullscreen code content length: ${codeText?.length || 0}`);
+		const fullscreenCode = page.getByTestId('code-fullscreen-code');
+		await expect(fullscreenCode).toBeVisible({ timeout: 5000 });
+		const codeText = await fullscreenCode.textContent();
+		log(`Fullscreen code content length: ${codeText?.length || 0}`);
+		expect(codeText).toContain('compute_mean');
+		expect(codeText).toContain('-> float');
+		expect(codeText).not.toContain('def calculate_average');
 
-			// If the diff was applied, the function should be renamed
-			// If it fell back to full regen, it should still have the new name
-			// Either way, the new name should be present
-			if (codeText && codeText.includes('compute_mean')) {
-				log('SUCCESS: Function renamed to compute_mean (diff applied or full regen)');
-			} else if (codeText && codeText.includes('calculate_average')) {
-				log('NOTE: Original function name still present — diff may not have been applied');
-				// This is acceptable in the first iteration — the LLM might regenerate fully
-			}
-		}
-
-		// Check for version timeline (if diff was applied, version > 1)
+		// Check for version timeline. A successful diff edit increments the version.
 		const versionTimeline = page.getByTestId('embed-version-timeline');
-		const hasTimeline = await versionTimeline.isVisible({ timeout: 3000 }).catch(() => false);
-		log(`Version timeline visible: ${hasTimeline}`);
-		if (hasTimeline) {
-			log('SUCCESS: Version timeline is visible — diff was applied and versioned');
-			await screenshot(page, '06-version-timeline');
-		}
+		await expect(versionTimeline).toBeVisible({ timeout: 5000 });
+		log('SUCCESS: Version timeline is visible — diff was applied and versioned');
+		await screenshot(page, '06-version-timeline');
+
+		await page.getByTestId('version-dot-1').click();
+		await expect
+			.poll(async () => page.getByTestId('code-fullscreen-code').textContent(), {
+				timeout: 10000,
+				intervals: [500, 1000, 2000]
+			})
+			.toContain('calculate_average');
+		const versionOneCodeText = await fullscreenCode.textContent();
+		log(`Version 1 code content length: ${versionOneCodeText?.length || 0}`);
+		expect(versionOneCodeText).not.toContain('compute_mean');
+
+		await page.getByTestId('version-dot-2').click();
+		await expect
+			.poll(async () => page.getByTestId('code-fullscreen-code').textContent(), {
+				timeout: 10000,
+				intervals: [500, 1000, 2000]
+			})
+			.toContain('compute_mean');
+		const currentVersionCodeText = await fullscreenCode.textContent();
+		log(`Current version code content length: ${currentVersionCodeText?.length || 0}`);
+		expect(currentVersionCodeText).toContain('-> float');
+		expect(currentVersionCodeText).not.toContain('def calculate_average');
 
 		// Close fullscreen
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(500);
-		await waitForBackgroundEmbedUpdates(page);
 
 		// Cleanup: delete the chat
 		await deleteActiveChat(page, log);
@@ -230,7 +293,7 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		// Turn 1: Generate a table
 		const turn1Prompt = 'Create a comparison table of 3 programming languages (Python, JavaScript, Rust) with columns: Language, Typing, Speed, Use Case. Use a markdown table.';
-		await sendMessage(page, turn1Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn1Prompt, SHEET_DIFF_LIVE_MOCK_GROUP), log);
 		await waitForStreamingComplete(page, log, 0);
 
 		// Wait for sheet embed
@@ -254,7 +317,7 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		// Turn 2: Add a row
 		const turn2Prompt = 'Add Go to the table with typing: Static, speed: Fast, use case: Systems/Cloud.';
-		await sendMessage(page, turn2Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn2Prompt, SHEET_DIFF_LIVE_MOCK_GROUP), log);
 		await waitForStreamingComplete(page, log, 1);
 		await screenshot(page, '04-sheet-after-diff');
 
@@ -284,7 +347,7 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		// Turn 1: Generate a document
 		const turn1Prompt = 'Write a short cover letter document for a software engineer position at a startup. Title it "Cover Letter - Software Engineer". Keep it to 3 paragraphs.';
-		await sendMessage(page, turn1Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn1Prompt, DOC_DIFF_LIVE_MOCK_GROUP), log);
 		await waitForStreamingComplete(page, log, 0);
 
 		// Wait for document embed
@@ -308,7 +371,7 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		// Turn 2: Modify the document
 		const turn2Prompt = 'Change the title from "Cover Letter - Software Engineer" to "Application - Senior Engineer" and update the first paragraph to mention 8 years of experience instead of generic language.';
-		await sendMessage(page, turn2Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn2Prompt, DOC_DIFF_LIVE_MOCK_GROUP), log);
 		await waitForStreamingComplete(page, log, 1);
 		await expect(
 			page.locator('[data-testid="embed-preview"][data-app-id="docs"][data-status="processing"]')

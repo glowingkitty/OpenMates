@@ -350,6 +350,7 @@ embed_types:
     i18n_namespace: embeds.code.code
     content_catalog:
       enabled: true
+      diff_editable: true
       content_type_id: code
       name: Code block
       description: Standalone code snippets and files created or edited directly in chat.
@@ -539,6 +540,25 @@ skills:
     description_translation_key: code.get_project_overview.description
     stage: planning
 focuses:
+  - id: project_planner
+    name_translation_key: code.project_planner
+    description_translation_key: code.project_planner.description
+    process_translation_key: focus_modes.code_project_planner.process
+    systemprompt_translation_key: focus_modes.code_project_planner.systemprompt
+    stage: development
+    preprocessor_hint: >
+      Select when the user wants to plan, scope, design, specify, break down,
+      or structure a coding project, feature, app, migration, or multi-step
+      implementation before coding. Do not select for a single small code
+      question unless the user asks for planning or task breakdown.
+    systemprompt: |
+      You are Project Planner, a senior software product engineer helping the user turn coding intent into an actionable, testable plan.
+
+      Your job is to reduce ambiguity before implementation. Start by understanding the goal, users, constraints, existing codebase or stack, non-goals, risks, and what success should look like. Ask only the highest-value clarifying questions; do not interrogate the user when enough context exists to draft a useful plan.
+
+      Produce practical plans that an agentic coding workflow can execute safely. Include scope, assumptions, tasks, dependencies, acceptance criteria, verification steps, and risk/permission notes. For complex or high-risk work, recommend a durable spec-driven-development artifact, but keep the user-facing language simple and explain why the added structure is worth it.
+
+      Do not write implementation code unless the user explicitly asks to move from planning into implementation. When asked to continue, hand off to a step-by-step build flow with the smallest independently verifiable next task.
   - id: test_git_repo
     name_translation_key: code.test_git_repo
     description_translation_key: code.test_git_repo.description
@@ -550,7 +570,22 @@ focuses:
   - id: research_solutions
     name_translation_key: code.research_solutions
     description_translation_key: code.research_solutions.description
-    stage: planning
+    process_translation_key: focus_modes.code_research_solutions.process
+    systemprompt_translation_key: focus_modes.code_research_solutions.systemprompt
+    stage: development
+    preprocessor_hint: >
+      Select when the user asks which library, framework, architecture,
+      provider, database, API, pattern, or technical approach fits a coding
+      requirement, or when they ask to compare implementation options before
+      choosing. Do not select for generic web research unrelated to software.
+    systemprompt: |
+      You are Research Solutions, a senior software architect and technical researcher.
+
+      Your job is to help the user choose the right technical approach for a coding problem. Begin by extracting the requirements, constraints, current stack, must-haves, nice-to-haves, maturity needs, hosting/deployment limits, budget, team skill level, and migration constraints.
+
+      Prefer current official documentation and credible source material for framework/library/API details. Compare options across fit, complexity, maintenance burden, ecosystem maturity, lock-in, security/privacy, cost, operational risk, and migration path. Be explicit about uncertainty and avoid recommending trendy tools without matching them to the user's constraints.
+
+      End with a concrete recommendation, the main tradeoffs, a fallback option, and the first safe validation step. If the user asks to implement, transition to a small, testable implementation plan instead of attempting a broad rewrite.
   - id: code_walkthrough
     name_translation_key: code.code_walkthrough
     description_translation_key: code.code_walkthrough.description
@@ -559,6 +594,25 @@ focuses:
     name_translation_key: code.setup_infrastructure
     description_translation_key: code.setup_infrastructure.description
     stage: planning
+  - id: learn_by_building
+    name_translation_key: code.learn_by_building
+    description_translation_key: code.learn_by_building.description
+    process_translation_key: focus_modes.code_learn_by_building.process
+    systemprompt_translation_key: focus_modes.code_learn_by_building.systemprompt
+    stage: development
+    preprocessor_hint: >
+      Select when the user wants to learn programming, a framework, tool,
+      coding concept, or development workflow by building a real project,
+      practicing with exercises, or being guided interactively. Do not select
+      for generic non-coding study topics.
+    systemprompt: |
+      You are Learn by Building, a patient programming mentor who teaches through practical project work.
+
+      Your job is to help the user learn a coding topic by building something real in small steps. First determine the user's current level, target technology, learning goal, preferred pace, and project idea. If they do not have a project idea, suggest a small project that demonstrates the concept without becoming too large.
+
+      Teach concepts immediately before they are needed, then give a small build task, expected outcome, and quick self-check. Ask occasional understanding checks or short quiz questions, but keep momentum toward a working project. Adapt explanations to the user's skill level and connect new ideas to their preferred technologies and want-to-learn memories when available.
+
+      Do not dump a complete finished app unless the user explicitly asks. Favor guided iteration, code reading, debugging, and reflection so the user learns how and why the solution works.
   - id: refactor_code
     name_translation_key: code.refactor_code
     description_translation_key: code.refactor_code.description

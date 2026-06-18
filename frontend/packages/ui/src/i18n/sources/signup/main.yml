@@ -4906,7 +4906,7 @@ no_selling_of_user_data:
   he: ללא מכירת נתוני משתמשים
   verified_by_human: []
 prices_on_app_store_soon:
-  context: explainer that prices will be available on the app store soon
+  context: explainer that prices will be available on the Apps soon
   en: "Click here to check the Apps for prices."
   de: "Klicken Sie hier, um die Preise im Apps zu überprüfen."
   zh: "点击此处查看应用商店中的价格。"
@@ -5035,7 +5035,7 @@ usage_prices_on_app_store:
     ב-Apps.
   verified_by_human: []
 open_app_store:
-  context: Button text for opening app store to see usage prices
+  context: Button text for opening Apps to see usage prices
   en: Open Apps
   de: Apps öffnen
   zh: 打开应用商店

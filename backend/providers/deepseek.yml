@@ -18,6 +18,7 @@ models:
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
+      together: "deepseek-ai/DeepSeek-V4-Pro"
       openrouter: "deepseek/deepseek-v4-pro"
     input_types:
       - text

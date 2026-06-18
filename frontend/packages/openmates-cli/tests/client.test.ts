@@ -12,6 +12,7 @@ import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -53,16 +54,21 @@ function writeLegacySession(apiUrl = sessionApiUrl): void {
 
 writeLegacySession();
 
+const require = createRequire(import.meta.url);
+const { WebSocketServer } = require("ws");
+
 const {
   OpenMatesClient,
   MEMORY_TYPE_REGISTRY,
   buildAppSettingsMemoryRequestSystemMessage,
   buildAppSettingsMemoryResponseSystemMessage,
+  buildConnectedAccountDirectoryPayload,
   buildSubChatConfirmationPayload,
   buildSubChatEncryptedMetadataPayloads,
+  buildTurnTokenRefsRequestPayload,
   getClientMessagesVersionForSync,
 } = await import("../src/client.ts");
-const { decryptWithAesGcmCombined } = await import("../src/crypto.ts");
+const { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm } = await import("../src/crypto.ts");
 
 after(() => {
   if (originalHome === undefined) {
@@ -141,6 +147,125 @@ describe("OpenMatesClient session API URL", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  it("includes session_id when refreshing the WebSocket token", async () => {
+    let requestBody = "";
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/auth/session");
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        requestBody += chunk;
+      });
+      request.on("end", () => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await (client as unknown as { refreshWsToken(): Promise<void> }).refreshWsToken();
+
+      assert.deepEqual(JSON.parse(requestBody), { session_id: "test-session-id" });
+      const saved = JSON.parse(readFileSync(sessionPath, "utf-8"));
+      assert.strictEqual(saved.wsToken, "fresh-ws-token");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("persists pending AI responses during CLI sync", async () => {
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    const wsServer = new WebSocketServer({ server });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    const chatKey = new Uint8Array(32).fill(7);
+    const masterKey = new Uint8Array(32);
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+    let completedPayload: Record<string, any> | null = null;
+
+    wsServer.once("connection", (socket: any) => {
+      socket.on("message", (raw: Buffer) => {
+        const frame = JSON.parse(raw.toString());
+        if (frame.type === "phased_sync_request") {
+          socket.send(JSON.stringify({
+            type: "pending_ai_response",
+            payload: {
+              chat_id: "chat-1",
+              message_id: "assistant-1",
+              content: "Completed while the first client was gone.",
+              fired_at: 1780000000,
+              category: "general_knowledge",
+              model_name: "Gemini 3 Flash",
+            },
+          }));
+          socket.send(JSON.stringify({
+            type: "phase_2_last_20_chats_ready",
+            payload: {
+              total_chat_count: 1,
+              chats: [{
+                chat_details: {
+                  id: "chat-1",
+                  encrypted_chat_key: encryptedChatKey,
+                  messages_v: 1,
+                  title_v: 0,
+                  draft_v: 0,
+                  last_edited_overall_timestamp: 1779999999,
+                },
+              }],
+            },
+          }));
+          socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+        }
+        if (frame.type === "ai_response_completed") {
+          completedPayload = frame.payload;
+          socket.send(JSON.stringify({
+            type: "ai_response_storage_confirmed",
+            payload: { message_id: "assistant-1" },
+          }));
+        }
+      });
+    });
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const cache = await client.ensureSynced(true);
+
+      assert.ok(completedPayload);
+      assert.equal(completedPayload.chat_id, "chat-1");
+      assert.equal(completedPayload.message.message_id, "assistant-1");
+      assert.equal(completedPayload.versions.messages_v, 2);
+      assert.equal(
+        await decryptWithAesGcmCombined(completedPayload.message.encrypted_content, chatKey),
+        "Completed while the first client was gone.",
+      );
+      assert.equal(cache.chats[0]?.messages.length, 1);
+      const cachedMessage = JSON.parse(cache.chats[0]?.messages[0] as string);
+      assert.equal(cachedMessage.message_id, "assistant-1");
+      assert.equal(
+        await decryptWithAesGcmCombined(cachedMessage.encrypted_content, chatKey),
+        "Completed while the first client was gone.",
+      );
+    } finally {
+      await new Promise<void>((resolve) => wsServer.close(() => resolve()));
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });
 
 describe("memory type registry", () => {
@@ -177,6 +302,139 @@ describe("memory type registry", () => {
       "web/bookmarks",
       "web/read_later",
     ]);
+  });
+});
+
+describe("connected account payload builders", () => {
+  it("rejects token or plaintext identity fields in the chat-visible directory", () => {
+    assert.throws(
+      () => buildConnectedAccountDirectoryPayload([
+        {
+          connected_account_id: "acct-1",
+          app_id: "calendar",
+          account_ref: "work",
+          label: "Work",
+          capabilities: ["read"],
+          provider_email: "person@example.com",
+        } as never,
+      ]),
+      /forbidden field: provider_email/,
+    );
+  });
+
+  it("builds token-broker requests without putting refresh tokens in chat payloads", () => {
+    const request = buildTurnTokenRefsRequestPayload({
+      chatId: "chat-1",
+      messageId: "msg-1",
+      refs: [
+        {
+          connected_account_id: "acct-1",
+          app_id: "calendar",
+          allowed_actions: ["read"],
+          refresh_token_envelope: { refresh_token: "refresh-secret" },
+          action_scope: { calendar_id: "primary" },
+        },
+      ],
+    });
+    const directory = buildConnectedAccountDirectoryPayload([
+      {
+        connected_account_id: "acct-1",
+        app_id: "calendar",
+        account_ref: "work",
+        label: "Work",
+        capabilities: ["read"],
+      },
+    ]);
+
+    assert.equal(request.refs[0]?.refresh_token_envelope.refresh_token, "refresh-secret");
+    assert.equal(JSON.stringify(directory).includes("refresh-secret"), false);
+  });
+
+  it("posts connected-account cancel requests without token refs", async () => {
+    let requestBody = "";
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/connected-accounts/actions/action-1/cancel");
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        requestBody += chunk;
+      });
+      request.on("end", () => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ action_id: "action-1", status: "cancelled", receipt: {} }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.cancelConnectedAccountAction({
+        actionId: "action-1",
+        chatId: "chat-1",
+        messageId: "message-1",
+      });
+
+      assert.deepEqual(JSON.parse(requestBody), { chat_id: "chat-1", message_id: "message-1" });
+      assert.equal(JSON.stringify(requestBody).includes("refresh"), false);
+      assert.deepEqual(result, { action_id: "action-1", status: "cancelled", receipt: {} });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("posts connected-account undo requests with only the opaque turn token ref", async () => {
+    let requestBody = "";
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/connected-accounts/actions/action-1/undo");
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        requestBody += chunk;
+      });
+      request.on("end", () => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(
+          JSON.stringify({
+            action_id: "action-1",
+            status: "undone",
+            undo_type: "delete_created_event",
+            events: [],
+            receipt: {},
+          }),
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.undoConnectedAccountAction({
+        actionId: "action-1",
+        chatId: "chat-1",
+        messageId: "message-1",
+        turnTokenRef: "turn-ref-1",
+      });
+
+      assert.deepEqual(JSON.parse(requestBody), {
+        chat_id: "chat-1",
+        message_id: "message-1",
+        turn_token_ref: "turn-ref-1",
+      });
+      assert.equal(JSON.stringify(requestBody).includes("refresh"), false);
+      assert.deepEqual(result, {
+        action_id: "action-1",
+        status: "undone",
+        undo_type: "delete_created_event",
+        events: [],
+        receipt: {},
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });
 
@@ -227,6 +485,117 @@ describe("memory request system messages", () => {
     assert.deepEqual(payload.categories, [
       { appId: "books", itemType: "currently_reading", entryCount: 2 },
     ]);
+  });
+});
+
+describe("CLI chat PII redaction payloads", () => {
+  it("sends redacted user content and encrypted PII mappings", async () => {
+    const captured: {
+      messagePayload?: Record<string, unknown>;
+      metadataPayload?: Record<string, unknown>;
+    } = {};
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+        return;
+      }
+      if (
+        request.method === "GET" &&
+        request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false"
+      ) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          if (frame.type === "chat_message_added") {
+            captured.messagePayload = frame.payload;
+            const message = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({
+              type: "chat_message_confirmed",
+              payload: {
+                chat_id: frame.payload.chat_id,
+                message_id: message.message_id,
+              },
+            }));
+          }
+          if (frame.type === "encrypted_chat_metadata") {
+            captured.metadataPayload = frame.payload;
+            setTimeout(() => {
+              ws.send(JSON.stringify({
+                type: "ai_background_response_completed",
+                payload: {
+                  chat_id: frame.payload.chat_id,
+                  user_message_id: frame.payload.message_id,
+                  message_id: "assistant-message-id",
+                  full_content: "ok",
+                  category: "general_knowledge",
+                  model_name: "test-model",
+                },
+              }));
+              ws.send(JSON.stringify({
+                type: "post_processing_metadata",
+                payload: { chat_id: frame.payload.chat_id },
+              }));
+            }, 10);
+          }
+          if (frame.type === "ai_response_completed") {
+            const message = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({
+              type: "ai_response_storage_confirmed",
+              payload: { message_id: message.message_id },
+            }));
+          }
+        });
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await client.sendMessage({
+        message: "Email [EMAIL_1_com] or call [PHONE_1_567].",
+        piiMappings: [
+          { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
+          { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
+        ],
+      });
+
+      const userMessage = captured.messagePayload?.message as Record<string, unknown> | undefined;
+      assert.equal(userMessage?.content, "Email [EMAIL_1_com] or call [PHONE_1_567].");
+      assert.equal(JSON.stringify(captured.messagePayload).includes("sarah@example.com"), false);
+      assert.equal(JSON.stringify(captured.messagePayload).includes("+1 (555) 123-4567"), false);
+
+      assert.equal(typeof captured.metadataPayload?.encrypted_pii_mappings, "string");
+      const masterKey = Buffer.alloc(32);
+      const encryptedChatKey = String(captured.metadataPayload?.encrypted_chat_key);
+      const chatKey = await decryptBytesWithAesGcm(encryptedChatKey, masterKey);
+      assert.ok(chatKey);
+      const mappingsJson = await decryptWithAesGcmCombined(
+        String(captured.metadataPayload?.encrypted_pii_mappings),
+        chatKey,
+      );
+      assert.deepEqual(JSON.parse(mappingsJson ?? "[]"), [
+        { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
+        { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
+      ]);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });
 

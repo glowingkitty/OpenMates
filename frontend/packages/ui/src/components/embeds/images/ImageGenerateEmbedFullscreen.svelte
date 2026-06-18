@@ -300,7 +300,12 @@
         isAuthenticated: true,
         fileSize: content.file_size,
         fileType: content.file_type,
-        aiDetection: (content.ai_detection as { ai_generated: number; provider: string } | null) ?? null,
+        aiDetection: (content.ai_detection as {
+          ai_generated: number;
+          provider: string;
+          status?: 'success' | 'failed';
+          error?: string | null;
+        } | null) ?? null,
       },
       bubbles: true,
     });
@@ -376,12 +381,12 @@
   }
   
   /**
-   * Navigate to the images app skill settings page in the app store.
+   * Navigate to the images app skill settings page in Apps.
    * Deep links to the skill page for the current skill (generate or generate_draft).
    */
   function handleModelClick() {
     const skillPath = skillIdProp === 'generate_draft' ? 'generate_draft' : 'generate';
-    settingsDeepLink.set(`app_store/images/skill/${skillPath}`);
+    settingsDeepLink.set(`apps/images/skill/${skillPath}`);
     panelState.openSettings();
   }
 

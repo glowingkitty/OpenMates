@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Mortgage Payment Calculation"
   en: "Mortgage Payment Calculation"
-  de: "Mortgage Payment Calculation"
+  de: Hypothekenzahlung berechnen
   zh: "Mortgage Payment Calculation"
   es: "Mortgage Payment Calculation"
   fr: "Mortgage Payment Calculation"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Mortgage Payment Calculation"
   en: "Calculate a monthly mortgage payment, formula, total repayment, and total interest."
-  de: "Calculate a monthly mortgage payment, formula, total repayment, and total interest."
+  de: Berechne eine monatliche Hypothekenrate, die Formel, die Gesamtrückzahlung und die Gesamtzinsen.
   zh: "Calculate a monthly mortgage payment, formula, total repayment, and total interest."
   es: "Calculate a monthly mortgage payment, formula, total repayment, and total interest."
   fr: "Calculate a monthly mortgage payment, formula, total repayment, and total interest."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Mortgage Payment Calculation. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Calculate the monthly payment for a 350,000 euro mortgage over 25 years at 3.8% annual interest, and show the formula and total interest paid."
-  de: "Calculate the monthly payment for a 350,000 euro mortgage over 25 years at 3.8% annual interest, and show the formula and total interest paid."
+  de: Berechne die monatliche Rate für eine Hypothek von 350.000 Euro über 25 Jahre bei einem jährlichen Zinssatz von 3,8 % und zeige die Formel sowie die gezahlten Gesamtzinsen an.
   zh: "Calculate the monthly payment for a 350,000 euro mortgage over 25 years at 3.8% annual interest, and show the formula and total interest paid."
   es: "Calculate the monthly payment for a 350,000 euro mortgage over 25 years at 3.8% annual interest, and show the formula and total interest paid."
   fr: "Calculate the monthly payment for a 350,000 euro mortgage over 25 years at 3.8% annual interest, and show the formula and total interest paid."
@@ -128,51 +128,51 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "3c8e7c97-7502-4407-a07b-79911ca4bbaf", "app_id": "math", "skill_id": "calculate"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "965d7fc9-15be-4eba-a774-b0a16bfa2da7", "app_id": "math", "skill_id": "calculate"}
     ```
-
-    For a **€350,000** mortgage with an annual interest rate of **3.8%** over **25 years**, here is the breakdown of your monthly payments and the total interest you would pay.
-
-    ### 1. The Formula
-    To calculate the monthly payment ($M$), we use the standard [amortization](wiki:Amortization) formula:
-
+    
+    Für eine Hypothek über **350.000 €** mit einem jährlichen Zinssatz von **3,8 %** über **25 Jahre** findest du hier die Aufschlüsselung deiner monatlichen Zahlungen und der Gesamtzinsen, die du zahlen würdest.
+    
+    ### 1. Die Formel
+    Um die monatliche Rate ($M$) zu berechnen, verwenden wir die Standardformel für die [Amortisation](wiki:Amortization):
+    
     $$M = P \frac{r(1+r)^n}{(1+r)^n - 1}$$
-
-    **Where:**
-    *   **$P$ (Principal):** €350,000
-    *   **$r$ (Monthly Interest Rate):** $3.8\% / 12$ months = $0.00316667$
-    *   **$n$ (Total Number of Payments):** $25 \text{ years} \times 12 \text{ months} = 300$
-
-    ### 2. Monthly Payment Calculation
-    Based on the values above, your monthly payment would be:
-    **€1,809.00** Calculation result
-
-    ### 3. Total Interest Paid
-    To find the total interest, we multiply the monthly payment by the number of months and subtract the original loan amount:
-    $$\text{Total Interest} = (M \times n) - P$$
-
-    *   **Total Amount Paid:** €542,699.39
-    *   **Total Interest:** **€192,699.39**
-
+    
+    **Wobei:**
+    *   **$P$ (Darlehensbetrag):** 350.000 €
+    *   **$r$ (Monatlicher Zinssatz):** $3,8\% / 12$ Monate = $0,00316667$
+    *   **$n$ (Gesamtzahl der Zahlungen):** $25 \text{ Jahre} \times 12 \text{ Monate} = 300$
+    
+    ### 2. Berechnung der monatlichen Rate
+    Basierend auf den obigen Werten würde deine monatliche Rate wie folgt aussehen:
+    **1.809,00 €** Berechnungsergebnis
+    
+    ### 3. Gezahlte Gesamtzinsen
+    Um die Gesamtzinsen zu ermitteln, multiplizieren wir die monatliche Rate mit der Anzahl der Monate und ziehen den ursprünglichen Darlehensbetrag ab:
+    $$\text{Gesamtzinsen} = (M \times n) - P$$
+    
+    *   **Gezahlter Gesamtbetrag:** 542.699,39 €
+    *   **Gesamtzinsen:** **192.699,39 €**
+    
     ***
-
-    ### Summary Table
+    
+    ### Zusammenfassung
     ```json
     {"type": "sheet", "embed_id": "551d18d6-164a-41e3-aaa7-f6c92ca882e9"}
     ```
-
-
-    Keep in mind that this calculation assumes a [fixed-rate mortgage](wiki:Fixed-rate_mortgage) and does not include additional costs like [home insurance](wiki:Home_insurance), property taxes, or potential bank fees.
-
-    **Would you like to see how much you could save by increasing your monthly payment or shortening the term to 20 years?**
-
-    **Next Steps:**
-    - [Explore 20-year mortgage comparison](/#)
-    - [Calculate the impact of an extra €200/month payment](/#)
+    
+    
+    Bitte beachte, dass diese Berechnung von einer [Festhypothek](wiki:Fixed-rate_mortgage) ausgeht und keine zusätzlichen Kosten wie [Wohngebäudeversicherung](wiki:Home_insurance), Grundsteuern oder potenzielle Bankgebühren enthält.
+    
+    **Möchtest du sehen, wie viel du sparen könntest, wenn du deine monatliche Rate erhöhst oder die Laufzeit auf 20 Jahre verkürzt?**
+    
+    **Nächste Schritte:**
+    - [Vergleich mit 20-jähriger Hypothek ansehen](/#)
+    - [Auswirkungen einer zusätzlichen Zahlung von 200 €/Monat berechnen](/#)
     ---
-    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+    *⚠️ Dies dient nur zu Informationszwecken und stellt keine Finanzberatung dar. Konsultiere einen qualifizierten Finanzexperten oder Steuerberater für finanzielle Entscheidungen.*
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "3c8e7c97-7502-4407-a07b-79911ca4bbaf", "app_id": "math", "skill_id": "calculate"}

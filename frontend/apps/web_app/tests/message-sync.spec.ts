@@ -362,6 +362,7 @@ test('message sync: verifies all messages are synced after sending multiple mess
 	// Wait for second AI response
 	logCheckpoint('Waiting for second AI response...');
 	await expect(assistantResponse.last()).toContainText('40', { timeout: 45000 });
+	await waitForSyncedAssistantMessages(page, chatId, 2, 60000);
 	await takeStepScreenshot(page, '11-second-response-received');
 	logCheckpoint('Received second AI response containing "40".');
 

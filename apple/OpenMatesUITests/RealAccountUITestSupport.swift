@@ -9,7 +9,11 @@ import XCTest
 
 @MainActor
 enum RealAccountUITestSupport {
-    static func launchApp(preferPasswordLogin: Bool = true, disableAuthCache: Bool = false) -> XCUIApplication {
+    static func launchApp(
+        preferPasswordLogin: Bool = true,
+        disableAuthCache: Bool = false,
+        extraArguments: [String] = []
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         var launchArguments: [String] = []
         if preferPasswordLogin {
@@ -18,6 +22,7 @@ enum RealAccountUITestSupport {
         if disableAuthCache {
             launchArguments.append("--ui-test-disable-auth-cache")
         }
+        launchArguments.append(contentsOf: extraArguments)
         app.launchArguments = launchArguments
         app.launch()
         return app
@@ -165,7 +170,7 @@ enum RealAccountUITestSupport {
     }
 
     private static func openNewChatIfNeeded(app: XCUIApplication) {
-        let newChatButton = app.buttons.matching(identifier: "new-chat-button").firstMatch
+        let newChatButton = accessibilityElement(in: app, identifier: "new-chat-button")
         guard newChatButton.waitForExistence(timeout: 2) else { return }
         newChatButton.tap()
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 10))

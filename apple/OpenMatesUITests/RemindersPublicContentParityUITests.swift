@@ -31,7 +31,10 @@ final class RemindersPublicContentParityUITests: XCTestCase {
         )
         publicChatRow.tap()
 
-        XCTAssertTrue(app.descendants(matching: .any)["active-chat-header"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            waitForPublicChatSurface(in: app, timeout: 10),
+            "Expected public chat surface. Visible UI: \(visibleStateLabels(in: app))"
+        )
         XCTAssertTrue(app.descendants(matching: .any)["message-assistant"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.tables.firstMatch.exists, "Public chat content must not render default List/table chrome")
 
@@ -49,6 +52,19 @@ final class RemindersPublicContentParityUITests: XCTestCase {
         let buttons = elementSummaries(app.buttons.allElementsBoundByIndex, prefix: "button")
         let staticTexts = elementSummaries(app.staticTexts.allElementsBoundByIndex, prefix: "text")
         return (buttons + staticTexts).prefix(30).joined(separator: " | ")
+    }
+
+    private func waitForPublicChatSurface(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        let chatView = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-view-"))
+            .firstMatch
+        let header = app.descendants(matching: .any)["active-chat-header"]
+        repeat {
+            if chatView.exists || header.exists { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return chatView.exists || header.exists
     }
 
     private func elementSummaries(_ elements: [XCUIElement], prefix: String) -> [String] {

@@ -9,7 +9,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { execFile, execFileSync } from "node:child_process";
+import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -22,10 +22,10 @@ import { WebSocketServer } from "ws";
 import {
   deriveAppUrl,
   MEMORY_TYPE_REGISTRY,
-  parseNewChatSuggestionText,
   serializeToYaml,
   getExtForLang,
   defaultCloneBranchForVersion,
+  buildAssistantFeedbackDecision,
 } from "../dist/index.js";
 
 const execFileAsync = promisify(execFile);
@@ -46,6 +46,68 @@ function runCliWithoutSession(args: string[]): string {
   mkdirSync(tempHome, { recursive: true });
   try {
     return runCli(args, { HOME: tempHome, USERPROFILE: tempHome });
+  } finally {
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+function runCliWithoutSessionResult(args: string[]): { status: number | null; stdout: string; stderr: string } {
+  const tempHome = join(tmpdir(), `openmates-cli-no-session-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  mkdirSync(tempHome, { recursive: true });
+  try {
+    const result = spawnSync("node", ["dist/cli.js", ...args], {
+      cwd: PACKAGE_ROOT,
+      encoding: "utf-8",
+      env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome },
+      timeout: 15_000,
+    });
+    return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+  } finally {
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function runCliWithEmptyCacheSession(
+  apiUrl: string,
+  args: string[],
+): Promise<{ stderr: string; stdout: string }> {
+  const tempHome = join(tmpdir(), `openmates-cli-empty-cache-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+  writeFileSync(join(stateDir, "sync_cache.json"), `${JSON.stringify({
+    syncedAt: Date.now(),
+    totalChatCount: 0,
+    loadedChatCount: 0,
+    chats: [],
+    embeds: [],
+    embedKeys: [],
+  })}\n`);
+
+  try {
+    await execFileAsync("node", ["dist/cli.js", ...args], {
+      cwd: PACKAGE_ROOT,
+      encoding: "utf-8",
+      env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome, OPENMATES_API_URL: apiUrl },
+      timeout: 15_000,
+    });
+    assert.fail("restore should require local encrypted embed state");
+  } catch (error) {
+    return {
+      stderr: (error as { stderr?: string }).stderr ?? String(error),
+      stdout: (error as { stdout?: string }).stdout ?? "",
+    };
   } finally {
     rmSync(tempHome, { recursive: true, force: true });
   }
@@ -84,6 +146,11 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 
 function writeJson(response: ServerResponse, value: unknown): void {
   response.writeHead(200, { "Content-Type": "application/json" });
+  response.end(JSON.stringify(value));
+}
+
+function writeJsonStatus(response: ServerResponse, status: number, value: unknown): void {
+  response.writeHead(status, { "Content-Type": "application/json" });
   response.end(JSON.stringify(value));
 }
 
@@ -140,6 +207,113 @@ async function withCodeRunMockApi<T>(
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+async function withAnonymousMockApi<T>(
+  run: (params: { apiUrl: string; requests: Record<string, unknown>[]; tempHome: string }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Record<string, unknown>[] = [];
+  const tempHome = join(tmpdir(), `openmates-cli-anonymous-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  mkdirSync(tempHome, { recursive: true });
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "GET" && request.url === "/v1/anonymous/free-usage/status") {
+        writeJson(response, {
+          active: true,
+          reason: null,
+          reset_at: "2026-06-17T00:00:00+00:00",
+          cta: "Sign up to keep using OpenMates",
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/anonymous/chat/stream") {
+        const body = await readJsonBody(request);
+        requests.push(body);
+        writeJson(response, {
+          status: "completed",
+          chatId: body.client_chat_id,
+          messageId: body.client_message_id,
+          assistant: "anonymous inference ok",
+          category: "general_knowledge",
+          modelName: "test-model",
+          followUpSuggestions: [],
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withEmbedVersionsMockApi<T>(
+  run: (params: { apiUrl: string; requests: string[] }) => T | Promise<T>,
+): Promise<T> {
+  const requests: string[] = [];
+  const embedId = "12345678-1234-1234-1234-123456789abc";
+  const server = createServer(async (request, response) => {
+    requests.push(`${request.method} ${request.url}`);
+    if (request.method === "GET" && request.url === `/v1/embeds/${embedId}/versions`) {
+      writeJson(response, {
+        embed_id: embedId,
+        current_version: 3,
+        readonly: false,
+        versions: [
+          { version_number: 1, created_at: 1760000000, has_snapshot: true, has_patch: false },
+          { version_number: 2, created_at: 1760000100, has_snapshot: false, has_patch: true },
+          { version_number: 3, created_at: 1760000200, has_snapshot: false, has_patch: true },
+        ],
+      });
+      return;
+    }
+    if (request.method === "GET" && request.url === `/v1/embeds/${embedId}/versions/1`) {
+      writeJson(response, {
+        embed_id: embedId,
+        version_number: 1,
+        current_version: 3,
+        readonly: false,
+        content: "def calculate_average(values):\n    return sum(values) / len(values)",
+      });
+      return;
+    }
+    if (request.method === "POST" && request.url === `/v1/embeds/${embedId}/versions/1/restore`) {
+      writeJson(response, {
+        embed_id: embedId,
+        restored_from_version: 1,
+        version_number: 4,
+        content_hash: "hash-4",
+        content: "def calculate_average(values):\n    return sum(values) / len(values)",
+      });
+      return;
+    }
+    if (request.method === "POST" && request.url === `/v1/embeds/${embedId}/versions/2/restore`) {
+      writeJsonStatus(response, 403, { detail: "Read-only shared history cannot be restored." });
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests });
+  } finally {
+    server.close();
   }
 }
 
@@ -359,6 +533,91 @@ async function withSkillFormattingMockApi<T>(
   }
 }
 
+async function withFlatWeatherSkillMockApi<T>(
+  run: (params: { apiUrl: string; requests: Record<string, unknown>[] }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Record<string, unknown>[] = [];
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "GET" && request.url === "/openapi.json") {
+        writeJson(response, {
+          paths: {
+            "/v1/apps/weather/skills/rain_radar": {
+              post: {
+                requestBody: {
+                  content: {
+                    "application/json": {
+                      schema: { $ref: "#/components/schemas/RainRadarRequest" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          components: {
+            schemas: {
+              RainRadarRequest: {
+                type: "object",
+                properties: {
+                  location: { type: "string", description: "German place name for the radar." },
+                  radius_km: { type: "integer", default: 5 },
+                },
+              },
+            },
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/apps/weather/skills/rain_radar") {
+        writeJson(response, {
+          id: "rain_radar",
+          name: "Rain radar",
+          description: "Get nearby German rain radar.",
+          providers: [{ provider: "dwd", name: "Deutscher Wetterdienst (DWD)" }],
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/weather/skills/rain_radar") {
+        const body = await readJsonBody(request);
+        requests.push(body);
+        if (body.location !== "Berlin") {
+          response.writeHead(422, { "Content-Type": "application/json" });
+          response.end(JSON.stringify({ detail: "location missing" }));
+          return;
+        }
+        writeJson(response, {
+          success: true,
+          data: {
+            type: "rain_radar",
+            provider: "Deutscher Wetterdienst (DWD) via Bright Sky",
+            location: { name: "Berlin", country_code: "DE" },
+            coverage: { status: "available", radius_km: body.radius_km ?? 5 },
+            summary: { in_10_min: "No rain visible near Berlin." },
+            timeline: [],
+            rendering: { mode: "external_radar_blob", frame_count: 0 },
+          },
+          credits_charged: 1,
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
 describe("SDK entrypoint", () => {
   it("does not run CLI help when imported", () => {
     const output = execFileSync("node", ["--input-type=module", "-e", "import './dist/index.js';"], {
@@ -369,6 +628,46 @@ describe("SDK entrypoint", () => {
     });
 
     assert.equal(output, "");
+  });
+});
+
+describe("assistant response feedback parity", () => {
+  it("thanks only for 4-5 star ratings", () => {
+    assert.deepEqual(buildAssistantFeedbackDecision(5), {
+      rating: 5,
+      action: "thanks",
+      message: "Thanks for the feedback!",
+    });
+  });
+
+  it("prompts report issue with the web prefill for 1-3 star ratings", () => {
+    assert.deepEqual(buildAssistantFeedbackDecision(3), {
+      rating: 3,
+      action: "report_issue",
+      message: "Thanks for the feedback!",
+      reportTitle: "Assistant response quality bad:",
+    });
+  });
+
+  it("exposes the decision through the CLI command", () => {
+    const output = runCliWithoutSession([
+      "feedback",
+      "assistant-response",
+      "--rating",
+      "2",
+      "--json",
+    ]);
+    const parsed = JSON.parse(output) as {
+      rating: number;
+      action: string;
+      message: string;
+      reportTitle: string;
+    };
+
+    assert.equal(parsed.rating, 2);
+    assert.equal(parsed.action, "report_issue");
+    assert.equal(parsed.message, "Thanks for the feedback!");
+    assert.equal(parsed.reportTitle, "Assistant response quality bad:");
   });
 });
 
@@ -591,7 +890,89 @@ describe("apps code run command variants", () => {
   });
 });
 
+describe("embed version commands", () => {
+  const embedId = "12345678-1234-1234-1234-123456789abc";
+
+  it("lists embed versions without encrypted blobs", async () => {
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync(["embeds", "versions", "list", embedId], { OPENMATES_API_URL: apiUrl });
+      assert.match(output, /Embed versions/);
+      assert.match(output, /v1/);
+      assert.match(output, /v3 \(current\)/);
+      assert.doesNotMatch(output, /encrypted_/);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions`]);
+    });
+  });
+
+  it("shows a reconstructed historical version", async () => {
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync(["embeds", "versions", "show", embedId, "--version", "1"], { OPENMATES_API_URL: apiUrl });
+      assert.match(output, /def calculate_average/);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1`]);
+    });
+  });
+
+  it("writes a reconstructed historical version to a file", async () => {
+    const tempFile = join(tmpdir(), `openmates-embed-version-${Date.now()}.py`);
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      const output = await runCliAsync(["embeds", "versions", "show", embedId, "--version", "1", "--output", tempFile], { OPENMATES_API_URL: apiUrl });
+      assert.match(output, /Wrote .* v1/);
+      assert.match(readFileSync(tempFile, "utf-8"), /def calculate_average/);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1`]);
+    });
+    rmSync(tempFile, { force: true });
+  });
+
+  it("requires local encrypted cache for client-side restore before any server restore endpoint", async () => {
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      const { stderr } = await runCliWithEmptyCacheSession(apiUrl, ["embeds", "versions", "restore", embedId, "--version", "1", "--yes"]);
+      assert.match(stderr, /not found in local cache/);
+      assert.deepEqual(requests.filter((request) => request !== "POST /v1/auth/session"), []);
+    });
+  });
+
+  it("does not attempt plaintext server restore for any version", async () => {
+    await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
+      const { stderr } = await runCliWithEmptyCacheSession(apiUrl, ["embeds", "versions", "restore", embedId, "--version", "2", "--yes"]);
+      assert.match(stderr, /not found in local cache/);
+      assert.deepEqual(requests.filter((request) => request !== "POST /v1/auth/session"), []);
+    });
+  });
+});
+
 describe("apps skill formatted output", () => {
+  it("maps flat weather rain radar schemas to direct CLI app-skill input", async () => {
+    await withFlatWeatherSkillMockApi(async ({ apiUrl, requests }) => {
+      const inlineOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "weather", "rain_radar", "Berlin",
+        "--json",
+      ]);
+      const inlineResult = JSON.parse(inlineOutput) as { data: { type: string } };
+      assert.equal(inlineResult.data.type, "rain_radar");
+      assert.deepEqual(requests[0], { location: "Berlin" });
+
+      await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "weather", "rain_radar",
+        "--input", JSON.stringify({ requests: [{ location: "Berlin", radius_km: 10 }] }),
+        "--json",
+      ]);
+      assert.deepEqual(requests[1], { location: "Berlin", radius_km: 10 });
+    });
+  });
+
+  it("prints flat weather rain radar help without a requests wrapper", async () => {
+    await withFlatWeatherSkillMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "weather", "rain_radar", "--help",
+      ]);
+      assert.match(output, /"location": "Berlin, Germany"/);
+      assert.doesNotMatch(output, /"requests"/);
+    });
+  });
+
   it("prints concise event cards without raw provider noise by default", async () => {
     await withSkillFormattingMockApi(async ({ apiUrl }) => {
       const output = await runCliAsync([
@@ -819,78 +1200,6 @@ describe("memory schema validation", () => {
 });
 
 // ---------------------------------------------------------------------------
-// parseNewChatSuggestionText
-// ---------------------------------------------------------------------------
-
-describe("parseNewChatSuggestionText", () => {
-  it("parses [app-skill] prefix with body", () => {
-    const result = parseNewChatSuggestionText(
-      "[web-search] What's the latest AI news?",
-    );
-    assert.strictEqual(result.appId, "web");
-    assert.strictEqual(result.skillId, "search");
-    assert.strictEqual(result.body, "What's the latest AI news?");
-  });
-
-  it("parses [images-generate] prefix", () => {
-    const result = parseNewChatSuggestionText(
-      "[images-generate] Draw a futuristic city at sunset",
-    );
-    assert.strictEqual(result.appId, "images");
-    assert.strictEqual(result.skillId, "generate");
-    assert.strictEqual(result.body, "Draw a futuristic city at sunset");
-  });
-
-  it("parses [news-search] prefix", () => {
-    const result = parseNewChatSuggestionText("[news-search] Climate tech");
-    assert.strictEqual(result.appId, "news");
-    assert.strictEqual(result.skillId, "search");
-    assert.strictEqual(result.body, "Climate tech");
-  });
-
-  it("parses [app] prefix without skill", () => {
-    const result = parseNewChatSuggestionText("[web] Open my bookmarks");
-    assert.strictEqual(result.appId, "web");
-    assert.strictEqual(result.skillId, null);
-    assert.strictEqual(result.body, "Open my bookmarks");
-  });
-
-  it("returns body unchanged when no prefix present", () => {
-    const result = parseNewChatSuggestionText(
-      "How do I implement a binary search tree?",
-    );
-    assert.strictEqual(result.appId, null);
-    assert.strictEqual(result.skillId, null);
-    assert.strictEqual(result.body, "How do I implement a binary search tree?");
-  });
-
-  it("trims whitespace from body", () => {
-    const result = parseNewChatSuggestionText(
-      "[math-calculate]   Solve 42 * 13 + 7  ",
-    );
-    assert.strictEqual(result.appId, "math");
-    assert.strictEqual(result.skillId, "calculate");
-    assert.strictEqual(result.body, "Solve 42 * 13 + 7");
-  });
-
-  it("handles suggestion with only the prefix and no body", () => {
-    const result = parseNewChatSuggestionText("[videos-search]");
-    assert.strictEqual(result.appId, "videos");
-    assert.strictEqual(result.skillId, "search");
-    assert.strictEqual(result.body, "");
-  });
-
-  it("treats plain text starting with a non-bracket char as plain body", () => {
-    const result = parseNewChatSuggestionText(
-      "Tell me about quantum computing",
-    );
-    assert.strictEqual(result.appId, null);
-    assert.strictEqual(result.skillId, null);
-    assert.strictEqual(result.body, "Tell me about quantum computing");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Follow-up suggestions rendering helpers (network-free)
 // ---------------------------------------------------------------------------
 
@@ -960,72 +1269,47 @@ describe("follow-up suggestions rendering", () => {
  * Mirrors printNewChatSuggestion() in cli.ts without network.
  */
 function renderNewChatSuggestion(
-  suggestion: { body: string; appId: string | null; skillId: string | null },
+  suggestion: { body: string },
   index: number,
 ): string {
-  const appLabel = suggestion.skillId
-    ? `[${suggestion.appId}-${suggestion.skillId}] `
-    : suggestion.appId
-      ? `[${suggestion.appId}] `
-      : "";
   const escaped = suggestion.body.replace(/"/g, '\\"');
   return (
-    `${index}. ${appLabel}${suggestion.body}\n` +
+    `${index}. ${suggestion.body}\n` +
     `   openmates chats new "${escaped}"\n`
   );
 }
 
 describe("new chat suggestions rendering", () => {
-  it("renders a skill-prefixed suggestion with app/skill label", () => {
-    const s = parseNewChatSuggestionText(
-      "[web-search] Latest quantum computing breakthroughs",
-    );
-    const output = renderNewChatSuggestion(s, 1);
-    assert.ok(output.startsWith("1. [web-search]"));
-    assert.ok(output.includes("Latest quantum computing breakthroughs"));
+  it("renders a plain suggestion without app or skill labels", () => {
+    const output = renderNewChatSuggestion({ body: "Find upcoming drawing workshops in Berlin" }, 1);
+    assert.ok(output.startsWith("1. Find upcoming drawing workshops"));
     assert.ok(
       output.includes(
-        'openmates chats new "Latest quantum computing breakthroughs"',
+        'openmates chats new "Find upcoming drawing workshops in Berlin"',
       ),
     );
   });
 
-  it("renders a plain suggestion without prefix", () => {
-    const s = parseNewChatSuggestionText(
-      "Explain the history of the Roman Empire",
-    );
-    const output = renderNewChatSuggestion(s, 3);
-    assert.ok(output.startsWith("3. Explain the history"));
-    assert.ok(output.includes('openmates chats new "Explain the history'));
-  });
-
-  it("renders an app-only prefixed suggestion (no skill)", () => {
-    const s = parseNewChatSuggestionText("[images] Generate a logo for my app");
-    const output = renderNewChatSuggestion(s, 2);
-    assert.ok(output.startsWith("2. [images]"));
-    assert.ok(output.includes("Generate a logo for my app"));
+  it("renders legacy-prefixed suggestions as already-stripped plain text", () => {
+    const output = renderNewChatSuggestion({ body: "Find current AI news" }, 2);
+    assert.ok(output.startsWith("2. Find current AI news"));
+    assert.ok(!output.includes("[web-search]"));
   });
 
   it("correctly numbers multiple suggestions", () => {
     const suggestions = [
-      "[web-search] AI trends in 2026",
-      "[news-search] Startup funding news",
-      "How to improve my sleep?",
+      "Search current AI trends",
+      "Find startup funding news",
+      "Explain how to improve sleep",
     ];
-    const outputs = suggestions.map((text, i) => {
-      const s = parseNewChatSuggestionText(text);
-      return renderNewChatSuggestion(s, i + 1);
-    });
+    const outputs = suggestions.map((body, i) => renderNewChatSuggestion({ body }, i + 1));
     assert.ok(outputs[0].startsWith("1."));
     assert.ok(outputs[1].startsWith("2."));
     assert.ok(outputs[2].startsWith("3."));
   });
 
   it("escapes double quotes in suggestion body for shell safety", () => {
-    const s = parseNewChatSuggestionText(
-      'Summarize the book "Thinking Fast and Slow"',
-    );
-    const output = renderNewChatSuggestion(s, 1);
+    const output = renderNewChatSuggestion({ body: 'Summarize the book "Thinking Fast and Slow"' }, 1);
     assert.ok(
       output.includes(
         'openmates chats new "Summarize the book \\"Thinking Fast and Slow\\""',
@@ -1427,6 +1711,80 @@ describe("unauthenticated example chats", () => {
     assert.ok(output.includes("EXAMPLE CHAT"));
     assert.ok(output.includes("Gigantic airplanes for transporting rocket and airplane parts"));
     assert.ok(output.includes("This is a public example chat"));
+  });
+
+  it("returns signup_required before reading anonymous file references", () => {
+    const result = runCliWithoutSessionResult([
+      "chats",
+      "new",
+      "summarize @/tmp/openmates-anonymous-file-that-must-not-be-read.txt",
+      "--json",
+    ]);
+    assert.equal(result.status, 0, result.stderr);
+    const parsed = JSON.parse(result.stdout) as { status?: string; reason?: string; signup_required?: boolean };
+    assert.equal(parsed.status, "signup_required");
+    assert.equal(parsed.reason, "file_upload_requires_signup");
+    assert.equal(parsed.signup_required, true);
+  });
+
+  it("sends anonymous text chat through the anonymous API without a session", async () => {
+    await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
+      const output = await runCliAsync(
+        ["chats", "new", "Reply with exactly: anonymous inference ok", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as { status?: string; assistant?: string };
+      assert.equal(parsed.status, "completed");
+      assert.equal(parsed.assistant, "anonymous inference ok");
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].plaintext_message, "Reply with exactly: anonymous inference ok");
+      assert.equal(typeof requests[0].anonymous_id, "string");
+    });
+  });
+
+  it("redacts PII in anonymous chat by default", async () => {
+    await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
+      await runCliAsync(
+        [
+          "chats",
+          "new",
+          "Email sarah@example.com or call +1 (555) 123-4567.",
+          "--json",
+          "--api-url",
+          apiUrl,
+        ],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.equal(requests.length, 1);
+      assert.equal(
+        requests[0].plaintext_message,
+        "Email [EMAIL_1_com] or call [PHONE_1_567].",
+      );
+    });
+  });
+
+  it("keeps raw PII when anonymous chat opts out", async () => {
+    await withAnonymousMockApi(async ({ apiUrl, requests, tempHome }) => {
+      await runCliAsync(
+        [
+          "chats",
+          "new",
+          "Email sarah@example.com or call +1 (555) 123-4567.",
+          "--json",
+          "--api-url",
+          apiUrl,
+          "--no-pii-detection",
+        ],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.equal(requests.length, 1);
+      assert.equal(
+        requests[0].plaintext_message,
+        "Email sarah@example.com or call +1 (555) 123-4567.",
+      );
+    });
   });
 });
 

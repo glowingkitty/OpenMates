@@ -1,10 +1,10 @@
 /**
  * App-store examples for the shopping skill.
  *
- * Invented brand names and prices so the app store does not endorse specific supermarket products.
+ * Invented brand names and prices so the Apps does not endorse specific supermarket products.
  *
  * These are hand-crafted synthetic fixtures. All names, addresses,
- * prices and ratings are invented so that the app store never promotes
+ * prices and ratings are invented so that the Apps never promotes
  * specific real-world businesses, doctors, landlords or venues. The
  * shape matches the real provider response so the preview + fullscreen
  * render identically. A "Sample data" banner is shown at the top of

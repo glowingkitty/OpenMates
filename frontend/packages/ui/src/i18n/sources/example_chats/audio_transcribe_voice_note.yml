@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Transcribe a voice note"
   en: "Transcribe a voice note"
-  de: "Transcribe a voice note"
+  de: Sprachnotiz transkribieren
   zh: "Transcribe a voice note"
   es: "Transcribe a voice note"
   fr: "Transcribe a voice note"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Transcribe a voice note"
   en: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
-  de: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
+  de: Erfahre, wie OpenMates eine hochgeladene Sprachnotiz in ein exaktes Transkript umwandelt, einschließlich korrigierter Transkript-Metadaten.
   zh: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
   es: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
   fr: "See how OpenMates turns an uploaded voice note into an exact transcript, including corrected transcript metadata."
@@ -59,7 +59,7 @@ message_1:
     }
     ```
   de: |
-    Please transcribe this audio file. Do not search the web and do not include any markdown links. Just quote the exact transcript:
+    Bitte transkribiere diese Audiodatei. Suche nicht im Web und füge keine Markdown-Links ein. Zitiere einfach das exakte Transkript:
     ```json
     {
       "type": "audio-recording",
@@ -223,7 +223,7 @@ message_1:
 message_2:
   context: "assistant message 2 in example chat: Transcribe a voice note. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "OpenMates can transcribe short voice notes from the command line."
-  de: "OpenMates can transcribe short voice notes from the command line."
+  de: OpenMates kann kurze Sprachnotizen über die Kommandozeile transkribieren.
   zh: "OpenMates can transcribe short voice notes from the command line."
   es: "OpenMates can transcribe short voice notes from the command line."
   fr: "OpenMates can transcribe short voice notes from the command line."

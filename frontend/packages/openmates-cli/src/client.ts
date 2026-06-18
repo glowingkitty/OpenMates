@@ -41,6 +41,8 @@ import {
   saveSyncCache,
   clearSyncCache,
   isSyncCacheFresh,
+  loadAnonymousId,
+  saveAnonymousId,
 } from "./storage.js";
 import { loadServerConfig } from "./serverConfig.js";
 import {
@@ -72,6 +74,15 @@ function normalizeUnixSeconds(value: unknown, fallback: number): number {
 export function getClientMessagesVersionForSync(cached: CachedChat): number {
   if (cached.messages.length === 0) return 0;
   return typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
+}
+
+interface PendingAIResponseFrame {
+  chat_id?: string;
+  message_id?: string;
+  content?: string;
+  fired_at?: number;
+  model_name?: string;
+  category?: string;
 }
 
 export interface CliSubChatRequest {
@@ -110,6 +121,32 @@ export interface SubChatApprovalRequest {
   remainingSubChats: number | null;
 }
 
+export interface ConnectedAccountDirectoryEntry {
+  connected_account_id: string;
+  app_id: string;
+  account_ref: string;
+  label: string;
+  capabilities: string[];
+  runtime_modes?: Record<string, string>;
+}
+
+export interface ConnectedAccountTurnTokenRefInput {
+  connected_account_id: string;
+  app_id: string;
+  allowed_actions: string[];
+  refresh_token_envelope: Record<string, unknown>;
+  action_scope?: Record<string, unknown>;
+}
+
+export interface ConnectedAccountTurnTokenRef {
+  connected_account_id: string;
+  app_id: string;
+  turn_token_ref: string;
+  allowed_actions: string[];
+  action_scope?: Record<string, unknown>;
+  expires_at: number;
+}
+
 export interface AppSettingsMemorySystemMessage {
   message_id: string;
   role: "system";
@@ -140,6 +177,46 @@ export function buildSubChatConfirmationPayload(params: {
     task_id: params.taskId,
     action: params.approved ? "approve" : "cancel",
     approve_count: params.approved ? params.approveCount ?? null : null,
+  };
+}
+
+export function assertNoConnectedAccountSecretLeak(value: unknown): void {
+  const serialized = JSON.stringify(value ?? {});
+  const forbidden = [
+    "refresh_token",
+    "access_token",
+    "provider_email",
+    "account_email",
+    "provider_account_id",
+  ];
+  for (const key of forbidden) {
+    if (serialized.includes(`"${key}"`)) {
+      throw new Error(`Connected account payload contains forbidden field: ${key}`);
+    }
+  }
+}
+
+export function buildConnectedAccountDirectoryPayload(
+  entries: ConnectedAccountDirectoryEntry[] | undefined,
+): ConnectedAccountDirectoryEntry[] | undefined {
+  if (!entries || entries.length === 0) return undefined;
+  assertNoConnectedAccountSecretLeak(entries);
+  return entries.map((entry) => ({ ...entry, capabilities: [...entry.capabilities] }));
+}
+
+export function buildTurnTokenRefsRequestPayload(params: {
+  chatId: string;
+  messageId: string;
+  refs: ConnectedAccountTurnTokenRefInput[];
+}): {
+  chat_id: string;
+  message_id: string;
+  refs: ConnectedAccountTurnTokenRefInput[];
+} {
+  return {
+    chat_id: params.chatId,
+    message_id: params.messageId,
+    refs: params.refs.map((ref) => ({ ...ref })),
   };
 }
 
@@ -694,6 +771,7 @@ export interface SkillParam {
   description: string;
   required: boolean;
   default?: unknown;
+  inputShape?: "requests" | "flat";
 }
 
 export interface ChatListPage {
@@ -727,6 +805,39 @@ export interface DecryptedEmbed {
   appId: string | null;
   skillId: string | null;
   createdAt: number | null;
+}
+
+export interface EmbedVersionMeta {
+  version_number: number;
+  created_at: number;
+  has_snapshot: boolean;
+  has_patch: boolean;
+  encrypted_snapshot?: string | null;
+  encrypted_patch?: string | null;
+}
+
+export interface EmbedVersionsResponse {
+  embed_id: string;
+  current_version: number;
+  versions: EmbedVersionMeta[];
+  readonly: boolean;
+}
+
+export interface EmbedVersionContentResponse {
+  embed_id: string;
+  version_number: number;
+  current_version: number;
+  content?: string;
+  rows?: EmbedVersionMeta[];
+  readonly: boolean;
+}
+
+export interface EmbedVersionRestoreResponse {
+  embed_id: string;
+  restored_from_version: number;
+  version_number: number;
+  content: string;
+  content_hash: string;
 }
 
 /** Video metadata attached to a daily inspiration. */
@@ -792,18 +903,16 @@ export const MATE_NAMES: Record<string, string> = {
  *
  * Mirrors the format used by NewChatSuggestions.svelte in the web app.
  * The `body` text is the plain text to insert into the message input.
- * The optional `appId` and `skillId` are parsed from the `[app-skill]` prefix
- * (e.g. "[web-search] What's the weather today?" → appId="web", skillId="search").
  */
 export interface DecryptedNewChatSuggestion {
   id: string;
   chatId: string | null;
   body: string;
-  /** App ID if the suggestion has an [app-skill] or [app] prefix. */
-  appId: string | null;
-  /** Skill ID if the suggestion has an [app-skill] prefix. */
-  skillId: string | null;
   createdAt: number;
+}
+
+function stripLegacySuggestionPrefix(text: string): string {
+  return text.replace(/^\s*\[[^\]]+\]\s*/, "").trim();
 }
 
 /** A decrypted memory entry as returned to CLI callers. */
@@ -908,6 +1017,13 @@ interface TaskStatusResponse {
   error?: string | null;
 }
 
+export interface AnonymousFreeUsageStatus {
+  active: boolean;
+  reason: string | null;
+  resetAt: string | null;
+  cta: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -985,6 +1101,143 @@ const BLOCKED_SETTINGS_MUTATE_PATHS = new Set<string>([
   "/v1/settings/user/disable-2fa",
 ]);
 
+function applyUnifiedDiffForEmbedVersion(content: string, patch: string): string {
+  const contentLines = content.split("\n");
+  const lines = patch.split("\n");
+  const hunks: Array<{ start: number; oldLines: string[]; newLines: string[] }> = [];
+  let current: { start: number; oldLines: string[]; newLines: string[] } | null = null;
+
+  for (const line of lines) {
+    const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+    if (match) {
+      if (current) hunks.push(current);
+      current = { start: Number(match[1]) - 1, oldLines: [], newLines: [] };
+      continue;
+    }
+    if (!current) continue;
+    if (line.startsWith(" ")) {
+      current.oldLines.push(line.slice(1));
+      current.newLines.push(line.slice(1));
+    } else if (line.startsWith("-")) {
+      current.oldLines.push(line.slice(1));
+    } else if (line.startsWith("+")) {
+      current.newLines.push(line.slice(1));
+    }
+  }
+  if (current) hunks.push(current);
+
+  for (const hunk of hunks.sort((a, b) => b.start - a.start)) {
+    const actual = contentLines.slice(hunk.start, hunk.start + hunk.oldLines.length);
+    if (actual.join("\n") !== hunk.oldLines.join("\n")) {
+      throw new Error("Version patch context does not match local content");
+    }
+    contentLines.splice(hunk.start, hunk.oldLines.length, ...hunk.newLines);
+  }
+
+  return contentLines.join("\n");
+}
+
+function buildUnifiedDiffForEmbedRestore(
+  currentContent: string,
+  restoredContent: string,
+  currentVersion: number,
+  newVersion: number,
+): string {
+  const currentLines = currentContent.split("\n");
+  const restoredLines = restoredContent.split("\n");
+  return [
+    `--- v${currentVersion}`,
+    `+++ v${newVersion}`,
+    `@@ -1,${Math.max(1, currentLines.length)} +1,${Math.max(1, restoredLines.length)} @@`,
+    ...currentLines.map((line) => `-${line}`),
+    ...restoredLines.map((line) => `+${line}`),
+  ].join("\n");
+}
+
+function parseEmbedContentObject(rawContent: string): Record<string, unknown> {
+  try {
+    return JSON.parse(rawContent) as Record<string, unknown>;
+  } catch {
+    return parseYamlLikeContent(rawContent);
+  }
+}
+
+async function encodeEmbedContentObject(content: Record<string, unknown>): Promise<string> {
+  try {
+    const { encode } = await import("@toon-format/toon");
+    return encode(content);
+  } catch {
+    return JSON.stringify(content);
+  }
+}
+
+function extractVersionedEmbedContent(content: Record<string, unknown>): string {
+  if (typeof content.receiver === "string" || typeof content.subject === "string") {
+    return [
+      `To: ${typeof content.receiver === "string" ? content.receiver : ""}`,
+      `Subject: ${typeof content.subject === "string" ? content.subject : ""}`,
+      "",
+      typeof content.content === "string" ? content.content : "",
+      typeof content.footer === "string" ? content.footer : "",
+    ].join("\n").trim();
+  }
+  if (typeof content.remotion_source === "string") return content.remotion_source;
+  if (typeof content.code === "string") return content.code;
+  if (typeof content.html === "string") return content.html;
+  if (typeof content.table === "string") return content.table;
+  if (content.docx_model) return JSON.stringify(content.docx_model, null, 2);
+  if (typeof content.content === "string") return content.content;
+  throw new Error("Unsupported embed content shape for version restore.");
+}
+
+function buildRestoredEmbedContentObject(
+  current: Record<string, unknown>,
+  restoredContent: string,
+  newVersion: number,
+): Record<string, unknown> {
+  const restored = { ...current, version_number: newVersion };
+  if (typeof current.receiver === "string" || typeof current.subject === "string") {
+    return { ...restored, ...parseMailVersionContent(restoredContent) };
+  }
+  if (typeof current.remotion_source === "string") {
+    return { ...restored, remotion_source: restoredContent, current_source_version: newVersion };
+  }
+  if (typeof current.code === "string") return { ...restored, code: restoredContent };
+  if (typeof current.html === "string") return { ...restored, html: restoredContent };
+  if (typeof current.table === "string") return { ...restored, table: restoredContent };
+  if (current.docx_model) {
+    try {
+      return { ...restored, docx_model: JSON.parse(restoredContent) };
+    } catch {
+      return { ...restored, content: restoredContent };
+    }
+  }
+  if (typeof current.content === "string") return { ...restored, content: restoredContent };
+  throw new Error("Unsupported embed content shape for version restore.");
+}
+
+function parseMailVersionContent(versionContent: string): Record<string, string> {
+  const lines = versionContent.split("\n");
+  let receiver = "";
+  let subject = "";
+  const bodyLines: string[] = [];
+  for (const line of lines) {
+    if (line.toLowerCase().startsWith("to:")) {
+      receiver = line.slice(3).trim();
+    } else if (line.toLowerCase().startsWith("subject:")) {
+      subject = line.slice(8).trim();
+    } else {
+      bodyLines.push(line);
+    }
+  }
+  return {
+    receiver,
+    subject,
+    content: bodyLines.join("\n").trim(),
+    footer: "",
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
@@ -1016,6 +1269,186 @@ export class OpenMatesClient {
 
   hasSession(): boolean {
     return this.session !== null;
+  }
+
+  async getAnonymousFreeUsageStatus(): Promise<AnonymousFreeUsageStatus> {
+    const response = await this.http.get<{
+      active?: boolean;
+      reason?: string | null;
+      reset_at?: string | null;
+      cta?: string | null;
+      detail?: { code?: string; message?: string } | string;
+    }>("/v1/anonymous/free-usage/status");
+
+    if (response.status === 404) {
+      return {
+        active: false,
+        reason: "self_hosted",
+        resetAt: null,
+        cta: "Anonymous free chat is not available on this server.",
+      };
+    }
+
+    if (!response.ok) {
+      const detail = response.data.detail;
+      const message = typeof detail === "object" && detail?.message
+        ? detail.message
+        : typeof detail === "string"
+          ? detail
+          : `Anonymous free usage status failed with HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    return {
+      active: response.data.active === true,
+      reason: response.data.reason ?? null,
+      resetAt: response.data.reset_at ?? null,
+      cta: response.data.cta ?? null,
+    };
+  }
+
+  async sendAnonymousMessage(params: { message: string }): Promise<{
+    status: "completed";
+    chatId: string;
+    messageId: string;
+    assistant: string;
+    category: string | null;
+    modelName: string | null;
+    mateName: string | null;
+    followUpSuggestions: string[];
+    subChatEvents: SubChatEvent[];
+    appSettingsMemoryRequests: Array<{
+      requestId: string | null;
+      requestedKeys: string[];
+      approvedKeys: string[];
+      entryCount: number;
+    }>;
+  }> {
+    const availability = await this.getAnonymousFreeUsageStatus();
+    if (!availability.active) {
+      throw new Error(availability.cta ?? "Create an account to keep using OpenMates.");
+    }
+
+    let anonymousId = loadAnonymousId();
+    if (!anonymousId) {
+      anonymousId = randomUUID();
+      saveAnonymousId(anonymousId);
+    }
+    const chatId = `anonymous-${randomUUID()}`;
+    const messageId = `anonymous-message-${randomUUID()}`;
+    const response = await this.http.post<{
+      status?: string;
+      chatId?: string;
+      messageId?: string;
+      assistant?: string;
+      category?: string | null;
+      modelName?: string | null;
+      followUpSuggestions?: string[];
+      detail?: { code?: string; message?: string } | string;
+    }>("/v1/anonymous/chat/stream", {
+      anonymous_id: anonymousId,
+      client_chat_id: chatId,
+      client_message_id: messageId,
+      plaintext_message: params.message,
+      message_history: [],
+    });
+    if (!response.ok) {
+      const detail = response.data.detail;
+      const message = typeof detail === "object" && detail?.message
+        ? detail.message
+        : typeof detail === "string"
+          ? detail
+          : `Anonymous chat failed with HTTP ${response.status}`;
+      throw new Error(message);
+    }
+    return {
+      status: "completed",
+      chatId: response.data.chatId ?? chatId,
+      messageId: response.data.messageId ?? messageId,
+      assistant: response.data.assistant ?? "",
+      category: response.data.category ?? null,
+      modelName: response.data.modelName ?? null,
+      mateName: null,
+      followUpSuggestions: response.data.followUpSuggestions ?? [],
+      subChatEvents: [],
+      appSettingsMemoryRequests: [],
+    };
+  }
+
+  async createTurnTokenRefs(params: {
+    chatId: string;
+    messageId: string;
+    refs: ConnectedAccountTurnTokenRefInput[];
+  }): Promise<ConnectedAccountTurnTokenRef[]> {
+    if (params.refs.length === 0) return [];
+    const response = await this.http.post<{
+      refs?: Array<{
+        connected_account_id: string;
+        app_id: string;
+        turn_token_ref: string;
+        expires_at: number;
+      }>;
+    }>(
+      "/v1/token-broker/turn-token-refs",
+      buildTurnTokenRefsRequestPayload(params),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.refs)) {
+      throw new Error(`Failed to create connected-account token refs (HTTP ${response.status})`);
+    }
+    return response.data.refs.map((ref) => {
+      const input = params.refs.find(
+        (item) => item.connected_account_id === ref.connected_account_id && item.app_id === ref.app_id,
+      );
+      return {
+        connected_account_id: ref.connected_account_id,
+        app_id: ref.app_id,
+        turn_token_ref: ref.turn_token_ref,
+        expires_at: ref.expires_at,
+        allowed_actions: input?.allowed_actions ?? [],
+        action_scope: input?.action_scope,
+      };
+    });
+  }
+
+  async cancelConnectedAccountAction(params: {
+    actionId: string;
+    chatId: string;
+    messageId: string;
+  }): Promise<Record<string, unknown>> {
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/connected-accounts/actions/${encodeURIComponent(params.actionId)}/cancel`,
+      {
+        chat_id: params.chatId,
+        message_id: params.messageId,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to cancel connected-account action (HTTP ${response.status})`);
+    }
+    return response.data;
+  }
+
+  async undoConnectedAccountAction(params: {
+    actionId: string;
+    chatId: string;
+    messageId: string;
+    turnTokenRef: string;
+  }): Promise<Record<string, unknown>> {
+    const response = await this.http.post<Record<string, unknown>>(
+      `/v1/connected-accounts/actions/${encodeURIComponent(params.actionId)}/undo`,
+      {
+        chat_id: params.chatId,
+        message_id: params.messageId,
+        turn_token_ref: params.turnTokenRef,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to undo connected-account action (HTTP ${response.status})`);
+    }
+    return response.data;
   }
 
   // -------------------------------------------------------------------------
@@ -1927,16 +2360,10 @@ export class OpenMatesClient {
       );
       if (!plaintext) continue; // skip suggestions we can't decrypt
 
-      // Parse the [app-skill] or [app] prefix from the suggestion body.
-      // Mirrors parseSuggestion() in NewChatSuggestions.svelte.
-      const { body, appId, skillId } = parseNewChatSuggestionText(plaintext);
-
       results.push({
         id: typeof raw.id === "string" ? raw.id : String(raw.id ?? ""),
         chatId: typeof raw.chat_id === "string" ? raw.chat_id : null,
-        body,
-        appId,
-        skillId,
+        body: stripLegacySuggestionPrefix(plaintext),
         createdAt: typeof raw.created_at === "number" ? raw.created_at : 0,
       });
 
@@ -1956,7 +2383,13 @@ export class OpenMatesClient {
    * Mirrors: chat_actions_store.ts / FollowUpSuggestions.svelte (web app)
    */
   async getChatFollowUpSuggestions(chatId: string): Promise<string[]> {
-    const cache = await this.ensureSynced();
+    const cachedMatch = loadSyncCache()?.chats.find(
+      (c) =>
+        String(c.details.id ?? "") === chatId ||
+        String(c.details.id ?? "").startsWith(chatId),
+    );
+    const refreshChatId = String(cachedMatch?.details.id ?? chatId);
+    const cache = await this.ensureSynced(true, [refreshChatId]);
     const masterKey = this.getMasterKeyBytes();
 
     const found = cache.chats.find(
@@ -1990,9 +2423,10 @@ export class OpenMatesClient {
     try {
       const parsed = JSON.parse(plaintext);
       if (Array.isArray(parsed)) {
-        return (parsed as unknown[]).filter(
-          (s): s is string => typeof s === "string" && s.length > 0,
-        );
+        return (parsed as unknown[])
+          .filter((s): s is string => typeof s === "string" && s.length > 0)
+          .map(stripLegacySuggestionPrefix)
+          .filter((s) => s.length > 0);
       }
     } catch {
       // Corrupted — silently return empty
@@ -2020,6 +2454,12 @@ export class OpenMatesClient {
     encryptedEmbeds?: EncryptedEmbed[];
     /** Prepared embeds to encrypt after the real chat/message IDs are known. */
     preparedEmbeds?: PreparedEmbed[];
+    /** Placeholder-to-original PII mappings created before sending the user message. */
+    piiMappings?: Array<{ placeholder: string; original: string; type: string }>;
+    /** Redacted connected-account directory for AI-visible account selection. */
+    connectedAccountDirectory?: ConnectedAccountDirectoryEntry[];
+    /** Refresh-token envelopes to convert into short-lived token refs before send. */
+    connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
   }): Promise<{
     status: "completed" | "waiting_for_user";
     chatId: string;
@@ -2087,8 +2527,22 @@ export class OpenMatesClient {
     // rather than sending a single background-completion event.
     ws.send("set_active_chat", { chat_id: chatId });
 
+    const connectedAccountDirectory = buildConnectedAccountDirectoryPayload(
+      params.connectedAccountDirectory,
+    );
+    const connectedAccountTokenRefs = params.connectedAccountTokenRefInputs?.length
+      ? await this.createTurnTokenRefs({
+          chatId,
+          messageId,
+          refs: params.connectedAccountTokenRefInputs,
+        })
+      : [];
+    assertNoConnectedAccountSecretLeak(connectedAccountTokenRefs);
+
     // ── Phase 1: Plaintext message for AI processing ──
     // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
+    const piiMappings = params.piiMappings ?? [];
+
     const messagePayload: Record<string, unknown> = {
       chat_id: chatId,
       is_incognito: Boolean(params.incognito),
@@ -2106,6 +2560,12 @@ export class OpenMatesClient {
 
     if (memoryMetadataKeys.length > 0) {
       messagePayload.app_settings_memories_metadata = memoryMetadataKeys;
+    }
+    if (connectedAccountDirectory) {
+      messagePayload.connected_account_directory = connectedAccountDirectory;
+    }
+    if (connectedAccountTokenRefs.length > 0) {
+      messagePayload.connected_account_token_refs = connectedAccountTokenRefs;
     }
 
     // For non-incognito chats, resolve or generate the chat key and include
@@ -2192,7 +2652,16 @@ export class OpenMatesClient {
       messagePayload.encrypted_embeds = encryptedEmbeds;
     }
 
-    ws.send("chat_message_added", messagePayload);
+    const confirmed = ws.waitForMessage(
+      "chat_message_confirmed",
+      (payload) => {
+        const eventPayload = payload as Record<string, unknown>;
+        return eventPayload.chat_id === chatId && eventPayload.message_id === messageId;
+      },
+      20_000,
+    );
+    await ws.sendAsync("chat_message_added", messagePayload);
+    await confirmed;
 
     // ── Phase 2: Encrypted metadata for Directus persistence + cross-device sync ──
     // Mirrors: chatSyncServiceSenders.ts sendEncryptedStoragePackage()
@@ -2221,6 +2690,13 @@ export class OpenMatesClient {
           last_edited_overall_timestamp: createdAt,
         },
       };
+
+      if (piiMappings.length > 0) {
+        metadataPayload.encrypted_pii_mappings = await encryptWithAesGcmCombined(
+          JSON.stringify(piiMappings),
+          chatKeyBytes,
+        );
+      }
 
       ws.send("encrypted_chat_metadata", metadataPayload);
     }
@@ -2549,6 +3025,14 @@ export class OpenMatesClient {
             chatKeyBytes,
             fallbackMessageId: persistedAssistantMessageId,
           });
+          await this.persistPostProcessingMetadata({
+            ws,
+            chatId,
+            chatKeyBytes,
+            followUpSuggestions: resp.followUpSuggestions,
+            newChatSuggestions: resp.newChatSuggestions,
+            encryptedChatKey,
+          });
           clearSyncCache();
         }
       } finally {
@@ -2653,6 +3137,29 @@ export class OpenMatesClient {
         updated_at: updatedAt,
       });
 
+      if (Array.isArray(embed.version_history_rows)) {
+        for (const row of embed.version_history_rows) {
+          if (!row.embed_id || typeof row.version_number !== "number") continue;
+          const encryptedSnapshot =
+            typeof row.snapshot === "string"
+              ? await encryptWithAesGcmCombined(row.snapshot, embedKey)
+              : undefined;
+          const encryptedPatch =
+            typeof row.patch === "string"
+              ? await encryptWithAesGcmCombined(row.patch, embedKey)
+              : undefined;
+          if (!encryptedSnapshot && !encryptedPatch) continue;
+          await params.ws.sendAsync("store_embed_diff", {
+            embed_id: row.embed_id,
+            version_number: row.version_number,
+            encrypted_snapshot: encryptedSnapshot ?? null,
+            encrypted_patch: encryptedPatch ?? null,
+            hashed_user_id: hashedUserId,
+            created_at: normalizeUnixSeconds(row.created_at, now),
+          });
+        }
+      }
+
       if (!isChild) {
         const keys: EmbedKeyWrapper[] = [
           {
@@ -2702,6 +3209,45 @@ export class OpenMatesClient {
       await persistOne(embed, makeKey(), false);
       processed.add(embed.embed_id);
     }
+  }
+
+  private async persistPostProcessingMetadata(params: {
+    ws: OpenMatesWsClient;
+    chatId: string;
+    chatKeyBytes: Uint8Array;
+    followUpSuggestions: string[];
+    newChatSuggestions: string[];
+    encryptedChatKey: string | null;
+  }): Promise<void> {
+    const encryptedFollowUps = params.followUpSuggestions.length > 0
+      ? await encryptWithAesGcmCombined(
+          JSON.stringify(params.followUpSuggestions.slice(0, 18)),
+          params.chatKeyBytes,
+        )
+      : "";
+    const masterKey = this.getMasterKeyBytes();
+    const encryptedNewChatSuggestions = await Promise.all(
+      params.newChatSuggestions.slice(0, 6).map((suggestion) =>
+        encryptWithAesGcmCombined(suggestion, masterKey),
+      ),
+    );
+
+    if (!encryptedFollowUps && encryptedNewChatSuggestions.length === 0) return;
+
+    await params.ws.sendAsync("update_post_processing_metadata", {
+      chat_id: params.chatId,
+      encrypted_follow_up_suggestions: encryptedFollowUps,
+      encrypted_new_chat_suggestions: encryptedNewChatSuggestions,
+      encrypted_chat_key: params.encryptedChatKey ?? "",
+    });
+    await params.ws.waitForMessage(
+      "post_processing_metadata_stored",
+      (payload) => {
+        const p = payload as Record<string, unknown>;
+        return p.chat_id === params.chatId;
+      },
+      20_000,
+    );
   }
 
   /**
@@ -2950,15 +3496,16 @@ export class OpenMatesClient {
         : (bodySchema as Record<string, unknown>);
     if (!topSchema) return [];
 
-    // The top-level schema has a "requests" array with items $ref →
-    // navigate to the RequestItem_* schema which has the actual params.
+    // Most app skills use a top-level "requests" array. Some older skills use
+    // a flat object schema directly, so fall back to the top-level properties.
     const requestsProp = (
       topSchema.properties as
         | Record<string, Record<string, unknown>>
         | undefined
     )?.requests;
     const itemsRef = requestsProp?.items as Record<string, unknown> | undefined;
-    const itemSchema = itemsRef ? resolveSchema(itemsRef) : null;
+    const itemSchema = itemsRef ? resolveSchema(itemsRef) : topSchema;
+    const inputShape: "requests" | "flat" = itemsRef ? "requests" : "flat";
 
     if (!itemSchema?.properties) return [];
 
@@ -3011,6 +3558,7 @@ export class OpenMatesClient {
         description: (resolved.description as string | undefined) ?? "",
         required: required.has(name),
         default: resolved.default,
+        inputShape,
       };
     });
   }
@@ -4132,6 +4680,208 @@ export class OpenMatesClient {
     return buildEmbedShareUrl(origin, embedId, blob);
   }
 
+  async listEmbedVersions(embedIdOrShort: string): Promise<EmbedVersionsResponse> {
+    const embedId = await this.resolveEmbedId(embedIdOrShort);
+    const response = await this.http.get<EmbedVersionsResponse>(
+      `/v1/embeds/${encodeURIComponent(embedId)}/versions`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatEmbedVersionError(response.data, `Failed to list embed versions (HTTP ${response.status})`));
+    }
+    return response.data;
+  }
+
+  async getEmbedVersion(embedIdOrShort: string, version: number): Promise<EmbedVersionContentResponse> {
+    const embedId = await this.resolveEmbedId(embedIdOrShort);
+    const response = await this.http.get<EmbedVersionContentResponse>(
+      `/v1/embeds/${encodeURIComponent(embedId)}/versions/${version}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data) {
+      throw new Error(this.formatEmbedVersionError(response.data, `Failed to load embed version ${version} (HTTP ${response.status})`));
+    }
+    if (typeof response.data.content === "string" || !Array.isArray(response.data.rows)) {
+      return response.data;
+    }
+    return {
+      ...response.data,
+      content: await this.reconstructEncryptedEmbedVersion(embedId, response.data.rows),
+    };
+  }
+
+  async restoreEmbedVersion(embedIdOrShort: string, version: number): Promise<EmbedVersionRestoreResponse> {
+    const embedId = await this.resolveEmbedId(embedIdOrShort);
+    const cache = await this.ensureSynced();
+    const masterKey = this.getMasterKeyBytes();
+    const embed = cache.embeds.find(
+      (entry) => String(entry.embed_id ?? entry.id ?? "") === embedId,
+    );
+    if (!embed) {
+      throw new Error(`Embed '${embedId}' not found in local cache. Run 'openmates chats list' to sync first.`);
+    }
+
+    const { createHash } = await import("node:crypto");
+    const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+    const embedKey = await this.resolveEmbedKey(
+      cache,
+      masterKey,
+      embed,
+      embedId,
+      hashedEmbedId,
+    );
+    if (!embedKey) {
+      throw new Error("Could not resolve embed encryption key for version restore.");
+    }
+
+    const target = await this.getEmbedVersion(embedId, version);
+    if (typeof target.content !== "string") {
+      throw new Error("Embed version content was not available for restore.");
+    }
+
+    const encryptedCurrentContent = embed.encrypted_content;
+    if (typeof encryptedCurrentContent !== "string") {
+      throw new Error("Current embed content is not available for encrypted restore.");
+    }
+    const currentToon = await decryptWithAesGcmCombined(encryptedCurrentContent, embedKey);
+    if (!currentToon) {
+      throw new Error("Could not decrypt current embed content for restore.");
+    }
+    const currentObject = parseEmbedContentObject(currentToon);
+    const currentVersion =
+      typeof embed.version_number === "number" ? embed.version_number : target.current_version;
+    if (version === currentVersion) {
+      throw new Error("Selected version is already current.");
+    }
+
+    const currentContent = extractVersionedEmbedContent(currentObject);
+    const newVersion = currentVersion + 1;
+    const restoredObject = buildRestoredEmbedContentObject(currentObject, target.content, newVersion);
+    const restoredToon = await encodeEmbedContentObject(restoredObject);
+    const encryptedRestoredContent = await encryptWithAesGcmCombined(restoredToon, embedKey);
+    const restorePatch = buildUnifiedDiffForEmbedRestore(
+      currentContent,
+      target.content,
+      currentVersion,
+      newVersion,
+    );
+    const encryptedPatch = await encryptWithAesGcmCombined(restorePatch, embedKey);
+    const contentHash = computeSHA256(target.content);
+    const now = Math.floor(Date.now() / 1000);
+
+    const { ws } = await this.openWsClient();
+    try {
+      await ws.sendAsync("store_embed", {
+        embed_id: embedId,
+        encrypted_type: embed.encrypted_type,
+        encrypted_content: encryptedRestoredContent,
+        encrypted_text_preview: embed.encrypted_text_preview,
+        status: embed.status || "finished",
+        hashed_chat_id: embed.hashed_chat_id,
+        hashed_message_id: embed.hashed_message_id,
+        hashed_task_id: embed.hashed_task_id,
+        hashed_user_id: embed.hashed_user_id,
+        embed_ids: embed.embed_ids,
+        parent_embed_id: embed.parent_embed_id,
+        version_number: newVersion,
+        file_path: embed.file_path,
+        content_hash: contentHash,
+        text_length_chars: target.content.length,
+        is_private: embed.is_private ?? false,
+        is_shared: embed.is_shared ?? false,
+        created_at: normalizeUnixSeconds(embed.created_at, now),
+        updated_at: now,
+      });
+      await ws.sendAsync("store_embed_diff", {
+        embed_id: embedId,
+        version_number: newVersion,
+        encrypted_snapshot: null,
+        encrypted_patch: encryptedPatch,
+        hashed_user_id: embed.hashed_user_id,
+        created_at: now,
+      });
+    } finally {
+      ws.close();
+    }
+
+    clearSyncCache();
+    return {
+      embed_id: embedId,
+      restored_from_version: version,
+      version_number: newVersion,
+      content: target.content,
+      content_hash: contentHash,
+    };
+  }
+
+  private async reconstructEncryptedEmbedVersion(
+    embedId: string,
+    rows: EmbedVersionMeta[],
+  ): Promise<string> {
+    const cache = await this.ensureSynced();
+    const masterKey = this.getMasterKeyBytes();
+    const embed = cache.embeds.find(
+      (entry) => String(entry.embed_id ?? entry.id ?? "") === embedId,
+    );
+    if (!embed) {
+      throw new Error(`Embed '${embedId}' not found in local cache. Run 'openmates chats list' to sync first.`);
+    }
+
+    const { createHash } = await import("node:crypto");
+    const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+    const embedKey = await this.resolveEmbedKey(
+      cache,
+      masterKey,
+      embed,
+      embedId,
+      hashedEmbedId,
+    );
+    if (!embedKey) {
+      throw new Error("Could not resolve embed encryption key for version history.");
+    }
+
+    const sortedRows = [...rows].sort((a, b) => a.version_number - b.version_number);
+    let content: string | null = null;
+    for (const row of sortedRows) {
+      if (row.encrypted_snapshot) {
+        content = await decryptWithAesGcmCombined(row.encrypted_snapshot, embedKey);
+        continue;
+      }
+      if (row.encrypted_patch && content !== null) {
+        const patch = await decryptWithAesGcmCombined(row.encrypted_patch, embedKey);
+        content = applyUnifiedDiffForEmbedVersion(content, patch ?? "");
+      }
+    }
+    if (content === null) {
+      throw new Error("Version history is missing the initial snapshot");
+    }
+    return content;
+  }
+
+  private formatEmbedVersionError(data: unknown, fallback: string): string {
+    if (data && typeof data === "object") {
+      const detail = (data as { detail?: unknown; message?: unknown }).detail;
+      const message = (data as { detail?: unknown; message?: unknown }).message;
+      if (typeof detail === "string" && detail.trim()) return detail;
+      if (typeof message === "string" && message.trim()) return message;
+    }
+    return fallback;
+  }
+
+  private async resolveEmbedId(embedIdOrShort: string): Promise<string> {
+    if (embedIdOrShort.length >= 32) return embedIdOrShort;
+    const cache = await this.ensureSynced();
+    const embed = cache.embeds.find(
+      (entry) =>
+        String(entry.embed_id ?? "").startsWith(embedIdOrShort) ||
+        String(entry.id ?? "").startsWith(embedIdOrShort),
+    );
+    if (!embed) {
+      throw new Error(`Embed '${embedIdOrShort}' not found in local cache. Run 'openmates chats list' to sync first.`);
+    }
+    return String(embed.embed_id ?? embed.id ?? "");
+  }
+
   // ── Mention context builder ─────────────────────────────────────────
 
   /**
@@ -4303,7 +5053,7 @@ export class OpenMatesClient {
       const res = await this.http.post<{
         success?: boolean;
         ws_token?: string;
-      }>("/v1/auth/session", {}, this.getCliRequestHeaders());
+      }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
       if (res.ok && res.data.ws_token) {
         session.wsToken = res.data.ws_token;
       }
@@ -4324,8 +5074,12 @@ export class OpenMatesClient {
    * The sync cache stores encrypted data — decryption is always on-demand.
    * SECURITY: decrypted user content is NEVER written to disk.
    */
-  async ensureSynced(forceRefresh = false): Promise<SyncCache> {
-    if (!forceRefresh && isSyncCacheFresh()) {
+  async ensureSynced(
+    forceRefresh = false,
+    refreshChatIds: string[] = [],
+  ): Promise<SyncCache> {
+    const refreshChatIdSet = new Set(refreshChatIds.filter(Boolean));
+    if (!forceRefresh && refreshChatIdSet.size === 0 && isSyncCacheFresh()) {
       const cache = loadSyncCache();
       if (cache) return cache;
     }
@@ -4348,6 +5102,7 @@ export class OpenMatesClient {
         const id = String(chat.details.id ?? "");
         if (!id) continue;
         clientChatIds.push(id);
+        if (refreshChatIdSet.has(id)) continue;
         clientChatVersions[id] = {
           messages_v: getClientMessagesVersionForSync(chat),
           title_v:
@@ -4374,6 +5129,7 @@ export class OpenMatesClient {
     const embedKeys: Record<string, unknown>[] = [];
     let newChatSuggestions: Record<string, unknown>[] = [];
     let totalChatCount = 0;
+    const pendingAIResponses: PendingAIResponseFrame[] = [];
 
     try {
       // Send phase:all so the server runs all sync phases over a single WS
@@ -4444,6 +5200,8 @@ export class OpenMatesClient {
           }
           if (p.embeds) embeds.push(...p.embeds);
           if (p.embed_keys) embedKeys.push(...p.embed_keys);
+        } else if (frame.type === "pending_ai_response") {
+          pendingAIResponses.push(frame.payload as PendingAIResponseFrame);
         }
       }
 
@@ -4457,8 +5215,9 @@ export class OpenMatesClient {
       }
 
       if (totalChatCount === 0) totalChatCount = chats.length;
-    } finally {
+    } catch (error) {
       ws.close();
+      throw error;
     }
 
     // Delta merge: server only sent new/changed chats. Carry forward
@@ -4547,6 +5306,12 @@ export class OpenMatesClient {
       chats.length = totalChatCount;
     }
 
+    try {
+      await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses);
+    } finally {
+      ws.close();
+    }
+
     const cache: SyncCache = {
       syncedAt: Date.now(),
       totalChatCount,
@@ -4559,6 +5324,99 @@ export class OpenMatesClient {
 
     saveSyncCache(cache);
     return cache;
+  }
+
+  private async persistPendingAIResponsesFromSync(
+    ws: OpenMatesWsClient,
+    chats: CachedChat[],
+    pendingResponses: PendingAIResponseFrame[],
+  ): Promise<void> {
+    if (pendingResponses.length === 0) return;
+
+    const masterKey = this.getMasterKeyBytes();
+
+    for (const pending of pendingResponses) {
+      const chatId = pending.chat_id;
+      const messageId = pending.message_id;
+      const content = pending.content;
+      if (!chatId || !messageId || !content) continue;
+
+      const chat = chats.find((candidate) => String(candidate.details.id ?? "") === chatId);
+      if (!chat) continue;
+
+      const existingIndex = chat.messages.findIndex((raw) => {
+        try {
+          const message = typeof raw === "string" ? JSON.parse(raw) : raw;
+          return message?.message_id === messageId || message?.id === messageId;
+        } catch {
+          return false;
+        }
+      });
+      if (existingIndex >= 0) {
+        const existingRaw = chat.messages[existingIndex];
+        try {
+          const existing = typeof existingRaw === "string" ? JSON.parse(existingRaw) : existingRaw;
+          if (existing?.role === "assistant" && existing?.encrypted_content) continue;
+        } catch {
+          // Replace malformed same-id rows with the pending authoritative response.
+        }
+      }
+
+      const encryptedChatKey =
+        typeof chat.details.encrypted_chat_key === "string"
+          ? chat.details.encrypted_chat_key
+          : null;
+      if (!encryptedChatKey) continue;
+
+      const chatKeyBytes = await this.decryptChatKey(encryptedChatKey, masterKey);
+      if (!chatKeyBytes) continue;
+
+      const completedAt = normalizeUnixSeconds(
+        pending.fired_at,
+        Math.floor(Date.now() / 1000),
+      );
+      const currentMessagesV =
+        typeof chat.details.messages_v === "number" ? chat.details.messages_v : 0;
+      const nextMessagesV = currentMessagesV + 1;
+      const encryptedMessage = {
+        message_id: messageId,
+        chat_id: chatId,
+        role: "assistant",
+        created_at: completedAt,
+        status: "synced",
+        encrypted_content: await encryptWithAesGcmCombined(content, chatKeyBytes),
+        encrypted_category: pending.category
+          ? await encryptWithAesGcmCombined(pending.category, chatKeyBytes)
+          : undefined,
+        encrypted_model_name: pending.model_name
+          ? await encryptWithAesGcmCombined(pending.model_name, chatKeyBytes)
+          : undefined,
+      };
+
+      const confirmed = ws.waitForMessage(
+        "ai_response_storage_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.message_id === messageId;
+        },
+        20_000,
+      );
+      await ws.sendAsync("ai_response_completed", {
+        chat_id: chatId,
+        message: encryptedMessage,
+        versions: {
+          messages_v: nextMessagesV,
+          last_edited_overall_timestamp: completedAt,
+        },
+      });
+      await confirmed;
+
+      const serializedMessage = JSON.stringify(encryptedMessage);
+      if (existingIndex >= 0) chat.messages[existingIndex] = serializedMessage;
+      else chat.messages.push(serializedMessage);
+      chat.details.messages_v = nextMessagesV;
+      chat.details.last_edited_overall_timestamp = completedAt;
+    }
   }
 
   private async prompt(question: string): Promise<string> {
@@ -4776,44 +5634,6 @@ function parseYamlLikeContent(raw: string): Record<string, unknown> {
   }
   flush();
   return result;
-}
-
-/**
- * Parse the [app-skill] or [app] prefix from a new-chat suggestion text.
- *
- * Mirrors parseSuggestion() in NewChatSuggestions.svelte (web app).
- *
- * Examples:
- *   "[web-search] What's the weather today?" → { body: "What's the weather today?", appId: "web", skillId: "search" }
- *   "[images-generate] Draw a cat" → { body: "Draw a cat", appId: "images", skillId: "generate" }
- *   "[web] Open my bookmarks" → { body: "Open my bookmarks", appId: "web", skillId: null }
- *   "How do I fix this bug?" → { body: "How do I fix this bug?", appId: null, skillId: null }
- */
-export function parseNewChatSuggestionText(text: string): {
-  body: string;
-  appId: string | null;
-  skillId: string | null;
-} {
-  const prefixMatch = /^\[([a-z0-9_-]+(?:-[a-z0-9_]+)?)\]\s*/.exec(text);
-  if (!prefixMatch) {
-    return { body: text.trim(), appId: null, skillId: null };
-  }
-
-  const raw = prefixMatch[1]; // e.g. "web-search" or "images-generate" or "web"
-  const body = text.slice(prefixMatch[0].length).trim();
-
-  // Split on the last hyphen to separate app from skill.
-  // App IDs that contain hyphens (e.g. "web") should not be split further
-  // if there is no skill ID portion. We rely on the convention that the
-  // prefix format is always [appId-skillId] or [appId].
-  const dashIdx = raw.indexOf("-");
-  if (dashIdx === -1) {
-    return { body, appId: raw, skillId: null };
-  }
-
-  const appId = raw.slice(0, dashIdx);
-  const skillId = raw.slice(dashIdx + 1);
-  return { body, appId, skillId };
 }
 
 function filenameFromContentDisposition(header: string | null): string | null {

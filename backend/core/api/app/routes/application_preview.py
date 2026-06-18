@@ -18,7 +18,7 @@ import uuid
 from typing import Any, Awaitable, Callable, Iterable, Optional
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -195,13 +195,15 @@ def send_application_preview_task(name: str, args: list[Any], queue: str) -> Any
 
 
 async def get_application_preview_current_user(
+    request: Request,
+    response: Response,
     directus_service: Any = Depends(get_directus_service),
     cache_service: Any = Depends(get_cache_service),
     refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),
 ) -> Any:
     from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
-    return await get_current_user(directus_service, cache_service, refresh_token)
+    return await get_current_user(directus_service, cache_service, refresh_token, response, request)
 
 
 def _decode_toon_content(plaintext_toon: str) -> dict[str, Any] | None:

@@ -12,8 +12,9 @@ from backend.core.api.app.utils.device_fingerprint import (
     generate_device_fingerprint_hash, _extract_client_ip, truncate_ip, derive_device_name
 )
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
-from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
+from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user, preserve_rotated_session_metadata
 from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
+from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token, normalize_directus_cookie
 from backend.core.api.app.schemas.user import UserResponse
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS, TOKEN_REFRESH_THRESHOLD_SECONDS
 from backend.core.api.app.services.compliance import ComplianceService
@@ -313,14 +314,19 @@ async def get_session(
             success, auth_data, _ = await directus_service.refresh_token(refresh_token)
 
             if success and auth_data.get("cookies"):
-                # Get stay_logged_in preference from cached user data
-                # Default to False if not present (for backward compatibility with old sessions)
-                stay_logged_in = user_data.get("stay_logged_in", False)
+                new_refresh_token = extract_directus_refresh_token(auth_data["cookies"]) or refresh_token
+                stay_logged_in, cache_ttl = await preserve_rotated_session_metadata(
+                    cache_service,
+                    user_id=user_id,
+                    old_refresh_token=refresh_token,
+                    new_refresh_token=new_refresh_token,
+                    user_data=user_data,
+                )
                 logger.info(f"Retrieved stay_logged_in={stay_logged_in} from cache for user {user_id[:6]}... (key present: {'stay_logged_in' in user_data})")
                 # Calculate cookie max_age based on stay_logged_in preference
                 # 30 days = 2592000 seconds (for mobile Safari compatibility)
                 # 24 hours = 86400 seconds (default SESSION_TTL)
-                cookie_max_age = 2592000 if stay_logged_in else cache_service.SESSION_TTL
+                cookie_max_age = cache_ttl
                 logger.info(f"Refreshing cookies with max_age={cookie_max_age} seconds ({'30 days' if stay_logged_in else '24 hours'})")
                 
                 # Determine cookie domain for cross-subdomain authentication
@@ -329,11 +335,8 @@ async def get_session(
                 if cookie_domain:
                     logger.info(f"Refreshing cookies with domain={cookie_domain} for cross-subdomain authentication")
                 
-                new_refresh_token = None
                 for name, value in auth_data["cookies"].items():
-                    if name == "directus_refresh_token":
-                        new_refresh_token = value
-                    cookie_name = name.replace("directus_", "auth_") if name.startswith("directus_") else name
+                    cookie_name = normalize_directus_cookie(name)
 
                     # Build cookie parameters
                     # - Secure=True requires HTTPS (both dev and prod use HTTPS)
@@ -356,31 +359,21 @@ async def get_session(
 
                     response.set_cookie(**cookie_params)
 
-                if new_refresh_token:
-                    # Update cache with new token, keeping existing user data
-                    # CRITICAL: Ensure stay_logged_in is preserved in user_data before caching
-                    if "stay_logged_in" not in user_data:
-                        user_data["stay_logged_in"] = stay_logged_in
-                        logger.warning(f"stay_logged_in was missing from user_data for user {user_id[:6]}..., restored from retrieved value: {stay_logged_in}")
-                    # Update token_expiry now that we have a fresh access token.
-                    # This prevents the next /session call from immediately rotating again.
-                    user_data["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
-                    # Use extended TTL for cache when stay_logged_in is True
-                    cache_ttl = cookie_max_age if stay_logged_in else cache_service.SESSION_TTL
-                    await cache_service.set_user(user_data, refresh_token=new_refresh_token, ttl=cache_ttl)
-                    # Update refresh_token variable so Step 9 uses the NEW token, not the old rotated one
-                    refresh_token = new_refresh_token
-                    logger.info(f"Token refreshed successfully for user_id={user_id} with stay_logged_in={stay_logged_in}, cache_ttl={cache_ttl}s")
-                    ComplianceService.log_auth_event_safe(
-                        event_type="token_refresh_success",
-                        user_id=user_id,
-                        device_fingerprint="session",
-                        location="",
-                        status="success",
-                        details={"cache_ttl": cache_ttl}
-                    )
-                else:
-                    logger.warning(f"No new refresh token in response for user_id={user_id}")
+                # Update cache with new token, keeping existing user data.
+                # token_expiry prevents the next /session call from immediately rotating again.
+                user_data["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
+                await cache_service.set_user(user_data, refresh_token=new_refresh_token, ttl=cache_ttl)
+                # Update refresh_token variable so Step 9 uses the NEW token, not the old rotated one.
+                refresh_token = new_refresh_token
+                logger.info(f"Token refreshed successfully for user_id={user_id} with stay_logged_in={stay_logged_in}, cache_ttl={cache_ttl}s")
+                ComplianceService.log_auth_event_safe(
+                    event_type="token_refresh_success",
+                    user_id=user_id,
+                    device_fingerprint="session",
+                    location="",
+                    status="success",
+                    details={"cache_ttl": cache_ttl}
+                )
             else:
                 logger.error(f"Failed to refresh token for user_id={user_id}")
                 ComplianceService.log_auth_event_safe(

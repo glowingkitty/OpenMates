@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Travel Preferred Airlines"
   en: "Memory Travel Preferred Airlines"
-  de: "Memory Travel Preferred Airlines"
+  de: Bevorzugte Fluggesellschaften (Memory)
   zh: "Memory Travel Preferred Airlines"
   es: "Memory Travel Preferred Airlines"
   fr: "Memory Travel Preferred Airlines"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Travel Preferred Airlines"
   en: "OpenMates uses saved travel preferred_airlines memory in a real chat."
-  de: "OpenMates uses saved travel preferred_airlines memory in a real chat."
+  de: OpenMates nutzt gespeicherte Erinnerungen zu bevorzugten Fluggesellschaften in einem echten Chat.
   zh: "OpenMates uses saved travel preferred_airlines memory in a real chat."
   es: "OpenMates uses saved travel preferred_airlines memory in a real chat."
   fr: "OpenMates uses saved travel preferred_airlines memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Travel Preferred Airlines. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved preferred airline memory to explain what flight options I should compare first for a work trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved preferred airline memory to explain what flight options I should compare first for a work trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meine gespeicherten Erinnerungen zu bevorzugten Fluggesellschaften, um zu erklären, welche Flugoptionen ich für eine Dienstreise zuerst vergleichen sollte. Du kannst diese gespeicherten Erinnerungen anfordern und verwenden. Nachdem du die gespeicherten Erinnerungen verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved preferred airline memory to explain what flight options I should compare first for a work trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved preferred airline memory to explain what flight options I should compare first for a work trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved preferred airline memory to explain what flight options I should compare first for a work trip. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -84,13 +84,13 @@ message_2:
 
     Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
   de: |
-    Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
-
-    1.  **Loyalty Benefits:** By sticking with your preferred airline, you maximize the accumulation of frequent flyer miles and status points within the [Miles & More](wiki:Miles_%26_More) program. This can lead to benefits like lounge access, priority boarding, and upgrades, which make business travel more efficient and comfortable.
-    2.  **Corporate Policy Alignment:** Often, preferred airlines are saved because they align with corporate travel agreements or provide the most reliable service on the routes you frequently fly for work.
-    3.  **Network Synergy:** If Lufthansa doesn't have a direct flight to your destination, you should next compare options from other members of the [Star Alliance](wiki:Star_Alliance). This allows you to maintain your loyalty benefits and seamless baggage transfers while accessing a broader global network.
-
-    Starting your search with these options ensures that your work travel remains consistent with your established preferences and professional travel goals.
+    Basierend auf deinen Reiseeinstellungen ist deine bevorzugte Fluggesellschaft [Lufthansa](wiki:Lufthansa). Für deine anstehende Dienstreise solltest du aus mehreren wichtigen Gründen vorrangig Flugoptionen von Lufthansa vergleichen:
+    
+    1.  **Loyalitätsvorteile:** Indem du bei deiner bevorzugten Fluggesellschaft bleibst, maximierst du das Sammeln von Vielfliegerreisen und Statuspunkten im Programm [Miles & More](wiki:Miles_%26_More). Dies kann zu Vorteilen wie Lounge-Zugang, Priority Boarding und Upgrades führen, die Geschäftsreisen effizienter und komfortabler machen.
+    2.  **Abstimmung mit Unternehmensrichtlinien:** Oft werden bevorzugte Fluggesellschaften gespeichert, weil sie mit geschäftlichen Reisevereinbarungen übereinstimmen oder den zuverlässigsten Service auf den Strecken bieten, die du häufig beruflich fliegst.
+    3.  **Netzwerksynergie:** Falls Lufthansa keinen Direktflug zu deinem Zielort anbietet, solltest du als Nächstes Optionen von anderen Mitgliedern der [Star Alliance](wiki:Star_Alliance) vergleichen. So kannst du deine Loyalitätsvorteile und den nahtlosen Gepäcktransfer beibehalten und gleichzeitig auf ein breiteres globales Netzwerk zugreifen.
+    
+    Wenn du deine Suche mit diesen Optionen beginnst, stellst du sicher, dass deine Dienstreise mit deinen festgelegten Präferenzen und beruflichen Reisezielen im Einklang bleibt.
   zh: |
     Based on your travel settings, your preferred airline is [Lufthansa](wiki:Lufthansa). For your upcoming work trip, you should prioritize comparing flight options from Lufthansa first for several key reasons:
 

@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition, ProviderRef
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
@@ -388,6 +388,7 @@ class SkillMetadataItem(BaseModel):
     id: str
     name: str  # Resolved translation string for skill name
     description: str  # Resolved translation string for skill description
+    providers: Optional[List[ProviderRef]] = None
 
 
 class FocusModeMetadataItem(BaseModel):
@@ -563,7 +564,8 @@ async def get_apps_metadata(
             skills.append(SkillMetadataItem(
                 id=skill.id,
                 name=skill_name,
-                description=skill_description
+                description=skill_description,
+                providers=skill.providers,
             ))
         
         # Convert focus modes - filter by stage and resolve all translations
@@ -733,7 +735,8 @@ async def get_app_metadata(app_id: str, request: Request, include_unavailable: b
         skills.append(SkillMetadataItem(
             id=skill.id,
             name=skill_name,
-            description=skill_description
+            description=skill_description,
+            providers=skill.providers,
         ))
     
     # Convert focus modes - filter by stage and resolve all translations

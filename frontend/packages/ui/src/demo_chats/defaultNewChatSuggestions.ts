@@ -5,11 +5,11 @@
  * IMPORTANT: These are translation keys, not the actual text
  * They will be translated at runtime using svelte-i18n
  *
- * Suggestions prefixed with [app_id-skill_id] expose skill discovery to new users.
- * The UI strips the prefix before inserting into the message input (body text only).
+ * Suggestions are plain natural-language prompts. Skill discovery happens through
+ * wording that the app-skill router can auto-detect, not visible prefixes.
  */
 export const DEFAULT_NEW_CHAT_SUGGESTION_KEYS = [
-  // Discovery-oriented suggestions (expose app skills via [app_id-skill_id] prefix)
+  // Discovery-oriented suggestions written to naturally trigger app skills
   "chat.new_chat_suggestions.discover_web_search",
   "chat.new_chat_suggestions.discover_image_generate",
   "chat.new_chat_suggestions.discover_news_search",

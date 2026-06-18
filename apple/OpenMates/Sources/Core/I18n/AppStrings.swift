@@ -86,6 +86,18 @@ enum AppStrings {
     static var scrollToTop: String { L("chats.scroll_to_top") }
     static var scrollToBottom: String { L("chats.scroll_to_bottom") }
     static var interactiveQuestionFailed: String { L("chat.interactive_question_failed") }
+    static var anonymousFreeUsageFeatureNotice: String { L("chat.anonymous_free_usage.feature_notice") }
+    static var uploadSignupRequired: String { L("enter_message.attachments.signup_required.title") }
+    static var requestFeature: String { L("chat.request_feature") }
+    static var requestFeaturePrefill: String { L("chat.request_feature_prefill") }
+    static var assistantFeedbackRateLabel: String { L("chat.assistant_feedback.rate_label") }
+    static var assistantFeedbackSubmit: String { L("chat.assistant_feedback.submit") }
+    static var assistantFeedbackThanks: String { L("chat.assistant_feedback.thanks") }
+    static var assistantFeedbackReportTitle: String { L("chat.assistant_feedback.report_title") }
+
+    static func assistantFeedbackStarLabel(count: Int) -> String {
+        LocalizationManager.shared.text("chat.assistant_feedback.star_label", replacements: ["count": "\(count)"])
+    }
 
     static func welcomeHeyUser(_ username: String) -> String {
         LocalizationManager.shared.text("chat.welcome.hey_user", replacements: ["username": username])

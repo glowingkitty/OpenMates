@@ -10,6 +10,7 @@
 
 import { writable, derived, get } from 'svelte/store';
 import { getApiEndpoint } from '../config/api';
+import { anonymousChatStorage } from '../services/anonymousChatStorage';
 
 // --- Types ---
 
@@ -28,6 +29,14 @@ interface ServerStatus {
     free_testing_credits?: {
         active: boolean;
         grant_credits: number;
+    } | null;
+    /** Safe public anonymous free usage availability metadata. */
+    anonymous_free_usage?: {
+        active: boolean;
+        can_send_text?: boolean;
+        reason?: string | null;
+        reset_at?: string | null;
+        cta?: string | null;
     } | null;
 }
 
@@ -112,6 +121,11 @@ export const serverEdition = derived(
 export const freeTestingCreditsPromotion = derived(
     serverStatusStore,
     ($state) => $state.status?.free_testing_credits ?? null
+);
+
+export const anonymousFreeUsageStatus = derived(
+    serverStatusStore,
+    ($state) => $state.status?.anonymous_free_usage ?? null
 );
 
 export const signupFreeTestingCreditsPromotion = derived(
@@ -228,7 +242,8 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
             server_edition: data.server_edition ?? null,
             domain: data.domain ?? null,
             ai_models_configured: data.ai_models_configured ?? true,
-            free_testing_credits: data.free_testing_credits ?? null
+            free_testing_credits: data.free_testing_credits ?? null,
+            anonymous_free_usage: data.anonymous_free_usage ?? null
         };
         
         console.debug('[ServerStatusStore] Server status fetched:', status);
@@ -254,6 +269,38 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
             error: errorMessage
         }));
         
+        return null;
+    }
+}
+
+export async function refreshAnonymousFreeUsageStatus(): Promise<ServerStatus['anonymous_free_usage'] | null> {
+    try {
+        if (!get(serverStatusStore).status) {
+            await initializeServerStatus();
+        }
+        const anonymousId = anonymousChatStorage.getAnonymousId();
+        const url = new URL(getApiEndpoint('/v1/anonymous/free-usage/status'));
+        url.searchParams.set('anonymous_id', anonymousId);
+        const response = await fetch(url.toString(), {
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch anonymous free usage status: ${response.status}`);
+        }
+
+        const anonymousStatus = await response.json();
+        serverStatusStore.update(state => ({
+            ...state,
+            status: state.status
+                ? { ...state.status, anonymous_free_usage: anonymousStatus }
+                : state.status,
+            error: null
+        }));
+        return anonymousStatus;
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[ServerStatusStore] Error fetching anonymous free usage status:', errorMessage);
         return null;
     }
 }

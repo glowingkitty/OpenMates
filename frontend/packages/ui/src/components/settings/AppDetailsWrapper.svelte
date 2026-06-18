@@ -1,19 +1,19 @@
 <!-- frontend/packages/ui/src/components/settings/AppDetailsWrapper.svelte
      Wrapper component that extracts appId and sub-route info from activeSettingsView and renders appropriate component.
      
-     This component handles dynamic app_store routes:
-     - app_store/{app_id} -> AppDetails
-     - app_store/{app_id}/skill/{skill_id} -> SkillDetails
-     - app_store/{app_id}/content/{content_type_id} -> ContentEmbedDetails
-     - app_store/ai/skill/ask -> REMOVED (now lives in top-level SettingsAI)
-     - app_store/ai/skill/ask/model/{model_id} -> AiAskModelDetails (AI Ask skill only)
-     - app_store/{app_id}/skill/{skill_id}/model/{model_id} -> AppSkillModelDetails (all other skills)
-     - app_store/{app_id}/skill/{skill_id}/provider/{provider_id} -> ProviderDetails
-     - app_store/{app_id}/focus/{focus_mode_id} -> FocusModeDetails
-     - app_store/{app_id}/settings_memories/{category_id} -> AppSettingsMemoriesCategory
-     - app_store/{app_id}/settings_memories/{category_id}/create -> AppSettingsMemoriesCreateEntry
-     - app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id} -> AppSettingsMemoriesEntryDetail (view mode)
-     - app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit -> AppSettingsMemoriesEntryDetail (edit mode)
+     This component handles dynamic Apps routes:
+     - apps/{app_id} -> AppDetails
+     - apps/{app_id}/skill/{skill_id} -> SkillDetails
+     - apps/{app_id}/content/{content_type_id} -> ContentEmbedDetails
+     - apps/ai/skill/ask -> REMOVED (now lives in top-level SettingsAI)
+     - apps/ai/skill/ask/model/{model_id} -> AiAskModelDetails (AI Ask skill only)
+     - apps/{app_id}/skill/{skill_id}/model/{model_id} -> AppSkillModelDetails (all other skills)
+     - apps/{app_id}/skill/{skill_id}/provider/{provider_id} -> ProviderDetails
+     - apps/{app_id}/focus/{focus_mode_id} -> FocusModeDetails
+     - apps/{app_id}/settings_memories/{category_id} -> AppSettingsMemoriesCategory
+     - apps/{app_id}/settings_memories/{category_id}/create -> AppSettingsMemoriesCreateEntry
+     - apps/{app_id}/settings_memories/{category_id}/entry/{entry_id} -> AppSettingsMemoriesEntryDetail (view mode)
+     - apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit -> AppSettingsMemoriesEntryDetail (edit mode)
      
      It receives activeSettingsView as a prop from CurrentSettingsPage.
 -->
@@ -57,29 +57,29 @@
     
     // Parse route to extract appId and sub-route info
     let routeInfo = $derived.by((): RouteInfo => {
-        if (!activeSettingsView.startsWith('app_store/')) {
+        if (!activeSettingsView.startsWith('apps/')) {
             return { type: 'invalid', appId: '' };
         }
         
-        const path = activeSettingsView.replace('app_store/', '');
+        const path = activeSettingsView.replace('apps/', '');
         const parts = path.split('/');
         
         if (parts.length === 1) {
-            // app_store/{app_id}
+            // apps/{app_id}
             return { type: 'app_details', appId: parts[0] };
         } else if (parts.length === 2 && parts[0] === 'reminder' && parts[1] === 'create') {
-            // app_store/reminder/create
+            // apps/reminder/create
             return { type: 'reminder_create', appId: 'reminder' };
         } else if (parts[0] === 'reminder' && parts[1] === 'entry' && parts.length >= 3) {
-            // app_store/reminder/entry/{reminder_id} (view) or .../edit (edit mode)
+            // apps/reminder/entry/{reminder_id} (view) or .../edit (edit mode)
             const reminderId = parts[2];
             const startInEditMode = parts.length === 4 && parts[3] === 'edit';
             return { type: 'reminder_entry', appId: 'reminder', reminderId, startInEditMode };
         } else if (parts.length === 5 && parts[1] === 'skill' && parts[3] === 'provider') {
-            // app_store/{app_id}/skill/{skill_id}/provider/{provider_id}
+            // apps/{app_id}/skill/{skill_id}/provider/{provider_id}
             return { type: 'provider_details', appId: parts[0], skillId: parts[2], providerId: parts[4] };
         } else if (parts.length === 5 && parts[1] === 'skill' && parts[3] === 'model') {
-            // app_store/{app_id}/skill/{skill_id}/model/{model_id}
+            // apps/{app_id}/skill/{skill_id}/model/{model_id}
             if (parts[0] === 'ai' && parts[2] === 'ask') {
                 // Special route for AI Ask skill model details (uses AiAskModelDetails)
                 return { type: 'ai_ask_model_details', appId: parts[0], skillId: parts[2], modelId: parts[4] };
@@ -87,26 +87,26 @@
             // All other skills with multiple models use the generic AppSkillModelDetails
             return { type: 'app_skill_model_details', appId: parts[0], skillId: parts[2], modelId: parts[4] };
         } else if (parts.length === 3 && parts[1] === 'skill') {
-            // app_store/{app_id}/skill/{skill_id}
+            // apps/{app_id}/skill/{skill_id}
             // Note: AI Ask skill settings (ai/ask) now live in the top-level SettingsAI page
             return { type: 'skill_details', appId: parts[0], skillId: parts[2] };
         } else if (parts.length === 3 && parts[1] === 'content') {
-            // app_store/{app_id}/content/{content_type_id}
+            // apps/{app_id}/content/{content_type_id}
             return { type: 'content_details', appId: parts[0], contentTypeId: parts[2] };
         } else if (parts.length === 3 && parts[1] === 'focus') {
-            // app_store/{app_id}/focus/{focus_mode_id}
+            // apps/{app_id}/focus/{focus_mode_id}
             return { type: 'focus_details', appId: parts[0], focusModeId: parts[2] };
         } else if (parts.length === 3 && parts[1] === 'settings_memories') {
-            // app_store/{app_id}/settings_memories/{category_id}
+            // apps/{app_id}/settings_memories/{category_id}
             return { type: 'settings_memories_category', appId: parts[0], categoryId: parts[2] };
         } else if (parts.length === 4 && parts[1] === 'settings_memories' && parts[3] === 'create') {
-            // app_store/{app_id}/settings_memories/{category_id}/create
+            // apps/{app_id}/settings_memories/{category_id}/create
             return { type: 'settings_memories_create', appId: parts[0], categoryId: parts[2] };
         } else if (parts.length === 5 && parts[1] === 'settings_memories' && parts[3] === 'entry') {
-            // app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}
+            // apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}
             return { type: 'settings_memories_entry_detail', appId: parts[0], categoryId: parts[2], entryId: parts[4], startInEditMode: false };
         } else if (parts.length === 6 && parts[1] === 'settings_memories' && parts[3] === 'entry' && parts[5] === 'edit') {
-            // app_store/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit
+            // apps/{app_id}/settings_memories/{category_id}/entry/{entry_id}/edit
             return { type: 'settings_memories_entry_detail', appId: parts[0], categoryId: parts[2], entryId: parts[4], startInEditMode: true };
         }
         
@@ -162,7 +162,7 @@
     });
 
     // Extract provider details route info for type safety
-    // Used for app_store/{appId}/skill/{skillId}/provider/{providerId} routes
+    // Used for apps/{appId}/skill/{skillId}/provider/{providerId} routes
     let providerRouteInfo = $derived.by((): { appId: string; skillId: string; providerId: string } | null => {
         if (routeInfo.type === 'provider_details') {
             console.log('[AppDetailsWrapper] Provider details route detected:', routeInfo);

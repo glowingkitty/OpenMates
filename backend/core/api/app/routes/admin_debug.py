@@ -217,6 +217,7 @@ class IssueListItem(BaseModel):
     """Summary item for issue list."""
     id: str
     title: str
+    issue_type: str = "bug_report"
     description: Optional[str]
     contact_email: Optional[str]
     chat_or_embed_url: Optional[str]
@@ -245,6 +246,7 @@ class IssueDetailResponse(BaseModel):
     """Response model for issue details."""
     id: str
     title: str
+    issue_type: str = "bug_report"
     description: Optional[str]
     contact_email: Optional[str]
     chat_or_embed_url: Optional[str]
@@ -515,6 +517,7 @@ async def list_issues(
             result_issues.append(IssueListItem(
                 id=issue["id"],
                 title=issue.get("title", ""),
+                issue_type=issue.get("issue_type") or "bug_report",
                 description=issue.get("description"),
                 contact_email=censor_email(decrypted_email),
                 chat_or_embed_url=decrypted_url,
@@ -686,6 +689,7 @@ async def get_issue_detail(
         return IssueDetailResponse(
             id=issue["id"],
             title=issue.get("title", ""),
+            issue_type=issue.get("issue_type") or "bug_report",
             description=issue.get("description"),
             contact_email=censor_email(decrypted_email),
             chat_or_embed_url=decrypted_url,

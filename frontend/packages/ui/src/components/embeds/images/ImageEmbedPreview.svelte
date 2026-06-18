@@ -31,9 +31,11 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
+  import ImageAuthenticityBadge from './ImageAuthenticityBadge.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
   import { skillPreviewService } from '../../../services/skillPreviewService';
+  import type { AIDetectionMetadata } from './imageAuthenticity';
 
   /** Max display length for the filename in the card title (chars) */
   const MAX_FILENAME_LENGTH = 30;
@@ -91,9 +93,9 @@
     /**
      * AI detection metadata from SightEngine (set after a successful upload).
      * Shape: { ai_generated: number (0–1), provider: string } | null
-     * The AI badge is only shown when ai_generated > 0.7 (LIKELY AI-GENERATED).
+     * Used to show confirmed AI-generated or authentic status badges.
      */
-    aiDetection?: { ai_generated: number; provider: string } | null;
+    aiDetection?: AIDetectionMetadata | null;
   }
 
   let {
@@ -152,19 +154,6 @@
   }
 
   skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate);
-
-  /**
-   * Show the AI badge when the SightEngine detection service has confirmed the
-   * image is AI-generated (probability > 0.7, matching the backend threshold
-   * in upload_route.py that logs "LIKELY AI-GENERATED").
-   * The badge is only shown once the upload is complete (status = 'finished').
-   */
-  const AI_GENERATED_THRESHOLD = 0.7;
-  let showAiBadge = $derived(
-    statusProp === 'finished' &&
-    !!aiDetection &&
-    aiDetection.ai_generated > AI_GENERATED_THRESHOLD,
-  );
 
   // Portrait detection: detected after the image loads naturally.
   // For portrait images (height > width) we expand the embed card height so the
@@ -481,11 +470,8 @@
               class:portrait={isPortrait}
               onload={handleImageLoad}
             />
-            {#if showAiBadge}
-              <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
-                <span class="ai-badge-icon"></span>
-                <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
-              </div>
+            {#if status === 'finished'}
+              <ImageAuthenticityBadge {aiDetection} />
             {/if}
           </div>
         {:else}
@@ -497,11 +483,8 @@
               class:portrait={isPortrait}
               onload={handleImageLoad}
             />
-            {#if showAiBadge}
-              <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
-                <span class="ai-badge-icon"></span>
-                <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
-              </div>
+            {#if status === 'finished'}
+              <ImageAuthenticityBadge {aiDetection} />
             {/if}
           </div>
         {/if}
@@ -577,72 +560,6 @@
 
   .image-content.clickable:hover .preview-image {
     opacity: 0.92;
-  }
-
-  /* AI generated badge: starts as a label pill, then collapses to the icon. */
-  .ai-badge {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-2);
-    height: 28px;
-    min-width: 28px;
-    max-width: 160px;
-    padding: 0 var(--spacing-4) 0 var(--spacing-3);
-    border-radius: var(--radius-full);
-    background: var(--color-grey-70);
-    pointer-events: none;
-    flex-shrink: 0;
-    box-sizing: border-box;
-    overflow: hidden;
-    animation: collapseAiBadge 400ms var(--easing-default) 2400ms forwards;
-  }
-
-  .ai-badge-icon {
-    display: block;
-    flex-shrink: 0;
-    width: 14px;
-    height: 14px;
-    background: var(--color-grey-0);
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-  }
-
-  .ai-badge-label {
-    font-size: var(--font-size-tiny);
-    font-weight: 600;
-    color: var(--color-grey-0);
-    line-height: 1;
-    white-space: nowrap;
-    max-width: 120px;
-    letter-spacing: 0.01em;
-    overflow: hidden;
-    animation: hideAiBadgeLabel 250ms var(--easing-default) 2150ms forwards;
-  }
-
-  @keyframes hideAiBadgeLabel {
-    to {
-      max-width: 0;
-      opacity: 0;
-    }
-  }
-
-  @keyframes collapseAiBadge {
-    to {
-      max-width: 28px;
-      padding: 0;
-      gap: 0;
-      border-radius: 50%;
-    }
   }
 
   /* Loading skeleton */

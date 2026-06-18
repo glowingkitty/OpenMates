@@ -129,7 +129,7 @@
 
         // Intentionally do NOT close the settings panel here. The user
         // should be able to browse multiple examples (and the rest of
-        // the app store) without losing context. ActiveChat's fullscreen
+        // Apps) without losing context. ActiveChat's fullscreen
         // container is rendered inside the chat area and sits at its
         // normal z-index; on wide screens it appears alongside the open
         // settings panel. On close it returns to the open skill details

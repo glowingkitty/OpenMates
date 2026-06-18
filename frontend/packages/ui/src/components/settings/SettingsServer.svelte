@@ -12,11 +12,12 @@ changes to the documentation (to keep the documentation up to date).
 <script lang="ts">
     import { text } from '@repo/ui';
     import { createEventDispatcher } from 'svelte';
-    import SettingsItem from '../SettingsItem.svelte';
+    import { SettingsItem } from './elements';
     import SettingsSoftwareUpdate from './server/SettingsSoftwareUpdate.svelte';
     import SettingsStats from './server/SettingsStats.svelte';
     import SettingsGiftCardGenerator from './server/SettingsGiftCardGenerator.svelte';
     import SettingsFreeTestingCreditsBudget from './server/SettingsFreeTestingCreditsBudget.svelte';
+    import SettingsAnonymousFreeUsageBudget from './server/SettingsAnonymousFreeUsageBudget.svelte';
     import SettingsTests from './server/SettingsTests.svelte';
 
     let { isSelfHosted = false }: { isSelfHosted?: boolean } = $props();
@@ -97,6 +98,23 @@ changes to the documentation (to keep the documentation up to date).
         scrollToTop();
     }
 
+    function showAnonymousFreeUsageBudget(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'anonymousFreeUsage';
+        childComponent = SettingsAnonymousFreeUsageBudget;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/anonymous-free-usage',
+            direction: 'forward',
+            icon: 'ai',
+            title: $text('settings.server.anonymous_free_usage_budget.title'),
+            translationKey: 'settings.server.anonymous_free_usage_budget.title'
+        });
+
+        scrollToTop();
+    }
+
 
     function showTestsSettings(event = null) {
         if (event) event.stopPropagation();
@@ -141,12 +159,14 @@ changes to the documentation (to keep the documentation up to date).
         icon="download"
         title={$text('settings.software_updates')}
         onClick={() => showSoftwareUpdateSettings()}
+        data-testid="software-update-settings-item"
     />
     <SettingsItem
         icon="usage"
         title={$text('settings.server.stats')}
-        subtitleTop="View global server usage and growth metrics"
+        subtitleTop={$text('settings.server.stats.subtitle')}
         onClick={() => showStatsSettings()}
+        data-testid="server-stats-settings-item"
     />
     {#if !isSelfHosted}
         <SettingsItem
@@ -154,12 +174,21 @@ changes to the documentation (to keep the documentation up to date).
             title={$text('common.gift_cards')}
             subtitleTop={$text('settings.server.gift_cards.subtitle')}
             onClick={() => showGiftCardGenerator()}
+            data-testid="gift-cards-settings-item"
         />
         <SettingsItem
             icon="gift_cards"
             title={$text('settings.server.free_testing_budget.title')}
             subtitleTop={$text('settings.server.free_testing_budget.subtitle')}
             onClick={() => showFreeTestingCreditsBudget()}
+            data-testid="free-testing-budget-settings-item"
+        />
+        <SettingsItem
+            icon="ai"
+            title={$text('settings.server.anonymous_free_usage_budget.title')}
+            subtitleTop={$text('settings.server.anonymous_free_usage_budget.subtitle')}
+            onClick={() => showAnonymousFreeUsageBudget()}
+            data-testid="anonymous-free-usage-settings-item"
         />
     {/if}
     <SettingsItem
@@ -167,6 +196,7 @@ changes to the documentation (to keep the documentation up to date).
         title={$text('settings.server.tests')}
         subtitleTop={$text('settings.server.tests.subtitle')}
         onClick={() => showTestsSettings()}
+        data-testid="server-tests-settings-item"
     />
 {:else if currentView === 'softwareUpdate' && childComponent}
     {@const Component = childComponent}
@@ -184,6 +214,11 @@ changes to the documentation (to keep the documentation up to date).
         on:back={handleBack}
     />
 {:else if currentView === 'freeTestingCredits' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'anonymousFreeUsage' && childComponent}
     {@const Component = childComponent}
     <Component
         on:back={handleBack}

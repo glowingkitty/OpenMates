@@ -440,6 +440,7 @@ describe("Embed Registry — content catalog", () => {
       "code.code",
       "code.repo",
       "docs.document",
+      "electronics.schematic",
       "images.image",
       "mail.email",
       "maps.location",

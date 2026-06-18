@@ -7,17 +7,44 @@
 
 from __future__ import annotations
 
+import json
 import re
 import shlex
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 
 DEPENDENCY_FILENAMES = {"package.json", "package-lock.json", "requirements.txt"}
 VITE_ALLOWED_HOSTS_ENV = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"
 VITE_OPENMATES_CONFIG_PATH = "vite.config.openmates.mjs"
+PREVIEW_READINESS_TIMEOUT_SECONDS = 90.0
+PREVIEW_READINESS_INTERVAL_SECONDS = 1.5
+PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS = 5.0
+VITE_CONFIG_FILENAMES = {
+    "vite.config.js",
+    "vite.config.mjs",
+    "vite.config.cjs",
+    "vite.config.ts",
+    "vite.config.mts",
+}
+TAILWIND_CONFIG_FILENAMES = {
+    "tailwind.config.js",
+    "tailwind.config.cjs",
+    "tailwind.config.mjs",
+    "tailwind.config.ts",
+}
+POSTCSS_CONFIG_FILENAMES = {
+    "postcss.config.js",
+    "postcss.config.cjs",
+    "postcss.config.mjs",
+    "postcss.config.ts",
+}
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"gh[oprsu]_[A-Za-z0-9_]{20,}"),
@@ -71,7 +98,7 @@ def plan_application_preview_startup(
     if not entrypoints:
         raise ApplicationPreviewPlanningError("Application preview requires at least one entrypoint")
 
-    normalized_files = [_normalize_file(file) for file in files]
+    normalized_files = _with_generated_tailwind_configs([_normalize_file(file) for file in files])
     if not normalized_files:
         raise ApplicationPreviewPlanningError("Application preview requires at least one file")
 
@@ -107,6 +134,69 @@ def _safe_application_path(path: str) -> str:
 
 def _looks_like_secret(value: str) -> bool:
     return any(pattern.search(value) for pattern in SECRET_PATTERNS)
+
+
+def _with_generated_tailwind_configs(files: list[ApplicationPreviewFile]) -> list[ApplicationPreviewFile]:
+    if not _needs_tailwind_config_fallback(files):
+        return files
+
+    paths = {file.path for file in files}
+    generated_files = list(files)
+    if not paths.intersection(TAILWIND_CONFIG_FILENAMES):
+        generated_files.append(
+            ApplicationPreviewFile(
+                path="tailwind.config.cjs",
+                content=(
+                    "/** @type {import('tailwindcss').Config} */\n"
+                    "module.exports = {\n"
+                    "  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx,svelte,html}'],\n"
+                    "  theme: { extend: {} },\n"
+                    "  plugins: [],\n"
+                    "};\n"
+                ),
+            )
+        )
+    if not paths.intersection(POSTCSS_CONFIG_FILENAMES):
+        generated_files.append(
+            ApplicationPreviewFile(
+                path="postcss.config.cjs",
+                content=(
+                    "module.exports = {\n"
+                    "  plugins: {\n"
+                    "    tailwindcss: {},\n"
+                    "    autoprefixer: {},\n"
+                    "  },\n"
+                    "};\n"
+                ),
+            )
+        )
+    return generated_files
+
+
+def _needs_tailwind_config_fallback(files: list[ApplicationPreviewFile]) -> bool:
+    return _package_declares_dependency(files, "tailwindcss") and _css_uses_tailwind_directives(files)
+
+
+def _package_declares_dependency(files: list[ApplicationPreviewFile], package_name: str) -> bool:
+    for file in files:
+        if file.path.rsplit("/", 1)[-1] != "package.json" or not file.content:
+            continue
+        try:
+            package_json = json.loads(file.content)
+        except json.JSONDecodeError:
+            return f'"{package_name}"' in file.content
+        for section in ("dependencies", "devDependencies", "peerDependencies"):
+            dependencies = package_json.get(section)
+            if isinstance(dependencies, dict) and package_name in dependencies:
+                return True
+    return False
+
+
+def _css_uses_tailwind_directives(files: list[ApplicationPreviewFile]) -> bool:
+    for file in files:
+        if file.path.endswith(".css") and file.content and re.search(r"@(tailwind|apply)\b", file.content):
+            return True
+    return False
 
 
 def _dependency_commands(files: list[ApplicationPreviewFile]) -> list[str]:
@@ -190,6 +280,7 @@ def start_application_preview_in_e2b(
         )
 
     primary_name = "frontend" if "frontend" in upstream_base_urls else next(iter(upstream_base_urls))
+    _wait_for_preview_ready(upstream_base_urls[primary_name])
     return ApplicationPreviewRuntime(
         sandbox_id=str(getattr(sandbox, "sandbox_id", "")),
         upstream_base_url=upstream_base_urls[primary_name],
@@ -232,6 +323,45 @@ def _sandbox_host(sandbox: Any, port: int) -> str:
     raise RuntimeError("E2B sandbox does not expose a preview host helper")
 
 
+def _wait_for_preview_ready(
+    url: str,
+    *,
+    timeout_seconds: float = PREVIEW_READINESS_TIMEOUT_SECONDS,
+    interval_seconds: float = PREVIEW_READINESS_INTERVAL_SECONDS,
+    fetch_status: Callable[[str], int] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    last_status: int | None = None
+    last_error: Exception | None = None
+    status_fetcher = fetch_status or _fetch_preview_status
+
+    while True:
+        try:
+            status = status_fetcher(url)
+            if status < 500:
+                return
+            last_status = status
+            last_error = None
+        except (TimeoutError, OSError, URLError) as exc:
+            last_error = exc
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            detail = f"last status {last_status}" if last_status is not None else f"last error {last_error}"
+            raise RuntimeError(f"Application preview did not become ready at {url}: {detail}")
+        sleep(min(interval_seconds, remaining))
+
+
+def _fetch_preview_status(url: str) -> int:
+    request = Request(url, headers={"User-Agent": "OpenMates application preview readiness"}, method="GET")
+    try:
+        with urlopen(request, timeout=PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS) as response:
+            return int(response.status)
+    except HTTPError as exc:
+        return int(exc.code)
+
+
 def _vite_allowed_hosts(upstream_base_urls: dict[str, str]) -> list[str]:
     hosts = []
     for url in upstream_base_urls.values():
@@ -262,7 +392,7 @@ def _is_vite_dev_command(command: str) -> bool:
 
 
 def _write_vite_allowed_hosts_config(sandbox: Any, files: list[ApplicationPreviewFile], allowed_hosts: list[str]) -> str | None:
-    if not allowed_hosts or not _has_vite_dependency(files):
+    if not allowed_hosts or not _has_vite_dependency(files) or _has_existing_vite_config(files):
         return None
     hosts = ", ".join(repr(host) for host in allowed_hosts)
     sandbox.files.write_files([
@@ -286,6 +416,10 @@ def _has_vite_dependency(files: list[ApplicationPreviewFile]) -> bool:
         if file.path.rsplit("/", 1)[-1] == "package.json" and "vite" in file.content:
             return True
     return False
+
+
+def _has_existing_vite_config(files: list[ApplicationPreviewFile]) -> bool:
+    return any(file.path.rsplit("/", 1)[-1] in VITE_CONFIG_FILENAMES for file in files)
 
 
 def _sandbox_screenshot_url(sandbox: Any) -> str | None:

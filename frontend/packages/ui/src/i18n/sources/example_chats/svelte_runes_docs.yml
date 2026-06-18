@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Svelte Runes Docs"
   en: "Svelte Runes Docs"
-  de: "Svelte Runes Docs"
+  de: Svelte Runes Dokumentation
   zh: "Svelte Runes Docs"
   es: "Svelte Runes Docs"
   fr: "Svelte Runes Docs"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Svelte Runes Docs"
   en: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
-  de: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
+  de: Finde die Svelte 5 Dokumentation für $state und $derived und erkläre die Verwendung anhand eines Komponentenbeispiels.
   zh: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
   es: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
   fr: "Find Svelte 5 documentation for $state and $derived, then explain usage with a component example."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Svelte Runes Docs. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
-  de: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
+  de: Finde die Svelte 5 Bibliotheksdokumentation für die Runes namens $state und $derived und erkläre die offizielle Verwendung anhand eines kleinen Komponentenbeispiels.
   zh: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
   es: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
   fr: "Find the Svelte 5 library documentation for the runes named $state and $derived, then explain the official usage with a small component example."
@@ -113,36 +113,36 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}
     ```
-
-    In [Svelte 5](wiki:Svelte), Runes are a set of compiler-driven instructions used to manage reactivity. They replace older patterns like `let` for state and the `$:` label for derivations.
-
+    
+    In [Svelte 5](wiki:Svelte) sind Runen eine Reihe von compilergesteuerten Anweisungen zur Verwaltung von Reaktivität. Sie ersetzen ältere Muster wie `let` für den Zustand und das `$:`-Label für Ableitungen.
+    
     ### 1. `$state`
-    The `$state` rune is used to declare a reactive variable. Unlike previous versions where any top-level `let` was reactive, Svelte 5 requires you to explicitly wrap reactive values in `$state()`. This makes it clear which variables trigger UI updates and allows reactivity to work outside of `.svelte` files (e.g., in `.svelte.js` or `.svelte.ts` files).
-
+    Die `$state`-Rune wird verwendet, um eine reaktive Variable zu deklarieren. Im Gegensatz zu früheren Versionen, in denen jedes `let` auf oberster Ebene reaktiv war, erfordert Svelte 5, dass du reaktive Werte explizit in `$state()` einschließt. Dies macht deutlich, welche Variablen UI-Updates auslösen, und ermöglicht es, dass Reaktivität auch außerhalb von `.svelte`-Dateien funktioniert (z. B. in `.svelte.js`- oder `.svelte.ts`-Dateien).
+    
     ### 2. `$derived`
-    The `$derived` rune creates a reactive value that automatically recalculates whenever its dependencies (variables wrapped in `$state`) change. It replaces the `$:` syntax and is more efficient because it only re-runs when necessary and can be used anywhere, not just at the top level of a component.
-
+    Die `$derived`-Rune erstellt einen reaktiven Wert, der automatisch neu berechnet wird, wenn sich seine Abhängigkeiten (in `$state` eingeschlossene Variablen) ändern. Sie ersetzt die `$:`-Syntax und ist effizienter, da sie nur bei Bedarf erneut ausgeführt wird und überall verwendet werden kann, nicht nur auf der obersten Ebene einer Komponente.
+    
     ---
-
-    ### Component Example: Price Calculator
-    This example demonstrates a basic counter that calculates a total price based on a unit cost and quantity.
-
+    
+    ### Komponenten-Beispiel: Preisrechner
+    Dieses Beispiel zeigt einen einfachen Zähler, der einen Gesamtpreis basierend auf Stückkosten und Menge berechnet.
+    
     ```json
     {"type": "code", "embed_id": "83d61971-d1ad-4023-8a5f-39f6dacabe7b"}
     ```
-
-
-
-    ### Key Takeaways
-    *   **Explicit Reactivity**: You can immediately see what is reactive by looking for the `$` prefix.
-    *   **No Side Effects**: Expressions inside `$derived` should be pure (no setting other state variables).
-    *   **Standard JS**: Runes look like function calls, making them more compatible with standard JavaScript tools and IDEs.
-
-    Would you like to see how to handle side effects using the `$effect` rune, or perhaps explore how to use these runes in external JavaScript files?
-
-    **Next Steps:**
-    - [Learn about the $effect rune](/#settings/apps/web)
-    - [Explore Svelte 5 Snippets](/#settings/apps/web)
+    
+    
+    
+    ### Wichtige Erkenntnisse
+    *   **Explizite Reaktivität**: Du kannst sofort sehen, was reaktiv ist, indem du nach dem Präfix `$` suchst.
+    *   **Keine Seiteneffekte**: Ausdrücke innerhalb von `$derived` sollten rein sein (kein Setzen anderer Zustandsvariablen).
+    *   **Standard-JS**: Runen sehen wie Funktionsaufrufe aus, was sie kompatibler mit Standard-JavaScript-Tools und IDEs macht.
+    
+    Möchtest du sehen, wie man Seiteneffekte mit der `$effect`-Rune handhabt, oder vielleicht erkunden, wie man diese Runen in externen JavaScript-Dateien verwendet?
+    
+    **Nächste Schritte:**
+    - [Erfahre mehr über die $effect-Rune](/#settings/apps/web)
+    - [Erkunde Svelte 5 Snippets](/#settings/apps/web)
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "bf346f38-6f8f-4a29-b7b4-00eacda289e5", "app_id": "code", "skill_id": "get_docs"}

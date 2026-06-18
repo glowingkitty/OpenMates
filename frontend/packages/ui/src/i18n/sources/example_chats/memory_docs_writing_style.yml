@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Docs Writing Style"
   en: "Memory Docs Writing Style"
-  de: "Memory Docs Writing Style"
+  de: Schreibstil für Memory-Dokumente
   zh: "Memory Docs Writing Style"
   es: "Memory Docs Writing Style"
   fr: "Memory Docs Writing Style"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Docs Writing Style"
   en: "OpenMates uses saved docs writing_style memory in a real chat."
-  de: "OpenMates uses saved docs writing_style memory in a real chat."
+  de: OpenMates nutzt den gespeicherten Schreibstil aus dem Dokumenten-Memory in einem echten Chat.
   zh: "OpenMates uses saved docs writing_style memory in a real chat."
   es: "OpenMates uses saved docs writing_style memory in a real chat."
   fr: "OpenMates uses saved docs writing_style memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Docs Writing Style. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen gespeicherten Schreibstil für Dokumente, um einen kurzen Changelog-Eintrag für eine neue Import-Funktion zu entwerfen. Du kannst dieses gespeicherte Memory anfordern und verwenden. Suche nach der Verwendung des Memorys nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Rückfragen.
   zh: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved document writing style memory to outline a short changelog entry for a new import feature. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -83,12 +83,12 @@ message_2:
     *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
     *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
   de: |
-    ### Bulk Data Import
-    Bring your existing data into the platform in seconds with our new import tool.
-
-    *   **Multi-format Support**: Upload data directly from CSV and JSON files.
-    *   **Auto-field Mapping**: Automatically identifies and matches headers to your current workspace schema.
-    *   **Progress Tracking**: Monitor your import status in real-time with detailed error reporting for skipped rows.
+    ### Massendaten-Import
+    Bring deine vorhandenen Daten mit unserem neuen Import-Tool in Sekundenschnelle auf die Plattform.
+    
+    *   **Multi-Format-Unterstützung**: Lade Daten direkt aus CSV- und JSON-Dateien hoch.
+    *   **Automatisches Feld-Mapping**: Identifiziert Header automatisch und gleicht sie mit deinem aktuellen Workspace-Schema ab.
+    *   **Fortschrittsverfolgung**: Überwache deinen Importstatus in Echtzeit mit detaillierten Fehlerberichten für übersprungene Zeilen.
   zh: |
     ### Bulk Data Import
     Bring your existing data into the platform in seconds with our new import tool.

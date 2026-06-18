@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 // @privacy-promise: pii-placeholder-substitution
 export {};
@@ -31,7 +30,6 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -62,6 +60,78 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
  */
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+
+async function insertComposerText(
+	page: any,
+	messageEditor: any,
+	text: string,
+	requiredNeedles: string[]
+): Promise<void> {
+	await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
+	await expect
+		.poll(
+			async () => messageEditor.evaluate((element: HTMLElement) => {
+				const activeElement = document.activeElement;
+				return Boolean(
+					activeElement instanceof HTMLElement &&
+					element.contains(activeElement) &&
+					activeElement.isContentEditable
+				);
+			}),
+			{ timeout: 5000 }
+		)
+		.toBeTruthy();
+	await page.keyboard.insertText(text);
+
+	const keyboardInserted = await expect
+		.poll(
+			async () => (await messageEditor.textContent().catch(() => '')) ?? '',
+			{ timeout: 2000 }
+		)
+		.toContain(requiredNeedles[0])
+		.then(() => true)
+		.catch(() => false);
+
+	if (!keyboardInserted) {
+		await messageEditor.evaluate((element: HTMLElement, insertedText: string) => {
+			const editableElement = element.isContentEditable
+				? element
+				: element.querySelector<HTMLElement>('[contenteditable="true"]');
+			if (!editableElement) {
+				throw new Error('Message editor contenteditable target was not found.');
+			}
+			editableElement.focus();
+			const range = document.createRange();
+			range.selectNodeContents(editableElement);
+			range.collapse(false);
+			const selection = window.getSelection();
+			selection?.removeAllRanges();
+			selection?.addRange(range);
+
+			const inserted = document.execCommand('insertText', false, insertedText);
+			if (!inserted || !editableElement.textContent?.includes(insertedText)) {
+				editableElement.textContent = insertedText;
+				editableElement.dispatchEvent(new InputEvent('input', {
+					bubbles: true,
+					cancelable: true,
+					data: insertedText,
+					inputType: 'insertText'
+				}));
+			}
+		}, text);
+	}
+
+	await expect
+		.poll(
+			async () => (await messageEditor.textContent().catch(() => '')) ?? '',
+			{ timeout: 10000 }
+		)
+		.toContain(requiredNeedles[0]);
+
+	for (const needle of requiredNeedles.slice(1)) {
+		await expect(messageEditor).toContainText(needle, { timeout: 10000 });
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Test: PII detection, click-to-undo, undo all, send, show/hide toggle
@@ -122,9 +192,11 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 		'Write an email draft from max@posteo.de to sarah@proton.com about the broken heater ' +
 		'in the building and when it will be fixed. My phone number is +49 170 1234567 for callbacks.';
 
-	await messageEditor.click();
-	// Type slowly enough for PII detection to process but not too slowly
-	await page.keyboard.type(withMockMarker(piiText, 'pii_detection_check'), { delay: 5 });
+	await insertComposerText(page, messageEditor, withMockMarker(piiText, 'pii_detection_check'), [
+		'max@posteo.de',
+		'sarah@proton.com',
+		'+49 170 1234567'
+	]);
 	logCheckpoint(`Typed PII text (${piiText.length} chars).`);
 
 	// PII detection triggers on delimiters (space, period, etc.) or after 800ms debounce.
@@ -145,6 +217,12 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	logCheckpoint('Verifying PII highlights in the editor...');
 
 	const piiHighlights = page.locator('[data-testid="pii-highlight"]');
+	await expect
+		.poll(async () => piiHighlights.count(), {
+			timeout: 10000,
+			message: 'PII highlights should render after detection debounce'
+		})
+		.toBe(3);
 	const highlightCount = await piiHighlights.count();
 	logCheckpoint(`Found ${highlightCount} PII highlights in the editor.`);
 
@@ -154,6 +232,19 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	// Check that specific PII types are highlighted
 	const emailHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]');
 	const phoneHighlight = page.locator('[data-testid="pii-highlight"][data-pii-type="PHONE"]');
+
+	await expect
+		.poll(async () => emailHighlight.count(), {
+			timeout: 5000,
+			message: 'Email PII highlights should render'
+		})
+		.toBe(2);
+	await expect
+		.poll(async () => phoneHighlight.count(), {
+			timeout: 5000,
+			message: 'Phone PII highlight should render'
+		})
+		.toBe(1);
 
 	const emailCount = await emailHighlight.count();
 	const phoneCount = await phoneHighlight.count();
@@ -473,17 +564,21 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	const senderEmail = 'max@posteo.de';
 	const receiverEmail = 'sarah@proton.com';
 	const draftPrompt =
-		`Write an email draft from ${senderEmail} to ${receiverEmail} to ask for an update about the broken heater in the house.`;
+		`Only draft a short email from ${senderEmail} to ${receiverEmail} asking for an update about our meeting tomorrow. Do not search the web or use research tools.`;
 
 	logCheckpoint('Typing mail draft prompt with two PII emails…');
-	await messageEditor.click();
-	await page.keyboard.type(draftPrompt, { delay: 5 });
+	await insertComposerText(page, messageEditor, draftPrompt, [senderEmail, receiverEmail]);
 	await page.waitForTimeout(1500);
 
 	// Confirm BOTH emails are detected as PII in the editor before sending
-	const preSendEmailHighlights = await page
-		.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]')
-		.count();
+	const preSendEmailHighlightLocator = page.locator('[data-testid="pii-highlight"][data-pii-type="EMAIL"]');
+	await expect
+		.poll(async () => preSendEmailHighlightLocator.count(), {
+			timeout: 10000,
+			message: 'Email PII highlights should render before sending'
+		})
+		.toBeGreaterThanOrEqual(2);
+	const preSendEmailHighlights = await preSendEmailHighlightLocator.count();
 	logCheckpoint(`PII highlights in editor before send: ${preSendEmailHighlights}`);
 	expect(preSendEmailHighlights).toBeGreaterThanOrEqual(2);
 
@@ -504,10 +599,10 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	await expect(assistantMessage).toBeVisible({ timeout: 60000 });
 	logCheckpoint('Assistant message is visible.');
 
-	// A finished mail embed has data-status="finished" in its preview.
+	// A finished mail embed has data-app-id="mail" and data-status="finished" in its preview.
+	// Avoid matching the web-search embed from the same assistant response via generic words like "heater".
 	const mailEmbedPreview = page
-		.locator('[data-testid="embed-preview"][data-status="finished"]')
-		.filter({ hasText: /mail|email|heater/i })
+		.locator('[data-testid="embed-preview"][data-app-id="mail"][data-status="finished"]')
 		.first();
 	await expect(mailEmbedPreview).toBeVisible({ timeout: 120000 });
 	logCheckpoint('Mail embed preview reached finished status.');

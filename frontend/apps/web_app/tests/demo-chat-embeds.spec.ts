@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Demo chat embed rendering test: verifies that embeds inside community demo
@@ -108,5 +107,33 @@ test.describe('Demo chat embed rendering', () => {
 			finishedCount,
 			`Expected at least 1 embed to reach "finished" status, found ${finishedCount} finished (${processingCount} still processing)`
 		).toBeGreaterThan(0);
+	});
+
+	test('uploaded demo image shows authentic Sightengine detection details', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const chatCards = page.getByTestId('example-chats-group').locator('[data-testid="chat-embed-card"]');
+		const classicCarCard = chatCards.filter({ hasText: 'Identify a Classic Car from a Photo' }).first();
+		await expect(classicCarCard).toBeVisible({ timeout: 30000 });
+		await classicCarCard.click();
+
+		const assistantMessage = page.getByTestId('message-assistant').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 15000 });
+
+		const authenticityBadge = page.getByTestId('image-authenticity-badge').first();
+		await expect(authenticityBadge).toBeVisible({ timeout: 15000 });
+		await expect(authenticityBadge).toHaveAttribute('data-authenticity-status', 'authentic');
+		await expect(authenticityBadge).toHaveAttribute('title', /0% chance it's AI generated/);
+		await expect(authenticityBadge).toHaveAttribute('title', /via Sightengine/);
+
+		await authenticityBadge.click();
+		await expect(authenticityBadge.getByRole('link', { name: 'Sightengine' })).toHaveAttribute(
+			'href',
+			'https://sightengine.com/'
+		);
+		await expect(authenticityBadge).toContainText('human judgment');
 	});
 });

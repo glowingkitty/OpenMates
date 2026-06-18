@@ -1,6 +1,6 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { webSocketService } from "./websocketService";
-import type { StoreEmbedPayload } from "../types/chat";
+import type { StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
 import { chatDB } from "./db";
 
 /**
@@ -58,6 +58,35 @@ export async function sendStoreEmbedKeysImpl(
   } catch (error) {
     console.error("[EmbedSenders] Error sending store_embed_keys:", error);
     // Keys will be re-sent when the embed operation is flushed from the queue
+  }
+}
+
+/**
+ * Send an encrypted embed version row to server.
+ * This is only called after the receiving client encrypts snapshot/patch data
+ * with the parent embed key.
+ */
+export async function sendStoreEmbedDiffImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: StoreEmbedDiffPayload,
+): Promise<void> {
+  if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+    console.warn(
+      `[EmbedSenders] WebSocket not connected - encrypted diff row for ${payload.embed_id} v${payload.version_number} was not sent`,
+    );
+    return;
+  }
+
+  try {
+    console.debug(
+      `[EmbedSenders] Sending encrypted embed diff ${payload.embed_id} v${payload.version_number} to server`,
+    );
+    await webSocketService.sendMessage("store_embed_diff", payload);
+  } catch (error) {
+    console.error(
+      `[EmbedSenders] Error sending store_embed_diff for ${payload.embed_id} v${payload.version_number}:`,
+      error,
+    );
   }
 }
 

@@ -102,12 +102,15 @@
   let dc = $derived(data.decodedContent);
   let attrs = $derived(data.attrs);
   let includedOriginalTableContent = $state<string | null>(null);
-  let tableContent = $derived(
-      includedOriginalTableContent !== null ? includedOriginalTableContent
-      : typeof dc.table === 'string' ? dc.table
+  let latestTableContent = $derived(
+      typeof dc.table === 'string' ? dc.table
       : typeof dc.code === 'string' ? dc.code
       : typeof attrs?.code === 'string' ? attrs.code as string
       : ''
+    );
+  let tableContent = $derived(
+      includedOriginalTableContent !== null ? includedOriginalTableContent
+      : latestTableContent
     );
   let title = $derived(
       typeof dc.title === 'string' ? dc.title
@@ -588,7 +591,10 @@
       <EmbedVersionTimeline
         {embedId}
         currentVersion={versionNumber}
-        onVersionSelect={(version, _content) => {
+        currentContent={latestTableContent}
+        buildRestoredContent={(content, newVersion) => ({ ...dc, table: content, version_number: newVersion })}
+        onVersionSelect={(version, content) => {
+          includedOriginalTableContent = content;
           console.log('[SheetEmbedFullscreen] Version selected:', version);
         }}
       />

@@ -131,6 +131,8 @@ function exampleMessagesToMessages(example: ExampleChatRecord): Message[] {
     content: translate(msg.content),
     category: msg.category,
     model_name: msg.model_name,
+    user_message_id: msg.user_message_id,
+    example_response_credits: msg.response_credits,
     pii_mappings: msg.pii_mappings,
     created_at: msg.created_at,
     status: "synced" as const,

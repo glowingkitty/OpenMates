@@ -427,7 +427,7 @@
       </button>
     {/if}
 
-    <!-- Details action - opens focus mode details in app store (focus mode embeds only) -->
+    <!-- Details action - opens focus mode details in Apps (focus mode embeds only) -->
     {#if showDetails}
       <button
         class="menu-item details"

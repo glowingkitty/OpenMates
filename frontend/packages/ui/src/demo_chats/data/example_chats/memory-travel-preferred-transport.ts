@@ -23,6 +23,18 @@ export const memoryTravelPreferredTransportChat: ExampleChat = {
         "created_at": 1781280405
     },
     {
+        "id": "32b6170b-a0f8-4e21-b48f-581782e5957e-memory-response",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"32b6170b-a0f8-4e21-b48f-581782e5957e\",\"action\":\"included\",\"categories\":[{\"appId\":\"travel\",\"itemType\":\"preferred_transport_methods\",\"entryCount\":2}]}",
+        "created_at": 1781280406
+    },
+    {
+        "id": "32b6170b-a0f8-4e21-b48f-581782e5957e-memory-request",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"32b6170b-a0f8-4e21-b48f-581782e5957e\",\"request_id\":\"32b6170b-a0f8-4e21-b48f-581782e5957e-memory-request\",\"requested_keys\":[\"travel-preferred_transport_methods\"],\"categories\":[{\"appId\":\"travel\",\"itemType\":\"preferred_transport_methods\",\"entryCount\":0}]}",
+        "created_at": 1781280406
+    },
+    {
         "id": "6fad1476-1f2f-4977-97ca-b9f5ba773f3d",
         "role": "assistant",
         "content": "example_chats.memory_travel_preferred_transport.message_2",

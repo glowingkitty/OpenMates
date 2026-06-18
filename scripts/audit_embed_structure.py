@@ -71,10 +71,90 @@ def file_contains(path: Path, needle: str) -> bool:
     return needle in path.read_text(encoding="utf-8")
 
 
+def extract_embed_header_cta_snippets(source: str) -> list[str]:
+    return re.findall(r"\{#snippet\s+embedHeaderCta\([^)]*\)\}(.*?)\{/snippet\}", source, re.DOTALL)
+
+
+def extract_svelte_component_attrs(source: str, component_name: str) -> list[str]:
+    attrs: list[str] = []
+    tag_start = f"<{component_name}"
+    search_from = 0
+    while True:
+        start = source.find(tag_start, search_from)
+        if start == -1:
+            break
+
+        i = start + len(tag_start)
+        quote: str | None = None
+        brace_depth = 0
+        while i < len(source):
+            char = source[i]
+            if quote:
+                if char == quote and source[i - 1] != "\\":
+                    quote = None
+            elif char in {'"', "'"}:
+                quote = char
+            elif char == "{":
+                brace_depth += 1
+            elif char == "}":
+                brace_depth = max(0, brace_depth - 1)
+            elif char == ">" and brace_depth == 0:
+                attrs.append(source[start + len(tag_start):i])
+                search_from = i + 1
+                break
+            i += 1
+        else:
+            search_from = start + len(tag_start)
+    return attrs
+
+
+def extract_primary_header_cta_keys(snippet: str) -> list[str]:
+    keys: list[str] = []
+    for index, attrs in enumerate(extract_svelte_component_attrs(snippet, "EmbedHeaderCtaButton")):
+        variant = re.search(r"\bvariant\s*=\s*(?P<value>\{[^}]+\}|\"([^\"]+)\"|'([^']+)')", attrs)
+        if variant:
+            raw_value = variant.group("value").strip("{}\"'")
+            if raw_value != "primary":
+                continue
+
+        test_id = re.search(r"\btestId\s*=\s*(?:\"([^\"]+)\"|'([^']+)')", attrs)
+        key = (test_id.group(1) or test_id.group(2)) if test_id else f"cta-{index}"
+        keys.append(key)
+    return keys
+
+
+def count_possible_primary_header_ctas(snippet: str) -> int:
+    keys = extract_primary_header_cta_keys(snippet)
+    if not keys:
+        return 0
+    # Mutually exclusive {:else if} branches often reuse one testId for one
+    # runtime CTA state (loading / loaded / fallback). Count those as one.
+    if "{:else" in snippet:
+        return len(set(keys))
+    return len(keys)
+
+
+def audit_fullscreen_primary_ctas(embeds_root: Path = EMBEDS_ROOT) -> list[str]:
+    issues: list[str] = []
+    for path in sorted(embeds_root.glob("**/*Fullscreen.svelte")):
+        source = path.read_text(encoding="utf-8")
+        for snippet in extract_embed_header_cta_snippets(source):
+            primary_count = count_possible_primary_header_ctas(snippet)
+            if primary_count > 1:
+                relative = path.relative_to(embeds_root)
+                issues.append(
+                    f"{relative}: embedHeaderCta exposes {primary_count} possible primary EmbedHeaderCtaButton actions; "
+                    "fullscreen headers may show at most one main CTA. Move secondary controls into content or mark them variant=\"secondary\"."
+                )
+    return issues
+
+
 def audit_embed_structure() -> AuditResult:
     registry = load_registry()
     issues: list[str] = []
     warnings: list[str] = []
+
+    issues.extend(audit_fullscreen_primary_ctas())
 
     for parent_key, child_server_type in sorted(registry.child_types.items()):
         parent_registry_key = f"app:{parent_key.replace(':', ':')}"

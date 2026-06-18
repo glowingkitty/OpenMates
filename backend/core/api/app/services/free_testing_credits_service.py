@@ -16,12 +16,12 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
 FREE_TESTING_BUDGET_COLLECTION = "free_testing_credits_budget"
 FREE_TESTING_GRANTS_COLLECTION = "free_testing_credit_grants"
-FREE_TESTING_BUDGET_ID = "default"
 FREE_TESTING_LOCK_KEY = "free_testing_credits_budget:grant_lock"
 FREE_TESTING_LOCK_TTL_SECONDS = 10
 FREE_TESTING_LOCK_WAIT_SECONDS = 2.0
@@ -130,11 +130,13 @@ class FreeTestingCreditsService:
                 payload,
                 admin_required=True,
             )
-            row = updated or {**existing, **payload}
+            if not updated:
+                raise RuntimeError("Failed to update free testing budget")
+            row = updated
         else:
             success, created = await self.directus.create_item(
                 FREE_TESTING_BUDGET_COLLECTION,
-                {"id": FREE_TESTING_BUDGET_ID, "created_at": now, **payload},
+                {"id": str(uuid4()), "created_at": now, **payload},
                 admin_required=True,
             )
             if not success:

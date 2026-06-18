@@ -284,7 +284,7 @@ contracts:
     - "Catalog metadata must not expose internal-only embed types, focus activation artifacts, or skill-run parent containers."
   ui_states:
     - "AppDetails.svelte shows Content only when the app has at least one catalog content type."
-    - "AppDetailsWrapper.svelte supports a route such as `app_store/{app_id}/content/{content_type_id}` for detail pages."
+    - "AppDetailsWrapper.svelte supports a route such as `apps/{app_id}/content/{content_type_id}` for detail pages."
     - "Content detail pages reuse canonical settings elements and the existing ChatPreviewCard example pattern."
     - "Unauthenticated users can browse static content descriptions and example chats; authenticated user-specific My embeds remain in the existing separate section."
   generation_tooling:

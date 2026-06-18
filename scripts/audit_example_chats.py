@@ -68,6 +68,7 @@ BROKEN_PUBLIC_TEXT_PATTERNS = [
 UNSAFE_ADVICE_PATTERNS = [
     ("git checkout -- .", "suggests a destructive git cleanup command"),
 ]
+FENCED_CODE_BLOCK_RE = re.compile(r"```[a-zA-Z0-9_-]*\n[\s\S]*?```", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -191,6 +192,26 @@ def parse_i18n_english(snake: str, key: str) -> str | None:
         return plain_scalar.group("text").strip()
 
     return None
+
+
+def audit_german_example_translations() -> list[str]:
+    """Flag German example-chat entries that still copy the English source."""
+    issues: list[str] = []
+    for path in sorted(EXAMPLE_I18N_DIR.glob("*.yml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for key, entry in data.items():
+            if not isinstance(entry, dict):
+                continue
+            en = entry.get("en")
+            de = entry.get("de")
+            if not isinstance(en, str) or not isinstance(de, str):
+                continue
+            prose = FENCED_CODE_BLOCK_RE.sub("", en).strip()
+            if not prose:
+                continue
+            if en.strip() and en.strip() == de.strip():
+                issues.append(f"{path.name}: {key} has German translation identical to English")
+    return issues
 
 
 def resolve_message_content(content: str) -> tuple[str, str | None]:
@@ -467,7 +488,7 @@ def audit_recipe_embed(chat_id: str, block: str, content: str) -> list[str]:
 
 
 def audit() -> list[str]:
-    issues: list[str] = []
+    issues: list[str] = audit_german_example_translations()
     valid_categories = load_canonical_categories()
     registry_keys = load_registry_keys()
     content_catalog = load_content_catalog()

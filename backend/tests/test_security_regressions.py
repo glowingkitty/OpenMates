@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pyotp
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 
 _FAKE_WS_MANAGER = MagicMock(name="fake_ws_manager")
@@ -121,8 +121,16 @@ async def test_confirm_email_change_rejects_without_recent_reauth(monkeypatch):
     directus_service.get_user_by_hashed_email = AsyncMock(return_value=(False, None, "User not found"))
     directus_service.update_user = AsyncMock(return_value=True)
 
-    request = SimpleNamespace(
-        app=SimpleNamespace(state=SimpleNamespace(domain_security_service=_DomainSecurityService()))
+    app = SimpleNamespace(state=SimpleNamespace(domain_security_service=_DomainSecurityService()))
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/user/email/confirm-change",
+            "headers": [],
+            "app": app,
+            "client": ("127.0.0.1", 12345),
+        }
     )
     body = settings.ConfirmEmailChangeRequest(
         new_email=new_email,
@@ -134,7 +142,7 @@ async def test_confirm_email_change_rejects_without_recent_reauth(monkeypatch):
     current_user = User(id=user_id, username="testuser", vault_key_id="vault-key")
 
     with pytest.raises(HTTPException) as exc_info:
-        await settings.confirm_email_change.__wrapped__(
+        await settings.confirm_email_change(
             request=request,
             body=body,
             current_user=current_user,

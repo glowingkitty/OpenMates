@@ -21,12 +21,12 @@
 
     /**
      * Intercept navigation events from AiAskModelDetails.
-     * The back button navigates to 'app_store/ai/skill/ask' — redirect it to the
+     * The back button navigates to 'apps/ai/skill/ask' — redirect it to the
      * top-level 'ai' settings page instead, since we're in the top-level AI context.
      */
     function handleOpenSettings(event: CustomEvent) {
         const detail = { ...event.detail };
-        if (detail.settingsPath === 'app_store/ai/skill/ask') {
+        if (detail.settingsPath === 'apps/ai/skill/ask') {
             detail.settingsPath = 'ai';
         }
         dispatch('openSettings', detail);

@@ -166,7 +166,7 @@
     await new Promise(resolve => setTimeout(resolve, 100));
     
     // Set deep link LAST so the Settings menu is already open to receive it
-    settingsDeepLink.set(`app_store/${appId}/focus/${focusModeId}`);
+    settingsDeepLink.set(`apps/${appId}/focus/${focusModeId}`);
   }
   
   /**
@@ -182,7 +182,7 @@
     await tick();
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    settingsDeepLink.set('app_store');
+    settingsDeepLink.set('apps');
   }
 </script>
 

@@ -36,6 +36,8 @@ OPENCODE_AUTOMATION_PATH_RE = re.compile(
     r"^(scripts/.*\.(py|sh|js|mjs)|scripts/prompts/.*\.md|\.agents/skills/.*/SKILL\.md|opencode\.json)$"
 )
 CADDYFILE_PATH_RE = re.compile(r"^deployment/[^/]+/Caddyfile$")
+BACKEND_PY_PATH_RE = re.compile(r"^backend/(?!tests/).+\.py$")
+EMBED_VAULT_INFERENCE_CACHE_MARKER = "EMBED_VAULT_INFERENCE_CACHE_OK"
 
 BLOCK_PATTERNS = {
     "hardcoded secret-like assignment": re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{8,}"),
@@ -165,6 +167,66 @@ def _run_caddyfile_preflight(staged_files: list[str]) -> list[str]:
     return issues
 
 
+def _staged_file_text(path: str) -> str:
+    result = _git(["show", f":{path}"], check=False)
+    return result.stdout if result.returncode == 0 else ""
+
+
+def _python_function_blocks(source: str) -> list[tuple[int, str, str]]:
+    blocks: list[tuple[int, str, str]] = []
+    matches = list(re.finditer(r"(?m)^async\s+def\s+(\w+)\s*\(|^def\s+(\w+)\s*\(", source))
+    for index, match in enumerate(matches):
+        start = match.start()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(source)
+        line_no = source.count("\n", 0, start) + 1
+        name = match.group(1) or match.group(2) or "<unknown>"
+        blocks.append((line_no, name, source[start:end]))
+    return blocks
+
+
+def _audit_backend_embed_vault_boundaries(staged_files: list[str]) -> list[str]:
+    issues: list[str] = []
+    for path in staged_files:
+        if not BACKEND_PY_PATH_RE.search(path):
+            continue
+        source = _staged_file_text(path)
+        if "encrypt_with_user_key" not in source or "encrypted_" not in source:
+            continue
+        for line_no, function_name, block in _python_function_blocks(source):
+            if "encrypt_with_user_key" not in block or "encrypted_content" not in block:
+                if "encrypt_with_user_key" not in block or "encrypted_" not in block:
+                    continue
+            writes_directus_embed_content = (
+                "update_embed" in block or "create_embed" in block
+            ) and "encrypted_content" in block
+            writes_embed_cache_content = (
+                "client.set" in block
+                and "embed:" in block
+                and "encrypted_content" in block
+            )
+            writes_directus_chat_or_message = (
+                ("create_item('messages'" in block or 'create_item("messages"' in block)
+                or ("create_item('chats'" in block or 'create_item("chats"' in block)
+                or ("collection='chats'" in block or 'collection="chats"' in block)
+            )
+            if writes_directus_embed_content:
+                issues.append(
+                    f"{path}:{line_no}: {function_name} writes Vault-encrypted data to embeds.encrypted_content; "
+                    "chat embeds must be client-side encrypted. Use send_embed_data/client store_embed instead."
+                )
+            elif writes_directus_chat_or_message:
+                issues.append(
+                    f"{path}:{line_no}: {function_name} combines Vault encryption with Directus chats/messages writes; "
+                    "privacy-bound chat metadata and message content must be client-side encrypted."
+                )
+            elif writes_embed_cache_content and EMBED_VAULT_INFERENCE_CACHE_MARKER not in block:
+                issues.append(
+                    f"{path}:{line_no}: {function_name} writes Vault-encrypted embed content to cache without "
+                    f"{EMBED_VAULT_INFERENCE_CACHE_MARKER}; only inference/runtime cache may use Vault embed content."
+                )
+    return issues
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
@@ -181,6 +243,9 @@ def main() -> int:
 
     for issue in _run_caddyfile_preflight(staged_files):
         blocks.append(f"caddy preflight: {issue}")
+
+    for issue in _audit_backend_embed_vault_boundaries(staged_files):
+        blocks.append(f"embed encryption boundary: {issue}")
 
     added_lines_with_numbers = _added_lines_with_numbers()
 

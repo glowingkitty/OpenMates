@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-06-03
+last_verified: 2026-06-15
 key_files:
 - frontend/apps/web_app/scripts/process-docs.js
 - frontend/apps/web_app/scripts/vite-plugin-docs.js

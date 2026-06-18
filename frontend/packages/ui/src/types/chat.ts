@@ -115,6 +115,7 @@ export interface Message {
   // Metadata (not encrypted - for UI rendering and cost tracking)
   has_thinking?: boolean; // Quick check if message has thinking content
   thinking_token_count?: number; // Token count for thinking (for cost tracking)
+  example_response_credits?: number; // Static public example-chat response cost, including AI ask and app skills
 
   // PII (Personally Identifiable Information) anonymization fields
   // Used to store placeholder-to-original-value mappings for client-side restoration
@@ -333,6 +334,7 @@ export interface Chat {
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
   encrypted_quick_tip_slugs?: string | null; // Encrypted array of product quick tip slugs selected during post-processing
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
+  anonymous_encrypted_chat_key?: string | null; // Local-only anonymous wrapper for pre-signup chat keys
   candidate_encrypted_keys?: string[] | null; // Fallback encrypted_chat_key blobs rejected by injectKey (multi-tab race survivors). Tried in order when primary decryption fails.
   key_version?: number | null; // Monotonic version counter — incremented on key rotation. Used to match messages to the key that encrypted them.
   key_fingerprint?: string | null; // FNV-1a fingerprint of the raw chat key (not cryptographic). Stored server-side for decryption failure diagnosis.
@@ -366,6 +368,7 @@ export interface Chat {
 
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)
+  is_anonymous?: boolean; // True for logged-out anonymous free-usage chats stored only in this browser session
 
   // Demo duplication tracking
   source_demo_id?: string | null; // ID of the source demo chat if this chat was created by duplicating a demo
@@ -662,7 +665,23 @@ export interface SendEmbedDataPayload {
     // need to decode TOON to determine which renderer to use.
     app_id?: string; // Parent app ID (e.g. "images")
     skill_id?: string; // Child type as skill_id (e.g. "image_result") — NOT the parent's skill
+    version_history_rows?: Array<{
+      embed_id: string;
+      version_number: number;
+      snapshot?: string;
+      patch?: string;
+      created_at?: number;
+    }>;
   };
+}
+
+export interface StoreEmbedDiffPayload {
+  embed_id: string;
+  version_number: number;
+  encrypted_snapshot?: string | null;
+  encrypted_patch?: string | null;
+  hashed_user_id: string;
+  created_at: number;
 }
 // --- End AI Task and Stream related event payloads ---
 

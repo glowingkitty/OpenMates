@@ -53,6 +53,13 @@ export interface SendEmbedDataFrame {
   is_shared?: boolean;
   createdAt?: number;
   updatedAt?: number;
+  version_history_rows?: Array<{
+    embed_id: string;
+    version_number: number;
+    snapshot?: string;
+    patch?: string;
+    created_at?: number;
+  }>;
 }
 
 export type SubChatEventType =
@@ -311,6 +318,7 @@ export class OpenMatesWsClient {
     category: string | null;
     modelName: string | null;
     followUpSuggestions: string[];
+    newChatSuggestions: string[];
     embeds: SendEmbedDataFrame[];
     subChatEvents: SubChatEvent[];
   }> {
@@ -325,6 +333,7 @@ export class OpenMatesWsClient {
       let category: string | null = null;
       let modelName: string | null = null;
       let followUpSuggestions: string[] = [];
+      let newChatSuggestions: string[] = [];
       const subChatEvents: SubChatEvent[] = [];
       const pendingSubChatHandlers = new Set<Promise<void>>();
       const pendingMemoryRequestHandlers = new Set<Promise<void>>();
@@ -394,6 +403,7 @@ export class OpenMatesWsClient {
             category,
             modelName,
             followUpSuggestions,
+            newChatSuggestions,
             embeds: [...embeds.values()],
             subChatEvents,
           });
@@ -413,6 +423,7 @@ export class OpenMatesWsClient {
               category,
               modelName,
               followUpSuggestions,
+              newChatSuggestions,
               embeds: [...embeds.values()],
               subChatEvents,
             });
@@ -429,6 +440,7 @@ export class OpenMatesWsClient {
           category,
           modelName,
           followUpSuggestions,
+          newChatSuggestions,
           embeds: [...embeds.values()],
           subChatEvents,
         });
@@ -655,14 +667,20 @@ export class OpenMatesWsClient {
             return;
           }
 
-          // Post-processing metadata — carries follow-up suggestions for this chat.
-          // Arrives asynchronously after the AI response completes.
-          // Mirrors: chatSyncServiceHandlersAI.ts handlePostProcessingMetadata()
-          if (type === "post_processing_metadata") {
+          // Server post-processing carries plain suggestions; the CLI then
+          // encrypts and stores them via post_processing_metadata below.
+          // Mirrors: chatSyncServiceHandlersAI.ts handlePostProcessingCompletedImpl()
+          if (type === "post_processing_completed" || type === "post_processing_metadata") {
             if (p.chat_id !== chatId) return;
             const rawSuggestions = p.follow_up_request_suggestions;
             if (Array.isArray(rawSuggestions) && rawSuggestions.length > 0) {
               followUpSuggestions = (rawSuggestions as unknown[]).filter(
+                (s): s is string => typeof s === "string" && s.length > 0,
+              );
+            }
+            const rawNewChatSuggestions = p.new_chat_request_suggestions;
+            if (Array.isArray(rawNewChatSuggestions) && rawNewChatSuggestions.length > 0) {
+              newChatSuggestions = (rawNewChatSuggestions as unknown[]).filter(
                 (s): s is string => typeof s === "string" && s.length > 0,
               );
             }
@@ -697,6 +715,7 @@ export class OpenMatesWsClient {
             category,
             modelName,
             followUpSuggestions,
+            newChatSuggestions,
             embeds: [...embeds.values()],
             subChatEvents,
           });

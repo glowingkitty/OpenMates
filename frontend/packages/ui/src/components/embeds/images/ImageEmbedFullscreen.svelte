@@ -22,6 +22,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import ImageAuthenticityBadge from './ImageAuthenticityBadge.svelte';
+  import { getImageAuthenticityStatus, type AIDetectionMetadata } from './imageAuthenticity';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -87,15 +89,8 @@
   );
   let fileSize = $derived(typeof dc.fileSize === 'number' ? dc.fileSize : (typeof dc.file_size === 'number' ? dc.file_size : undefined));
   let fileType = $derived(typeof dc.fileType === 'string' ? dc.fileType : (typeof dc.file_type === 'string' ? dc.file_type : undefined));
-  let aiDetection = $derived((typeof dc.aiDetection === 'object' && dc.aiDetection !== null ? dc.aiDetection : (typeof dc.ai_detection === 'object' && dc.ai_detection !== null ? dc.ai_detection : null)) as { ai_generated: number; provider: string } | null);
-
-  /** Threshold matching the backend's "LIKELY AI-GENERATED" log in upload_route.py */
-  const AI_GENERATED_THRESHOLD = 0.7;
-
-  /** Show the AI generated badge only when SightEngine score exceeds the threshold */
-  let showAiBadge = $derived(
-    !!aiDetection && aiDetection.ai_generated > AI_GENERATED_THRESHOLD,
-  );
+  let aiDetection = $derived((typeof dc.aiDetection === 'object' && dc.aiDetection !== null ? dc.aiDetection : (typeof dc.ai_detection === 'object' && dc.ai_detection !== null ? dc.ai_detection : null)) as AIDetectionMetadata | null);
+  let showAuthenticityBadge = $derived(!!getImageAuthenticityStatus(aiDetection));
 
   // -------------------------------------------------------------------------
   // Image loading state
@@ -378,25 +373,14 @@
           <a href={fullImageUrl} target="_blank" rel="noopener noreferrer" class="image-link" onclick={handleImageClick}>
             <img src={fullImageUrl} alt={filename} class="full-image" />
           </a>
-          {#if showAiBadge}
-            <!-- AI generated badge: shown only when SightEngine confirms ai_generated > 0.7 -->
-            <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
-              <span class="ai-badge-icon"></span>
-              <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
-            </div>
-          {/if}
+          <ImageAuthenticityBadge {aiDetection} variant="fullscreen" />
         </div>
       {:else if previewImageUrl && isLoadingImage}
         <!-- Progressive: show blurred preview while full-res fetches -->
         <div class="image-wrapper progressive">
           <img src={previewImageUrl} alt={filename} class="full-image preview-placeholder" />
-          {#if showAiBadge}
-            <div class="ai-badge" aria-label={$text('app_skills.images.view.ai_generated')}>
-              <span class="ai-badge-icon"></span>
-              <span class="ai-badge-label">{$text('app_skills.images.view.ai_generated')}</span>
-            </div>
-          {/if}
-          <div class="progressive-overlay" class:with-ai-badge={showAiBadge}>
+          <ImageAuthenticityBadge {aiDetection} variant="fullscreen" />
+          <div class="progressive-overlay" class:with-authenticity-badge={showAuthenticityBadge}>
             <div class="loading-spinner small"></div>
           </div>
         </div>
@@ -444,72 +428,6 @@
     max-width: 100%;
   }
 
-  /* AI generated badge: starts as a label pill, then collapses to the icon. */
-  .ai-badge {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-2);
-    height: 32px;
-    min-width: 32px;
-    max-width: 180px;
-    padding: 0 var(--spacing-5) 0 var(--spacing-4);
-    border-radius: var(--radius-full);
-    background: var(--color-grey-70);
-    pointer-events: none;
-    flex-shrink: 0;
-    box-sizing: border-box;
-    overflow: hidden;
-    animation: collapseAiBadge 400ms var(--easing-default) 2400ms forwards;
-  }
-
-  .ai-badge-icon {
-    display: block;
-    flex-shrink: 0;
-    width: 14px;
-    height: 14px;
-    background: var(--color-grey-0);
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-  }
-
-  .ai-badge-label {
-    font-size: var(--font-size-tiny);
-    font-weight: 600;
-    color: var(--color-grey-0);
-    line-height: 1;
-    white-space: nowrap;
-    max-width: 140px;
-    letter-spacing: 0.01em;
-    overflow: hidden;
-    animation: hideAiBadgeLabel 250ms var(--easing-default) 2150ms forwards;
-  }
-
-  @keyframes hideAiBadgeLabel {
-    to {
-      max-width: 0;
-      opacity: 0;
-    }
-  }
-
-  @keyframes collapseAiBadge {
-    to {
-      max-width: 32px;
-      padding: 0;
-      gap: 0;
-      border-radius: 50%;
-    }
-  }
-
   .image-link {
     display: flex;
     align-items: center;
@@ -552,7 +470,7 @@
     justify-content: center;
   }
 
-  .progressive-overlay.with-ai-badge {
+  .progressive-overlay.with-authenticity-badge {
     top: 52px;
   }
 

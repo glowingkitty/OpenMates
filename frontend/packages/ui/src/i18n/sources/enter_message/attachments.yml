@@ -142,3 +142,75 @@ drop_files:
   sv: "Släpp filer för att ladda upp"
   he: שחרר קבצים להעלאה
   verified_by_human: []
+signup_required_title:
+  context: Banner title shown when an anonymous user tries to attach a file before creating an account.
+  en: Create an account to upload files
+  de: Erstelle ein Konto, um Dateien hochzuladen
+  zh: 创建账号以上传文件
+  es: Crea una cuenta para subir archivos
+  fr: Créez un compte pour téléverser des fichiers
+  pt: Crie uma conta para enviar arquivos
+  ru: Создайте аккаунт, чтобы загружать файлы
+  ja: ファイルをアップロードするにはアカウントを作成してください
+  ko: 파일을 업로드하려면 계정을 만드세요
+  it: Crea un account per caricare file
+  tr: Dosya yüklemek için hesap oluşturun
+  vi: Tạo tài khoản để tải tệp lên
+  id: Buat akun untuk mengunggah file
+  pl: Utwórz konto, aby przesyłać pliki
+  nl: Maak een account om bestanden te uploaden
+  ar: أنشئ حسابًا لتحميل الملفات
+  hi: फ़ाइलें अपलोड करने के लिए खाता बनाएँ
+  th: สร้างบัญชีเพื่ออัปโหลดไฟล์
+  cs: Vytvořte si účet, abyste mohli nahrávat soubory
+  sv: Skapa ett konto för att ladda upp filer
+  he: צור חשבון כדי להעלות קבצים
+  verified_by_human: []
+signup_required_body:
+  context: Banner body shown when anonymous file uploads are blocked; text entered in the composer is kept for signup, but the selected file is not uploaded.
+  en: Your message draft will be kept, but files are only uploaded after signup. Remove the file to keep chatting without an account.
+  de: Dein Nachrichtenentwurf bleibt erhalten, aber Dateien werden erst nach der Registrierung hochgeladen. Entferne die Datei, um ohne Konto weiterzuchatten.
+  zh: 你的消息草稿会被保留，但文件只会在注册后上传。移除文件即可继续无需账号聊天。
+  es: Se conservará tu borrador del mensaje, pero los archivos solo se suben después de registrarte. Quita el archivo para seguir chateando sin una cuenta.
+  fr: Votre brouillon de message sera conservé, mais les fichiers ne sont téléversés qu’après l’inscription. Supprimez le fichier pour continuer à discuter sans compte.
+  pt: Seu rascunho de mensagem será mantido, mas os arquivos só serão enviados após o cadastro. Remova o arquivo para continuar conversando sem uma conta.
+  ru: Черновик сообщения сохранится, но файлы загружаются только после регистрации. Удалите файл, чтобы продолжить чат без аккаунта.
+  ja: メッセージの下書きは保持されますが、ファイルはサインアップ後にのみアップロードされます。アカウントなしでチャットを続けるにはファイルを削除してください。
+  ko: 메시지 초안은 유지되지만 파일은 가입 후에만 업로드됩니다. 계정 없이 계속 채팅하려면 파일을 제거하세요.
+  it: La bozza del messaggio verrà conservata, ma i file vengono caricati solo dopo la registrazione. Rimuovi il file per continuare a chattare senza un account.
+  tr: Mesaj taslağınız korunur, ancak dosyalar yalnızca kayıt olduktan sonra yüklenir. Hesap olmadan sohbete devam etmek için dosyayı kaldırın.
+  vi: Bản nháp tin nhắn của bạn sẽ được giữ lại, nhưng tệp chỉ được tải lên sau khi đăng ký. Hãy xóa tệp để tiếp tục trò chuyện mà không cần tài khoản.
+  id: Draf pesan Anda akan tetap disimpan, tetapi file hanya diunggah setelah mendaftar. Hapus file untuk terus mengobrol tanpa akun.
+  pl: Szkic wiadomości zostanie zachowany, ale pliki są przesyłane dopiero po rejestracji. Usuń plik, aby kontynuować czat bez konta.
+  nl: Je berichtconcept blijft bewaard, maar bestanden worden pas na registratie geüpload. Verwijder het bestand om zonder account verder te chatten.
+  ar: سيتم الاحتفاظ بمسودة رسالتك، لكن الملفات لا تُحمّل إلا بعد التسجيل. أزل الملف لمتابعة الدردشة بدون حساب.
+  hi: आपका संदेश ड्राफ्ट सुरक्षित रहेगा, लेकिन फ़ाइलें साइन अप के बाद ही अपलोड होंगी। बिना खाते के चैट जारी रखने के लिए फ़ाइल हटाएँ।
+  th: ระบบจะเก็บร่างข้อความของคุณไว้ แต่ไฟล์จะอัปโหลดได้หลังสมัครบัญชีเท่านั้น ลบไฟล์เพื่อแชทต่อโดยไม่ต้องมีบัญชี
+  cs: Koncept zprávy zůstane zachován, ale soubory se nahrají až po registraci. Odeberte soubor, abyste mohli pokračovat v chatu bez účtu.
+  sv: Ditt meddelandeutkast sparas, men filer laddas bara upp efter registrering. Ta bort filen för att fortsätta chatta utan konto.
+  he: טיוטת ההודעה שלך תישמר, אבל קבצים יועלו רק אחרי ההרשמה. הסר את הקובץ כדי להמשיך לשוחח בלי חשבון.
+  verified_by_human: []
+remove_pending_file:
+  context: Button that clears the blocked anonymous file attachment state and restores normal suggestions.
+  en: Remove file
+  de: Datei entfernen
+  zh: 移除文件
+  es: Quitar archivo
+  fr: Supprimer le fichier
+  pt: Remover arquivo
+  ru: Удалить файл
+  ja: ファイルを削除
+  ko: 파일 제거
+  it: Rimuovi file
+  tr: Dosyayı kaldır
+  vi: Xóa tệp
+  id: Hapus file
+  pl: Usuń plik
+  nl: Bestand verwijderen
+  ar: إزالة الملف
+  hi: फ़ाइल हटाएँ
+  th: ลบไฟล์
+  cs: Odebrat soubor
+  sv: Ta bort fil
+  he: הסר קובץ
+  verified_by_human: []

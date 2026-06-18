@@ -31,6 +31,8 @@
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
     import { demoMode } from '../../stores/demoModeStore';
+    import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
+    import { externalLinks, getWebsiteUrl } from '../../config/links';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -190,6 +192,8 @@
         isNewChatContext?: boolean;
         /** Compact single-line mode to match adjacent button height (~48px). Expands on focus/content. */
         inlineCompact?: boolean;
+        /** True after an unauthenticated user tried to attach a file and must sign up first. */
+        anonymousFileAttachmentPending?: boolean;
     }
     let { 
         currentChatId = undefined,
@@ -209,7 +213,8 @@
         placeholderText = undefined,
         startNewChatOnClick = false,
         isNewChatContext = false,
-        inlineCompact = false
+        inlineCompact = false,
+        anonymousFileAttachmentPending = $bindable(false)
     }: Props = $props();
 
     // --- Refs ---
@@ -334,6 +339,7 @@
     let selectedNode = $state<{ node: ProseMirrorNode; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
+    let forceDraftActionsVisible = $state(false);
 
     const MESSAGE_FIELD_MIN_HEIGHT = 100;
     const MESSAGE_FIELD_MIN_HEIGHT_COMPACT = 60;
@@ -347,6 +353,16 @@
     let suppressHeightChangeDispatch = $state(false);
     
     let hasEmbedContent = $state(false);
+    let anonymousStatusChecked = $state(false);
+    let anonymousTextSendEnabled = $derived(
+        anonymousStatusChecked &&
+        !$authStore.isAuthenticated &&
+        !lastAuthMethod &&
+        $anonymousFreeUsageStatus?.active === true &&
+        $anonymousFreeUsageStatus?.can_send_text !== false &&
+        !anonymousFileAttachmentPending
+    );
+    let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent);
 
     function editorHasEmbedContent(editor: Editor): boolean {
         let found = false;
@@ -362,7 +378,7 @@
 
     // Draft preview mode: text-only field has content but is not focused — show truncated text, hide buttons.
     // File/PDF/image embeds must keep actions visible so users can send after upload completion.
-    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen);
+    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible && !anonymousTextSendEnabled);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -1613,7 +1629,7 @@
     let lastAuthMethod = $state<LastAuthMethod | null>(null);
     let unauthenticatedCtaOpensLogin = $derived(!!lastAuthMethod);
     let unauthenticatedCtaLabel = $derived(
-        unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
+        anonymousFileAttachmentPending ? $text('signup.sign_up') : unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
     );
 
     $effect(() => {
@@ -1637,6 +1653,13 @@
 
     onMount(() => {
         lastAuthMethod = getLastAuthMethod();
+        if ($authStore.isAuthenticated || $demoMode) {
+            anonymousStatusChecked = true;
+        } else {
+            void refreshAnonymousFreeUsageStatus().then((status) => {
+                anonymousStatusChecked = !!status;
+            });
+        }
 
         if (!editorElement) {
             console.error("Editor element not found on mount.");
@@ -2365,8 +2388,10 @@
         
         const text = currentText ?? editor.getText();
         
-        // Skip if text hasn't changed (e.g. cursor movement, selection change)
-        if (text === lastPIIText) return;
+        // Skip if text hasn't changed and matching decorations are already present.
+        // Context resets can clear decorations while keeping lastPIIText unchanged;
+        // in that state we must re-run detection so highlights become visible again.
+        if (text === lastPIIText && currentPIIDecorations.length > 0) return;
         
         // If text was cleared, update immediately (no need to debounce cleanup)
         if (!text || text.trim().length === 0) {
@@ -2412,8 +2437,9 @@
         
         const text = editor.getText();
         
-        // Skip if text hasn't changed (e.g. cursor movement, selection change)
-        if (text === lastPIIText) return;
+        // Skip if text hasn't changed and matching decorations are already present.
+        // If decorations were cleared by a chat/draft context reset, re-run detection.
+        if (text === lastPIIText && currentPIIDecorations.length > 0) return;
         lastPIIText = text;
         
         if (!text || text.trim().length === 0) {
@@ -2971,9 +2997,13 @@
             void chatSyncService.sendCancelAiTask(taskIdToCancel, chatIdForCancel ?? undefined);
         }
 
-        if (activeAITaskId) {
-            pendingNewChatDraftRestore = null;
-        }
+    }
+
+    function dispatchPendingNewChatCancellation() {
+        if (!pendingNewChatDraftRestore) return;
+
+        dispatch('newChatCreationCancelled', pendingNewChatDraftRestore);
+        pendingNewChatDraftRestore = null;
     }
 
     /**
@@ -3013,15 +3043,13 @@
                 clearTimeout(awaitingAITaskTimeoutId);
                 awaitingAITaskTimeoutId = null;
             }
-            if (pendingNewChatDraftRestore) {
-                dispatch('newChatCreationCancelled', pendingNewChatDraftRestore);
-                pendingNewChatDraftRestore = null;
-            }
+            dispatchPendingNewChatCancellation();
             return;
         }
 
         if (activeAITaskId && currentChatId) {
             const taskId = activeAITaskId;
+            const chatId = currentChatId;
             console.info(`[MessageInput] Requesting cancellation for AI task: ${taskId}`);
             
             // Optimistic UI update: immediately hide the stop button
@@ -3030,10 +3058,10 @@
             
             // Optimistic state update: clear activeAITasks Map to prevent new messages from being queued
             // This ensures the frontend state matches what we're trying to do (cancel the task)
-            if (chatSyncService && currentChatId) {
-                const taskInfo = chatSyncService.activeAITasks.get(currentChatId);
+            if (chatSyncService && chatId) {
+                const taskInfo = chatSyncService.activeAITasks.get(chatId);
                 if (taskInfo && taskInfo.taskId === taskId) {
-                    chatSyncService.activeAITasks.delete(currentChatId);
+                    chatSyncService.activeAITasks.delete(chatId);
                     console.debug('[MessageInput] Optimistically cleared activeAITasks entry on cancel');
                 }
             }
@@ -3042,13 +3070,14 @@
             // Use clearTypingForChat since we only have taskId, not message_id
             // (aiMessageId in the store is set to message_id, not task_id)
             if (currentTypingStatus?.isTyping && 
-                currentTypingStatus.chatId === currentChatId) {
-                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel for chat', currentChatId);
-                aiTypingStore.clearTypingForChat(currentChatId);
+                currentTypingStatus.chatId === chatId) {
+                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel for chat', chatId);
+                aiTypingStore.clearTypingForChat(chatId);
             }
             
             // Clear any queued message text
             queuedMessageText = null;
+            dispatchPendingNewChatCancellation();
             
             // OPTIMISTIC: Immediately cancel all processing embed cards for this chat.
             // Without this, embed cards stay stuck on "Processing..." until the server
@@ -3057,21 +3086,21 @@
             // right away so the user sees "Canceled" instantly instead of waiting.
             try {
                 const { embedStore } = await import('../../services/embedStore');
-                const cancelledEmbedIds = embedStore.cancelProcessingEmbeds(currentChatId);
+                const cancelledEmbedIds = embedStore.cancelProcessingEmbeds(chatId);
                 // Dispatch embedUpdated events for each cancelled embed so UnifiedEmbedPreview re-renders
                 for (const embedId of cancelledEmbedIds) {
                     chatSyncService.dispatchEvent(
                         new CustomEvent('embedUpdated', {
                             detail: {
                                 embed_id: embedId,
-                                chat_id: currentChatId,
+                                chat_id: chatId,
                                 status: 'cancelled',
                             },
                         }),
                     );
                 }
                 if (cancelledEmbedIds.length > 0) {
-                    console.info(`[MessageInput] Optimistically cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${currentChatId}`);
+                    console.info(`[MessageInput] Optimistically cancelled ${cancelledEmbedIds.length} processing embed(s) for chat ${chatId}`);
                 }
             } catch (err) {
                 console.warn('[MessageInput] Failed to optimistically cancel processing embeds:', err);
@@ -3084,7 +3113,7 @@
             chatSyncService.dispatchEvent(
                 new CustomEvent('aiTaskEnded', {
                     detail: {
-                        chatId: currentChatId,
+                        chatId,
                         taskId: taskId,
                         status: 'cancelled',
                     },
@@ -3094,8 +3123,8 @@
             
             // Send cancellation request to backend
             // The backend will confirm via 'aiTaskEnded' event, which will trigger final cleanup
-            // Pass currentChatId so server can clear active task marker immediately
-            await chatSyncService.sendCancelAiTask(taskId, currentChatId);
+            // Pass chatId so server can clear active task marker immediately
+            await chatSyncService.sendCancelAiTask(taskId, chatId);
         }
     }
     
@@ -3219,7 +3248,35 @@
         });
     }
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
+    function setPendingAnonymousFileAttachment(value: boolean) {
+        if (anonymousFileAttachmentPending === value) return;
+        anonymousFileAttachmentPending = value;
+        dispatch('anonymousFileAttachmentState', { pending: value });
+    }
+
+    function hasClipboardFiles(event: ClipboardEvent): boolean {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+        for (let i = 0; i < items.length; i += 1) {
+            const item = items[i];
+            if (item.type.startsWith('image/') || item.kind === 'file') return true;
+        }
+        return false;
+    }
+
+    function blockAnonymousFileAttachment(event?: Event) {
+        event?.preventDefault();
+        event?.stopPropagation();
+        setPendingAnonymousFileAttachment(true);
+        isMessageFieldFocused = true;
+        focus();
+    }
+
     async function handlePaste(event: ClipboardEvent) {
+        if (!$authStore.isAuthenticated && hasClipboardFiles(event)) {
+            blockAnonymousFileAttachment(event);
+            return;
+        }
         await handleFilePaste(event, editor, $authStore.isAuthenticated);
         if (!event.defaultPrevented && editor && !editor.isDestroyed) {
             const rawPasteText = event.clipboardData?.getData('text/plain');
@@ -3667,6 +3724,10 @@
 
     async function handleDrop(event: DragEvent) {
         isDragging = false; // Hide drop overlay when files are dropped
+        if (!$authStore.isAuthenticated && event.dataTransfer?.files?.length) {
+            blockAnonymousFileAttachment(event);
+            return;
+        }
         await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
@@ -3684,6 +3745,12 @@
         handleFileDragLeave(event, editorElement);
     }
     async function onFileSelected(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (!$authStore.isAuthenticated && input.files?.length) {
+            blockAnonymousFileAttachment(event);
+            input.value = '';
+            return;
+        }
         await handleFileSelectedEvent(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
@@ -3692,6 +3759,10 @@
         });
     }
     function handleCameraClick() {
+        if (!$authStore.isAuthenticated) {
+            blockAnonymousFileAttachment();
+            return;
+        }
         const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
         if (isMobile) cameraInput?.click(); else showCamera = true;
     }
@@ -3703,6 +3774,11 @@
      * so we skip the redundant blob URL and let it generate fresh URLs from the file.
      */
     async function handlePhotoCaptured(event: CustomEvent<{ blob: Blob, previewUrl?: string }>) {
+        if (!$authStore.isAuthenticated) {
+            showCamera = false;
+            blockAnonymousFileAttachment();
+            return;
+        }
         const { blob } = event.detail;
         // Use the blob's MIME type to preserve PNG/JPEG/HEIC from native camera
         const mimeType = blob.type || 'image/jpeg';
@@ -3791,6 +3867,10 @@
 
     /** Open the sketch canvas overlay. */
     function handleSketchClick() {
+        if (!$authStore.isAuthenticated) {
+            blockAnonymousFileAttachment();
+            return;
+        }
         showSketch = true;
     }
 
@@ -3804,6 +3884,11 @@
      * and edit the drawing later.
      */
     async function handleSketchCaptured(event: CustomEvent<{ blob: Blob }>) {
+        if (!$authStore.isAuthenticated) {
+            showSketch = false;
+            blockAnonymousFileAttachment();
+            return;
+        }
         const { blob } = event.detail;
         const file = new File([blob], `sketch_${Date.now()}.jpg`, { type: 'image/jpeg' });
         showSketch = false;
@@ -4114,7 +4199,7 @@
         const editorHasContent = !!editor && !editor.isDestroyed && !editor.isEmpty;
         if (!hasContent && !editorHasContent) return;
 
-        if ($demoMode && !$authStore.isAuthenticated) {
+        if ($demoMode && !$authStore.isAuthenticated && !anonymousTextSendEnabled) {
             console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');
             return;
         }
@@ -4145,22 +4230,33 @@
                 text: editor.getText()
             }
             : null;
-        // Optimistically show stop button immediately after sending
-        awaitingAITaskStart = true;
-        cancelRequestedWhileAwaiting = false;
-        if (awaitingAITaskTimeoutId) {
-            clearTimeout(awaitingAITaskTimeoutId);
-        }
-        // If the backend never starts a task (e.g., network issues), don't leave stop button stuck
-        awaitingAITaskTimeoutId = setTimeout(() => {
-            if (awaitingAITaskStart && !activeAITaskId) {
-                console.warn('[MessageInput] Timed out waiting for AI task to start; hiding stop button');
-                awaitingAITaskStart = false;
-                cancelRequestedWhileAwaiting = false;
-                cancelRequestedChatId = null;
+        // Anonymous sends use a direct local request, not the cancellable WebSocket AI task lifecycle.
+        // Do not show the optimistic stop button because no aiTaskStarted/aiTaskEnded events will arrive.
+        if ($authStore.isAuthenticated) {
+            awaitingAITaskStart = true;
+            cancelRequestedWhileAwaiting = false;
+            if (awaitingAITaskTimeoutId) {
+                clearTimeout(awaitingAITaskTimeoutId);
             }
-            awaitingAITaskTimeoutId = null;
-        }, 15000);
+            // If the backend never starts a task (e.g., network issues), don't leave stop button stuck
+            awaitingAITaskTimeoutId = setTimeout(() => {
+                if (awaitingAITaskStart && !activeAITaskId) {
+                    console.warn('[MessageInput] Timed out waiting for AI task to start; hiding stop button');
+                    awaitingAITaskStart = false;
+                    cancelRequestedWhileAwaiting = false;
+                    cancelRequestedChatId = null;
+                }
+                awaitingAITaskTimeoutId = null;
+            }, 15000);
+        } else {
+            awaitingAITaskStart = false;
+            cancelRequestedWhileAwaiting = false;
+            cancelRequestedChatId = null;
+            if (awaitingAITaskTimeoutId) {
+                clearTimeout(awaitingAITaskTimeoutId);
+                awaitingAITaskTimeoutId = null;
+            }
+        }
 
         // If a draft audio UUID was pre-allocated for this new chat, clear the "unsent draft"
         // marker now that the user is sending. The chat UUID is about to become a real chat,
@@ -4204,10 +4300,12 @@
     }
 
     async function handleSignUpClick() {
+        const authEvent = anonymousFileAttachmentPending ? 'openSignupInterface' : unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface';
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
             // Still open the auth interface even if draft can't be saved.
-            window.dispatchEvent(new CustomEvent(unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
+            setPendingAnonymousFileAttachment(false);
+            window.dispatchEvent(new CustomEvent(authEvent));
             return;
         }
 
@@ -4242,6 +4340,7 @@
         originalMarkdown = ''; // Clear markdown tracking
         lastEditorUpdateText = ''; // Reset text-change guard
         hasContent = false; // Update content state
+        setPendingAnonymousFileAttachment(false);
         
         // Manually dispatch textchange event with empty text to clear liveInputText in ActiveChat
         // This ensures follow-up suggestions show properly when user returns from signup flow
@@ -4255,7 +4354,7 @@
         
         console.debug('[MessageInput] Cleared editor content after saving draft for sign-up');
 
-        window.dispatchEvent(new CustomEvent(unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface'));
+        window.dispatchEvent(new CustomEvent(authEvent));
     }
 
     function _handleInsertSpace() {
@@ -4405,7 +4504,21 @@
 
 
     // --- Public API ---
-    export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
+    export function focus() {
+        if (!editor || editor.isDestroyed) return;
+
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        isFocused = true;
+        editor.commands.focus('end');
+    }
+    export function revealDraftActions() {
+        forceDraftActionsVisible = true;
+        focus();
+    }
     export function sendCurrentMessage() { handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
@@ -4514,6 +4627,16 @@
             } else {
                 originalMarkdown = ''; // Clear markdown tracking for chats with no draft
             }
+
+            detectedPII = [];
+            currentPIIDecorations = [];
+            lastPIIText = '';
+            rebuildDecorationSet(editor);
+
+            void tick().then(() => {
+                if (!editor || editor.isDestroyed || editor.getText().trim().length === 0) return;
+                runPIIDetectionImmediate(editor);
+            });
             
             // Only focus if explicitly requested - default is false to prevent unwanted auto-focus
             // Users should manually click on the input field when they want to type
@@ -4538,6 +4661,7 @@
     export async function clearMessageField(shouldFocus: boolean = true, preserveContext: boolean = false) {
         await clearEditorAndResetDraftState(shouldFocus, preserveContext);
         hasContent = false;
+        forceDraftActionsVisible = false;
         originalMarkdown = ''; // Clear markdown tracking
         lastEditorUpdateText = ''; // Reset text-change guard so next update processes fully
         ignoredEmbedUrls = new Set(); // Clear the URL ignore list when the field is fully cleared
@@ -4894,6 +5018,20 @@
         </div>
     {/if}
 
+    {#if showAnonymousTermsReminder}
+        <div class="anonymous-terms-reminder" data-testid="anonymous-terms-reminder" transition:fade={{ duration: 160 }}>
+            {$text('enter_message.anonymous_terms_reminder_prefix')}
+            <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
+                {$text('signup.terms_of_service')}
+            </a>
+            {$text('enter_message.anonymous_terms_reminder_connector')}
+            <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
+                {$text('signup.privacy_policy')}
+            </a>
+            {$text('enter_message.anonymous_terms_reminder_suffix')}
+        </div>
+    {/if}
+
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
@@ -5025,7 +5163,7 @@
         {/if}
 
         <!-- Supported: images, PDFs (authenticated only — server-side OCR pipeline), and code/text files. Extensions mirror isCodeOrTextFile() in utils/fileHelpers.ts. -->
-        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
+        <input bind:this={fileInput} data-testid="message-file-input" type="file" onchange={onFileSelected} style="display: none" multiple accept="image/*,.pdf,application/pdf,.py,.js,.mjs,.cjs,.ts,.html,.css,.json,.jsonl,.svelte,.java,.cpp,.cc,.cxx,.c,.h,.hpp,.hh,.hxx,.rs,.go,.rb,.php,.swift,.kt,.kts,.cs,.scala,.r,.pl,.pm,.lua,.dart,.txt,.md,.mdx,.xml,.yaml,.yml,.toml,.ini,.cfg,.conf,.env,.log,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.sql,.vue,.jsx,.tsx,.scss,.less,.sass,.csv,.tsv,.eml,.docx,.xlsx,Dockerfile,Makefile" />
         <!-- Video capture disabled: video upload not yet supported. Remove video/* when re-enabling. -->
         <input bind:this={cameraInput} type="file" accept="image/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
@@ -5075,9 +5213,11 @@
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasContent}
-                    isAuthenticated={demoVisualAuthenticated}
+                    isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
+                    allowAnonymousTextSend={anonymousTextSendEnabled}
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
+                    forceUnauthenticatedCta={anonymousFileAttachmentPending}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
@@ -5221,6 +5361,25 @@
 
     .edit-banner-cancel:hover {
         background: var(--color-grey-20, rgba(255, 255, 255, 0.1));
+    }
+
+    .anonymous-terms-reminder {
+        margin: 0 8px var(--spacing-2, 6px);
+        padding: var(--spacing-2, 6px) var(--spacing-4, 12px);
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--radius-4, 12px);
+        background: var(--color-grey-0);
+        color: var(--color-font-secondary);
+        font-size: var(--font-size-xs);
+        line-height: 1.35;
+        text-align: center;
+    }
+
+    .anonymous-terms-reminder a {
+        color: inherit;
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 2px;
     }
 
     .edit-banner-close-icon {

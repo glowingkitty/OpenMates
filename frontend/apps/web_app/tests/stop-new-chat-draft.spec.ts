@@ -56,10 +56,9 @@ test('stop during new chat creation restores the sent message as a draft', async
 		await expect(chatHeader).toContainText(/Creating new chat/i, { timeout: 15000 });
 		const stopButton = page.getByTestId('stop-processing-button');
 		await expect(stopButton).toBeVisible({ timeout: 10000 });
-		await takeStepScreenshot(page, 'creating-chat-before-stop');
-
 		await stopButton.click();
 		logCheckpoint('Clicked Stop while the new chat was still being created.');
+		await takeStepScreenshot(page, 'creating-chat-stop-clicked');
 
 		await expect(stopButton).not.toBeVisible({ timeout: 10000 });
 		await expect(messageEditor).toContainText(visibleDraft, { timeout: 15000 });

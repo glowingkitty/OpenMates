@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: View a PDF page"
   en: "View a PDF page"
-  de: "View a PDF page"
+  de: Eine PDF-Seite anzeigen
   zh: "View a PDF page"
   es: "View a PDF page"
   fr: "View a PDF page"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: View a PDF page"
   en: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
-  de: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
+  de: Untersuche eine gerenderte PDF-Seite und bitte OpenMates, die visuelle Struktur zu beschreiben.
   zh: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
   es: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
   fr: "Inspect a rendered PDF page and ask OpenMates to describe the visual structure."
@@ -59,7 +59,7 @@ message_1:
     }
     ```
   de: |
-    Use pdf.view on the uploaded file named sample.pdf. View page 1 and describe the visual layout, including the title and bullet list structure:  --timeout-ms 240000
+    Verwende pdf.view für die hochgeladene Datei namens sample.pdf. Zeige Seite 1 an und beschreibe das visuelle Layout, einschließlich des Titels und der Struktur der Aufzählungsliste:  --timeout-ms 240000
     ```json
     {
       "type": "pdf",
@@ -247,19 +247,19 @@ message_2:
     ```
     
     _
-    The first page of sample.pdf features a clean, professional layout with the following structure:
+    Die erste Seite von sample.pdf weist ein klares, professionelles Layout mit folgender Struktur auf:
     
-    ### **Visual Layout Overview**
-    *   **Title:** The document begins with a prominent, bold heading: **"OpenMates PDF Test Document"**.
-    *   **Subheading:** Immediately below the title is a line indicating the page and section: "Page 1 of 2 — Introduction".
-    *   **Introductory Paragraph:** A brief paragraph explains that the document is intended for testing PDF upload and AI reading features.
-    *   **Bullet List Structure:** 
-        *   The list is introduced by the phrase "Key facts on this page:".
-        *   It consists of **three bullet points**, each marked with a standard black circular bullet (•).
-        *   The bullets highlight the document title, a "secret word" (ALPHA), and the nature of the text on the page.
-    *   **Closing Text:** A final sentence notes that an AI assistant should be able to read the content and identify the secret word.
+    ### **Überblick über das visuelle Layout**
+    *   **Titel:** Das Dokument beginnt mit einer markanten, fettgedruckten Überschrift: **„OpenMates PDF Test Document“**.
+    *   **Unterüberschrift:** Direkt unter dem Titel befindet sich eine Zeile, die Seite und Abschnitt angibt: „Seite 1 von 2 — Einführung“.
+    *   **Einleitender Absatz:** Ein kurzer Absatz erklärt, dass das Dokument zum Testen von PDF-Upload- und KI-Lesefunktionen gedacht ist.
+    *   **Struktur der Aufzählungsliste:** 
+        *   Die Liste wird durch den Satz „Wichtige Fakten auf dieser Seite:“ eingeleitet.
+        *   Sie besteht aus **drei Aufzählungspunkten**, die jeweils mit einem standardmäßigen schwarzen runden Aufzählungspunkt (•) markiert sind.
+        *   Die Aufzählungspunkte heben den Dokumenttitel, ein „Geheimwort“ (ALPHA) und die Art des Textes auf der Seite hervor.
+    *   **Abschlusstext:** Ein abschließender Satz weist darauf hin, dass ein KI-Assistent in der Lage sein sollte, den Inhalt zu lesen und das Geheimwort zu identifizieren.
     
-    Would you like me to [read the text](/#settings/apps/pdf) from page 2 or [search for specific keywords](/#settings/apps/pdf) within the document?
+    Möchtest du, dass ich den [Text von Seite 2 lese](/#settings/apps/pdf) oder nach [bestimmten Schlüsselwörtern](/#settings/apps/pdf) im Dokument suche?
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "54a8d949-0a13-463f-bc6a-958e1f746f79", "app_id": "pdf", "skill_id": "view", "query": "Please describe the visual layout of this page, including the title and the structure of any bulleted lists."}

@@ -552,7 +552,7 @@ credits.heading:
   he: קרדיטים ותשלומים
 credits.description:
   context: Credits system explanation
-  en: OpenMates uses a credit-based payment system. You purchase credit packs which are consumed when using AI services. Credits do not expire and remain in your account until used. Payment processing is handled by Stripe - see our Privacy Policy for details about payment data handling.
+  en: OpenMates uses a credit-based payment system. You purchase credit packs which are consumed when using AI services. Credits do not expire and remain in your account until used. Official-cloud anonymous free usage, when available, is a limited fair-use trial with shared daily/weekly caps and per-identity abuse limits; it is not an account credit balance and may be unavailable when the budget is exhausted. Payment processing is handled by Stripe - see our Privacy Policy for details about payment data handling.
   de: 'OpenMates verwendet ein kreditbasiertes Zahlungssystem. Sie kaufen Kreditpakete, die beim Einsatz von KI-Diensten verbraucht werden. Credits verfallen nicht und bleiben auf Ihrem Konto, bis sie genutzt werden. Die Zahlungsabwicklung erfolgt über Stripe - Details zur Handhabung von Zahlungsdaten finden Sie in unserer Datenschutzerklärung.'
   zh: 'OpenMates 使用基于积分的支付系统。您购买积分包，在使用 AI 服务时消耗积分。积分不会过期，将保留在您的账户中直到使用。支付处理由 Stripe 负责 - 有关支付数据处理的详细信息，请参阅我们的隐私政策。'
   es: 'OpenMates utiliza un sistema de pago basado en créditos. Usted compra paquetes de créditos que se consumen al usar los servicios de IA. Los créditos no caducan y permanecen en su cuenta hasta que se usen. El procesamiento de pagos es gestionado por Stripe - consulte nuestra Política de Privacidad para obtener detalles sobre el manejo de datos de pago.'

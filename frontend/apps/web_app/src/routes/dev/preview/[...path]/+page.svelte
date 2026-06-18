@@ -85,6 +85,9 @@
 	let loadError = $state<string | null>(null);
 	let isLoading = $state(true);
 
+	const PRELOAD_RETRY_ATTEMPTS = 2;
+	const PRELOAD_RETRY_DELAY_MS = 300;
+
 	/** Render error state — caught when component crashes during mount */
 	let renderError = $state<string | null>(null);
 
@@ -270,6 +273,32 @@
 		loadComponent(moduleKey, previewKey);
 	});
 
+	function isTransientPreloadError(err: unknown): boolean {
+		const message = err instanceof Error ? err.message : String(err);
+		return /Unable to preload CSS|Failed to fetch dynamically imported module|Importing a module script failed/i.test(
+			message
+		);
+	}
+
+	function waitForRetry(delayMs: number): Promise<void> {
+		return new Promise((resolve) => setTimeout(resolve, delayMs));
+	}
+
+	async function loadWithPreloadRetry<T>(label: string, loader: () => Promise<T>): Promise<T> {
+		let lastError: unknown;
+		for (let attempt = 0; attempt <= PRELOAD_RETRY_ATTEMPTS; attempt += 1) {
+			try {
+				return await loader();
+			} catch (err) {
+				lastError = err;
+				if (!isTransientPreloadError(err) || attempt === PRELOAD_RETRY_ATTEMPTS) throw err;
+				console.warn(`[Preview] Retrying ${label} after transient preload failure:`, err);
+				await waitForRetry(PRELOAD_RETRY_DELAY_MS * (attempt + 1));
+			}
+		}
+		throw lastError;
+	}
+
 	async function loadComponent(modKey: string, prevKey: string) {
 		isLoading = true;
 		loadError = null;
@@ -290,14 +319,15 @@
 				return;
 			}
 
-			// Load the component module
-			const mod = await componentModules[modKey]();
+			// Load the component module. Deployed preview routes can briefly hold
+			// stale Vite preload metadata immediately after a new build goes live.
+			const mod = await loadWithPreloadRetry(componentPath, componentModules[modKey]);
 			loadedComponent = mod.default;
 
 			// Try to load preview props if a companion .preview.ts exists
 			if (prevKey && previewModules[prevKey]) {
 				try {
-					const preview = await previewModules[prevKey]();
+					const preview = await loadWithPreloadRetry(`${componentPath}.preview`, previewModules[prevKey]);
 					mockProps = preview.default || {};
 					variants = preview.variants || {};
 					hasPreviewFile = true;

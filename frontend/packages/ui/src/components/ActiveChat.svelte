@@ -94,6 +94,7 @@
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
+    import { anonymousChatStorage, type AnonymousSendResult } from '../services/anonymousChatStorage';
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
@@ -115,7 +116,6 @@
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
     import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
     import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 search handler
-    import { pendingMentionStore } from '../stores/pendingMentionStore'; // For inserting @skill mentions from suggestion clicks
     import { dailyInspirationStore, type DailyInspiration } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
     import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
@@ -189,6 +189,7 @@
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
+        revealDraftActions?: () => void;
         sendCurrentMessage: () => void;
         getTextContent: () => string;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
@@ -209,7 +210,7 @@
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
 
     function shouldAutoStartCreatedApplicationPreview(chat: Chat | null): boolean {
-        if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito) return false;
+        if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito || chat.is_anonymous) return false;
         if (isPublicChat(chat.chat_id) || isDemoChat(chat.chat_id) || isExampleChat(chat.chat_id) || isLegalChat(chat.chat_id) || isNewsletterChat(chat.chat_id)) return false;
         return true;
     }
@@ -588,7 +589,12 @@
         isAuthenticated?: boolean;
         fileSize?: number;
         fileType?: string;
-        aiDetection?: { ai_generated: number; provider: string } | null;
+        aiDetection?: {
+          ai_generated: number;
+          provider: string;
+          status?: 'success' | 'failed';
+          error?: string | null;
+        } | null;
     }>({});
 
     // Note: isLoggingOutFromSignup state removed as it was set but never read
@@ -1293,8 +1299,8 @@
     }
     
     /**
-     * Navigate to the focus mode details page in the settings / app store.
-     * Deep link format: app_store/{appId}/focus/{focusModeId}
+     * Navigate to the focus mode details page in Settings / Apps.
+     * Deep link format: apps/{appId}/focus/{focusModeId}
      */
     async function handleFocusModeDetailsNavigation(focusId: string, appId: string) {
         if (!focusId || !appId) return;
@@ -1307,7 +1313,7 @@
             const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
             const { panelState } = await import('../stores/panelStateStore');
             
-            const deepLink = `app_store/${appId}/focus/${focusModeId}`;
+            const deepLink = `apps/${appId}/focus/${focusModeId}`;
             navigateToSettings(deepLink, 'Focus Mode Details', 'focus_mode', '');
             settingsDeepLink.set(deepLink);
             panelState.openSettings();
@@ -1330,8 +1336,8 @@
                 const { navigateToSettings } = await import('../stores/settingsNavigationStore');
                 const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
                 const { panelState } = await import('../stores/panelStateStore');
-                const settingsPath = tip.appId ? `app_store/${tip.appId}` : 'app_store';
-                navigateToSettings(settingsPath, 'App Store', 'app', '');
+                const settingsPath = tip.appId ? `apps/${tip.appId}` : 'apps';
+                navigateToSettings(settingsPath, 'Apps', 'app', '');
                 settingsDeepLink.set(settingsPath);
                 panelState.openSettings();
             } catch (error) {
@@ -2125,41 +2131,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         console.debug('[ActiveChat] Fullscreen opened from PiP restore');
     }
 
-    const SUGGESTION_MENTION_INSERT_DELAY_MS = 0;
     const FOLLOW_UP_SUGGESTION_KEY_SEPARATOR = '\u001f';
 
     // Handler for suggestion click - copies suggestion to message input.
-    // When mentionSyntax is provided (e.g. "@skill:web:search"), we insert the
-    // body text first, then set pendingMentionStore so MessageInput inserts the
-    // @mention chip at the START of the editor. This places the mention before
-    // the body text (e.g. "@Travel-Search Show me flights..."), which avoids
-    // false positives from the PII/sensitive-data detector (an @mention at the
-    // end of text can look like an email address).
-    function handleSuggestionClick(suggestion: string, mentionSyntax?: string) {
-        console.debug('[ActiveChat] Suggestion clicked:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
+    // App skill routing is handled by preprocessing from natural-language text.
+    function handleSuggestionClick(suggestion: string) {
+        console.debug('[ActiveChat] Suggestion clicked:', suggestion);
         if (messageInputFieldRef) {
-            if (mentionSyntax) {
-                // 1. Insert body text first so the editor has content.
-                messageInputFieldRef.setSuggestionText(suggestion);
-                // 2. Set pending mention — the $effect in MessageInput will insert
-                //    the @mention chip at the START of the editor, pushing body text
-                //    to the right. A trailing space is added after the chip.
-                tick().then(() => {
-                    pendingMentionStore.set(mentionSyntax);
-                    tick().then(() => {
-                        messageInputFieldRef?.focus();
-                    });
-                });
-            } else {
-                // No mention — insert plain text as before
-                messageInputFieldRef.setSuggestionText(suggestion);
-                messageInputFieldRef.focus();
-            }
+            messageInputFieldRef.setSuggestionText(suggestion);
+            messageInputFieldRef.focus();
         }
     }
 
-    async function handleFollowUpSuggestionClick(suggestion: string, mentionSyntax?: string) {
-        console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion, mentionSyntax ? `(mention: ${mentionSyntax})` : '');
+    async function handleFollowUpSuggestionClick(suggestion: string) {
+        console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion);
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
 
         if (!$authStore.isAuthenticated && currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
@@ -2170,13 +2155,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (messageInputFieldRef) {
             await messageInputFieldRef.clearMessageField(false);
             messageInputFieldRef.setSuggestionText(suggestion);
-            if (mentionSyntax) {
-                pendingMentionStore.set(mentionSyntax);
-                await tick();
-                await new Promise(resolve => setTimeout(resolve, SUGGESTION_MENTION_INSERT_DELAY_MS));
-            } else {
-                await tick();
-            }
+            await tick();
             messageInputFieldRef.sendCurrentMessage();
         }
     }
@@ -4015,6 +3994,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track whether the map location selector is open in MessageInput.
     // When true, NewChatSuggestions must be hidden (per UX requirement).
     let messageInputMapsOpen = $state(false);
+    let anonymousFileAttachmentPending = $state(false);
+    let showAnonymousUploadSignupPrompt = $derived(anonymousFileAttachmentPending && !$authStore.isAuthenticated);
+
+    async function removeAnonymousUploadSignupPrompt() {
+        messageInputFieldRef?.revealDraftActions?.();
+        anonymousFileAttachmentPending = false;
+        await tick();
+        messageInputFieldRef?.revealDraftActions?.();
+    }
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
     // Initialize to false to prevent MessageInput from appearing expanded on initial load
@@ -5194,7 +5182,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
                 targetMessage.role = 'system';
                 targetMessage.status = 'waiting_for_user';
-            } else if (targetMessage.status !== 'streaming' && !chunk.rejection_reason) {
+            } else if (targetMessage.status !== 'streaming' && targetMessage.status !== 'synced' && !chunk.rejection_reason) {
                 targetMessage.status = 'streaming';
             }
             // Update model_name if we have a new value and current value is missing or undefined
@@ -5537,7 +5525,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
                 // Skip for incognito chats (they're not stored on the server)
                 // This uses a separate event type 'ai_response_completed' to avoid triggering AI processing
-                if (!currentChat?.is_incognito) {
+                if (!currentChat?.is_incognito && !currentChat?.is_anonymous) {
                     try {
                         console.debug('[ActiveChat] Sending completed AI response to server for encrypted Directus storage:', {
                             messageId: updatedFinalMessage.message_id,
@@ -5837,13 +5825,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         currentChat = incognitoChat as Chat;
                         hydratedMessagesForChat = await incognitoChatService.getMessagesForChat(message.chat_id);
                     } else {
-                        const dbChat = await chatDB.getChat(message.chat_id);
-                        if (dbChat) {
-                            currentChat = dbChat as Chat;
-                            hydratedMessagesForChat = await chatDB.getMessagesForChat(message.chat_id);
+                        const anonymousChat = await anonymousChatStorage.getChat(message.chat_id);
+                        if (anonymousChat) {
+                            currentChat = anonymousChat as Chat;
+                            hydratedMessagesForChat = await anonymousChatStorage.getMessagesForChat(message.chat_id);
                         } else {
-                            // Minimal fallback to keep UI consistent; DB should catch up shortly
-                            currentChat = { chat_id: message.chat_id } as Chat;
+                            const dbChat = await chatDB.getChat(message.chat_id);
+                            if (dbChat) {
+                                currentChat = dbChat as Chat;
+                                hydratedMessagesForChat = await chatDB.getMessagesForChat(message.chat_id);
+                            } else {
+                                // Minimal fallback to keep UI consistent; DB should catch up shortly
+                                currentChat = { chat_id: message.chat_id } as Chat;
+                            }
                         }
                     }
                 } catch (err) {
@@ -5888,7 +5882,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             updateNavFromCache(currentChat.chat_id);
 
             const createdChatId = currentChat.chat_id;
-            if (!currentChat.is_incognito) {
+            if (!currentChat.is_incognito && !currentChat.is_anonymous) {
                 void import('../services/chatSyncServiceHandlersAI')
                     .then(({ flushPendingFinalizedEmbedsForChat }) =>
                         flushPendingFinalizedEmbedsForChat(chatSyncService, createdChatId)
@@ -5901,7 +5895,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Notify backend about the active chat, but only if not in signup flow
             // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
             // Non-authenticated users can send set_active_chat for demo chats
-            if (!$authStore.isAuthenticated || !$isInSignupProcess) {
+            if (!currentChat.is_anonymous && (!$authStore.isAuthenticated || !$isInSignupProcess)) {
                 chatSyncService.sendSetActiveChat(currentChat.chat_id);
             } else {
                 console.debug('[ActiveChat] Authenticated user is in signup flow - skipping set_active_chat for new chat to preserve last_opened path');
@@ -6022,6 +6016,52 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // should ideally update the message status in DB, and that change should flow
         // back via messageStatusChanged event if sendNewMessage fails at WebSocket level.
         // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
+    }
+
+    function normalizeAnonymousMessage(message: ChatMessageModel): ChatMessageModel {
+        return {
+            ...message,
+            id: (message as ChatMessageModel & { id?: string }).id ?? message.message_id,
+            original_message: message.original_message ?? message,
+        } as ChatMessageModel;
+    }
+
+    async function handleAnonymousAssistantMessage(event: CustomEvent<{ result: AnonymousSendResult }>) {
+        const { chat, userMessage, assistantMessage } = event.detail.result;
+        currentChat = chat;
+        activeChatStore.setActiveChat(chat.chat_id);
+        activeChatDecryptedTitle = typeof chat.title === 'string' ? chat.title : activeChatDecryptedTitle;
+        activeChatDecryptedCategory = chat.category ?? assistantMessage.category ?? activeChatDecryptedCategory;
+        activeChatDecryptedIcon = chat.icon ? chat.icon.split(',')[0]?.trim() || null : activeChatDecryptedIcon;
+        activeChatDecryptedSummary = null;
+        isNewChatGeneratingTitle = false;
+        isNewChatProcessing = false;
+        processingPhase = null;
+
+        const storedMessages = await anonymousChatStorage.getMessagesForChat(chat.chat_id).catch(error => {
+            console.warn('[ActiveChat] Failed to reload anonymous messages after send:', error);
+            return [];
+        });
+        if (storedMessages.length > 0) {
+            const mergedMessages = [...storedMessages];
+            if (!mergedMessages.some(m => m.message_id === userMessage.message_id)) {
+                mergedMessages.push(userMessage);
+            }
+            if (!mergedMessages.some(m => m.message_id === assistantMessage.message_id)) {
+                mergedMessages.push(assistantMessage);
+            }
+            currentMessages = mergedMessages.map(normalizeAnonymousMessage);
+        } else {
+            const existingWithoutUser = currentMessages.filter(m => m.message_id !== userMessage.message_id);
+            const existingWithoutAssistant = existingWithoutUser.filter(m => m.message_id !== assistantMessage.message_id);
+            currentMessages = [...existingWithoutAssistant, userMessage, assistantMessage].map(normalizeAnonymousMessage);
+        }
+        chatListCache.upsertChat(chat);
+        chatListCache.setLastMessage(chat.chat_id, assistantMessage);
+        updateNavFromCache(chat.chat_id);
+        window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chat.chat_id } }));
+        messageInputFieldRef?.setDraftContent(chat.chat_id, null, chat.draft_v ?? 0, false);
+        chatHistoryRef?.updateMessages(currentMessages);
     }
 
     async function handleNewChatCreationCancelled(event: CustomEvent) {
@@ -7116,7 +7156,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await tick();
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        settingsDeepLink.set('app_store/reminder/create');
+        settingsDeepLink.set('apps/reminder/create');
     }
 
     /**
@@ -7864,6 +7904,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.debug(`[ActiveChat] Error loading incognito chat ${chat.chat_id}, using provided chat object:`, error);
                 freshChat = chat;
             }
+        } else if (chat.is_anonymous) {
+            try {
+                const anonymousChat = await anonymousChatStorage.getChat(chat.chat_id);
+                freshChat = anonymousChat || chat;
+                console.debug(`[ActiveChat] Loading anonymous chat ${chat.chat_id} - using anonymousChatStorage`);
+            } catch (error) {
+                console.debug(`[ActiveChat] Error loading anonymous chat ${chat.chat_id}, using provided chat object:`, error);
+                freshChat = chat;
+            }
         } else if (!$authStore.isAuthenticated) {
             // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
             // (new chat with draft that doesn't exist in database yet)
@@ -7942,8 +7991,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                       activeChatDecryptedSummary = s;
                       console.debug('[ActiveChat] loadChat: Restored chat header for public chat:', t, c, ic);
                   }
-              } else if (chatForHeader.is_incognito) {
-                  // Incognito chats: category and icon are plaintext; title may be blank on new ones
+              } else if (chatForHeader.is_incognito || chatForHeader.is_anonymous) {
+                  // Session-only chats: category and icon are plaintext; title may be blank on new ones
                   const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
                   const c = chatForHeader.category || null;
                   const rawIcon = chatForHeader.icon || null;
@@ -7953,9 +8002,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                       activeChatDecryptedTitle = t;
                       activeChatDecryptedCategory = c;
                       activeChatDecryptedIcon = ic;
-                      // Incognito chats do not persist a summary
+                      // Session-only chats do not persist a summary
                       activeChatDecryptedSummary = null;
-                      console.debug('[ActiveChat] loadChat: Restored chat header for incognito chat:', t, c, ic);
+                      console.debug('[ActiveChat] loadChat: Restored chat header for session-only chat:', t, c, ic);
                   }
               } else {
                   // Regular encrypted chats: decrypt encrypted fields.
@@ -8109,6 +8158,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from incognitoChatService for ${currentChat.chat_id}`);
                 } catch (error) {
                     console.error(`[ActiveChat] Error loading incognito chat messages for ${currentChat.chat_id}:`, error);
+                    newMessages = [];
+                }
+            } else if (currentChat.is_anonymous) {
+                try {
+                    newMessages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
+                    console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from anonymousChatStorage for ${currentChat.chat_id}`);
+                } catch (error) {
+                    console.error(`[ActiveChat] Error loading anonymous chat messages for ${currentChat.chat_id}:`, error);
                     newMessages = [];
                 }
             } else if (!$authStore.isAuthenticated) {
@@ -8558,6 +8615,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // Without this, the draft service might still use the previous chat's ID, causing drafts to overwrite each other
                     setTimeout(() => {
                         if (!messageInputFieldRef) return;
+                        if (messageInputFieldRef.getTextContent().trim().length > 0) {
+                            console.debug(`[ActiveChat] Skipping no-draft clear for ${currentChat.chat_id}; composer has live input`);
+                            return;
+                        }
                         // Set the draft context to the new demo chat ID, even though there's no draft content
                         // This ensures the draft service knows which chat ID to use when saving drafts
                         messageInputFieldRef.setDraftContent(currentChat.chat_id, null, 0, false);
@@ -8689,6 +8750,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 } else {
                     console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
+                    if (messageInputFieldRef.getTextContent().trim().length > 0) {
+                        console.debug(`[ActiveChat] Skipping no-draft clear for ${currentChat.chat_id}; composer has live input`);
+                        return;
+                    }
                     // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
                     await messageInputFieldRef.clearMessageField(false, true);
                 }
@@ -11378,8 +11443,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               is focused — at which point the welcome content is also hidden
                               (hideWelcomeForKeyboard), giving the suggestions room to breathe.
                               Legacy fallback: also hide on very short screens (≤670px viewport). -->
-                         {#if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
-                              <NewChatSuggestions
+                         {#if showAnonymousUploadSignupPrompt}
+                              <div class="anonymous-upload-signup-banner" data-testid="anonymous-upload-signup-banner" transition:fade={{ duration: 200 }}>
+                                  <div class="anonymous-upload-signup-copy">
+                                      <span class="anonymous-upload-signup-title">{$text('enter_message.attachments.signup_required_title')}</span>
+                                      <span class="anonymous-upload-signup-body">{$text('enter_message.attachments.signup_required_body')}</span>
+                                  </div>
+                                  <button
+                                      class="anonymous-upload-signup-remove"
+                                      type="button"
+                                      data-testid="anonymous-upload-signup-remove"
+                                      onclick={removeAnonymousUploadSignupPrompt}
+                                  >
+                                      {$text('enter_message.attachments.remove_pending_file')}
+                                  </button>
+                              </div>
+                         {:else if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
+                               <NewChatSuggestions
                                   messageInputContent={activeSuggestionSearchText}
                                   onSuggestionClick={handleSuggestionClick}
                                   onChatNavigate={handleChatNavigate}
@@ -11429,7 +11509,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Chat search suggestions — shown when typing in an open chat's message input.
                              Searches existing chats and shows matching results as horizontal cards.
                              Hidden entirely when no results found (unlike NewChatSuggestions which shows defaults). -->
-                        {#if !showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused}
+                        {#if !showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && !showAnonymousUploadSignupPrompt}
                             <ChatSearchSuggestions
                                 messageInputContent={activeSuggestionSearchText}
                                 onChatNavigate={handleChatNavigate}
@@ -11486,7 +11566,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
                                     onFocusPillDeepLink={() => {
                                         if (activeFocusAppId && activeFocusModeKey) {
-                                            settingsDeepLink.set(`app_store/${activeFocusAppId}/focus/${activeFocusModeKey}`);
+                                            settingsDeepLink.set(`apps/${activeFocusAppId}/focus/${activeFocusModeKey}`);
                                             panelState.openSettings();
                                         }
                                     }}
@@ -11505,6 +11585,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:pdffullscreen={handlePdfFullscreen}
                                     on:recordingfullscreen={handleRecordingFullscreen}
                                     on:sendMessage={handleSendMessage}
+                                    on:anonymousAssistantMessage={handleAnonymousAssistantMessage}
                                     on:newChatCreationCancelled={handleNewChatCreationCancelled}
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
@@ -11520,6 +11601,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     bind:hasContent={messageInputHasContent}
                                     bind:isFocused={messageInputFocused}
                                     bind:isMapsOpen={messageInputMapsOpen}
+                                    bind:anonymousFileAttachmentPending
                                     {containerRect}
                                 />
                             </div>
@@ -13281,6 +13363,65 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         color: var(--color-grey-70);
         line-height: 1.4;
         flex: 1;
+    }
+
+    .anonymous-upload-signup-banner {
+        width: 100%;
+        max-width: 629px;
+        min-height: 48px;
+        box-sizing: border-box;
+        background-color: var(--color-grey-15);
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--radius-6);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--spacing-5);
+        padding: var(--spacing-5) var(--spacing-6);
+        margin-bottom: var(--spacing-5);
+    }
+
+    .anonymous-upload-signup-copy {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-1);
+        min-width: 0;
+    }
+
+    .anonymous-upload-signup-title {
+        color: var(--color-font-primary);
+        font-size: var(--font-size-small);
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .anonymous-upload-signup-body {
+        color: var(--color-grey-70);
+        font-size: var(--font-size-xs);
+        line-height: 1.35;
+    }
+
+    .anonymous-upload-signup-remove {
+        flex: 0 0 auto;
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--radius-full);
+        background: var(--color-grey-0);
+        color: var(--color-font-primary);
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        padding: var(--spacing-3) var(--spacing-5);
+        cursor: pointer;
+    }
+
+    .anonymous-upload-signup-remove:hover {
+        background: var(--color-grey-10);
+    }
+
+    @media (max-width: 560px) {
+        .anonymous-upload-signup-banner {
+            align-items: flex-start;
+            flex-direction: column;
+        }
     }
 
     .chat-wrapper {

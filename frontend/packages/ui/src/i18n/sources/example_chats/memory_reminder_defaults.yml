@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Reminder Defaults"
   en: "Memory Reminder Defaults"
-  de: "Memory Reminder Defaults"
+  de: "Memory: Standard-Erinnerungen"
   zh: "Memory Reminder Defaults"
   es: "Memory Reminder Defaults"
   fr: "Memory Reminder Defaults"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Reminder Defaults"
   en: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
-  de: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
+  de: OpenMates nutzt den gespeicherten Memory-Eintrag „saved_item_reminder_defaults“ für Erinnerungen in einem echten Chat.
   zh: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
   es: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
   fr: "OpenMates uses saved reminder saved_item_reminder_defaults memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Reminder Defaults. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen gespeicherten Memory-Eintrag für Standard-Erinnerungen, um zu erklären, wann ich für ein gespeichertes Ereignis in der nächsten Woche benachrichtigt werden sollte. Du darfst diesen gespeicherten Memory-Eintrag anfordern und verwenden. Suche nach der Verwendung des Memory-Eintrags nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved reminder defaults memory to explain when I should be nudged for a saved event next week. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -85,14 +85,14 @@ message_2:
     ---
     *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
   de: |
-    Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
-
-    For any event you have saved for next week, you will be nudged at the following times:
-
-    1.  **24 hours before the event:** The 1440-minute offset ensures you receive a reminder exactly one day in advance.
-    2.  **1 hour before the event:** The 60-minute offset provides a final nudge shortly before the event begins.
+    Basierend auf deinen gespeicherten Einstellungen für `saved_item_reminder_defaults` hast du zwei spezifische Benachrichtigungen für deine Ereignisse konfiguriert. Deine Einstellungen verwenden Offsets von **1440** und **60** Minuten.
+    
+    Für jedes Ereignis, das du für nächste Woche gespeichert hast, wirst du zu folgenden Zeiten benachrichtigt:
+    
+    1.  **24 Stunden vor dem Ereignis:** Der Offset von 1440 Minuten stellt sicher, dass du genau einen Tag im Voraus eine Erinnerung erhältst.
+    2.  **1 Stunde vor dem Ereignis:** Der Offset von 60 Minuten bietet eine letzte Benachrichtigung kurz vor Beginn des Ereignisses.
     ---
-    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+    *⚠️ Dies dient ausschließlich zu Informationszwecken und stellt keine professionelle psychologische Beratung dar. Bei psychischen Problemen wende dich bitte an einen qualifizierten Therapeuten oder Berater. Wenn du dich in einer Krise befindest, kontaktiere bitte umgehend den Notruf oder eine Krisen-Hotline.*
   zh: |
     Based on your saved settings for `saved_item_reminder_defaults`, you have configured two specific nudges for your events. Your settings use offsets of **1440** and **60** minutes.
 

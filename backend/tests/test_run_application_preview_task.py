@@ -12,7 +12,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from toon_format import encode as toon_encode
 
 from backend.core.api.app.routes.application_preview import (
     ApplicationPreviewStartRequest,
@@ -243,7 +242,7 @@ async def test_run_application_preview_session_stores_encrypted_screenshot_metad
 
 
 @pytest.mark.anyio
-async def test_store_application_preview_thumbnail_encrypts_s3_and_updates_application_embed(monkeypatch) -> None:
+async def test_store_application_preview_thumbnail_does_not_vault_encrypt_application_embed(monkeypatch) -> None:
     worker = _load_worker_module()
     cache = FakeCache()
     await create_application_preview_session(
@@ -256,7 +255,7 @@ async def test_store_application_preview_thumbnail_encrypts_s3_and_updates_appli
         now=2_000.0,
         preview_token="token-abc",
     )
-    application_content = toon_encode({"type": "application", "name": "Recipe App"})
+    application_content = "type: application\nname: Recipe App"
     await cache.redis.set("embed:app-embed-1", json.dumps({"encrypted_content": application_content}))
     cache.redis.values.pop("embed:app-embed-1")
     uploads: list[dict] = []
@@ -359,10 +358,9 @@ async def test_store_application_preview_thumbnail_encrypts_s3_and_updates_appli
     assert b"OpenMates" not in uploads[0]["content"]
     assert indexed and indexed[0]["embed_id"] == "app-embed-1"
     assert cached_s3_keys and cached_s3_keys[0]["embed_id"] == "app-embed-1"
-    assert updated_embeds and updated_embeds[0]["embed_id"] == "app-embed-1"
+    assert updated_embeds == []
 
-    cached_embed = json.loads((await cache.redis.get("embed:app-embed-1")).decode("utf-8"))
-    assert cached_embed["encrypted_content"].startswith("vault:")
+    assert await cache.redis.get("embed:app-embed-1") is None
 
 
 @pytest.mark.anyio

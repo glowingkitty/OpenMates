@@ -103,7 +103,10 @@ extension ChatViewModel {
                     updatedAt: ISO8601DateFormatter().string(from: Date()),
                     appId: messages[index].appId,
                     isStreaming: messages[index].isStreaming,
-                    embedRefs: messages[index].embedRefs
+                    embedRefs: messages[index].embedRefs,
+                    modelName: messages[index].modelName,
+                    piiMappings: messages[index].piiMappings,
+                    encryptedPIIMappings: messages[index].encryptedPIIMappings
                 )
             }
         } catch {

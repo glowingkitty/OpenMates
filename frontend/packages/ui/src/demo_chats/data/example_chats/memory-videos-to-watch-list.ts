@@ -23,6 +23,18 @@ export const memoryVideosToWatchListChat: ExampleChat = {
         "created_at": 1781280606
     },
     {
+        "id": "9df4f00f-8468-482f-886c-4c323fdc7ef8-memory-response",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"9df4f00f-8468-482f-886c-4c323fdc7ef8\",\"action\":\"included\",\"categories\":[{\"appId\":\"videos\",\"itemType\":\"to_watch_list\",\"entryCount\":2}]}",
+        "created_at": 1781280607
+    },
+    {
+        "id": "9df4f00f-8468-482f-886c-4c323fdc7ef8-memory-request",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"9df4f00f-8468-482f-886c-4c323fdc7ef8\",\"request_id\":\"9df4f00f-8468-482f-886c-4c323fdc7ef8-memory-request\",\"requested_keys\":[\"videos-to_watch_list\"],\"categories\":[{\"appId\":\"videos\",\"itemType\":\"to_watch_list\",\"entryCount\":0}]}",
+        "created_at": 1781280607
+    },
+    {
         "id": "16c2890e-358f-419f-a607-98d8ecb447b2",
         "role": "assistant",
         "content": "example_chats.memory_videos_to_watch_list.message_2",

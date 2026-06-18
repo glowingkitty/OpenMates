@@ -18,6 +18,7 @@
         highlightedParts = [],
         disabled = false,
         ariaLabel = '',
+        dataTestid = '',
         onChange = undefined,
     }: {
         checked?: boolean;
@@ -25,6 +26,7 @@
         highlightedParts?: string[];
         disabled?: boolean;
         ariaLabel?: string;
+        dataTestid?: string;
         onChange?: ((checked: boolean) => void) | undefined;
     } = $props();
 
@@ -91,7 +93,7 @@
         <Toggle
             {checked}
             {disabled}
-            ariaLabel={ariaLabel || 'Consent toggle'}
+            presentationOnly={true}
         />
     </div>
     <div class="consent-text">
@@ -112,7 +114,9 @@
     onkeydown={handleKeydown}
     role="checkbox"
     aria-checked={checked}
+    aria-disabled="true"
     aria-label={ariaLabel || consentText}
+    data-testid={dataTestid || undefined}
     tabindex="-1"
 >
     {@render toggleContent()}
@@ -124,7 +128,9 @@
     onkeydown={handleKeydown}
     role="checkbox"
     aria-checked={checked}
+    aria-disabled="false"
     aria-label={ariaLabel || consentText}
+    data-testid={dataTestid || undefined}
     tabindex="0"
 >
     {@render toggleContent()}

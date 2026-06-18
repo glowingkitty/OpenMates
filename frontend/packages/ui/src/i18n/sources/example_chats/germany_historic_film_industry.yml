@@ -1214,7 +1214,7 @@ assistant_message_1:
 follow_up_1:
   context: Follow-up suggestion 1 for the German cinema history example chat
   en: "[ai] Explain why German cinema declined in the 1930s"
-  de: "[ai] Explain why German cinema declined in the 1930s"
+  de: "[ai] Erkläre, warum der deutsche Film in den 1930er Jahren an Bedeutung verlor"
   zh: "[ai] Explain why German cinema declined in the 1930s"
   es: "[ai] Explain why German cinema declined in the 1930s"
   fr: "[ai] Explain why German cinema declined in the 1930s"
@@ -1239,7 +1239,7 @@ follow_up_1:
 follow_up_2:
   context: Follow-up suggestion 2 for the German cinema history example chat
   en: "[videos-search] Find documentaries about the golden age of German cinema"
-  de: "[videos-search] Find documentaries about the golden age of German cinema"
+  de: "[videos-search] Finde Dokumentationen über das goldene Zeitalter des deutschen Kinos"
   zh: "[videos-search] Find documentaries about the golden age of German cinema"
   es: "[videos-search] Find documentaries about the golden age of German cinema"
   fr: "[videos-search] Find documentaries about the golden age of German cinema"
@@ -1264,7 +1264,7 @@ follow_up_2:
 follow_up_3:
   context: Follow-up suggestion 3 for the German cinema history example chat
   en: "[images-search] Show me more posters from German Expressionist films"
-  de: "[images-search] Show me more posters from German Expressionist films"
+  de: "[images-search] Zeig mir mehr Poster von Filmen des deutschen Expressionismus"
   zh: "[images-search] Show me more posters from German Expressionist films"
   es: "[images-search] Show me more posters from German Expressionist films"
   fr: "[images-search] Show me more posters from German Expressionist films"
@@ -1289,7 +1289,7 @@ follow_up_3:
 follow_up_4:
   context: Follow-up suggestion 4 for the German cinema history example chat
   en: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
-  de: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
+  de: "[web-search] Vergleiche die technischen Innovationen des Babelsberg-Studios mit Hollywood in den 1920er Jahren"
   zh: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
   es: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
   fr: "[web-search] Compare the technical innovations of Babelsberg Studio to Hollywood in the 1920s"
@@ -1314,7 +1314,7 @@ follow_up_4:
 follow_up_5:
   context: Follow-up suggestion 5 for the German cinema history example chat
   en: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
-  de: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
+  de: "[ai] Liste berühmte Regisseure auf, die in den 1930er Jahren von Deutschland nach Hollywood gezogen sind"
   zh: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
   es: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
   fr: "[ai] List famous directors who moved from Germany to Hollywood in the 1930s"
@@ -1339,7 +1339,7 @@ follow_up_5:
 follow_up_6:
   context: Follow-up suggestion 6 for the German cinema history example chat
   en: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
-  de: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
+  de: "[reminder-set-reminder] Erinnere mich daran, dieses Wochenende Metropolis zu schauen"
   zh: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
   es: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"
   fr: "[reminder-set-reminder] Remind me to watch Metropolis this weekend"

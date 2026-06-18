@@ -42,7 +42,7 @@ def extract_available_skills(
     Extract a compact list of all production-stage skills from discovered apps.
 
     These are injected into the postprocessor system prompt so the LLM can
-    generate structured suggestions with valid [app_id-skill_id] prefixes.
+    generate natural-language suggestions that should auto-route to app skills.
 
     Args:
         discovered_apps: Dictionary of discovered app metadata (app_id -> AppYAML)
@@ -75,143 +75,92 @@ def extract_available_skills(
     return skills
 
 
-def extract_available_focus_modes(
-    discovered_apps: Dict[str, AppYAML],
-) -> List[Dict[str, str]]:
-    """
-    Extract a compact list of all production-stage focus modes from discovered apps.
-
-    These are injected into the postprocessor system prompt so the LLM can
-    generate structured suggestions with valid [app_id-focus_id] prefixes.
-
-    Args:
-        discovered_apps: Dictionary of discovered app metadata (app_id -> AppYAML)
-
-    Returns:
-        List of focus mode dicts: [{"id": "jobs-career_insights", "hint": "..."}, ...]
-    """
-    focus_modes = []
-
-    for app_id, app_metadata in discovered_apps.items():
-        if not app_metadata.focuses:
-            continue
-
-        for focus in app_metadata.focuses:
-            if getattr(focus, "stage", None) != "production":
-                continue
-
-            focus_id = f"{app_id}-{focus.id}"
-            hint = getattr(focus, "preprocessor_hint", None) or ""
-            if len(hint) > 150:
-                hint = hint[:147] + "..."
-
-            focus_modes.append({"id": focus_id, "hint": hint})
-
-    logger.debug(f"[PostProcessor] Extracted {len(focus_modes)} production-stage focus modes")
-    return focus_modes
+MIN_SUGGESTION_WORDS = 4
+SUGGESTION_PREFIX_REJECT_RE = r"^\s*\[[^\]]+\]\s*"
+CJK_SUGGESTION_MIN_CHARS = 8
+CJK_CHAR_RE = r"[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]"
 
 
-def sanitize_suggestions(
+def has_enough_suggestion_text(body: str) -> bool:
+    """Accept space-delimited suggestions or CJK text without word boundaries."""
+    import re
+
+    if len(body.split()) >= MIN_SUGGESTION_WORDS:
+        return True
+    return len(re.findall(CJK_CHAR_RE, body)) >= CJK_SUGGESTION_MIN_CHARS
+
+
+def sanitize_plain_suggestions(
     suggestions: List[str],
-    valid_skill_ids: set,
-    valid_focus_ids: set,
-    valid_memory_ids: set,
-    allow_memory_prefixes: bool,
     task_id: str,
-    valid_app_ids: Optional[set] = None,
+    label: str,
 ) -> List[str]:
     """
-    Post-LLM sanitizer: validate and clean suggestions that may carry [app_id-X] or [app_id] prefixes.
+    Validate natural-language suggestions and reject any hidden routing syntax.
 
-    Rules:
-    - If a suggestion starts with [prefix], check that prefix is in the valid set.
-    - App-only prefixes like [ai], [code] are valid if they match a known app ID.
-    - Invalid prefixes are stripped (the body text is kept, prefixed with [ai] fallback).
-    - Memory prefixes are only allowed in follow-up suggestions (allow_memory_prefixes=True).
-    - Suggestions without any prefix get [ai] prepended as fallback.
-    - Suggestions that are empty after stripping are dropped.
-
-    Args:
-        suggestions: Raw suggestion strings from the LLM
-        valid_skill_ids: Set of valid "app_id-skill_id" strings
-        valid_focus_ids: Set of valid "app_id-focus_id" strings
-        valid_memory_ids: Set of valid "app_id-memory_id" strings (dot-notation converted)
-        allow_memory_prefixes: Whether memory prefixes are allowed in this suggestion list
-        task_id: Task ID for logging
-        valid_app_ids: Set of valid app IDs for app-only prefixes (e.g. {"ai", "web", "code"})
-
-    Returns:
-        Cleaned list of suggestion strings (same count or fewer if some were blank after strip)
+    Suggestions must be exactly the text the user would send. App skill routing is
+    handled later by preprocessing, so bracket prefixes and @skill mentions are
+    treated as invalid output rather than stripped into hidden metadata.
     """
     import re
 
-    # All valid compound prefixes (app_id-skill_id / app_id-focus_id)
-    all_valid_compound = valid_skill_ids | valid_focus_ids
-    if allow_memory_prefixes:
-        all_valid_compound = all_valid_compound | valid_memory_ids
-
-    # Valid app-only prefixes (e.g. "ai", "code", "web")
-    app_only_valid = valid_app_ids or set()
-
-    PREFIX_RE = re.compile(r"^\[([^\]]+)\]\s*")
-
-    # Minimum word count for suggestion body text (after stripping the prefix).
-    # Suggestions with fewer words are too vague (e.g. "Quantum computing") and
-    # should be dropped in favor of action-oriented phrases ("Explain quantum computing basics").
-    MIN_BODY_WORDS = 4
-
     cleaned = []
+    seen = set()
     for raw in suggestions:
         if not isinstance(raw, str) or not raw.strip():
             continue
 
-        m = PREFIX_RE.match(raw)
-        if m:
-            prefix = m.group(1).strip()
-            body = raw[m.end():].strip()
-
-            # Drop suggestions whose body text is too short (fewer than MIN_BODY_WORDS words)
-            if len(body.split()) < MIN_BODY_WORDS:
-                logger.debug(
-                    f"[Task ID: {task_id}] [PostProcessor] Dropped suggestion with "
-                    f"<{MIN_BODY_WORDS} words in body: '[{prefix}] {body}'"
-                )
-                continue
-
-            if prefix in all_valid_compound or prefix in app_only_valid:
-                # Valid prefix — keep as-is
-                cleaned.append(raw.strip())
-            else:
-                # Invalid/hallucinated prefix — replace with [ai] fallback, keep body text
-                logger.warning(
-                    f"[Task ID: {task_id}] [PostProcessor] Replaced unknown prefix "
-                    f"'[{prefix}]' with [ai] fallback. Body: '{body[:60]}'"
-                )
-                cleaned.append(f"[ai] {body}")
-        else:
-            # No prefix — prepend [ai] as fallback (every suggestion must have a prefix)
-            body = raw.strip()
-            if body and len(body.split()) >= MIN_BODY_WORDS:
-                logger.debug(
-                    f"[Task ID: {task_id}] [PostProcessor] Added [ai] prefix to unprefixed suggestion: '{body[:60]}'"
-                )
-                cleaned.append(f"[ai] {body}")
-            elif body:
-                logger.debug(
-                    f"[Task ID: {task_id}] [PostProcessor] Dropped unprefixed suggestion with "
-                    f"<{MIN_BODY_WORDS} words: '{body}'"
-                )
+        body = " ".join(raw.strip().split())
+        if re.match(SUGGESTION_PREFIX_REJECT_RE, body):
+            logger.warning(
+                f"[Task ID: {task_id}] [PostProcessor] Dropped {label} suggestion with bracket prefix: "
+                f"'{body[:80]}'"
+            )
+            continue
+        if "@skill:" in body:
+            logger.warning(
+                f"[Task ID: {task_id}] [PostProcessor] Dropped {label} suggestion with @skill mention: "
+                f"'{body[:80]}'"
+            )
+            continue
+        if not has_enough_suggestion_text(body):
+            logger.debug(
+                f"[Task ID: {task_id}] [PostProcessor] Dropped {label} suggestion with "
+                f"insufficient text length: '{body[:80]}'"
+            )
+            continue
+        dedupe_key = body.casefold()
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        cleaned.append(body)
 
     return cleaned
 
 
+def combine_suggestion_halves(
+    app_skill_suggestions: List[str],
+    general_suggestions: List[str],
+    task_id: str,
+    label: str,
+    per_half: int = 3,
+) -> List[str]:
+    """Return a strict 50/50 suggestion list with app-skill prompts first in each pair."""
 
+    app_skill = sanitize_plain_suggestions(app_skill_suggestions, task_id, f"{label} app-skill")[:per_half]
+    general = sanitize_plain_suggestions(general_suggestions, task_id, f"{label} general")[:per_half]
 
+    if len(app_skill) < per_half or len(general) < per_half:
+        logger.warning(
+            f"[Task ID: {task_id}] [PostProcessor] Only {len(app_skill)}/{per_half} app-skill "
+            f"and {len(general)}/{per_half} general {label} suggestions survived sanitization."
+        )
 
-
-
-
-
+    combined = []
+    for index in range(min(len(app_skill), len(general))):
+        combined.append(app_skill[index])
+        combined.append(general[index])
+    return combined
 
 
 class PostProcessingResult(BaseModel):
@@ -250,7 +199,6 @@ async def handle_postprocessing(
     available_app_ids: List[str],
 
     available_skills: Optional[List[Dict[str, str]]] = None,
-    available_focus_modes: Optional[List[Dict[str, str]]] = None,
     is_incognito: bool = False,
     is_sub_chat: bool = False,
     output_language: str = "en",
@@ -278,10 +226,8 @@ async def handle_postprocessing(
         cache_service: Cache service instance
         available_app_ids: List of available app IDs in the system (required for validation)
 
-        available_skills: Optional list of production skills for suggestion prefix generation.
+        available_skills: Optional list of production skills for natural-language app-skill suggestions.
             Format: [{"id": "web-search", "hint": "..."}, ...] (app_id-skill_id)
-        available_focus_modes: Optional list of production focus modes for suggestion prefix generation.
-            Format: [{"id": "jobs-career_insights", "hint": "..."}, ...] (app_id-focus_id)
         output_language: ISO 639-1 code of the chat/conversation language (detected by preprocessor).
             Used for generating follow-up suggestions in the same language as the conversation.
         user_system_language: ISO 639-1 code of the user's UI/system language (from user profile).
@@ -315,8 +261,12 @@ async def handle_postprocessing(
     tool_properties = tool_parameters.get("properties", {})
     tool_required = tool_parameters.get("required", [])
     if not follow_up_suggestions_enabled or is_sub_chat:
-        tool_properties.pop("follow_up_request_suggestions", None)
-        tool_required = [field for field in tool_required if field != "follow_up_request_suggestions"]
+        for field in ("follow_up_app_skill_suggestions", "follow_up_general_suggestions"):
+            tool_properties.pop(field, None)
+        tool_required = [
+            field for field in tool_required
+            if field not in {"follow_up_app_skill_suggestions", "follow_up_general_suggestions"}
+        ]
         logger.info(f"[Task ID: {task_id}] [PostProcessor] Follow-up suggestions disabled (is_sub_chat={is_sub_chat})")
     if not quick_tips_enabled or is_sub_chat:
         tool_properties.pop("quick_tip_slug", None)
@@ -346,7 +296,8 @@ async def handle_postprocessing(
     
 
 
-    # Build skill/focus context so the LLM can generate [app_id-skill_id] prefixed suggestions.
+    # Build skill context so the LLM can write natural-language suggestions that
+    # the normal preprocessing router should auto-detect as app skill requests.
     # We keep this compact — just ID + one-line hint per item.
     if available_skills:
         skills_lines = "\n".join(
@@ -354,36 +305,13 @@ async def handle_postprocessing(
             for s in available_skills
         )
         skills_context = (
-            f"\n\nAvailable skill IDs for suggestion prefixes (format: [app_id-skill_id]):\n"
+            f"\n\nAvailable app skills for natural-language app-skill suggestions:\n"
             f"{skills_lines}\n"
-            "Use these IDs as [app_id-skill_id] prefix in suggestions when the skill is clearly relevant."
+            "Use these descriptions to write plain user requests that would naturally trigger the right skill. "
+            "Do not include skill IDs, app IDs, bracket prefixes, @skill mentions, or labels in the suggestion text."
         )
     else:
         skills_context = ""
-
-    if available_focus_modes:
-        focus_lines = "\n".join(
-            f"- {f['id']}: {f['hint']}" if f.get("hint") else f"- {f['id']}"
-            for f in available_focus_modes
-        )
-        focus_context = (
-            f"\n\nAvailable focus mode IDs for suggestion prefixes (format: [app_id-focus_id]):\n"
-            f"{focus_lines}\n"
-            "Use these IDs as [app_id-focus_id] prefix in suggestions when activating a focus mode is relevant."
-        )
-    else:
-        focus_context = ""
-
-    # App-only prefix context: when no specific skill/focus fits, use [app_id] as prefix.
-    # Fallback to [ai] for general knowledge questions that don't map to any specific app.
-    app_prefix_context = (
-        "\n\nIMPORTANT — Every suggestion MUST have a prefix:\n"
-        "- Use [app_id-skill_id] when a specific skill is relevant\n"
-        "- Use [app_id-focus_id] when a focus mode is relevant\n"
-        "- Use [app_id] (app only) when the app is relevant but no specific skill/focus fits\n"
-        "- Use [ai] as fallback for general knowledge questions\n"
-        "Do NOT generate suggestions without a prefix."
-    )
 
     quick_tip_context = build_quick_tip_context(available_app_ids) if quick_tips_enabled else ""
 
@@ -411,9 +339,9 @@ async def handle_postprocessing(
     # so the welcome screen has a consistent language, regardless of individual chat languages.
     language_lines = ["\n\nLanguage instructions:"]
     if follow_up_suggestions_enabled:
-        language_lines.append(f"- **follow_up_request_suggestions**: Generate in '{output_language}' (the conversation language).")
+        language_lines.append(f"- **follow_up_app_skill_suggestions** and **follow_up_general_suggestions**: Generate in '{output_language}' (the conversation language).")
     language_lines.extend([
-        f"- **new_chat_request_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).",
+        f"- **new_chat_app_skill_suggestions** and **new_chat_general_suggestions**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **chat_summary**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **share_cta_text**: Generate in '{user_system_language}' (the user's system/UI language).",
         f"- **updated_chat_title**: Generate in '{user_system_language}' (the user's system/UI language), if needed.",
@@ -426,15 +354,19 @@ async def handle_postprocessing(
         "The full conversation history is provided below. "
         f"{'Generate contextual follow-up suggestions that encourage deeper engagement and exploration. ' if follow_up_suggestions_enabled else ''}"
         "Generate new chat suggestions that are related but explore new angles.\n\n"
-        "CRITICAL — Action-verb style: Every suggestion body (the text after the [prefix]) MUST start with "
+        "CRITICAL — Natural-language suggestions only: Suggestions must be exactly the text the user would send. "
+        "Never include bracket prefixes like [web-search], app IDs, skill IDs, @skill mentions, labels, metadata, or explanatory notes.\n\n"
+        "CRITICAL — 50/50 app-skill split: For each suggestion surface, generate exactly half app-skill suggestions "
+        "and half general conversational suggestions. App-skill suggestions must be natural requests that the normal "
+        "router should auto-detect from wording alone. General suggestions should continue the conversation without requiring a specialized app skill.\n\n"
+        "CRITICAL — Action-verb style: Every suggestion MUST start with "
         "a strong action verb (Search, Compare, Explain, Write, Find, Create, Show, List, Teach, Help, "
         "Analyze, Summarize, Plan, Design, Build, Describe, Calculate, etc.). "
         "NEVER produce noun-only or adjective-only suggestions (e.g. 'Quantum physics' or 'Latest AI news'). "
         "Every suggestion body must be at least 4 words long.\n\n"
         f"Conversation tags: {chat_tags_str}"
         f"{available_apps_context}"
-        f"{skills_context}{focus_context}{memory_prefix_context}"
-        f"{app_prefix_context}"
+        f"{skills_context}{memory_prefix_context}"
         f"{quick_tip_context}"
         f"{title_context}"
         f"{language_instruction}"
@@ -536,40 +468,27 @@ async def handle_postprocessing(
             else:
                 logger.warning(f"[Task ID: {task_id}] [PostProcessor] Invalid app ID '{app_id}' filtered out (not in available apps)")
     
-    # Build valid prefix sets for the suggestion sanitizer.
-    # Skills and focus modes use dash notation (app_id-skill_id / app_id-focus_id).
-    # Memory prefixes are no longer used in suggestions (handled by Phase 2 memory generation).
-    valid_skill_ids: set = {s["id"] for s in (available_skills or [])}
-    valid_focus_ids: set = {f["id"] for f in (available_focus_modes or [])}
-    # Note: valid_memory_ids no longer needed — memory prefixes removed from suggestions.
-
-    # Sanitize follow-up suggestions: allow skill + focus + app-only prefixes (no memory —
-    # memory suggestions are handled by the automated Phase 2 memory generation step)
     if follow_up_suggestions_enabled:
-        raw_follow_up = llm_result.arguments.get("follow_up_request_suggestions", [])
-        sanitized_follow_up = sanitize_suggestions(
-            suggestions=raw_follow_up,
-            valid_skill_ids=valid_skill_ids,
-            valid_focus_ids=valid_focus_ids,
-            valid_memory_ids=set(),  # Memory prefixes removed — handled by Phase 2
-            allow_memory_prefixes=False,
+        raw_follow_up_app_skill = llm_result.arguments.get("follow_up_app_skill_suggestions", [])
+        raw_follow_up_general = llm_result.arguments.get("follow_up_general_suggestions", [])
+        sanitized_follow_up = combine_suggestion_halves(
+            app_skill_suggestions=raw_follow_up_app_skill,
+            general_suggestions=raw_follow_up_general,
             task_id=task_id,
-            valid_app_ids=available_app_set,
+            label="follow-up",
         )
     else:
-        raw_follow_up = []
+        raw_follow_up_app_skill = []
+        raw_follow_up_general = []
         sanitized_follow_up = []
 
-    # Sanitize new chat suggestions: allow skill + focus + app-only prefixes (NO memory)
-    raw_new_chat = llm_result.arguments.get("new_chat_request_suggestions", [])
-    sanitized_new_chat = sanitize_suggestions(
-        suggestions=raw_new_chat,
-        valid_skill_ids=valid_skill_ids,
-        valid_focus_ids=valid_focus_ids,
-        valid_memory_ids=set(),  # Memory not allowed here
-        allow_memory_prefixes=False,
+    raw_new_chat_app_skill = llm_result.arguments.get("new_chat_app_skill_suggestions", [])
+    raw_new_chat_general = llm_result.arguments.get("new_chat_general_suggestions", [])
+    sanitized_new_chat = combine_suggestion_halves(
+        app_skill_suggestions=raw_new_chat_app_skill,
+        general_suggestions=raw_new_chat_general,
         task_id=task_id,
-        valid_app_ids=available_app_set,
+        label="new-chat",
     )
 
 
@@ -697,7 +616,7 @@ async def handle_postprocessing(
     # conversation language (a French chat should show French follow-ups).
     #
     # Note: The sanitized_new_chat list is used here (not raw LLM output) so that the
-    # translated suggestions are already free of hallucinated prefixes before translation.
+    # translated suggestions are already free of hidden routing syntax before translation.
     if sanitized_new_chat:
         translated_new_chat_suggestions = await translate_new_chat_suggestions(
             task_id=task_id,
@@ -724,13 +643,13 @@ async def handle_postprocessing(
     if len(result.follow_up_request_suggestions) < 6:
         logger.warning(
             f"[Task ID: {task_id}] [PostProcessor] Only {len(result.follow_up_request_suggestions)} follow-up suggestions "
-            f"after sanitization (raw: {len(raw_follow_up)}, expected 6)"
+            f"after sanitization (raw app-skill: {len(raw_follow_up_app_skill)}, raw general: {len(raw_follow_up_general)}, expected 6)"
         )
 
     if len(result.new_chat_request_suggestions) < 6:
         logger.warning(
             f"[Task ID: {task_id}] [PostProcessor] Only {len(result.new_chat_request_suggestions)} new chat suggestions "
-            f"after sanitization (raw: {len(raw_new_chat)}, expected 6)"
+            f"after sanitization (raw app-skill: {len(raw_new_chat_app_skill)}, raw general: {len(raw_new_chat_general)}, expected 6)"
         )
 
     if len(validated_app_ids) < len(raw_top_recommended_apps):
@@ -940,10 +859,9 @@ async def translate_new_chat_suggestions(
         "function": {
             "name": "translate_suggestions",
             "description": (
-                "Translate a list of chat suggestions into the specified target language. "
+                "Translate a list of plain natural-language chat suggestions into the specified target language. "
                 "Preserve the exact meaning, tone, and format of each suggestion. "
-                "Keep suggestions concise (max 5 words each). "
-                "Return exactly the same number of suggestions as provided."
+                "Keep suggestions concise and return exactly the same number of suggestions as provided."
             ),
             "parameters": {
                 "type": "object",
@@ -978,11 +896,9 @@ async def translate_new_chat_suggestions(
         f"You are a professional translation engine. "
         f"Translate each suggestion into {language_name} ({target_language}). "
         f"Rules:\n"
-        f"- Each suggestion may start with a routing prefix in square brackets, e.g. [web-search], [ai], [reminder].\n"
-        f"  CRITICAL: Preserve the [prefix] EXACTLY as-is at the start of the translated suggestion.\n"
-        f"  Only translate the text that comes AFTER the [prefix]. Never translate or modify the prefix itself.\n"
+        f"- Suggestions are plain text only. Do NOT add bracket prefixes, app IDs, skill IDs, or @skill mentions.\n"
         f"- Preserve the exact meaning and intent of each suggestion\n"
-        f"- Keep each suggestion short (max 8 words after the prefix)\n"
+        f"- Keep each suggestion short and action-oriented\n"
         f"- Return EXACTLY {len(suggestions)} translated suggestions — one per input item\n"
         f"- Use natural, conversational phrasing in {language_name}\n"
         f"- Do NOT add explanations, commentary, or extra items"
@@ -990,8 +906,8 @@ async def translate_new_chat_suggestions(
 
     suggestions_list = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(suggestions))
     user_message = (
-        f"Important: Preserve the [prefix] at the start of each suggestion unchanged. "
-        f"Only translate the text after it.\n\n"
+        f"Important: Suggestions are plain text only. Do not add labels, prefixes, app IDs, skill IDs, "
+        f"or hidden routing syntax.\n\n"
         f"Translate these {len(suggestions)} suggestions to {language_name}:\n\n"
         f"{suggestions_list}"
     )
@@ -1049,8 +965,8 @@ async def translate_new_chat_suggestions(
             )
             return suggestions
 
-        # Validate each item is a non-empty string
-        validated = [s.strip() for s in translated if isinstance(s, str) and s.strip()]
+        # Validate each item is still plain user-facing text after translation.
+        validated = sanitize_plain_suggestions(translated, task_id, "translated new-chat")
         if len(validated) != len(suggestions):
             logger.warning(
                 f"[Task ID: {task_id}] [Translate] {len(suggestions) - len(validated)} translated "

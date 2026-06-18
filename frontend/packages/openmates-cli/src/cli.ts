@@ -26,7 +26,7 @@ import {
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
-import { realpathSync } from "node:fs";
+import { realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
 import WebSocket from "ws";
@@ -60,6 +60,14 @@ import {
   toWaitingForUserResult,
   type WaitingForUserResult,
 } from "./interactiveQuestions.js";
+import { buildAssistantFeedbackDecision } from "./feedback.js";
+
+type SignupRequiredResult = {
+  status: "signup_required";
+  reason: "file_upload_requires_signup";
+  signup_required: true;
+  message: string;
+};
 
 type CliArgs = {
   positionals: string[];
@@ -77,12 +85,14 @@ async function main(): Promise<void> {
   });
 
   const redactor = new OutputRedactor();
-  if (client.hasSession() && shouldInitializeRedactor(command, subcommand)) {
+  const piiDetectionEnabled = parsed.flags["no-pii-detection"] !== true;
+  if (piiDetectionEnabled && shouldInitializeRedactor(command, subcommand)) {
     try {
-      const memories = await client.listMemories();
+      const memories = client.hasSession() ? await client.listMemories() : [];
       redactor.initializeFromMemories(memories);
     } catch {
-      // Not logged in or decryption error — proceed without redaction
+      // Keep high-confidence pattern detection active even if memory loading fails.
+      redactor.initializeFromMemories([]);
     }
   }
 
@@ -132,6 +142,10 @@ async function main(): Promise<void> {
     }
     if (command === "server") {
       printServerHelp();
+      return;
+    }
+    if (command === "feedback") {
+      printFeedbackHelp();
       return;
     }
     if (command === "docs") {
@@ -220,6 +234,11 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "feedback") {
+    handleFeedback(subcommand, rest, parsed.flags);
+    return;
+  }
+
   throw new Error(`Unknown command '${command}'. Run 'openmates help'.`);
 }
 
@@ -302,6 +321,7 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        piiDetection: flags["no-pii-detection"] !== true,
       },
       redactor,
     );
@@ -394,6 +414,7 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        piiDetection: flags["no-pii-detection"] !== true,
       },
       redactor,
     );
@@ -415,6 +436,7 @@ async function handleChats(
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
+        piiDetection: flags["no-pii-detection"] !== true,
       },
       redactor,
     );
@@ -1143,7 +1165,7 @@ async function handleApps(
       process.exit(1);
     }
     // Silently forward to the sugar alias execution path
-    let runSchemaParams: Array<{ name: string; type: string; description: string; required: boolean; default?: unknown }> = [];
+    let runSchemaParams: Array<{ name: string; type: string; description: string; required: boolean; default?: unknown; inputShape?: "requests" | "flat" }> = [];
     try { runSchemaParams = await client.getSkillSchema(app, skill); } catch { /* best-effort */ }
     try {
       const inputData = buildSkillInput(flags, inlineTokens, runSchemaParams);
@@ -1252,6 +1274,7 @@ async function handleApps(
       description: string;
       required: boolean;
       default?: unknown;
+      inputShape?: "requests" | "flat";
     }> = [];
     try {
       schemaParams = await client.getSkillSchema(app, skill);
@@ -1262,7 +1285,7 @@ async function handleApps(
     // No args, no --input, and the skill has required params →
     // show skill help instead of sending an empty/partial request that 422s.
     if (!hasExplicitInput && inlineTokens.length === 0) {
-      const required = schemaParams.filter((p) => p.required);
+      const required = getEffectiveRequiredParams(schemaParams);
       if (required.length > 0) {
         const data = await client.getSkillInfo(app, skill, apiKey);
         await printSkillInfo(client, app, data as SkillMetadata);
@@ -1277,14 +1300,14 @@ async function handleApps(
       inlineTokens.length > 0 &&
       schemaParams.length > 0
     ) {
-      const required = schemaParams.filter((p) => p.required);
+      const required = getEffectiveRequiredParams(schemaParams);
       if (required.length > 1) {
         const example: Record<string, unknown> = {};
         for (const p of required) example[p.name] = `<${p.name}>`;
         console.error(
           `This skill requires ${required.length} fields: ${required.map((p) => p.name).join(", ")}\n\n` +
             `Use --input to provide all fields:\n` +
-            `  openmates apps ${app} ${skill} --input '{"requests": [${JSON.stringify(example)}]}'\n\n` +
+            `  openmates apps ${app} ${skill} --input '${buildInputUsageExample(schemaParams, example)}'\n\n` +
             `Run with --help for full parameter details:\n` +
             `  openmates apps ${app} ${skill} --help\n`,
         );
@@ -1334,7 +1357,7 @@ async function handleApps(
           console.error(
             `\nUsage:\n` +
               `  openmates apps ${app} ${skill} <value>\n` +
-              `  openmates apps ${app} ${skill} --input '{"requests": [{"${schemaParams[0]?.name ?? "query"}": "..."}]}'`,
+              `  openmates apps ${app} ${skill} --input '${buildInputUsageExample(schemaParams)}'`,
           );
         } else {
           console.error(
@@ -1522,19 +1545,49 @@ async function pollCodeRunStatus(
 function buildSkillInput(
   flags: Record<string, string | boolean>,
   inlineTokens: string[],
-  schemaParams?: Array<{ name: string; required: boolean }>,
+  schemaParams?: Array<{ name: string; required: boolean; inputShape?: "requests" | "flat" }>,
 ): Record<string, unknown> {
+  const usesFlatInput = schemaParams?.some((p) => p.inputShape === "flat") ?? false;
   if (typeof flags.input === "string") {
-    return JSON.parse(flags.input) as Record<string, unknown>;
+    const parsed = JSON.parse(flags.input) as Record<string, unknown>;
+    if (usesFlatInput && Array.isArray(parsed.requests) && parsed.requests.length === 1) {
+      const firstRequest = parsed.requests[0];
+      if (firstRequest && typeof firstRequest === "object") {
+        return firstRequest as Record<string, unknown>;
+      }
+    }
+    return parsed;
   }
   const inlineText = inlineTokens.join(" ").trim();
   if (inlineText) {
     // Use the actual param name when the skill has a single required field
-    const required = (schemaParams ?? []).filter((p) => p.required);
-    const paramName = required.length === 1 ? required[0].name : "query";
+    const required = getEffectiveRequiredParams(schemaParams ?? []);
+    const flatLocationParam = usesFlatInput
+      ? (schemaParams ?? []).find((p) => p.name === "location")
+      : undefined;
+    const paramName = required.length === 1 ? required[0].name : (flatLocationParam?.name ?? "query");
+    if (usesFlatInput) return { [paramName]: inlineText };
     return { requests: [{ [paramName]: inlineText }] };
   }
   return {};
+}
+
+function getEffectiveRequiredParams<T extends { name: string; required: boolean; inputShape?: "requests" | "flat" }>(
+  schemaParams: T[],
+): T[] {
+  const required = schemaParams.filter((p) => p.required);
+  if (required.length > 0) return required;
+  const flatLocationParam = schemaParams.find((p) => p.inputShape === "flat" && p.name === "location");
+  return flatLocationParam ? [flatLocationParam] : [];
+}
+
+function buildInputUsageExample(
+  schemaParams: Array<{ name: string; inputShape?: "requests" | "flat" }>,
+  exampleItem?: Record<string, unknown>,
+): string {
+  const item = exampleItem ?? { [schemaParams[0]?.name ?? "query"]: "..." };
+  if (schemaParams.some((p) => p.inputShape === "flat")) return JSON.stringify(item);
+  return JSON.stringify({ requests: [item] });
 }
 
 /**
@@ -1697,6 +1750,72 @@ async function handleEmbeds(
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`Share link error: ${msg}`);
       process.exit(1);
+    }
+    return;
+  }
+
+  if (subcommand === "versions") {
+    const action = rest[0];
+    const embedId = rest[1];
+    if (!action || !embedId || !["list", "show", "restore"].includes(action)) {
+      console.error("Usage: openmates embeds versions <list|show|restore> <embed-id> [--version <n>]\n");
+      printEmbedsHelp();
+      process.exit(1);
+    }
+
+    if (action === "list") {
+      const versions = await client.listEmbedVersions(embedId);
+      if (flags.json === true) {
+        printJson(versions);
+      } else {
+        process.stdout.write(`\n\x1b[1mEmbed versions\x1b[0m ${versions.embed_id}\n`);
+        for (const version of versions.versions) {
+          const marker = version.version_number === versions.current_version ? " (current)" : "";
+          const date = new Date(version.created_at * 1000).toISOString();
+          process.stdout.write(`  v${version.version_number}${marker}  ${date}\n`);
+        }
+        if (versions.readonly) process.stdout.write("\x1b[2mRead-only shared history\x1b[0m\n");
+      }
+      return;
+    }
+
+    const version = typeof flags.version === "string" ? parseInt(flags.version, 10) : NaN;
+    if (!Number.isFinite(version) || version <= 0) {
+      console.error("Missing or invalid --version <n>.");
+      process.exit(1);
+    }
+
+    if (action === "show") {
+      const result = await client.getEmbedVersion(embedId, version);
+      if (typeof result.content !== "string") {
+        throw new Error("Embed version content was not available after local reconstruction.");
+      }
+      if (typeof flags.output === "string") {
+        writeFileSync(flags.output, result.content, "utf-8");
+        if (flags.json === true) {
+          printJson({ ...result, output: flags.output });
+        } else {
+          process.stdout.write(`Wrote ${result.embed_id} v${result.version_number} to ${flags.output}\n`);
+        }
+      } else if (flags.json === true) {
+        printJson(result);
+      } else {
+        process.stdout.write(`\n\x1b[1m${result.embed_id} v${result.version_number}\x1b[0m\n`);
+        process.stdout.write(`${result.content}\n`);
+      }
+      return;
+    }
+
+    if (flags.yes !== true) {
+      await confirmOrExit(`Restore embed ${embedId} to version ${version}? This creates a new latest version. [y/N] `);
+    }
+    const restored = await client.restoreEmbedVersion(embedId, version);
+    if (flags.json === true) {
+      printJson(restored);
+    } else {
+      process.stdout.write(
+        `Restored v${restored.restored_from_version} as new v${restored.version_number} for ${restored.embed_id}.\n`,
+      );
     }
     return;
   }
@@ -3085,6 +3204,38 @@ async function handleMemories(
 // Argument parsing
 // ---------------------------------------------------------------------------
 
+function handleFeedback(
+  subcommand: string | undefined,
+  _rest: string[],
+  flags: Record<string, string | boolean>,
+): void {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printFeedbackHelp();
+    return;
+  }
+
+  if (subcommand !== "assistant-response") {
+    throw new Error(`Unknown feedback command '${subcommand}'. Run 'openmates feedback --help'.`);
+  }
+
+  const rawRating = flags.rating;
+  if (typeof rawRating !== "string") {
+    throw new Error("Missing --rating <1-5>.");
+  }
+
+  const decision = buildAssistantFeedbackDecision(Number(rawRating));
+  if (flags.json === true) {
+    printJson(decision);
+    return;
+  }
+
+  console.log(decision.message);
+  if (decision.action === "report_issue") {
+    console.log(`Report issue title: ${decision.reportTitle}`);
+    console.log("Open the report issue form and include the affected assistant response.");
+  }
+}
+
 function parseArgs(argv: string[]): CliArgs {
   const positionals: string[] = [];
   const flags: Record<string, string | boolean> = {};
@@ -3293,6 +3444,7 @@ async function sendMessageStreaming(
     json?: boolean;
     autoApproveSubChats?: boolean;
     autoApproveMemories?: boolean;
+    piiDetection?: boolean;
   },
   redactor?: OutputRedactor,
 ): Promise<{
@@ -3311,7 +3463,7 @@ async function sendMessageStreaming(
     approvedKeys: string[];
     entryCount: number;
   }>;
-} | WaitingForUserResult> {
+} | WaitingForUserResult | SignupRequiredResult> {
   let headerPrinted = false;
   let typingShown = false;
   // Track which embed IDs we've already rendered during streaming
@@ -3486,6 +3638,20 @@ async function sendMessageStreaming(
 
       // Process file @path references into proper encrypted embeds
       if (parsed.filePaths.length > 0) {
+        if (!client.hasSession()) {
+          clearTyping();
+          const result: SignupRequiredResult = {
+            status: "signup_required",
+            reason: "file_upload_requires_signup",
+            signup_required: true,
+            message: "File uploads require signup. Your message text can be kept as a draft, but files must be attached after creating an account.",
+          };
+          if (!params.json) {
+            process.stderr.write(`${result.message}\n`);
+          }
+          return result;
+        }
+
         const fileResult = processFiles(parsed.filePaths, redactor ?? null);
 
         // Report blocked files
@@ -3660,6 +3826,31 @@ async function sendMessageStreaming(
     }
   }
 
+  const piiResult = params.piiDetection !== false && redactor?.isInitialized
+    ? redactor.redactWithMappings(finalMessage)
+    : { redacted: finalMessage, mappings: [] };
+  finalMessage = piiResult.redacted;
+
+  if (!client.hasSession()) {
+    let result: Awaited<ReturnType<OpenMatesClient["sendAnonymousMessage"]>>;
+    try {
+      result = await client.sendAnonymousMessage({ message: finalMessage });
+    } finally {
+      clearTyping();
+    }
+    if (!params.json) {
+      const mateBlock = ansiMateBlock(result.category, result.mateName);
+      const modelSuffix = result.modelName
+        ? `  \x1b[2m${result.modelName}\x1b[0m`
+        : "";
+      process.stdout.write(`${SEP}\n`);
+      process.stdout.write(`${mateBlock}${modelSuffix}\n`);
+      process.stdout.write(`${SEP}\n`);
+      process.stdout.write(`${result.assistant}\n`);
+    }
+    return result;
+  }
+
   const urlResult = prepareUrlEmbeds(finalMessage);
   finalMessage = urlResult.message;
   preparedEmbeds.push(...urlResult.embeds);
@@ -3674,6 +3865,11 @@ async function sendMessageStreaming(
     autoApproveSubChats: params.autoApproveSubChats,
     autoApproveMemories: params.autoApproveMemories,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
+    piiMappings: piiResult.mappings.map((mapping) => ({
+      placeholder: mapping.placeholder,
+      original: mapping.original,
+      type: mapping.type,
+    })),
   });
 
   clearTyping();
@@ -4400,7 +4596,9 @@ async function printSkillInfo(
         p.default ?? buildExampleValue(p.name, p.type, p.description);
     }
     process.stdout.write(`\x1b[1mExample\x1b[0m\n`);
-    const exampleJson = JSON.stringify({ requests: [exampleItem] }, null, 2)
+    const usesFlatInput = params.some((p) => p.inputShape === "flat");
+    const examplePayload = usesFlatInput ? exampleItem : { requests: [exampleItem] };
+    const exampleJson = JSON.stringify(examplePayload, null, 2)
       .split("\n")
       .map((l) => `  ${l}`)
       .join("\n");
@@ -5121,13 +5319,8 @@ function printNewChatSuggestion(
   s: DecryptedNewChatSuggestion,
   index: number,
 ): void {
-  const appLabel = s.skillId
-    ? `\x1b[36m[${s.appId}-${s.skillId}]\x1b[0m `
-    : s.appId
-      ? `\x1b[36m[${s.appId}]\x1b[0m `
-      : "";
   const escapedBody = s.body.replace(/"/g, '\\"');
-  process.stdout.write(`\x1b[1m${index}.\x1b[0m ${appLabel}${s.body}\n`);
+  process.stdout.write(`\x1b[1m${index}.\x1b[0m ${s.body}\n`);
   process.stdout.write(
     `   \x1b[2mopenmates chats new "${escapedBody}"\x1b[0m\n`,
   );
@@ -5426,6 +5619,7 @@ Commands:
   openmates settings [--help]                Predefined settings commands
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
+  openmates feedback [--help]                Assistant response feedback helpers
   openmates server [--help]                   Server management (install, start, stop, ...)
   openmates docs [--help]                     Browse, search, and download documentation
   openmates e2e provision-auth-accounts       Provision local E2E auth-account artifacts
@@ -5435,6 +5629,19 @@ Flags:
   --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
+}
+
+function printFeedbackHelp(): void {
+  console.log(`Feedback commands:
+  openmates feedback assistant-response --rating <1-5> [--json]
+
+Mirrors the web chat assistant-response feedback decision:
+  4-5 stars  Thank the user only
+  1-3 stars  Thank the user and prompt a report issue with the standard prefill
+
+Options:
+  --rating <1-5>  Required star rating
+  --json          Output the decision contract as JSON`);
 }
 
 function printSignupHelp(): void {
@@ -5479,13 +5686,13 @@ function printChatsHelp(): void {
   openmates chats show <chat-id> [--raw] [--json]
   openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--json] [--auto-approve] [--auto-approve-memories]
-  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories]
+  openmates chats new <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
+  openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
   openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
-  openmates chats incognito <message> [--json]
+  openmates chats incognito <message> [--json] [--no-pii-detection]
   openmates chats incognito-history [--json]      Deprecated: incognito stores no history
   openmates chats incognito-clear                 Deprecated: incognito stores no history
 
@@ -5514,8 +5721,10 @@ Options for 'new', 'send', and 'incognito':
   --auto-approve           Automatically approve server-requested sub-chat batches.
                            Without this, the CLI prompts in the terminal like the web app.
   --auto-approve-memories  Explicitly approve server-requested memory categories.
-                           Memories are never approved by default.
-                           Use only for trusted non-interactive runs.
+                            Memories are never approved by default.
+                            Use only for trusted non-interactive runs.
+  --no-pii-detection       Send the message exactly as typed. By default, the CLI
+                            replaces detected PII with placeholders before send.
 
 Options for 'download':
   --output <path>  Target directory (default: current directory)
@@ -5600,13 +5809,20 @@ function printEmbedsHelp(): void {
   console.log(`Embeds commands:
   openmates embeds show <embed-id> [--json]
   openmates embeds share <embed-id> [--expires <seconds>] [--password <pwd>] [--json]
+  openmates embeds versions list <embed-id> [--json]
+  openmates embeds versions show <embed-id> --version <n> [--output <path>] [--json]
+  openmates embeds versions restore <embed-id> --version <n> [--yes] [--json]
 
 'show' displays the full decrypted content of an embed.
+The 'versions' commands list, inspect, and non-destructively restore history.
 The embed ID can be the full UUID or just the first 8 characters.
 Embed IDs are shown when viewing chat conversations (openmates chats show).
 
 Examples:
-  openmates embeds show a3f2b1c4`);
+  openmates embeds show a3f2b1c4
+  openmates embeds versions list a3f2b1c4
+  openmates embeds versions show a3f2b1c4 --version 1
+  openmates embeds versions restore a3f2b1c4 --version 1 --yes`);
 }
 
 function printInspirationsHelp(): void {

@@ -99,6 +99,8 @@ class AIDetectionResult:
         return {
             "ai_generated": self.ai_generated,
             "provider": self.provider,
+            "status": "failed" if self.error else "success",
+            "error": self.error,
         }
 
     def __repr__(self) -> str:

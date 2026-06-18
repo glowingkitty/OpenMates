@@ -15,10 +15,12 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 if TYPE_CHECKING:
     from apps.base_app import BaseApp # For type hinting self.app
+    from celery import Celery # For Celery type hinting
+else:
+    Celery = Any
 
 # Core services like ConfigManager, DirectusService, EncryptionService will be accessed via internal API calls
 # made through the BaseApp instance. No direct top-level imports from backend.core.api...
-from celery import Celery # For Celery type hinting
 
 logger = logging.getLogger(__name__)
 

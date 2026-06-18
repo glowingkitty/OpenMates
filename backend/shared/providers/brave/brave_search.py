@@ -18,7 +18,7 @@ from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 import httpx
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Sequence, Tuple
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.testing.caching_http_transport import create_http_client
@@ -27,7 +27,11 @@ logger = logging.getLogger(__name__)
 
 # Vault path for Brave API key
 BRAVE_SECRET_PATH = "kv/data/providers/brave"
+BRAVE_SEARCH_SECRET_PATH = "kv/data/providers/brave_search"
 BRAVE_API_KEY_NAME = "api_key"
+BRAVE_FREE_API_KEY_NAME = "free_api_key"
+BRAVE_PRO_API_KEY_NAME = "pro_api_key"
+BRAVE_PAID_API_KEY_NAME = "paid_api_key"
 
 # Brave Search API base URL
 BRAVE_API_BASE_URL = "https://api.search.brave.com/res/v1"
@@ -35,6 +39,8 @@ BRAVE_API_BASE_URL = "https://api.search.brave.com/res/v1"
 # Retry configuration for 429 rate limit responses
 MAX_429_RETRIES = 6  # Maximum number of retries on 429
 DEFAULT_429_RETRY_DELAY = 1.1  # Default delay in seconds when Retry-After header is missing
+
+BraveKeyCandidate = Tuple[str, str]
 
 
 def _parse_retry_after_seconds(response: httpx.Response) -> float:
@@ -70,13 +76,41 @@ def _parse_retry_after_seconds(response: httpx.Response) -> float:
     return DEFAULT_429_RETRY_DELAY
 
 
+def _is_monthly_quota_limited(response: httpx.Response) -> bool:
+    """Return True when Brave reports exhausted monthly plan quota."""
+    if response.status_code != 429:
+        return False
+
+    try:
+        error = response.json().get("error", {})
+    except ValueError:
+        return False
+
+    meta = error.get("meta", {}) if isinstance(error, dict) else {}
+    return (
+        error.get("code") == "QUOTA_LIMITED"
+        or "quota" in str(error.get("detail", "")).lower()
+        or (isinstance(meta, dict) and meta.get("quota_limit") is not None)
+    )
+
+
+def _build_brave_headers(api_key: str) -> Dict[str, str]:
+    """Build Brave API headers for a single subscription token."""
+    return {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": api_key,
+    }
+
+
 async def _request_with_429_retry(
     client: httpx.AsyncClient,
     url: str,
     params: Dict[str, Any],
     headers: Dict[str, str],
     query: str,
-    search_type: str = "search"
+    search_type: str = "search",
+    fallback_headers: Optional[Sequence[Tuple[str, Dict[str, str]]]] = None,
 ) -> httpx.Response:
     """
     Make an HTTP GET request with automatic retry on 429 (Too Many Requests).
@@ -103,6 +137,8 @@ async def _request_with_429_retry(
         httpx.HTTPStatusError: If the request fails with a non-429 error,
                                or if retries are exhausted
     """
+    fallback_index = 0
+
     for attempt in range(1, MAX_429_RETRIES + 1):
         response = await client.get(url, params=params, headers=headers)
         
@@ -110,6 +146,18 @@ async def _request_with_429_retry(
             # Not rate-limited — raise on other errors, or return success
             response.raise_for_status()
             return response
+
+        if _is_monthly_quota_limited(response) and fallback_headers and fallback_index < len(fallback_headers):
+            fallback_label, headers = fallback_headers[fallback_index]
+            fallback_index += 1
+            logger.warning(
+                "Brave %s search monthly quota exhausted for query '%s'. "
+                "Retrying with fallback key '%s'.",
+                search_type,
+                query,
+                fallback_label,
+            )
+            continue
         
         # 429 Too Many Requests — wait and retry
         if attempt >= MAX_429_RETRIES:
@@ -188,6 +236,119 @@ async def _get_brave_api_key(secrets_manager: SecretsManager) -> Optional[str]:
     
     logger.error("Brave Search API key not found in Vault or environment variables. Please configure it in Vault or set SECRET__BRAVE__API_KEY environment variable.")
     return None
+
+
+def _clean_api_key(api_key: Optional[str]) -> Optional[str]:
+    """Normalize API key values from Vault or environment variables."""
+    if not api_key:
+        return None
+
+    api_key_clean = api_key.strip()
+    if (api_key_clean.startswith('"') and api_key_clean.endswith('"')) or \
+       (api_key_clean.startswith("'") and api_key_clean.endswith("'")):
+        api_key_clean = api_key_clean[1:-1].strip()
+
+    return api_key_clean or None
+
+
+async def _get_secret_candidate(
+    secrets_manager: SecretsManager,
+    label: str,
+    secret_path: str,
+    secret_key: str,
+) -> Optional[BraveKeyCandidate]:
+    try:
+        api_key = await secrets_manager.get_secret(
+            secret_path=secret_path,
+            secret_key=secret_key,
+        )
+    except Exception:
+        logger.debug(
+            "Brave Search API key candidate '%s' not found in Vault at %s:%s",
+            label,
+            secret_path,
+            secret_key,
+        )
+        return None
+
+    api_key_clean = _clean_api_key(api_key)
+    if not api_key_clean:
+        return None
+
+    return label, api_key_clean
+
+
+def _get_env_candidate(label: str, env_var_name: str) -> Optional[BraveKeyCandidate]:
+    api_key_clean = _clean_api_key(os.getenv(env_var_name))
+    if not api_key_clean:
+        return None
+    return label, api_key_clean
+
+
+async def _get_brave_api_key_candidates(secrets_manager: SecretsManager) -> List[BraveKeyCandidate]:
+    """
+    Return Brave API keys in preferred order: free/default first, paid fallback second.
+
+    Dev should normally consume the free key. If Brave reports the monthly quota
+    is exhausted, request code can retry with the paid/pro key candidates.
+    """
+    primary_specs = [
+        ("vault:brave:free", BRAVE_SECRET_PATH, BRAVE_FREE_API_KEY_NAME),
+        ("vault:brave:default", BRAVE_SECRET_PATH, BRAVE_API_KEY_NAME),
+        ("vault:brave_search:free", BRAVE_SEARCH_SECRET_PATH, BRAVE_FREE_API_KEY_NAME),
+        ("env:brave:free", "SECRET__BRAVE__FREE_API_KEY"),
+        ("env:brave_search:free", "SECRET__BRAVE_SEARCH__FREE_API_KEY"),
+        ("env:brave:default", "SECRET__BRAVE__API_KEY"),
+        ("env:brave_search:default", "SECRET__BRAVE_SEARCH__API_KEY"),
+    ]
+    paid_specs = [
+        ("vault:brave:pro", BRAVE_SECRET_PATH, BRAVE_PRO_API_KEY_NAME),
+        ("vault:brave:paid", BRAVE_SECRET_PATH, BRAVE_PAID_API_KEY_NAME),
+        ("vault:brave_search:pro", BRAVE_SEARCH_SECRET_PATH, BRAVE_PRO_API_KEY_NAME),
+        ("vault:brave_search:paid", BRAVE_SEARCH_SECRET_PATH, BRAVE_PAID_API_KEY_NAME),
+        ("env:brave:pro", "SECRET__BRAVE__PRO_API_KEY"),
+        ("env:brave:paid", "SECRET__BRAVE__PAID_API_KEY"),
+        ("env:brave_search:pro", "SECRET__BRAVE_SEARCH__PRO_API_KEY"),
+        ("env:brave_search:paid", "SECRET__BRAVE_SEARCH__PAID_API_KEY"),
+    ]
+
+    candidates: List[BraveKeyCandidate] = []
+    seen_keys: set[str] = set()
+
+    for spec in primary_specs:
+        if len(spec) == 3:
+            candidate = await _get_secret_candidate(secrets_manager, spec[0], spec[1], spec[2])
+        else:
+            candidate = _get_env_candidate(spec[0], spec[1])
+
+        if candidate:
+            label, api_key = candidate
+            candidates.append((label, api_key))
+            seen_keys.add(api_key)
+            break
+
+    for spec in paid_specs:
+        if len(spec) == 3:
+            candidate = await _get_secret_candidate(secrets_manager, spec[0], spec[1], spec[2])
+        else:
+            candidate = _get_env_candidate(spec[0], spec[1])
+
+        if not candidate:
+            continue
+
+        label, api_key = candidate
+        if api_key in seen_keys:
+            continue
+        candidates.append((label, api_key))
+        seen_keys.add(api_key)
+
+    if not candidates:
+        logger.error(
+            "Brave Search API key not found in Vault or environment variables. "
+            "Configure kv/data/providers/brave:api_key or SECRET__BRAVE__API_KEY."
+        )
+
+    return candidates
 
 
 async def check_brave_search_health(secrets_manager: SecretsManager) -> tuple[bool, Optional[str]]:
@@ -290,10 +451,10 @@ async def search_web(
         ValueError: If API key is not available
         httpx.HTTPStatusError: If the API request fails
     """
-    # Get API key from Vault or environment variables
-    api_key = await _get_brave_api_key(secrets_manager)
-    if not api_key:
+    api_key_candidates = await _get_brave_api_key_candidates(secrets_manager)
+    if not api_key_candidates:
         raise ValueError("Brave Search API key not available. Please configure it in Vault or set SECRET__BRAVE__API_KEY environment variable.")
+    active_key_label, api_key = api_key_candidates[0]
     
     # Build query parameters
     params = {
@@ -316,23 +477,19 @@ async def search_web(
     # Build full URL
     url = f"{BRAVE_API_BASE_URL}/web/search"
     
-    # Set up headers
     # Note: Brave API requires X-Subscription-Token header (case-sensitive per their docs)
-    headers = {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": api_key
-    }
+    headers = _build_brave_headers(api_key)
+    fallback_headers = [(label, _build_brave_headers(key)) for label, key in api_key_candidates[1:]]
     
     # Log API key info for debugging (masked)
     masked_key = f"{api_key[:4]}****{api_key[-4:]}" if len(api_key) > 8 else "****"
-    logger.debug(f"Performing Brave web search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
+    logger.debug(f"Performing Brave web search: query='{query}', count={count}, country={country}, api_key_label={active_key_label}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
         async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
-                query=query, search_type="web"
+                query=query, search_type="web", fallback_headers=fallback_headers
             )
             
             result_data = response.json()
@@ -490,10 +647,10 @@ async def search_videos(
         ValueError: If API key is not available
         httpx.HTTPStatusError: If the API request fails
     """
-    # Get API key from Vault or environment variables
-    api_key = await _get_brave_api_key(secrets_manager)
-    if not api_key:
+    api_key_candidates = await _get_brave_api_key_candidates(secrets_manager)
+    if not api_key_candidates:
         raise ValueError("Brave Search API key not available. Please configure it in Vault or set SECRET__BRAVE__API_KEY environment variable.")
+    active_key_label, api_key = api_key_candidates[0]
     
     # Build query parameters
     params = {
@@ -513,22 +670,18 @@ async def search_videos(
     # Build full URL - use dedicated videos endpoint
     url = f"{BRAVE_API_BASE_URL}/videos/search"
     
-    # Set up headers
-    headers = {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": api_key
-    }
+    headers = _build_brave_headers(api_key)
+    fallback_headers = [(label, _build_brave_headers(key)) for label, key in api_key_candidates[1:]]
     
     # Log API key info for debugging (masked)
     masked_key = f"{api_key[:4]}****{api_key[-4:]}" if len(api_key) > 8 else "****"
-    logger.debug(f"Performing Brave video search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
+    logger.debug(f"Performing Brave video search: query='{query}', count={count}, country={country}, api_key_label={active_key_label}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
         async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
-                query=query, search_type="video"
+                query=query, search_type="video", fallback_headers=fallback_headers
             )
             
             result_data = response.json()
@@ -663,10 +816,10 @@ async def search_news(
         ValueError: If API key is not available
         httpx.HTTPStatusError: If the API request fails
     """
-    # Get API key from Vault or environment variables
-    api_key = await _get_brave_api_key(secrets_manager)
-    if not api_key:
+    api_key_candidates = await _get_brave_api_key_candidates(secrets_manager)
+    if not api_key_candidates:
         raise ValueError("Brave Search API key not available. Please configure it in Vault or set SECRET__BRAVE__API_KEY environment variable.")
+    active_key_label, api_key = api_key_candidates[0]
     
     # Build query parameters
     params = {
@@ -688,22 +841,18 @@ async def search_news(
     # Build full URL - use dedicated news endpoint
     url = f"{BRAVE_API_BASE_URL}/news/search"
     
-    # Set up headers
-    headers = {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": api_key
-    }
+    headers = _build_brave_headers(api_key)
+    fallback_headers = [(label, _build_brave_headers(key)) for label, key in api_key_candidates[1:]]
     
     # Log API key info for debugging (masked)
     masked_key = f"{api_key[:4]}****{api_key[-4:]}" if len(api_key) > 8 else "****"
-    logger.debug(f"Performing Brave news search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
+    logger.debug(f"Performing Brave news search: query='{query}', count={count}, country={country}, api_key_label={active_key_label}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
         async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
-                query=query, search_type="news"
+                query=query, search_type="news", fallback_headers=fallback_headers
             )
             
             result_data = response.json()
@@ -836,12 +985,13 @@ async def search_images(
         }
         Each result contains: title, source_page_url, image_url, thumbnail_url, source, favicon_url.
     """
-    api_key = await _get_brave_api_key(secrets_manager)
-    if not api_key:
+    api_key_candidates = await _get_brave_api_key_candidates(secrets_manager)
+    if not api_key_candidates:
         raise ValueError(
             "Brave Search API key not available. "
             "Please configure it in Vault or set SECRET__BRAVE__API_KEY."
         )
+    active_key_label, api_key = api_key_candidates[0]
 
     params: Dict[str, Any] = {
         "q": query,
@@ -859,23 +1009,20 @@ async def search_images(
         params["color"] = color
 
     url = f"{BRAVE_API_BASE_URL}/images/search"
-    headers = {
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip",
-        "X-Subscription-Token": api_key,
-    }
+    headers = _build_brave_headers(api_key)
+    fallback_headers = [(label, _build_brave_headers(key)) for label, key in api_key_candidates[1:]]
 
     masked_key = f"{api_key[:4]}****{api_key[-4:]}" if len(api_key) > 8 else "****"
     logger.debug(
-        "Performing Brave image search: query='%s', count=%d, country=%s, api_key_preview=%s",
-        query, count, country, masked_key,
+        "Performing Brave image search: query='%s', count=%d, country=%s, api_key_label=%s, api_key_preview=%s",
+        query, count, country, active_key_label, masked_key,
     )
 
     try:
         async with create_http_client("brave", timeout=30.0) as client:
             response = await _request_with_429_retry(
                 client=client, url=url, params=params, headers=headers,
-                query=query, search_type="images"
+                query=query, search_type="images", fallback_headers=fallback_headers
             )
             result_data = response.json()
 

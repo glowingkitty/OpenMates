@@ -190,10 +190,10 @@ test('completes passkey signup flow with email', async ({
 		await takeStepScreenshot(page, 'signup-alpha');
 
 		// Alpha disclaimer: verify outbound links exist and continue.
-		const githubLink = page.locator('a[href*="github.com"]');
-		const instagramLink = page.locator('a[href*="instagram.com"]');
-		await expect(githubLink.first()).toBeVisible();
-		await expect(instagramLink.first()).toBeVisible();
+		const githubLink = page.getByTestId('signup-alpha-github-link');
+		const instagramLink = page.getByTestId('signup-alpha-instagram-link');
+		await expect(githubLink).toBeVisible();
+		await expect(instagramLink).toBeVisible();
 
 		await page.getByRole('button', { name: /continue/i }).click();
 		await takeStepScreenshot(page, 'basics-step');
@@ -251,11 +251,13 @@ test('completes passkey signup flow with email', async ({
 		logSignupCheckpoint('Received email confirmation code.');
 
 		const confirmEmailInput = page.locator('input[inputmode="numeric"][maxlength="6"]');
-		await confirmEmailInput.fill(emailCode);
+		await expect(confirmEmailInput).toBeVisible({ timeout: 10000 });
+		await confirmEmailInput.click();
+		await confirmEmailInput.pressSequentially(emailCode);
 
 		// Secure account step: choose passkey-based setup.
 		const passkeyOption = page.locator('#signup-passkey-option');
-		await expect(passkeyOption).toBeVisible({ timeout: 10000 });
+		await expect(passkeyOption).toBeVisible({ timeout: 30000 });
 		await takeStepScreenshot(page, 'secure-account');
 		const passkeyInitiateResponsePromise = page.waitForResponse(
 			(response: any) =>

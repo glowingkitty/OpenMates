@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Health Appointments"
   en: "Memory Health Appointments"
-  de: "Memory Health Appointments"
+  de: Memory Gesundheitstermine
   zh: "Memory Health Appointments"
   es: "Memory Health Appointments"
   fr: "Memory Health Appointments"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Health Appointments"
   en: "OpenMates uses saved health appointments memory in a real chat."
-  de: "OpenMates uses saved health appointments memory in a real chat."
+  de: OpenMates nutzt gespeicherte Gesundheitstermine aus dem Memory in einem echten Chat.
   zh: "OpenMates uses saved health appointments memory in a real chat."
   es: "OpenMates uses saved health appointments memory in a real chat."
   fr: "OpenMates uses saved health appointments memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Health Appointments. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze mein Memory für Gesundheitstermine, um eine einfache Checkliste zur Vorbereitung auf meinen nächsten Termin zu erstellen. Du kannst dieses gespeicherte Memory anfordern und verwenden. Suche nach der Verwendung des Memorys nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Rückfragen.
   zh: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved health appointments memory to make a simple preparation checklist for my next appointment. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -87,16 +87,16 @@ message_2:
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   de: |
-    Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
-
-    Here is a simple preparation checklist based on your notes:
-
-    *   [ ] **Photos:** Gather and organize the photos of your rash flare-ups to show the specialist.
-    *   [ ] **Questions:** Write down a list of specific questions regarding your different treatment options.
-    *   [ ] **Logistics:** Confirm your travel time to [Mitte](wiki:Mitte) to ensure you arrive at the clinic on time.
-    *   [ ] **Symptoms:** Note any recent changes or triggers you've observed since your last flare-up.
+    Basierend auf deinen gespeicherten Gesundheitsdaten ist dein nächster Termin eine **dermatologische Nachuntersuchung** in der **Mitte Skin Clinic** am **20. Juni 2026**.
+    
+    Hier ist eine einfache Checkliste zur Vorbereitung basierend auf deinen Notizen:
+    
+    *   [ ] **Fotos:** Sammle und ordne die Fotos deiner Hautausschläge, um sie dem Spezialisten zu zeigen.
+    *   [ ] **Fragen:** Schreibe eine Liste mit spezifischen Fragen zu deinen verschiedenen Behandlungsoptionen auf.
+    *   [ ] **Logistik:** Bestätige deine Fahrzeit nach [Mitte](wiki:Mitte), um sicherzustellen, dass du pünktlich in der Klinik ankommst.
+    *   [ ] **Symptome:** Notiere alle kürzlichen Veränderungen oder Auslöser, die du seit deinem letzten Schub beobachtet hast.
     ---
-    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+    *⚠️ Dies dient nur zu Informationszwecken und ist keine medizinische Beratung. Konsultiere für medizinische Entscheidungen deinen Arzt.*
   zh: |
     Based on your saved health records, your next appointment is a **Dermatology follow-up** at the **Mitte Skin Clinic** on **June 20, 2026**.
 

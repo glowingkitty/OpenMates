@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
- * Cross-skill App Store provider icon coverage.
+ * Cross-skill Apps provider icon coverage.
  *
  * Verifies every skill with providers in /v1/apps/metadata has matching provider
  * rows and loaded provider logos in the skill settings menu.
@@ -17,7 +17,7 @@ const {
 const { appsMetadata } = require('../../../packages/ui/src/data/appsMetadata');
 const { providersMetadata } = require('../../../packages/ui/src/data/providersMetadata');
 
-test.describe('App Store skill provider icons', () => {
+test.describe('Apps skill provider icons', () => {
 	test.setTimeout(360_000);
 
 	test('Edamam has provider metadata with a dedicated logo asset', async () => {
@@ -43,7 +43,7 @@ test.describe('App Store skill provider icons', () => {
 
 		let checkedProviderRows = 0;
 		for (const target of targets) {
-			const route = `app_store/${target.appId}/skill/${target.skillId}`;
+			const route = `apps/${target.appId}/skill/${target.skillId}`;
 			await page.goto(getE2EDebugUrl(`/#settings/${route}`), { waitUntil: 'domcontentloaded' });
 			await page.waitForLoadState('networkidle');
 

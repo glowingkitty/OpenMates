@@ -32,8 +32,17 @@ node scripts/create-example-chat-from-share.mjs "<SHARE_URL>" \
   --icon "<icon-name>" \
   --category "<mate-category>" \
   --keywords "keyword 1,keyword 2,keyword 3" \
+  --api-key "$OPENMATES_API_KEY" \
   --force
 ```
+
+For pricing transparency, pass an API key for the source account when available.
+The scaffold script fetches `/v1/settings/usage/chat-entries` for the source
+chat and stores the summed AI + app-skill credits on each assistant response.
+If API access is not available, export the same endpoint response to JSON and
+pass `--usage-json /path/to/usage.json`. The script prints `priced responses:`;
+do not assume pricing was captured unless that count is non-zero for examples
+that should have billable assistant responses.
 
 After scaffolding:
 

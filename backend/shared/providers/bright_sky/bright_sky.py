@@ -8,9 +8,13 @@
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
+import math
+import zlib
 from collections import Counter, defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -45,6 +49,27 @@ async def fetch_weather(
         return response.json()
 
 
+async def fetch_radar(
+    *,
+    latitude: float,
+    longitude: float,
+    radius_km: int,
+    timezone: str = "UTC",
+) -> dict[str, Any]:
+    """Fetch DWD radar rows around a coordinate from Bright Sky."""
+    params: dict[str, Any] = {
+        "lat": latitude,
+        "lon": longitude,
+        "distance": radius_km * 1000,
+        "format": "compressed",
+        "tz": timezone,
+    }
+    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT_SECONDS) as client:
+        response = await client.get(f"{BRIGHT_SKY_BASE_URL}/radar", params=params)
+        response.raise_for_status()
+        return response.json()
+
+
 def _mode(values: list[str]) -> str | None:
     if not values:
         return None
@@ -56,6 +81,216 @@ def _round_number(value: float | int | None, digits: int = 1) -> float | int | N
         return None
     rounded = round(float(value), digits)
     return int(rounded) if rounded.is_integer() else rounded
+
+
+def _decode_precipitation_grid(encoded: str) -> list[int]:
+    raw = zlib.decompress(base64.b64decode(encoded))
+    return [int.from_bytes(raw[index:index + 2], "big", signed=False) for index in range(0, len(raw), 2)]
+
+
+def _radar_grid_dimensions(payload: dict[str, Any], value_count: int) -> tuple[int, int]:
+    bbox = payload.get("bbox")
+    if isinstance(bbox, list) and len(bbox) == 4:
+        try:
+            top, left, bottom, right = [int(value) for value in bbox]
+            width = abs(right - left) + 1
+            height = abs(bottom - top) + 1
+            if width > 0 and height > 0 and width * height == value_count:
+                return width, height
+        except (TypeError, ValueError):
+            pass
+
+    side = int(math.sqrt(value_count))
+    if side > 0 and side * side == value_count:
+        return side, side
+    return value_count, 1
+
+
+def _classify_precipitation(value: int) -> str:
+    mm_5min = value / 100
+    if mm_5min <= 0:
+        return "none"
+    if mm_5min < 0.5:
+        return "light"
+    if mm_5min < 2:
+        return "moderate"
+    return "heavy"
+
+
+def _frame_kind(timestamp: str, now_timestamp: str) -> str:
+    try:
+        frame_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        now_time = datetime.fromisoformat(now_timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return "current"
+    if frame_time < now_time:
+        return "past"
+    if frame_time == now_time:
+        return "current"
+    return "forecast"
+
+
+def _frame_label(timestamp: str, now_timestamp: str) -> str:
+    try:
+        frame_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        now_time = datetime.fromisoformat(now_timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return timestamp
+    minutes = round((frame_time - now_time).total_seconds() / 60)
+    if minutes == 0:
+        return "now"
+    prefix = "+" if minutes > 0 else ""
+    return f"{prefix}{minutes} min"
+
+
+def _bounds_from_geometry(geometry: dict[str, Any] | None) -> dict[str, float] | None:
+    if not geometry:
+        return None
+    coordinates = geometry.get("coordinates")
+    if not isinstance(coordinates, list) or not coordinates:
+        return None
+    points = coordinates[0]
+    if not isinstance(points, list):
+        return None
+    lons = [float(point[0]) for point in points if isinstance(point, list) and len(point) >= 2]
+    lats = [float(point[1]) for point in points if isinstance(point, list) and len(point) >= 2]
+    if not lons or not lats:
+        return None
+    return {
+        "north": max(lats),
+        "west": min(lons),
+        "south": min(lats),
+        "east": max(lons),
+    }
+
+
+def normalize_radar_frames(
+    payload: dict[str, Any],
+    *,
+    location_name: str,
+    latitude: float,
+    longitude: float,
+    radius_km: int,
+    now_timestamp: str,
+) -> dict[str, Any]:
+    """Normalize Bright Sky radar grids into compact embed metadata plus blob data."""
+    radar_rows = payload.get("radar") or []
+    frames: list[dict[str, Any]] = []
+    blob_frames: list[dict[str, Any]] = []
+    grid_width = 0
+    grid_height = 0
+
+    for index, row in enumerate(radar_rows):
+        encoded = row.get("precipitation_5")
+        timestamp = str(row.get("timestamp") or "")
+        if not encoded or not timestamp:
+            continue
+        values = _decode_precipitation_grid(str(encoded))
+        if not values:
+            continue
+        grid_width, grid_height = _radar_grid_dimensions(payload, len(values))
+        center_index = min(len(values) - 1, (grid_height // 2) * grid_width + (grid_width // 2)) if grid_width else 0
+        center_value = values[center_index]
+        rainy_values = [value for value in values if value > 0]
+        max_value = max(values)
+        frame_id = f"frame-{len(frames)}"
+        frames.append({
+            "frame_id": frame_id,
+            "timestamp": timestamp,
+            "kind": _frame_kind(timestamp, now_timestamp),
+            "label": _frame_label(timestamp, now_timestamp),
+            "rain_at_location_mm_5min": _round_number(center_value / 100, 2),
+            "max_intensity": _classify_precipitation(max_value),
+            "rain_area_pct": _round_number((len(rainy_values) / len(values)) * 100, 1),
+        })
+        blob_frames.append({
+            "frame_id": frame_id,
+            "timestamp": timestamp,
+            "kind": frames[-1]["kind"],
+            "values": values,
+        })
+
+    preview_frame = _select_preview_frame(frames, now_timestamp)
+    rain_expected = any(frame["max_intensity"] != "none" for frame in frames)
+    peak_intensity = _peak_intensity(frame["max_intensity"] for frame in frames)
+    summary = {
+        "rain_expected": rain_expected,
+        "in_10_min": _describe_frame(preview_frame, location_name),
+        "next_2_hours": _describe_timeline(frames, location_name),
+        "peak_intensity": peak_intensity,
+        "preview_frame_id": preview_frame.get("frame_id") if preview_frame else None,
+    }
+    bounds = _bounds_from_geometry(payload.get("geometry"))
+    blob = {
+        "version": 1,
+        "bounds": bounds,
+        "grid": {
+            "width": grid_width,
+            "height": grid_height,
+            "resolution_km": 1,
+            "unit": "0.01mm_per_5min",
+        },
+        "frames": blob_frames,
+    }
+
+    return {
+        "type": "rain_radar",
+        "location_name": location_name,
+        "latitude": latitude,
+        "longitude": longitude,
+        "provider": f"{BRIGHT_SKY_PROVIDER_LABEL} via Bright Sky",
+        "coverage": {"status": "available", "radius_km": radius_km},
+        "summary": summary,
+        "timeline": frames,
+        "rendering": {
+            "mode": "external_radar_blob",
+            "preview_frame_id": summary["preview_frame_id"],
+            "bounds": bounds,
+            "frame_count": len(frames),
+            "grid_resolution_km": 1,
+            "radius_km": radius_km,
+        },
+        "radar_blob_b64": base64.b64encode(zlib.compress(json.dumps(blob, separators=(",", ":")).encode("utf-8"))).decode("ascii"),
+    }
+
+
+def _select_preview_frame(frames: list[dict[str, Any]], now_timestamp: str) -> dict[str, Any]:
+    if not frames:
+        return {}
+    try:
+        now_time = datetime.fromisoformat(now_timestamp.replace("Z", "+00:00"))
+        target = now_time + timedelta(minutes=10)
+        return min(
+            frames,
+            key=lambda frame: abs(
+                datetime.fromisoformat(str(frame["timestamp"]).replace("Z", "+00:00")) - target
+            ),
+        )
+    except (ValueError, TypeError):
+        return frames[min(len(frames) - 1, len(frames) // 2)]
+
+
+def _peak_intensity(intensities: Any) -> str:
+    rank = {"none": 0, "light": 1, "moderate": 2, "heavy": 3}
+    peak = "none"
+    for intensity in intensities:
+        if rank.get(str(intensity), 0) > rank[peak]:
+            peak = str(intensity)
+    return peak
+
+
+def _describe_frame(frame: dict[str, Any], location_name: str) -> str:
+    intensity = frame.get("max_intensity")
+    if not frame or intensity == "none":
+        return f"No rain visible near {location_name}."
+    return f"{str(intensity).capitalize()} rain visible near {location_name}."
+
+
+def _describe_timeline(frames: list[dict[str, Any]], location_name: str) -> str:
+    if not frames or all(frame.get("max_intensity") == "none" for frame in frames):
+        return f"No rain is visible near {location_name} in the radar timeline."
+    peak = _peak_intensity(frame.get("max_intensity") for frame in frames)
+    return f"{peak.capitalize()} rain appears in the radar timeline near {location_name}."
 
 
 def _build_source(source: dict[str, Any] | None) -> dict[str, Any] | None:

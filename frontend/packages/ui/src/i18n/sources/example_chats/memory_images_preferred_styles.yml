@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Images Preferred Styles"
   en: "Memory Images Preferred Styles"
-  de: "Memory Images Preferred Styles"
+  de: "Memory: Bevorzugte Bildstile"
   zh: "Memory Images Preferred Styles"
   es: "Memory Images Preferred Styles"
   fr: "Memory Images Preferred Styles"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Images Preferred Styles"
   en: "OpenMates uses saved images preferred_styles memory in a real chat."
-  de: "OpenMates uses saved images preferred_styles memory in a real chat."
+  de: OpenMates nutzt den gespeicherten Memory-Eintrag „preferred_styles“ für Bilder in einem echten Chat.
   zh: "OpenMates uses saved images preferred_styles memory in a real chat."
   es: "OpenMates uses saved images preferred_styles memory in a real chat."
   fr: "OpenMates uses saved images preferred_styles memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Images Preferred Styles. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen gespeicherten Memory-Eintrag für Bildstile, um einen Produktfoto-Prompt für eine handgefertigte Keramiktasse zu schreiben. Du darfst diesen gespeicherten Memory-Eintrag anfordern und verwenden. Suche nach der Verwendung des Memory-Eintrags nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved image style memory to write a product photo prompt for a handmade ceramic mug. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -81,10 +81,10 @@ message_2:
     **Prompt:**
     A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
   de: |
-    Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
-
+    Basierend auf deiner gespeicherten Vorliebe für **Warmen redaktionellen Minimalismus** findest du hier einen Produktfoto-Prompt für eine handgefertigte Keramiktasse:
+    
     **Prompt:**
-    A high-quality product photograph of a single handmade ceramic mug with visible tactile textures and an organic, slightly irregular rim. The scene is bathed in natural side light, creating soft, gentle shadows that emphasize the mug's rounded geometric form. The color palette is a muted, sophisticated blend of beige and sage. The composition follows a calm editorial style with generous whitespace, avoiding any glossy corporate aesthetic. A hint of subtle film grain is present to enhance the realistic, artisanal feel of the stoneware.
+    Eine hochwertige Produktfotografie einer einzelnen handgefertigten Keramiktasse mit sichtbaren taktilen Texturen und einem organischen, leicht unregelmäßigen Rand. Die Szene ist in natürliches Seitenlicht getaucht, das weiche, sanfte Schatten erzeugt, die die abgerundete geometrische Form der Tasse betonen. Die Farbpalette ist eine gedämpfte, anspruchsvolle Mischung aus Beige und Salbei. Die Komposition folgt einem ruhigen redaktionellen Stil mit viel Weißraum und vermeidet jegliche glänzende Corporate-Ästhetik. Ein Hauch von subtiler Filmkörnung ist vorhanden, um das realistische, handwerkliche Gefühl des Steinzeugs zu verstärken.
   zh: |
     Based on your saved preference for **Warm editorial minimalism**, here is a product photo prompt for a handmade ceramic mug:
 

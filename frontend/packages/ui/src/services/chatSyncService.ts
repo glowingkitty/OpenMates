@@ -62,6 +62,12 @@ import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
 import * as senders from "./chatSyncServiceSenders";
 import { flushPendingEmbedOperations } from "./embedSenders";
 import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
+import type {
+  ConnectedAccountSendContext,
+  PreparedConnectedAccountSendContext,
+} from "./connectedAccountTokenBrokerService";
+import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
+import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
@@ -937,6 +943,22 @@ export class ChatSynchronizationService extends EventTarget {
         ),
       );
     });
+    webSocketService.on("request_connected_account_permission", (payload) => {
+      import("./chatSyncServiceHandlersConnectedAccounts").then((module) =>
+        module.handleRequestConnectedAccountPermissionImpl(
+          this,
+          payload as Parameters<typeof module.handleRequestConnectedAccountPermissionImpl>[1],
+        ),
+      );
+    });
+    webSocketService.on("connected_account_action_receipt", (payload) => {
+      import("./chatSyncServiceHandlersConnectedAccounts").then((module) =>
+        module.handleConnectedAccountActionReceiptImpl(
+          this,
+          payload as Parameters<typeof module.handleConnectedAccountActionReceiptImpl>[1],
+        ),
+      );
+    });
     webSocketService.on("dismiss_app_settings_memories_dialog", (payload) => {
       import("./chatSyncServiceHandlersAppSettings").then((module) =>
         module.handleDismissAppSettingsMemoriesDialogImpl(
@@ -1699,12 +1721,46 @@ export class ChatSynchronizationService extends EventTarget {
   public async sendNewMessage(
     message: Message,
     encryptedSuggestionToDelete?: string | null,
+    connectedAccountContext?: ConnectedAccountSendContext,
   ): Promise<void> {
+    const context = connectedAccountContext ?? await this.buildDefaultConnectedAccountSendContext();
+    let preparedConnectedAccountContext: PreparedConnectedAccountSendContext | undefined;
+    try {
+      preparedConnectedAccountContext = await prepareConnectedAccountSendContext({
+        chatId: message.chat_id,
+        messageId: message.message_id,
+        context,
+      });
+    } catch (error) {
+      console.warn(
+        "[ChatSyncService] Connected account token prep failed; sending without connected account context.",
+        error,
+      );
+    }
     await senders.sendNewMessageImpl(
       this,
       message,
       encryptedSuggestionToDelete,
+      preparedConnectedAccountContext,
     );
+  }
+
+  private async buildDefaultConnectedAccountSendContext(): Promise<ConnectedAccountSendContext | undefined> {
+    if (!get(authStore).isAuthenticated) return undefined;
+    try {
+      const rows = await listConnectedAccounts();
+      return buildConnectedAccountSendContext({
+        rows,
+        appId: "calendar",
+        defaultAllowedActions: ["read"],
+      });
+    } catch (error) {
+      console.warn(
+        "[ChatSyncService] Connected account lookup failed; sending without connected account context.",
+        error,
+      );
+      return undefined;
+    }
   }
   public async sendCompletedAIResponse(aiMessage: Message): Promise<void> {
     await senders.sendCompletedAIResponseImpl(this, aiMessage);
@@ -2161,10 +2217,10 @@ export class ChatSynchronizationService extends EventTarget {
   // and storage helpers (storeRecentChats, storeAllChats, etc.) are in chatSyncServiceHandlersPhasedSync.ts
 
   /**
-   * Clean up messages stuck in 'streaming' or 'processing' status across ALL chats.
-   * This handles the case where the WebSocket disconnected during an AI stream,
-   * leaving messages in intermediate states. The subsequent phased sync will
-   * deliver the server-persisted (complete) version.
+   * Detect messages stuck in 'streaming' or 'processing' status across ALL chats.
+   * This handles the case where the WebSocket disconnected during an AI stream.
+   * Do not finalize them locally: reconnect pending delivery or phased sync must
+   * replace the partial row with the server-completed version.
    */
   private async _cleanupOrphanedStreamingMessages(): Promise<void> {
     try {
@@ -2178,36 +2234,8 @@ export class ChatSynchronizationService extends EventTarget {
       if (orphaned.length === 0) return;
 
       console.warn(
-        `[ChatSyncService] Found ${orphaned.length} orphaned streaming/processing message(s) - finalizing to synced`,
+        `[ChatSyncService] Found ${orphaned.length} orphaned streaming/processing message(s) - waiting for pending delivery or phased sync`,
       );
-
-      for (const msg of orphaned) {
-        try {
-          // CRITICAL FIX: Use updateMessageStatus() instead of saveMessage().
-          //
-          // The naive `{ ...msg, status: "synced" } → saveMessage()` approach triggers
-          // encryptMessageFields() which calls getOrGenerateChatKey(). If the chat key
-          // has been evicted from the in-memory cache (a real race condition during
-          // WebSocket reconnect on a new-chat flow), a NEW random key is generated and
-          // the message is silently re-encrypted with it — while encrypted_chat_key on
-          // the chat still holds the original key. Subsequent decryption attempts fail
-          // with "[Content decryption failed]". This is the same class of bug fixed for
-          // the handleChatMessageConfirmedImpl path in commit 65780674.
-          //
-          // updateMessageStatus() reads the raw (still-encrypted) IndexedDB record,
-          // patches ONLY the status field, and writes it back — no encryption, no key
-          // operations, no risk.
-          await chatDB.updateMessageStatus(msg.message_id, "synced");
-          console.warn(
-            `[ChatSyncService] Finalized orphaned ${msg.status} message ${msg.message_id} in chat ${msg.chat_id}`,
-          );
-        } catch (error) {
-          console.error(
-            `[ChatSyncService] Error finalizing orphaned message ${msg.message_id}:`,
-            error,
-          );
-        }
-      }
     } catch (error) {
       console.error(
         "[ChatSyncService] Error in _cleanupOrphanedStreamingMessages:",

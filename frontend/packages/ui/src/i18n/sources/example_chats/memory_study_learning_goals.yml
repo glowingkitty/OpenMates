@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Study Learning Goals"
   en: "Memory Study Learning Goals"
-  de: "Memory Study Learning Goals"
+  de: "Memory: Lernziele beim Lernen"
   zh: "Memory Study Learning Goals"
   es: "Memory Study Learning Goals"
   fr: "Memory Study Learning Goals"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Study Learning Goals"
   en: "OpenMates uses saved study learning_goals memory in a real chat."
-  de: "OpenMates uses saved study learning_goals memory in a real chat."
+  de: OpenMates nutzt den gespeicherten Memory-Eintrag „learning_goals“ für das Lernen in einem echten Chat.
   zh: "OpenMates uses saved study learning_goals memory in a real chat."
   es: "OpenMates uses saved study learning_goals memory in a real chat."
   fr: "OpenMates uses saved study learning_goals memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Study Learning Goals. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen gespeicherten Memory-Eintrag für Lernziele, um einen einwöchigen Lernplan mit einer praktischen Übung zu erstellen. Du darfst diesen gespeicherten Memory-Eintrag anfordern und verwenden. Suche nach der Verwendung des Memory-Eintrags nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved study learning goal memory to build a one-week study plan with a practical exercise. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -121,50 +121,50 @@ message_2:
         *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
     5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
   de: |
-    Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
-
-    ### One-Week Linear Algebra Intensive
-
-    **Day 1: The Geometry of Vectors and Linear Transformations**
-    Focus on visualizing vectors not just as lists of numbers, but as arrows in space. Study how a matrix acts as a function that transforms space (stretching, squishing, or rotating it).
-    *   **Key Concept:** Understand that matrix-vector multiplication $Ax$ is a linear combination of the columns of $A$.
-
-    **Day 2: Matrix Multiplication as Composition**
-    Instead of focusing on the "row-by-column" arithmetic, view the product $AB$ as the composition of two transformations. Applying $B$ first, then $A$.
-    *   **Key Concept:** Why order matters (Matrix multiplication is not commutative).
-
-    **Day 3: Determinants and the Change of Area**
-    Learn the determinant as the factor by which a transformation scales areas (in 2D) or volumes (in 3D). This provides the intuition for why a zero determinant means the transformation squishes space into a lower dimension.
-    *   **Key Concept:** The relationship between the determinant and matrix invertibility.
-
-    **Day 4: Eigenvalues and Eigenvectors**
-    Find the special "hidden" axes of a transformation—the vectors that only get scaled (not knocked off their span) during the transformation.
-    *   **Key Concept:** $Ax = \lambda x$. The eigenvector $x$ is the direction, and the eigenvalue $\lambda$ is the scale factor.
-
-    **Day 5: Matrix Decompositions (The ML Foundation)**
-    Introduce the concept of breaking a complex matrix into simpler, interpretable parts. Focus on the intuition behind Singular Value Decomposition (SVD) and how it relates to data compression.
-    *   **Key Concept:** How SVD "factors" a transformation into a rotation, a stretch, and another rotation.
-
-    **Day 6: Applications in Graphics and ML**
-    Study how 4x4 matrices are used in computer graphics for translation, rotation, and perspective projection. Briefly look at how Principal Component Analysis (PCA) uses eigenvectors to find the directions of maximum variance in a dataset.
-    *   **Key Concept:** Change of basis and coordinate systems.
-
-    **Day 7: Practical Exercise and Review**
-    Consolidate the week's concepts by working through a manual transformation exercise.
-
+    Basierend auf deinen gespeicherten Lernzielen für **Lineare Algebra für Machine Learning und Grafik** findest du hier einen strukturierten einwöchigen Lernplan, der darauf ausgelegt ist, Intuition und praktisches Verständnis aufzubauen, bevor es an formale Beweise geht.
+    
+    ### Einwöchiger Intensivkurs Lineare Algebra
+    
+    **Tag 1: Die Geometrie von Vektoren und linearen Transformationen**
+    Konzentriere dich darauf, Vektoren nicht nur als Zahlenlisten zu visualisieren, sondern als Pfeile im Raum. Untersuche, wie eine Matrix als Funktion fungiert, die den Raum transformiert (streckt, staucht oder rotiert).
+    *   **Schlüsselkonzept:** Verstehe, dass die Matrix-Vektor-Multiplikation $Ax$ eine Linearkombination der Spalten von $A$ ist.
+    
+    **Tag 2: Matrixmultiplikation als Komposition**
+    Anstatt dich auf die „Zeile-mal-Spalte“-Arithmetik zu konzentrieren, betrachte das Produkt $AB$ als die Komposition zweier Transformationen. Zuerst wird $B$ angewendet, dann $A$.
+    *   **Schlüsselkonzept:** Warum die Reihenfolge wichtig ist (Matrixmultiplikation ist nicht kommutativ).
+    
+    **Tag 3: Determinanten und die Änderung des Flächeninhalts**
+    Lerne die Determinante als den Faktor kennen, um den eine Transformation Flächen (in 2D) oder Volumina (in 3D) skaliert. Dies vermittelt die Intuition dafür, warum eine Determinante von Null bedeutet, dass die Transformation den Raum in eine niedrigere Dimension staucht.
+    *   **Schlüsselkonzept:** Die Beziehung zwischen der Determinante und der Invertierbarkeit einer Matrix.
+    
+    **Tag 4: Eigenwerte und Eigenvektoren**
+    Finde die speziellen „verborgenen“ Achsen einer Transformation – die Vektoren, die während der Transformation nur skaliert werden (und nicht aus ihrer Aufspannung geworfen werden).
+    *   **Schlüsselkonzept:** $Ax = \lambda x$. Der Eigenvektor $x$ ist die Richtung und der Eigenwert $\lambda$ ist der Skalierungsfaktor.
+    
+    **Tag 5: Matrixzerlegungen (Die ML-Grundlage)**
+    Führe das Konzept ein, eine komplexe Matrix in einfachere, interpretierbare Teile zu zerlegen. Konzentriere dich auf die Intuition hinter der Singulärwertzerlegung (SVD) und wie sie mit Datenkompression zusammenhängt.
+    *   **Schlüsselkonzept:** Wie die SVD eine Transformation in eine Rotation, eine Streckung und eine weitere Rotation „faktorisiert“.
+    
+    **Tag 6: Anwendungen in Grafik und ML**
+    Untersuche, wie 4x4-Matrizen in der Computergrafik für Translation, Rotation und Perspektivprojektion verwendet werden. Schau dir kurz an, wie die Hauptkomponentenanalyse (PCA) Eigenvektoren nutzt, um die Richtungen der maximalen Varianz in einem Datensatz zu finden.
+    *   **Schlüsselkonzept:** Basiswechsel und Koordinatensysteme.
+    
+    **Tag 7: Praktische Übung und Wiederholung**
+    Festige die Konzepte der Woche, indem du eine manuelle Transformationsübung durcharbeitest.
+    
     ***
-
-    ### Practical Exercise: The "Hand-Drawn" Transformation
-
-    To build your intuition for graphics and matrix operations, perform the following exercise:
-
-    1.  **Define a Shape:** On a piece of graph paper (or a digital equivalent), plot three points: $A(1, 1)$, $B(3, 1)$, and $C(2, 3)$. Connect them to form a triangle.
-    2.  **Create a Transformation Matrix:** Use the matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
-    3.  **Apply the Transformation:** Multiply each point (as a column vector) by $M$.
-        *   Example for point $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
-    4.  **Analyze the Result:** Plot the three new points ($A', B', C'$).
-        *   **Observation:** You will see the triangle has rotated 90 degrees counter-clockwise.
-    5.  **Challenge:** Try to find a new 2x2 matrix that would "squish" the triangle so its area becomes zero. (Hint: Think about the determinant).
+    
+    ### Praktische Übung: Die „handgezeichnete“ Transformation
+    
+    Um deine Intuition für Grafik und Matrixoperationen zu stärken, führe die folgende Übung durch:
+    
+    1.  **Definiere eine Form:** Zeichne auf einem Blatt Karopapier (oder einer digitalen Entsprechung) drei Punkte ein: $A(1, 1)$, $B(3, 1)$ und $C(2, 3)$. Verbinde sie zu einem Dreieck.
+    2.  **Erstelle eine Transformationsmatrix:** Verwende die Matrix $M = \begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix}$.
+    3.  **Wende die Transformation an:** Multipliziere jeden Punkt (als Spaltenvektor) mit $M$.
+        *   Beispiel für Punkt $A$: $\begin{bmatrix} 0 & -1 \\ 1 & 0 \end{bmatrix} \begin{bmatrix} 1 \\ 1 \end{bmatrix} = \begin{bmatrix} -1 \\ 1 \end{bmatrix}$.
+    4.  **Analysiere das Ergebnis:** Zeichne die drei neuen Punkte ein ($A', B', C'$).
+        *   **Beobachtung:** Du wirst sehen, dass das Dreieck um 90 Grad gegen den Uhrzeigersinn rotiert ist.
+    5.  **Herausforderung:** Versuche, eine neue 2x2-Matrix zu finden, die das Dreieck so „staucht“, dass sein Flächeninhalt Null wird. (Hinweis: Denke an die Determinante).
   zh: |
     Based on your saved learning goals for **Linear Algebra for machine learning and graphics**, here is a structured one-week study plan designed to build intuition and practical understanding before moving into formal proofs.
 

@@ -46,10 +46,12 @@ from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
+from .handlers.websocket_handlers.connected_account_permission_confirmed_handler import handle_connected_account_permission_confirmed
 from .handlers.websocket_handlers.store_app_settings_memories_handler import handle_store_app_settings_memories_entry # Handler for storing app settings/memories entries to Directus
 from .handlers.websocket_handlers.delete_app_settings_memories_handler import handle_delete_app_settings_memories_entry # Handler for deleting app settings/memories entries with cross-device sync
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
+from .handlers.websocket_handlers.store_embed_diff_handler import handle_store_embed_diff # Handler for storing encrypted embed diff rows
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
 from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
@@ -482,6 +484,50 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
+                    elif event_type == "send_connected_account_permission_request":
+                        request_id = payload.get("request_id")
+                        chat_id = payload.get("chat_id")
+                        if request_id and chat_id:
+                            user_connections = manager.get_connections_for_user(user_id)
+                            if user_connections:
+                                device_ids = list(user_connections.keys())
+                                for device_id in device_ids:
+                                    try:
+                                        await manager.send_personal_message(
+                                            {
+                                                "type": "request_connected_account_permission",
+                                                "payload": payload,
+                                            },
+                                            user_id,
+                                            device_id,
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Redis Listener: FAILED to send connected-account permission request {request_id} to device {device_id[:12]}...: {e}")
+                                logger.info(f"Redis Listener: Sent connected-account permission request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
+                            else:
+                                logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account permission request {request_id}")
+                    elif event_type == "send_connected_account_action_receipt":
+                        chat_id = payload.get("chat_id")
+                        action_id = payload.get("action_id")
+                        if chat_id and action_id:
+                            user_connections = manager.get_connections_for_user(user_id)
+                            if user_connections:
+                                device_ids = list(user_connections.keys())
+                                for device_id in device_ids:
+                                    try:
+                                        await manager.send_personal_message(
+                                            {
+                                                "type": "connected_account_action_receipt",
+                                                "payload": payload,
+                                            },
+                                            user_id,
+                                            device_id,
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Redis Listener: FAILED to send connected-account receipt {action_id} to device {device_id[:12]}...: {e}")
+                                logger.info(f"Redis Listener: Sent connected-account receipt {action_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
+                            else:
+                                logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account receipt {action_id}")
                     elif event_type == "focus_mode_activated":
                         # Focus mode was auto-confirmed after countdown. Push the activation
                         # event to all connected devices so the client can update its local
@@ -2273,6 +2319,7 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     active_chat_id=active_chat_id,
+                    user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "cancel_ai_task":
                 await handle_cancel_ai_task(
@@ -2459,6 +2506,19 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
 
+            elif message_type == "connected_account_permission_confirmed":
+                await handle_connected_account_permission_confirmed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
             elif message_type == "store_app_settings_memories_entry":
                 # Handle storing new/updated app settings/memories entry from client
                 # Client sends encrypted entry for permanent storage in Directus
@@ -2565,6 +2625,18 @@ async def websocket_endpoint(
                 # Handle storing wrapped embed keys in Directus embed_keys collection (zero-knowledge)
                 # This implements the wrapped key architecture for offline sharing and cross-chat access
                 await handle_store_embed_keys(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "store_embed_diff":
+                # Handle storing encrypted embed version rows in Directus (zero-knowledge)
+                await handle_store_embed_diff(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

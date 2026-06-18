@@ -9,11 +9,11 @@
 // - Types: frontend/packages/ui/src/types/apps.ts
 //
 // **Offline-First PWA**: App metadata is included in the build, allowing users
-// to browse the app store even when offline. This supports the offline-first
+// to browse Apps even when offline. This supports the offline-first
 // architecture of the PWA.
 //
 // **Health Filtering**: Apps with skills are filtered based on health status from /v1/health endpoint.
-// Only apps with status="healthy" are shown in the app store. Apps without skills
+// Only apps with status="healthy" are shown in Apps. Apps without skills
 // (only settings/memories and/or focus modes) bypass health filtering since they
 // don't have Docker containers and therefore no health status to check.
 //
@@ -24,7 +24,7 @@
 
 import { appsMetadata } from '../data/appsMetadata';
 import type { AppMetadata } from '../types/apps';
-import { appHealthStore, isAppHealthy, getAppHealthStatus } from './appHealthStore';
+import { appHealthStore, getAppHealthStatus } from './appHealthStore';
 import type { AppHealthStatusValue } from './appHealthStore';
 import { get, writable } from 'svelte/store';
 
@@ -181,11 +181,12 @@ class AppSkillsStore {
             for (const [appId, appMetadata] of Object.entries(annotatedApps)) {
                 const availableSkillIds = userSkillsState.skillsByApp[appId];
                 if (availableSkillIds === undefined) {
+                    const hasNoSkills = (appMetadata.skills?.length ?? 0) === 0;
                     const hasNonSkillComponents =
                         (appMetadata.focus_modes?.length ?? 0) > 0 ||
                         (appMetadata.settings_and_memories?.length ?? 0) > 0;
 
-                    if (hasNonSkillComponents) {
+                    if (hasNoSkills || hasNonSkillComponents) {
                         userFilteredApps[appId] = {
                             ...appMetadata,
                             skills: [],

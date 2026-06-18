@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Climate Dashboard SVG App Icon"
   en: "Climate Dashboard SVG App Icon"
-  de: "Climate Dashboard SVG App Icon"
+  de: SVG-App-Icon für Klima-Dashboard
   zh: "Climate Dashboard SVG App Icon"
   es: "Climate Dashboard SVG App Icon"
   fr: "Climate Dashboard SVG App Icon"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Climate Dashboard SVG App Icon"
   en: "A vector-logo generation example that creates a scalable SVG app icon for a fictional climate dashboard."
-  de: "A vector-logo generation example that creates a scalable SVG app icon for a fictional climate dashboard."
+  de: Ein Beispiel für die Erstellung eines Vektor-Logos, das ein skalierbares SVG-App-Icon für ein fiktives Klima-Dashboard generiert.
   zh: "A vector-logo generation example that creates a scalable SVG app icon for a fictional climate dashboard."
   es: "A vector-logo generation example that creates a scalable SVG app icon for a fictional climate dashboard."
   fr: "A vector-logo generation example that creates a scalable SVG app icon for a fictional climate dashboard."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Climate Dashboard SVG App Icon. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "@skill:images:generate Create a simple scalable SVG app icon for a fictional open-source climate data dashboard. Use an abstract compass star and a tiny upward trend line, flat vector geometry, two colors, transparent background, no text, no letters, no people."
-  de: "@skill:images:generate Create a simple scalable SVG app icon for a fictional open-source climate data dashboard. Use an abstract compass star and a tiny upward trend line, flat vector geometry, two colors, transparent background, no text, no letters, no people."
+  de: "@skill:images:generate Erstelle ein einfaches, skalierbares SVG-App-Icon für ein fiktives Open-Source-Klimadaten-Dashboard. Verwende einen abstrakten Kompassstern und eine winzige Aufwärtstrendlinie, flache Vektorgeometrie, zwei Farben, transparenten Hintergrund, keinen Text, keine Buchstaben, keine Personen."
   zh: "@skill:images:generate Create a simple scalable SVG app icon for a fictional open-source climate data dashboard. Use an abstract compass star and a tiny upward trend line, flat vector geometry, two colors, transparent background, no text, no letters, no people."
   es: "@skill:images:generate Create a simple scalable SVG app icon for a fictional open-source climate data dashboard. Use an abstract compass star and a tiny upward trend line, flat vector geometry, two colors, transparent background, no text, no letters, no people."
   fr: "@skill:images:generate Create a simple scalable SVG app icon for a fictional open-source climate data dashboard. Use an abstract compass star and a tiny upward trend line, flat vector geometry, two colors, transparent background, no text, no letters, no people."
@@ -92,13 +92,13 @@ message_2:
     {"type": "app_skill_use", "embed_id": "6da89032-d370-43c5-91c1-b07fa5df5a85", "app_id": "images", "skill_id": "generate"}
     ```
     
-    I'm generating that SVG app icon for your climate data dashboard now. 
+    Ich generiere jetzt das SVG-App-Icon für dein Klimadaten-Dashboard. 
     
-    I've focused on a clean, [flat](wiki:Flat_design) [vector](wiki:Vector_graphics) aesthetic with a teal and mint palette to reflect both nature and data. This style is excellent for scalability, ensuring the icon stays crisp whether it's on a mobile home screen or a tiny browser favicon.
+    Ich habe mich auf eine klare [Flat-Design](wiki:Flat_design)-[Vektor](wiki:Vector_graphics)-Ästhetik mit einer Farbpalette in Petrol und Minze konzentriert, um sowohl Natur als auch Daten widerzuspiegeln. Dieser Stil eignet sich hervorragend für die Skalierbarkeit und stellt sicher, dass das Icon scharf bleibt, egal ob auf einem mobilen Startbildschirm oder als winziges Browser-Favicon.
     
-    Once it's ready, we could experiment with different color schemes for dark mode or even create a [UI mockup](wiki:Mockup) to see how it looks in context.
+    Sobald es fertig ist, könnten wir mit verschiedenen Farbschemata für den Dark Mode experimentieren oder sogar ein [UI-Mockup](wiki:Mockup) erstellen, um zu sehen, wie es im Kontext wirkt.
     
-    What kind of interface are you imagining for this dashboard—something very data-heavy with charts, or a more simplified overview?
+    Welche Art von Interface stellst du dir für dieses Dashboard vor – etwas sehr datenintensives mit Diagrammen oder eher eine vereinfachte Übersicht?
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "6da89032-d370-43c5-91c1-b07fa5df5a85", "app_id": "images", "skill_id": "generate"}

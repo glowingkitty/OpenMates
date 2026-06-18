@@ -565,21 +565,21 @@ test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: 
 });
 
 /**
- * Test: Select Kimi K2.5 model via @ mention dropdown and verify it's used.
+ * Test: Select Kimi K2.6 model via @ mention dropdown and verify it's used.
  *
- * This test specifically targets the Kimi K2.5 model (via Together AI) to verify
+ * This test specifically targets the current Kimi model (via Together AI) to verify
  * that tool call parsing works correctly after the fix for function_name=None
  * in ParsedOpenAIToolCall validation.
  *
  * Flow:
  * 1. Type "@kimi" in message input
- * 2. Verify "Kimi K2.5" appears in MentionDropdown
+ * 2. Verify "Kimi K2.6" appears in MentionDropdown
  * 3. Press Tab to autocomplete
  * 4. Type "Capital city of Germany? short answer please."
  * 5. Send message
  * 6. Verify response shows "Kimi" in generated-by text
  */
-test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: any }) => {
+test('select kimi k2.6 model via @ mention dropdown', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
 		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
@@ -605,7 +605,7 @@ test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: a
 
 	await archiveExistingScreenshots(logCheckpoint);
 
-	logCheckpoint('Starting Kimi K2.5 model mention test.', { email: TEST_EMAIL });
+	logCheckpoint('Starting Kimi K2.6 model mention test.', { email: TEST_EMAIL });
 
 	// Login
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
@@ -613,12 +613,12 @@ test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: a
 	// Start a new chat
 	await startNewChat(page, logCheckpoint);
 
-	// Select Kimi K2.5 model via @ mention dropdown
-	// Search term "kimi" should find "Kimi K2.5" in the dropdown
+	// Select Kimi K2.6 model via @ mention dropdown
+	// Search term "kimi" should find "Kimi K2.6" in the dropdown
 	await selectModelViaMentionDropdown(
 		page,
 		'kimi',
-		'Kimi K2.5',
+		'Kimi K2.6',
 		logCheckpoint,
 		takeStepScreenshot,
 		'kimi'
@@ -636,7 +636,7 @@ test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: a
 		'model_override'
 	);
 
-	// Wait for response and verify Kimi K2.5 model was used
+	// Wait for response and verify a Kimi model was used
 	// The generated-by text should contain "Kimi" (case-insensitive)
 	const response = await waitForResponseAndVerifyModel(
 		page,
@@ -657,5 +657,5 @@ test('select kimi k2.5 model via @ mention dropdown', async ({ page }: { page: a
 	// Cleanup
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'kimi-cleanup');
 
-	logCheckpoint('Kimi K2.5 model mention test completed successfully.');
+	logCheckpoint('Kimi K2.6 model mention test completed successfully.');
 });

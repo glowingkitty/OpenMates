@@ -1,0 +1,805 @@
+id: pcb-schematic-embed
+title: PCB Schematic Atopile Embed
+status: draft
+
+goal: >
+  Add a first-class Electronics/PCB schematic embed that renders assistant-written
+  atopile source using the existing code-code preview/fullscreen visual system,
+  lets users compile the schematic in an isolated E2B sandbox from fullscreen,
+  and exposes downloadable KiCad/project artifacts after a successful build.
+  The assistant should receive concise, current atopile guidance only when PCB
+  schematic generation is relevant, with the existing code.get_docs skill made
+  available for complex designs that need official documentation lookup before
+  code is written.
+
+scope:
+  in:
+    - Add a direct embed type for PCB schematics under the existing Electronics app metadata, backed by assistant-generated atopile code blocks.
+    - Detect `atopile`, `ato`, and `pcb_schematic` fenced code blocks from the AI response stream and store them as PCB schematic embeds instead of generic code-code embeds.
+    - Render the PCB schematic preview and fullscreen source panes with the same syntax highlighting, line gutter, typography, spacing, PII masking behavior, and responsive code-view styles used by `code-code` embeds.
+    - Add a fullscreen `Prepare PCB files` action that compiles the stored atopile project in E2B, shows high-level status by default, hides detailed logs behind `Show logs`, and produces downloadable KiCad/project artifacts.
+    - Pin E2B compilation to the current latest installable atopile version and require the compressed instruction source docs to use the same atopile version number.
+    - Use current official atopile docs as the source for compressed atopile instructions, including language syntax, compiler/build workflow, components, packages, project structure, layout constraints, manufacturing export, and changelog notes.
+    - Gate atopile instructions through existing embed-type instruction injection so they are loaded only when the preprocessor marks PCB schematic embeds as relevant.
+    - Ensure `code.get_docs` can be preselected or made available when a PCB schematic task appears complex enough to need current docs research before code generation.
+    - Create an OpenMates CLI chat from natural-language PCB schematic requests to prove the real assistant flow creates and compiles the embed, then promote the confirmed chat to an example chat and verify it renders in the deployed web app.
+    - Add backend, frontend, registry, i18n, and deterministic tests that prove parsing, instruction gating, E2B compile security, download artifact metadata, and UI behavior.
+  out:
+    - Full PCB autorouting, high-speed routing validation, RF/DDR/PCIe/USB4 sign-off, or manufacturability sign-off.
+    - Direct untrusted atopile compilation in the OpenMates API container, Celery worker filesystem, or browser.
+    - Sending design files to third-party PCB quote/manufacturing providers.
+    - A full KiCanvas/KiCad visual schematic or PCB viewer in this first slice.
+    - Editing generated atopile code inside the embed and persisting edits as a new version, unless already supported by generic embed diff/version flows.
+    - Apple native parity renderer in the first web/backend slice; Apple must not crash on the new embed type and can render a generic/fallback state until a follow-up parity task.
+
+context_discovery:
+  github_issues:
+    - "#453 Add Electronics PCB schematic design and layouting support: tracks PCB design, atopile, KiCad automation, safety boundaries, and phased MVP scope."
+    - "#415 Reconsider PCB layout viewer rendering view: related viewer/rendering decision; this spec intentionally avoids full PCB viewer MVP."
+    - "GitHub MCP issue search returned 401 Bad credentials; fallback `gh issue list --repo glowingkitty/OpenMates --search \"atopile\"` found #453 and #415."
+  official_docs:
+    - "https://pypi.org/pypi/atopile/json (verified 2026-06-17): latest installable package version is 0.15.7."
+    - "https://docs.atopile.io/llms.txt (verified 2026-06-17): public docs index currently advertises atopile-0.14.x, not 0.15.x. Public docs may be used only as supplemental compatibility context for 0.15.7 unless a matching public 0.15.x docs index becomes available."
+    - "PyPI sdist `atopile-0.15.7.tar.gz` (verified 2026-06-17): package-shipped README, `.claude/skills/ato-language/SKILL.md`, `.claude/skills/domain-layer/SKILL.md`, compiler grammar, templates, and examples provide the version-matched 0.15.7 source of truth for compressed instructions."
+    - "PyPI sdist comparison (verified 2026-06-17): `src/atopile/compiler/parser/AtoParser.g4` and `AtoLexer.g4` are unchanged from 0.14.1010 to 0.15.7, so public 0.14.x language docs are likely syntactically compatible but do not satisfy the version-match requirement by themselves."
+    - "PyPI sdist examples/templates (verified 2026-06-17): project templates generate `requires-atopile: \"^{installed_version}\"`, while bundled examples still use `requires-atopile: ^0.14.0`; generated OpenMates E2B projects must write `requires-atopile: \"^0.15.7\"` explicitly."
+    - "https://docs.atopile.io/atopile-0.14.x/essentials/1-the-ato-language.md: modules, components, interfaces, Electrical, units, tolerances, assertions, specialization, and current import syntax."
+    - "https://docs.atopile.io/atopile-0.14.x/essentials/2-the-ato-compiler.md: `ato build`, compiler flow, solving constraints, picking components, reports/manufacturing data, and voltage divider example."
+    - "https://docs.atopile.io/atopile-0.14.x/essentials/3-add-component.md: passive auto-picking, `ato create part`, pin syntax, package/component metadata, package and part practices."
+    - "https://docs.atopile.io/atopile-0.14.x/essentials/4-packages.md: `ato add`, `ato sync`, `ato remove`, registry/git/file dependencies, and package imports."
+    - "https://docs.atopile.io/atopile-0.14.x/essentials/5-project-structure.md: recommended `ato.yaml`, `src`, `layout`, build target, dependencies, and workflow."
+    - "https://docs.atopile.io/atopile-0.14.x/essentials/6-layout.md: KiCad output, `ato configure`, layout sync, package layout reuse, and auto-layout limitation."
+    - "https://docs.atopile.io/atopile-0.14.x/quickstart/4-manufacturing-files.md: manufacturing output expectations for Gerbers, BOM CSV, pick-and-place CSV."
+    - "https://docs.atopile.io/atopile-0.14.x/changelog.md: v0.14.x rewrite, LSP/import improvements, package verify, KiCad integration fixes, MCP support, package-management changes, and upgrade notes."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/add-embed-type.md
+    - docs/architecture/frontend/data-driven-embed-fullscreen-routing.md
+    - docs/architecture/embeds.md
+    - docs/specs/code-execution-fullscreen-ui/spec.yml
+    - docs/specs/code-run-cli-app-skill/spec.yml
+    - docs/specs/application-embeds/spec.yml
+  code_patterns:
+    - backend/apps/pcb_design/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/docs/app.yml
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/apps/code/tasks/run_code_task.py
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/code/codeHighlighting.ts
+    - frontend/packages/ui/src/components/embeds/code/codeEmbedContent.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts
+  tests:
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_app_skills.py
+    - backend/tests/test_e2b_code_runner.py
+    - backend/tests/test_code_block_detection.py
+    - frontend/packages/ui/src/components/embeds/code/__tests__/codeRunSupport.test.ts
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+
+apple_impact:
+  affected_files:
+    - none for the first implementation slice unless generated i18n or registry data is shared with Apple.
+  parity_expectations:
+    - The first slice is web/backend focused because the user requested a custom web fullscreen compile UI.
+    - Apple must not crash or lose chat rendering when encountering the new `pcb-schematic` embed.
+    - A follow-up Apple parity spec should add a native source-code renderer and unsupported/compile-elsewhere state if PCB embeds become user-facing in Apple.
+  verification:
+    - "If implementation changes only backend and web UI, record `Apple not affected: no native renderer touched; generic embed compatibility only`."
+    - If generated assets/i18n consumed by Apple are changed, attempt `python3 scripts/apple_remote.py status` and `python3 scripts/apple_remote.py build-ios` before completion.
+  intentional_native_differences:
+    - E2B compile/download UI is web-only in the first slice.
+
+clarification:
+  rounds:
+    - question: >
+        Should the atopile compilation be run by the existing Python/Docker code execution sandbox, or by a dedicated worker?
+      answer: >
+        It should use E2B because the source code is untrusted and must not run in OpenMates API/Celery/browser contexts.
+    - question: >
+        Should fullscreen compile output use a custom endpoint/UI with downloadable KiCad files, or the generic code-run experience?
+      answer: >
+        Use a custom endpoint and fullscreen embed UI. The embed should look like code-code for source rendering, but belong to Electronics/PCB rather than Code. Fullscreen has a `Prepare PCB files` button that compiles and then exposes KiCad files for download.
+    - question: >
+        How should the assistant get enough current atopile context when its training data may be stale?
+      answer: >
+        Use the existing embed-type instruction auto-loading system for concise official-docs-based atopile guidance when PCB schematic embeds are relevant. Also ensure the existing code.get_docs skill is available when the preprocessor decides a PCB schematic task is relevant, so the assistant can research official docs before writing complex schematics.
+    - question: >
+        Should the PCB code preview visually diverge from current code-code embeds?
+      answer: >
+        No. The preview and fullscreen source-code rendering must use the same styles/patterns as the existing code-code embed.
+    - question: >
+        Should PCB schematic embeds live under the separate PCB Design app or the existing Electronics app?
+      answer: >
+        Use the existing Electronics app, not the separate PCB Design app.
+    - question: >
+        How should atopile compiler/docs versions be managed?
+      answer: >
+        Pin the current latest atopile package version in E2B and use official docs with the same version number as the source of truth. Update the compiler pin and docs-derived instruction summary together on a recurring cadence; version mismatch is not acceptable.
+    - question: >
+        Should compile logs be visible by default?
+      answer: >
+        No. Show user-friendly status by default and hide detailed logs behind a `Show logs` button. Clicking it switches to log streaming/viewing.
+  vision_summary: >
+    PCB schematic embeds should feel like Electronics-native code embeds: source code rendering is identical to code-code, while compile preparation and artifacts are PCB-specific. The assistant should usually rely on a compact, official-docs-based atopile instruction summary, but should be able to call code.get_docs for complex or uncertain designs before writing source. E2B is mandatory for compilation because atopile source is untrusted executable/project code, and the E2B compiler version plus docs-derived instructions must stay pinned to the same official atopile version.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Assistant creates an Electronics-native atopile schematic embed
+    given:
+      - Alice asks OpenMates to plan a simple PCB schematic, such as a 12V to 3.3V regulator support circuit.
+      - The preprocessor marks PCB schematic generation as relevant.
+    when:
+      - The assistant streams an `atopile` fenced code block containing a buildable `.ato` module.
+    then:
+      - The stream consumer replaces the fenced code block with a `pcb-schematic` direct embed reference.
+      - The embed content stores the source code, language, filename, line count, title/module name, app id, status, and task id.
+      - The embed is indexed under Electronics/PCB app metadata, not under the generic Code app.
+      - Generic code-code embed routing is not used for this atopile block.
+
+  - id: S-2
+    title: The PCB schematic preview reuses code-code source styling
+    given:
+      - Alice sees a finished PCB schematic embed in the chat.
+    when:
+      - The preview card renders on desktop, mobile, and large-preview layouts.
+    then:
+      - The source snippet uses the same highlighting utilities and core code preview layout used by `CodeEmbedPreview.svelte`.
+      - The card label/icon/gradient identify the embed as Electronics/PCB schematic.
+      - PII placeholders and reveal/hide behavior match code-code embed behavior.
+      - Long code, filenames, and module names are clamped or scroll within the same constraints as code-code previews.
+
+  - id: S-3
+    title: Fullscreen source view reuses code-code fullscreen styles
+    given:
+      - Alice opens a PCB schematic embed in fullscreen.
+    when:
+      - The fullscreen content loads.
+    then:
+      - The source pane uses the same line gutter, syntax highlighting, scrolling, font sizing, line highlighting, copy/download source actions, and responsive behavior as `CodeEmbedFullscreen.svelte`.
+      - The fullscreen header identifies the embed as a PCB schematic and displays the filename/module name.
+      - The fullscreen includes a `Prepare PCB files` CTA without replacing or forking the shared code rendering styles.
+
+  - id: S-4
+    title: User compiles the schematic securely in E2B and downloads artifacts
+    given:
+      - Alice opens a finished PCB schematic fullscreen embed with atopile source code.
+      - Alice is authenticated and has permission to read the embed.
+    when:
+      - Alice clicks `Prepare PCB files`.
+    then:
+      - The backend creates or queues a PCB compile job for the embed.
+      - The compile job runs only in an E2B sandbox with bounded runtime, file count, file size, and output size.
+      - The job writes an atopile project workspace, installs/syncs required dependencies safely, invokes the current supported `ato` build/export commands, and captures stdout/stderr.
+      - The fullscreen UI shows high-level status transitions by default and does not show detailed logs unless Alice clicks `Show logs`.
+      - Clicking `Show logs` opens or switches to the detailed log stream/view.
+      - On success, the embed metadata includes encrypted/stored artifact references for KiCad/project files and generated manufacturing outputs where available.
+      - The UI exposes download actions for the produced artifact bundle and individual known files when available.
+
+  - id: S-5
+    title: Compile failures are visible and safe
+    given:
+      - Alice clicks `Prepare PCB files` for atopile code with a syntax error or unsupported dependency.
+    when:
+      - E2B returns a non-zero exit code, timeout, or artifact collection error.
+    then:
+      - The fullscreen shows the failed status and a concise error summary by default.
+      - Detailed sanitized logs are available only after Alice clicks `Show logs`.
+      - No failure is silently hidden or converted into success.
+      - Partial artifacts are not exposed as successful downloads unless explicitly labeled partial.
+      - The user can retry compilation after the source embed has changed or from the same source if the failure was transient.
+
+  - id: S-6
+    title: Up-to-date atopile instructions are injected only when relevant
+    given:
+      - Alice asks a general chat question unrelated to electronics.
+    when:
+      - The main processor builds the system prompt.
+    then:
+      - The compressed atopile instruction block is not injected.
+      - "`code.get_docs` is not preselected solely because PCB schematic instructions exist."
+    and:
+      - When Alice asks for a PCB schematic, the preprocessor can mark `pcb_schematic` relevant.
+      - The main processor maps that preview relevance to the PCB schematic embed type and injects the compressed official-docs-based atopile instructions.
+
+  - id: S-7
+    title: Complex PCB tasks can trigger current docs lookup before code generation
+    given:
+      - Alice asks for a complex PCB schematic involving packages, interfaces, component selection, constraints, or unclear current atopile syntax.
+    when:
+      - The preprocessor determines PCB schematic generation is relevant and the task may exceed the compressed instruction summary.
+    then:
+      - The `code.get_docs` skill is available to the assistant in that turn.
+      - The assistant is instructed to use `code.get_docs` with official atopile docs before writing a complex schematic when it is unsure about current syntax or package APIs.
+      - The assistant should not hallucinate deprecated atopile syntax when current docs lookup is needed.
+
+  - id: S-8
+    title: Natural-language CLI chat becomes a rendered web example chat
+    given:
+      - The implementation is available through OpenMates CLI against the dev backend.
+      - Alice asks natural-language requests for a simple PCB schematic creation flow.
+    when:
+      - The CLI chat produces a PCB schematic embed and `Prepare PCB files` succeeds or reaches the expected authenticated compile state.
+      - The confirmed chat is converted into an example chat after deployment.
+    then:
+      - The CLI transcript proves natural language can trigger PCB schematic creation without manual JSON/embed injection.
+      - The example chat stores the PCB schematic embed data needed for deterministic demo rendering.
+      - After deploy, the web app example chat renders the PCB schematic preview and opens the fullscreen without falling back to generic code or raw JSON.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Atopile-related fenced code blocks are stored and rendered as Electronics/PCB schematic embeds rather than generic Code app embeds.
+  - id: AC-2
+    scenario: S-2
+    text: PCB schematic preview source rendering reuses the existing code-code visual and highlighting system while branding the card as Electronics/PCB.
+  - id: AC-3
+    scenario: S-3
+    text: PCB schematic fullscreen source rendering reuses the existing code-code fullscreen code styles and behavior and adds a PCB-specific `Prepare PCB files` CTA.
+  - id: AC-4
+    scenario: S-4
+    text: Preparing PCB files runs atopile only inside E2B and stores downloadable KiCad/project artifacts on success.
+  - id: AC-5
+    scenario: S-5
+    text: Compile errors, timeouts, and artifact failures are shown explicitly with sanitized logs and no false-success downloads.
+  - id: AC-6
+    scenario: S-6
+    text: Compressed atopile instructions are injected only when the preprocessor marks PCB schematic embeds relevant.
+  - id: AC-7
+    scenario: S-7
+    text: Relevant complex PCB schematic tasks make `code.get_docs` available and instruct the assistant to research current official atopile docs before writing code when the summary is insufficient.
+  - id: AC-8
+    scenario: S-8
+    text: A natural-language OpenMates CLI chat confirms PCB schematic creation end-to-end, is promoted to an example chat after deploy, and renders correctly in the deployed web app.
+
+contracts:
+  app_metadata:
+    - file: backend/apps/electronics/app.yml
+      requirements:
+        - "Add or normalize `app_id: electronics` if required by generated registry tooling."
+        - "Add direct embed type `schematic` with frontend type `pcb-schematic` and backend type `pcb_schematic`."
+        - "Use `pcbdesign` or equivalent Electronics icon and an existing/generated PCB app gradient token."
+        - "Add an instruction block gated by `for_embed_types: [schematic]` with source comments or docs references to the version-matched atopile sources listed in `context_discovery.official_docs`."
+  stream_parsing:
+    - Recognize fenced code languages `atopile`, `ato`, and `pcb_schematic` as PCB schematic fences.
+    - Preserve source code byte-for-byte except existing PII handling, header metadata stripping conventions, and normalized filename defaults.
+    - Default filename to `board.ato` or a safe module-derived `.ato` filename when absent.
+    - Extract a human-readable title from the first top-level `module` declaration when possible.
+  embed_content:
+    type: pcb_schematic
+    required_fields:
+      - type
+      - app_id
+      - skill_id
+      - language
+      - code
+      - filename
+      - line_count
+      - status
+    optional_fields:
+      - title
+      - module_name
+      - task_id
+      - compile_status
+      - compile_logs_ref
+      - artifact_bundle_ref
+      - artifact_refs
+      - artifact_manifest
+      - atopile_version
+      - atopile_docs_version
+      - compile_started_at
+      - compile_finished_at
+  api:
+    - route: POST /v1/electronics/pcb-schematic/embeds/{embed_id}/prepare-files
+      auth: required
+      request: "{ force?: boolean }"
+      response: "{ compile_id: string, status: queued|running|succeeded|failed|timeout, stream_url?: string }"
+      errors:
+        - 401 when unauthenticated
+        - 403 when the embed does not belong to the current user/chat scope
+        - 404 when the embed is missing
+        - 409 when another compile for the same embed is already running unless force is true
+        - 422 when embed content is not a pcb_schematic or code is empty
+    - route: GET /v1/electronics/pcb-schematic/compile/{compile_id}
+      auth: required
+      response: "{ status, logs, artifact_manifest?, error? }"
+    - route: GET /v1/electronics/pcb-schematic/compile/{compile_id}/artifacts/{artifact_id}
+      auth: required
+      response: "download stream or presigned redirect for an authorized stored artifact"
+  e2b_security:
+    - All untrusted atopile code runs only in E2B.
+    - E2B installs the pinned atopile package version `0.15.7` unless this spec is updated after verifying a newer matching official docs set.
+    - E2B compile metadata records both `atopile_version` and `atopile_docs_version`, and compilation must refuse to proceed if configured versions do not match.
+    - No shell command may interpolate raw code, filenames, dependency identifiers, or user-provided paths without validation.
+    - Sandbox runtime, CPU/memory where configurable, max files, max input characters, max log length, and max artifact bytes are bounded.
+    - Network policy must be explicit. Dependency/package network access is allowed only when needed for `ato sync`/package install and must be captured in logs/metadata.
+    - Secrets are never sent to the sandbox except the E2B API key used server-side to create the sandbox.
+    - Logs are sanitized before storage and UI display.
+  artifact_policy:
+    - Store outputs as encrypted artifacts or through the existing secure file/artifact storage path.
+    - The primary download should be a `.zip` bundle containing source, `ato.yaml`, KiCad project files, logs, and generated manufacturing outputs when available.
+    - Known individual artifacts should be typed in a manifest as `kicad_project`, `kicad_schematic`, `kicad_pcb`, `bom_csv`, `pick_place_csv`, `gerber_zip`, `netlist`, `build_log`, or `source_bundle`.
+    - Download links must be scoped to the current authenticated user and should expire or go through the existing authorized file route.
+  instruction_policy:
+    - The compressed instruction summary must cite the atopile source version/date in comments or adjacent metadata.
+    - The compressed instruction summary and E2B compiler pin must use the same atopile version number; version mismatch is a blocking configuration error.
+    - Current intended compiler pin is `atopile==0.15.7`; the default compressed instruction source is the official 0.15.7 PyPI sdist content unless matching public 0.15.x docs become available before implementation.
+    - Public 0.14.x docs can supplement explanations only where package grammar/source comparison confirms compatibility; they must not be recorded as the authoritative `atopile_docs_version` for a 0.15.7 compiler pin.
+    - Add a deterministic audit or test that compares the configured E2B atopile pin and the docs version recorded beside the compressed instruction summary.
+    - The summary must prefer current import syntax `from "where.ato" import Thing` and mention legacy `import Thing from "where.ato"` only as deprecated/legacy context.
+    - The summary must include modules/interfaces/components, `Electrical`/`ElectricPower`/`ElectricSignal`, units/tolerances, assertions and constraint solving, specialization, package management, project structure, `ato build`, layout limitations, and when to use `code.get_docs`.
+    - The summary must not claim full auto-layout/routing support; it must state that atopile can generate/update KiCad projects and supports some layout reuse/sync, while placement/routing remains KiCad/manual for many designs.
+  ui:
+    - Preview and fullscreen source panes reuse existing code-code CSS/utilities rather than duplicating a separate PCB-specific code theme.
+    - Fullscreen compile UI can add a side panel, overlay, or console area, but the source-code rendering must remain visually consistent with code-code.
+    - Detailed compile logs are hidden by default; high-level status and concise summaries are visible by default.
+    - "`Show logs` reveals or switches to a streaming/detail log view; `Hide logs` or returning to artifacts/source should be available once logs are visible."
+    - "`Prepare PCB files` must be disabled or show a sign-in prompt when the user is not authenticated."
+    - Compile status must survive fullscreen close/reopen and page reload when backend state exists.
+  privacy_security:
+    - Treat source code and generated KiCad files as user-owned private data.
+    - Do not include private user data, secrets, or raw logs in public issue comments or spec follow-ups.
+    - Keep PII placeholder behavior consistent with code-code embeds.
+    - Show a visible note that compile success does not equal electrical safety, regulatory compliance, manufacturability, or expert approval.
+
+tests:
+  - id: T-PY-PARSE
+    type: pytest
+    file: backend/tests/test_code_block_detection.py
+    command: python3 -m pytest backend/tests/test_code_block_detection.py
+    covers:
+      - AC-1
+    assertions:
+      - "`atopile`, `ato`, and `pcb_schematic` fenced blocks are classified as PCB schematic fences."
+      - Non-PCB code fences continue to produce code-code embeds.
+      - JSON embed references and inline example fences are not misclassified.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PY-INSTRUCTIONS
+    type: pytest
+    file: backend/tests/test_app_skills.py
+    command: python3 -m pytest backend/tests/test_app_skills.py
+    covers:
+      - AC-6
+      - AC-7
+    assertions:
+      - "`pcb_schematic` preprocessor relevance maps to the PCB schematic embed type instruction gate."
+      - Atopile instructions are not injected for unrelated requests.
+      - Complex PCB schematic relevance can make `code.get_docs` available without forcing it for every simple PCB request.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PY-E2B
+    type: pytest
+    file: backend/tests/test_pcb_schematic_compile.py
+    command: python3 -m pytest backend/tests/test_pcb_schematic_compile.py
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - Prepare-files API rejects unauthenticated, unauthorized, non-PCB, and empty-code requests.
+      - The compile path calls the E2B provider and never executes local subprocesses for untrusted source.
+      - The compile path pins `atopile==0.15.7` and refuses to run when configured docs/compiler versions differ.
+      - Successful fake E2B output creates an artifact manifest with a zip bundle and typed known artifacts.
+      - Failed fake E2B output stores failed status and sanitized logs with no success downloads.
+      - Runtime, input, log, and artifact size limits are enforced.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-VITEST-PCB-EMBED
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/electronics/__tests__/PcbSchematicEmbed.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-2
+      - AC-3
+      - AC-5
+    assertions:
+      - Preview imports and uses shared code highlighting/content utilities or a shared code source pane component.
+      - Fullscreen source pane renders the same code line structure used by code-code fullscreen.
+      - Compile status/log/artifact states render queued, running, succeeded, failed, and timeout states.
+      - Detailed logs are hidden before `Show logs` is clicked and visible/streaming after it is clicked.
+      - "`Prepare PCB files` triggers the PCB compile service and disables repeated starts while a job is running."
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-BUILD-REGISTRY
+    type: build
+    file: frontend/packages/ui/src/data/embedRegistry.generated.ts
+    command: cd frontend/packages/ui && npm run build:embeds
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - "`pcb-schematic` appears in the generated renderer and fullscreen component registries."
+      - The generated metadata points to the PCB/Electronics app, icon, gradient, i18n namespace, and direct backend type.
+      - No manual registry edit is required.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-PCB-SCHEMATIC
+    type: playwright
+    file: frontend/apps/web_app/tests/pcb-schematic-embed.spec.ts
+    command: python3 scripts/run_tests.py --spec pcb-schematic-embed.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - A PCB schematic prompt produces a PCB schematic embed instead of a generic code embed.
+      - The preview source presentation matches code-code preview structural selectors and opens fullscreen.
+      - Fullscreen displays code-code-style line gutter/source rendering and a `Prepare PCB files` button.
+      - Clicking `Prepare PCB files` shows running status without detailed logs by default, then exposes logs only after `Show logs` is clicked.
+      - Successful deterministic compile exposes downloadable artifact entries.
+      - A failing deterministic compile path shows failed status and concise summary with no success artifact links; sanitized logs are available only behind `Show logs`.
+      - A simple unrelated chat does not show evidence of atopile instruction injection or PCB docs skill usage.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-PCB-CHAT
+    type: manual
+    file: frontend/packages/openmates-cli
+    command: OpenMates CLI natural-language chat against dev backend, using a user request for a simple PCB schematic and compile preparation
+    covers:
+      - AC-1
+      - AC-4
+      - AC-8
+    assertions:
+      - The assistant creates a PCB schematic embed from a natural-language request without manual JSON/embed injection.
+      - The embed type is `pcb_schematic` / `electronics-pcb-schematic`, not generic `code-code`.
+      - The compile preparation path reaches succeeded or the expected authenticated E2B/configured failure state with explicit logs/status.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-PCB-EXAMPLE-CHAT
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chats.spec.ts
+    command: python3 scripts/run_tests.py --spec example-chats.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-8
+    assertions:
+      - The promoted PCB schematic example chat appears in the deployed web app.
+      - The PCB schematic preview renders with Electronics branding and source-code styling.
+      - Opening the example chat embed fullscreen shows the PCB source pane and `Prepare PCB files` CTA.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - Use docs direct embed model from `backend/apps/docs/app.yml`, `stream_consumer.py`, and `EmbedService.create_document_embed_placeholder` as the direct-embed reference.
+    - Use `code-code` source rendering from `CodeEmbedPreview.svelte`, `CodeEmbedFullscreen.svelte`, `codeHighlighting.ts`, and `codeEmbedContent.ts` as the visual and behavior contract.
+    - Use E2B provider patterns from `backend/shared/providers/e2b_code_runner.py`, `backend/apps/code/tasks/run_code_task.py`, and E2B tests.
+    - Use app instruction gating from `main_processor.py` `instruction_def.for_embed_types` and `PREVIEW_TO_EMBED_TYPE` normalization.
+  architecture: >
+    Add an Electronics-owned PCB schematic direct embed that stores atopile source as private embed
+    content and renders it through shared code-view primitives. A PCB-specific
+    compile API creates an E2B sandbox job, builds an isolated atopile project,
+    stores logs/artifacts through existing secure storage, and updates compile
+    metadata consumed by fullscreen. App instructions remain lightweight by
+    default and are injected only when `pcb_schematic` relevance is detected;
+    complex cases make `code.get_docs` available for current official docs lookup.
+    The E2B compiler pin and docs-derived instruction summary must record the
+    same atopile version, currently targeted at `0.15.7`.
+  data_flow:
+    - Preprocessor identifies PCB schematic relevance and optionally complex-docs-needed relevance.
+    - Main processor injects compressed atopile instructions and makes `code.get_docs` available when needed.
+    - Assistant streams an `atopile`/`ato` fenced block.
+    - Stream consumer creates a `pcb_schematic` direct embed and replaces the visible block with a JSON embed ref.
+    - Preview/fullscreen resolve and decode the embed, rendering source via shared code view utilities.
+    - User clicks `Prepare PCB files`.
+    - Backend validates ownership and queues/runs an E2B compile job.
+    - E2B creates project files with pinned atopile, runs install/sync/build/export commands, returns logs and artifacts.
+    - Backend stores artifact manifest and secure refs, then fullscreen updates status/download actions.
+  affected_files:
+    - path: backend/apps/electronics/app.yml
+      reason: Register Electronics-owned embed type and official-docs-based gated instructions.
+    - path: backend/apps/ai/processing/preprocessor.py
+      reason: Ensure `pcb_schematic` and complex docs lookup signals are expressible/validated.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Map `pcb_schematic` preview relevance to schematic embed instructions and code.get_docs availability.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Detect atopile fences and create PCB schematic embeds.
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Create/update PCB schematic embed content and compile metadata.
+    - path: backend/core/api/app/routes/electronics_pcb_schematic.py
+      reason: Compile/status/artifact download API routes.
+    - path: backend/shared/providers/e2b_pcb_schematic_compiler.py
+      reason: Pure E2B provider wrapper for atopile project build and artifact collection.
+    - path: frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedPreview.svelte
+      reason: PCB branded preview using shared code rendering primitives.
+    - path: frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.svelte
+      reason: PCB fullscreen source view and prepare-files compile UI.
+    - path: frontend/packages/ui/src/services/pcbSchematicCompileService.ts
+      reason: Frontend API/stream/status helper for prepare-files.
+    - path: frontend/packages/ui/src/i18n/sources/embeds.yml
+      reason: PCB schematic labels/actions/status strings.
+    - path: frontend/packages/ui/src/tokens/sources/gradients.yml
+      reason: Add/verify Electronics/PCB app gradient only if the existing Electronics token is insufficient.
+    - path: frontend/packages/ui/static/icons/pcbdesign.svg
+      reason: Reuse or add solid mask-compatible PCB icon.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/pcb-schematic-embed/spec.yml
+    - python3 -m pytest backend/tests/test_code_block_detection.py
+    - python3 -m pytest backend/tests/test_app_skills.py
+    - python3 -m pytest backend/tests/test_pcb_schematic_compile.py
+    - python3 scripts/run_tests.py --suite vitest
+    - Deploy to dev, wait for Vercel Ready, then `python3 scripts/run_tests.py --spec pcb-schematic-embed.spec.ts`.
+    - Create an OpenMates CLI natural-language PCB schematic chat, confirm the embed and compile behavior, promote that chat with the add-example-chat workflow after deploy, then verify the example chat renders in the web app.
+  verification_order:
+    - Backend/unit red phase first.
+    - Frontend vitest/build red phase second.
+    - Implementation.
+    - Backend/unit green phase.
+    - Frontend vitest/build green phase.
+    - OpenMates CLI natural-language chat green phase.
+    - Deploy to dev.
+    - Playwright green phase on `app.dev.openmates.org`.
+    - Promote confirmed CLI chat to an example chat and verify the deployed web example chat rendering.
+    - Apple status/build only if native/shared generated Apple inputs change.
+
+tasks:
+  - id: TASK-1
+    title: Register PCB schematic embed and gated atopile instructions
+    covers:
+      scenarios:
+        - S-1
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-6
+        - AC-7
+    expected_files:
+      - backend/apps/electronics/app.yml
+      - backend/apps/ai/processing/preprocessor.py
+      - backend/apps/ai/processing/main_processor.py
+      - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    verification:
+      - T-PY-INSTRUCTIONS
+      - T-BUILD-REGISTRY
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Convert atopile fences into PCB schematic direct embeds
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_code_block_detection.py
+    verification:
+      - T-PY-PARSE
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Build PCB schematic preview and fullscreen source UI
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedPreview.preview.ts
+      - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.preview.ts
+      - frontend/packages/ui/src/i18n/sources/embeds.yml
+    verification:
+      - T-VITEST-PCB-EMBED
+      - T-BUILD-REGISTRY
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add E2B prepare-files backend and secure artifact storage
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/core/api/app/routes/electronics_pcb_schematic.py
+      - backend/shared/providers/e2b_pcb_schematic_compiler.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_pcb_schematic_compile.py
+    verification:
+      - T-PY-E2B
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Connect fullscreen compile UI to backend status and downloads
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/electronics/PcbSchematicEmbedFullscreen.svelte
+      - frontend/packages/ui/src/services/pcbSchematicCompileService.ts
+      - frontend/packages/ui/src/components/embeds/electronics/__tests__/PcbSchematicEmbed.test.ts
+    verification:
+      - T-VITEST-PCB-EMBED
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Add end-to-end PCB schematic embed verification
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+    expected_files:
+      - frontend/apps/web_app/tests/pcb-schematic-embed.spec.ts
+    verification:
+      - T-E2E-PCB-SCHEMATIC
+      - T-CLI-PCB-CHAT
+      - T-E2E-PCB-EXAMPLE-CHAT
+    independently_deployable: true
+
+  - id: TASK-7
+    title: Promote verified PCB CLI chat into an example chat
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - frontend/packages/ui/src/i18n/sources/example_chats/pcb_schematic_*.yml
+      - frontend/packages/ui/src/demo_chats/data/example_chats/pcb-schematic-*.ts
+    verification:
+      - T-CLI-PCB-CHAT
+      - T-E2E-PCB-EXAMPLE-CHAT
+    independently_deployable: true
+
+risks:
+  - risk: Atopile CLI, package registry, or KiCad dependencies may be heavy or slow in fresh E2B sandboxes.
+    mitigation: Cache nothing sensitive; bound runtime; capture package/install timing; consider a pinned E2B template in a follow-up if cold starts are too slow.
+  - risk: Official atopile syntax changes again and the compressed summary becomes stale.
+    mitigation: Store source URLs/version/date in app metadata, include changelog in update process, add a deterministic compiler/docs version-match check, and make code.get_docs available for complex tasks.
+  - risk: Generated KiCad artifacts can be large.
+    mitigation: Enforce max artifact sizes and prefer a single zip plus typed manifest.
+  - risk: Users may misinterpret compile success as electrical correctness.
+    mitigation: UI warning and assistant instruction state compile only checks project/build viability, not expert sign-off.
+  - risk: Duplicating code-code styles would drift.
+    mitigation: Reuse or extract shared code source rendering primitives instead of copying CSS blocks.
+
+open_questions:
+  - Exact matching docs source for `atopile==0.15.7` must be verified before implementation; the current public docs index discovered during planning advertises `atopile-0.14.x`.
+  - When `Show logs` is clicked, should the first slice use SSE/WebSocket live streaming or polling-based log chunk refresh?
+  - Which exact manufacturing artifacts are guaranteed by the first compile command versus best-effort when atopile/KiCad outputs them?

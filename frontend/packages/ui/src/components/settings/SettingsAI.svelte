@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/settings/SettingsAI.svelte
      Top-level AI settings page consolidating model selection, pricing,
      and memories that previously lived under the AI app in the
-     app store. Replaces the old "Chat" settings sidebar entry.
+     Apps. Replaces the old "Chat" settings sidebar entry.
 
      Sections:
      1. Pricing
@@ -391,7 +391,7 @@
 
     function handleMemoryCategorySelect(categoryId: string) {
         dispatch('openSettings', {
-            settingsPath: `app_store/ai/settings_memories/${categoryId}`,
+            settingsPath: `apps/ai/settings_memories/${categoryId}`,
             direction: 'forward',
             icon: 'ai',
             title: $text(memoryFields.find(c => c.id === categoryId)?.name_translation_key || categoryId),

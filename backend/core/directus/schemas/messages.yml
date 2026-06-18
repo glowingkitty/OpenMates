@@ -1,6 +1,9 @@
 # backend/core/directus/schemas/messages.yml
 # Defines the schema for the 'messages' collection in Directus.
 # Each record represents a single chat message.
+# Directus stores client-encrypted permanent message data only. The separate AI
+# inference Redis cache is short-lived, Vault-encrypted, and server-readable for
+# follow-up context; Vault-encrypted AI cache payloads must never be persisted here.
 messages:
   type: collection
   fields:
@@ -24,7 +27,7 @@ messages:
 
     encrypted_content:
       type: textfield
-      note: "[Encrypted] The final, complete Tiptap JSON content of the message, encrypted using the chat's key from Vault"
+      note: "[Client-encrypted permanent storage] Final message content, encrypted with the chat-specific key before storage in Directus. Content may be markdown/plain text or serialized JSON depending on the client payload."
 
     role:
       type: string
@@ -32,23 +35,23 @@ messages:
 
     encrypted_sender_name:
       type: string
-      note: "[Encrypted] Sender name, encrypted using chat-specific key"
+      note: "[Client-encrypted permanent storage] Sender name, encrypted with the chat-specific key before storage in Directus"
 
     encrypted_category:
       type: string
-      note: "[Encrypted] Category, encrypted using chat-specific key"
+      note: "[Client-encrypted permanent storage] Category, encrypted with the chat-specific key before storage in Directus"
 
     encrypted_model_name:
       type: string
-      note: "[Encrypted] Model name used to generate this message, encrypted using chat-specific key. ONLY for assistant messages (indicates which AI model generated the response)"
+      note: "[Client-encrypted permanent storage] Model name used to generate this message, encrypted with the chat-specific key before storage in Directus. ONLY for assistant messages."
 
     encrypted_thinking_content:
       type: textfield
-      note: "[Encrypted] The thinking content (internal reasoning) of the AI model, encrypted using the chat's key from Vault"
+      note: "[Client-encrypted permanent storage] The thinking content (internal reasoning) of the AI model, encrypted with the chat-specific key before storage in Directus"
 
     encrypted_thinking_signature:
       type: string
-      note: "[Encrypted] Digital signature for the thinking content (if provided by model), encrypted using the chat's key"
+      note: "[Client-encrypted permanent storage] Digital signature for the thinking content (if provided by model), encrypted with the chat-specific key before storage in Directus"
 
     has_thinking:
       type: boolean
@@ -71,7 +74,7 @@ messages:
 
     encrypted_pii_mappings:
       type: textfield
-      note: "[Encrypted] JSON mapping of PII placeholders to original values. Used for client-side restoration of anonymized data. Format: [{placeholder: '[EMAIL_1]', original: 'user@example.com', type: 'EMAIL'}, ...]"
+      note: "[Client-encrypted permanent storage] JSON mapping of PII placeholders to original values, encrypted with the chat-specific key before storage in Directus. Used for client-side restoration of anonymized data."
 
     user_message_id:
       type: string

@@ -646,6 +646,30 @@ apps:
   sv: Appar
   he: אפליקציות
   verified_by_human: []
+apps.all:
+  context: Title for the all apps settings page banner
+  en: Apps
+  de: Apps
+  zh: 应用
+  es: Aplicaciones
+  fr: Applis
+  pt: Aplicativos
+  ru: Приложения
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
+  ar: تطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
+  he: אפליקציות
+  verified_by_human: []
 mates.description:
   context: Short description shown in the mates settings page gradient banner header
   en: Configure your AI mates and their personalities
@@ -2780,6 +2804,10 @@ server.stats:
   cs: Statistiky
   sv: Statistik
   he: סטטיסטיקות
+server.stats.subtitle:
+  context: Subtitle for the admin Server stats settings menu item
+  en: View global server usage and growth metrics
+  verified_by_human: []
 server.gift_cards:
   context: Admin gift card generator menu item in server settings
   en: Gift Cards
@@ -2883,6 +2911,122 @@ server.free_testing_budget.validation_below_used:
 server.free_testing_budget.validation_no_partial:
   context: Validation message when remaining budget is below the per-user grant amount
   en: Remaining budget must cover one full user grant. Partial grants are not allowed.
+  verified_by_human: []
+server.anonymous_free_usage_budget.title:
+  context: Admin Server settings page title for configuring anonymous free usage
+  en: Anonymous free usage
+  verified_by_human: []
+server.anonymous_free_usage_budget.subtitle:
+  context: Subtitle for admin anonymous free usage budget settings menu item
+  en: Configure logged-out free chat budget caps
+  verified_by_human: []
+server.anonymous_free_usage_budget.loading:
+  context: Loading state while fetching admin anonymous free usage budget
+  en: Loading anonymous free usage budget...
+  verified_by_human: []
+server.anonymous_free_usage_budget.load_error:
+  context: Error shown when loading admin anonymous free usage budget fails
+  en: Failed to load anonymous free usage budget.
+  verified_by_human: []
+server.anonymous_free_usage_budget.save_success:
+  context: Success notification after saving admin anonymous free usage budget
+  en: Anonymous free usage budget saved.
+  verified_by_human: []
+server.anonymous_free_usage_budget.save_error:
+  context: Error shown when saving admin anonymous free usage budget fails
+  en: Failed to save anonymous free usage budget.
+  verified_by_human: []
+server.anonymous_free_usage_budget.status_active:
+  context: Status message when anonymous free usage can be used
+  en: Anonymous free usage is active for new logged-out users.
+  verified_by_human: []
+server.anonymous_free_usage_budget.status_daily_exhausted:
+  context: Status message when anonymous free usage daily cap is exhausted
+  en: The anonymous free usage daily cap is exhausted until the next reset.
+  verified_by_human: []
+server.anonymous_free_usage_budget.status_weekly_exhausted:
+  context: Status message when anonymous free usage weekly cap is exhausted
+  en: The anonymous free usage weekly cap is exhausted.
+  verified_by_human: []
+server.anonymous_free_usage_budget.status_disabled:
+  context: Status message when anonymous free usage is disabled or inactive
+  en: Anonymous free usage is currently inactive.
+  verified_by_human: []
+server.anonymous_free_usage_budget.daily_cap:
+  context: Label for anonymous free usage daily hard cap credits
+  en: Daily cap
+  verified_by_human: []
+server.anonymous_free_usage_budget.weekly_cap:
+  context: Label for anonymous free usage weekly cap credits
+  en: Weekly cap
+  verified_by_human: []
+server.anonymous_free_usage_budget.daily_used:
+  context: Label for anonymous free usage daily used credits
+  en: Daily used
+  verified_by_human: []
+server.anonymous_free_usage_budget.weekly_used:
+  context: Label for anonymous free usage weekly used credits
+  en: Weekly used
+  verified_by_human: []
+server.anonymous_free_usage_budget.daily_remaining:
+  context: Label for anonymous free usage daily remaining credits
+  en: Daily remaining
+  verified_by_human: []
+server.anonymous_free_usage_budget.weekly_remaining:
+  context: Label for anonymous free usage weekly remaining credits
+  en: Weekly remaining
+  verified_by_human: []
+server.anonymous_free_usage_budget.monthly_remaining:
+  context: Label for anonymous free usage monthly remaining credits
+  en: Monthly remaining
+  verified_by_human: []
+server.anonymous_free_usage_budget.reset_at:
+  context: Label for anonymous free usage reset timestamp
+  en: Daily reset
+  verified_by_human: []
+server.anonymous_free_usage_budget.updated_at:
+  context: Label for anonymous free usage updated timestamp
+  en: Updated
+  verified_by_human: []
+server.anonymous_free_usage_budget.never:
+  context: Value shown when an anonymous free usage timestamp has never been set
+  en: Never
+  verified_by_human: []
+server.anonymous_free_usage_budget.enabled:
+  context: Toggle label for enabling anonymous free usage
+  en: Enable anonymous free usage for logged-out users
+  verified_by_human: []
+server.anonymous_free_usage_budget.monthly_budget:
+  context: Input label for monthly anonymous free usage credit budget
+  en: Monthly budget credits
+  verified_by_human: []
+server.anonymous_free_usage_budget.daily_percent:
+  context: Input label for anonymous free usage daily hard cap percentage
+  en: Daily hard cap percent
+  verified_by_human: []
+server.anonymous_free_usage_budget.weekly_percent:
+  context: Input label for anonymous free usage weekly cap percentage
+  en: Weekly cap percent
+  verified_by_human: []
+server.anonymous_free_usage_budget.per_identity_cap:
+  context: Input label for anonymous free usage per-identity daily cap
+  en: Per-identity daily cap credits
+  verified_by_human: []
+server.anonymous_free_usage_budget.derived_daily_cap:
+  context: Read-only derived anonymous free usage daily cap label
+  en: Derived daily cap
+  verified_by_human: []
+server.anonymous_free_usage_budget.derived_weekly_cap:
+  context: Read-only derived anonymous free usage weekly cap label
+  en: Derived weekly cap
+  verified_by_human: []
+server.anonymous_free_usage_budget.validation_percent:
+  context: Validation message when anonymous free usage percentage fields are invalid
+  en: Percent values must be between 0 and 100.
+  verified_by_human: []
+server.anonymous_free_usage_budget.validation_per_identity_cap:
+  context: Validation message when anonymous free usage has a positive monthly budget but no per-identity daily credits
+  en: Per-identity daily cap must be at least 1 credit when the monthly budget is above 0.
   verified_by_human: []
 server.gift_cards.title:
   context: Title shown at top of admin gift card generator page

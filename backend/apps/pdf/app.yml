@@ -158,7 +158,7 @@ skills:
       be viewed per call. Pass the exact embed_ref (original filename) from the toon
       block as file_path — the server resolves all cryptographic and storage details
       automatically.
-    stage: production # Hidden from app store; LLM uses this for visual page analysis
+    stage: production # Hidden from Apps; LLM uses this for visual page analysis
     class_path: |
       backend.apps.pdf.skills.view_skill.ViewSkill
     api_config:

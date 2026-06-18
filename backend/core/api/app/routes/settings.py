@@ -9,7 +9,7 @@ import hashlib
 import json
 import glob
 import pyotp
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field # Import BaseModel and Field for response models
 
@@ -30,6 +30,7 @@ from backend.core.api.app.schemas.settings import UsernameUpdateRequest, Languag
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
+from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -2416,6 +2417,10 @@ class ServerStatusResponse(BaseModel):
         default=None,
         description="Safe public Free testing promotion metadata for signup UI.",
     )
+    anonymous_free_usage: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Safe public anonymous free usage availability metadata.",
+    )
 
 
 @router.get(
@@ -2471,6 +2476,7 @@ async def get_server_status(
         
         ai_models_configured = await _are_ai_models_configured(request)
         free_testing_credits = None
+        anonymous_free_usage = None
         directus_service = getattr(request.app.state, "directus_service", None)
         cache_service = getattr(request.app.state, "cache_service", None)
         encryption_service = getattr(request.app.state, "encryption_service", None)
@@ -2484,6 +2490,14 @@ async def get_server_status(
                 free_testing_credits = await free_testing_service.get_public_promotion()
             except Exception as promo_err:
                 logger.error("Failed to load free testing promotion metadata: %s", promo_err, exc_info=True)
+        if not is_self_hosted and directus_service:
+            try:
+                anonymous_free_usage_service = AnonymousFreeUsageService(
+                    directus_service=directus_service,
+                )
+                anonymous_free_usage = await anonymous_free_usage_service.get_public_status()
+            except Exception as anonymous_err:
+                logger.error("Failed to load anonymous free usage metadata: %s", anonymous_err, exc_info=True)
 
         # Get server edition (for backward compatibility)
         server_edition = get_server_edition()
@@ -2511,6 +2525,7 @@ async def get_server_status(
             domain=request_domain,
             ai_models_configured=ai_models_configured,
             free_testing_credits=free_testing_credits,
+            anonymous_free_usage=anonymous_free_usage,
         )
         
     except Exception as e:
@@ -2541,6 +2556,7 @@ class IssueReportRequest(BaseModel):
     """Request model for issue reporting endpoint"""
     title: str = Field(..., min_length=3, max_length=500, description="Short description of the issue (required, 3-500 characters)")
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
+    issue_type: Literal["bug_report", "feature_request"] = Field("bug_report", description="Lightweight category for the submitted report")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
     contact_email: Optional[str] = Field(None, max_length=255, description="Optional contact email address for follow-up communication")
     language: str = Field("en", max_length=10, description="ISO 639-1 language code from the client UI (used for confirmation email localisation)")
@@ -3004,6 +3020,7 @@ async def report_issue(
             issue_data_dict = {
                 "title": db_title,
                 "description": sanitized_description,
+                "issue_type": issue_data.issue_type,
                 "encrypted_chat_or_embed_url": encrypted_chat_or_embed_url,
                 "encrypted_contact_email": encrypted_contact_email,
                 "timestamp": timestamp_dt.isoformat(),
@@ -3066,6 +3083,7 @@ async def report_issue(
                     "issue_id": issue_id,  # Pass issue ID so email task can update database with S3 key
                     "issue_title": sanitized_title,
                     "issue_description": sanitized_description,
+                    "issue_type": issue_data.issue_type,
                     "chat_or_embed_url": sanitized_url,
                     "contact_email": sanitized_email,  # Use plaintext for email (not encrypted)
                     "language": sanitized_language,    # Client UI language for confirmation email localisation
@@ -3113,6 +3131,7 @@ async def report_issue(
                         "issue_id": issue_id,
                         "issue_title": sanitized_title,
                         "issue_description": sanitized_description,
+                        "issue_type": issue_data.issue_type,
                         "chat_or_embed_url": sanitized_url,
                         "is_from_admin": is_from_admin,
                         "contact_email": sanitized_email if sanitized_email else None,
@@ -3231,6 +3250,22 @@ class DeleteAccountPreviewResponse(BaseModel):
     credits_from_gift_cards: int  # Credits from gift card redemptions (not refundable)
     has_refundable_credits: bool  # Whether there are credits to refund
     auto_refunds: Dict[str, Any]  # Details about the refund (amount, invoices, etc.)
+
+
+def _empty_delete_account_preview(total_credits: int = 0) -> DeleteAccountPreviewResponse:
+    """Build a deletion preview for accounts with no refundable credit history."""
+    return DeleteAccountPreviewResponse(
+        total_credits=max(0, total_credits),
+        refundable_credits=0,
+        credits_from_gift_cards=0,
+        has_refundable_credits=False,
+        auto_refunds={
+            "total_refund_amount_cents": 0,
+            "total_refund_currency": "eur",
+            "eligible_invoices": [],
+            "gift_card_purchases": [],
+        },
+    )
 
 
 # ============================================================================
@@ -3494,16 +3529,23 @@ async def _calculate_delete_account_preview(
     4. Calculate refundable credits = total credits - gift card credits
     5. Calculate proportional refund amount based on invoices
     """
-    # Step 1: Get user's current total credits from cache
+    # Step 1: Get user's current total credits from cache, falling back to Directus.
     user_data = await cache_service.get_user_by_id(user_id)
     if not user_data:
         logger.warning(f"User not found in cache for deletion preview: {user_id}")
-        total_credits = 0
+        user_fields = await directus_service.get_user_fields_direct(user_id, ["credits"])
+        total_credits = int((user_fields or {}).get("credits") or 0)
+        if user_fields:
+            await cache_service.update_user(user_id, {"credits": total_credits})
     else:
-        total_credits = int(user_data.get("credits", 0))
+        total_credits = int(user_data.get("credits") or 0)
     
     logger.debug(f"[DeletePreview] User {user_id} has {total_credits} total credits")
-    
+
+    if total_credits <= 0:
+        logger.debug(f"[DeletePreview] Skipping refund aggregation for zero-balance user {user_id}")
+        return _empty_delete_account_preview(total_credits)
+
     # Step 2: Get all non-refunded invoices for the user
     # We need all invoices to calculate the refund proportionally
     invoices_data = await directus_service.get_items(

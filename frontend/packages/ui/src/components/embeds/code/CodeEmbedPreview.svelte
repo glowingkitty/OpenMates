@@ -53,6 +53,10 @@
     onFullscreen: () => void;
     /** Code content (full code for preview extraction) */
     codeContent?: string;
+    /** App metadata override for source-like embeds that reuse code rendering */
+    appId?: string;
+    skillId?: string;
+    skillIconName?: string;
   }
   
   let {
@@ -64,7 +68,10 @@
     taskId: taskIdProp,
     isMobile = false,
     onFullscreen,
-    codeContent: codeContentProp = ''
+    codeContent: codeContentProp = '',
+    appId = 'code',
+    skillId = 'code',
+    skillIconName = 'coding'
   }: Props = $props();
   
   // Local reactive state for embed data - these can be updated when embed data changes
@@ -266,9 +273,6 @@
     return ' ';
   });
   
-  // Map skillId to icon name
-  const skillIconName = 'coding';
-  
   // Apply syntax highlighting for the small variant (uses highlightToElement on a <code> element).
   // Large variant uses highlightToLines (reactive derived) — no manual DOM update needed.
   onMount(() => {
@@ -343,8 +347,8 @@
 
 <UnifiedEmbedPreview
   {id}
-  appId="code"
-  skillId="code"
+  {appId}
+  {skillId}
   {skillIconName}
   {status}
   {skillName}

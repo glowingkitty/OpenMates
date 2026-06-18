@@ -23,6 +23,18 @@ export const memoryTvToWatchListChat: ExampleChat = {
         "created_at": 1781280581
     },
     {
+        "id": "794b4c25-ad08-4088-adb4-5729b5fc89d2-memory-response",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_response\",\"user_message_id\":\"794b4c25-ad08-4088-adb4-5729b5fc89d2\",\"action\":\"included\",\"categories\":[{\"appId\":\"tv\",\"itemType\":\"to_watch_list\",\"entryCount\":2}]}",
+        "created_at": 1781280582
+    },
+    {
+        "id": "794b4c25-ad08-4088-adb4-5729b5fc89d2-memory-request",
+        "role": "system",
+        "content": "{\"type\":\"app_settings_memories_request\",\"user_message_id\":\"794b4c25-ad08-4088-adb4-5729b5fc89d2\",\"request_id\":\"794b4c25-ad08-4088-adb4-5729b5fc89d2-memory-request\",\"requested_keys\":[\"tv-to_watch_list\"],\"categories\":[{\"appId\":\"tv\",\"itemType\":\"to_watch_list\",\"entryCount\":0}]}",
+        "created_at": 1781280582
+    },
+    {
         "id": "4c8d7bb0-2b55-4428-aa22-c9ab6aa8f01e",
         "role": "assistant",
         "content": "example_chats.memory_tv_to_watch_list.message_2",

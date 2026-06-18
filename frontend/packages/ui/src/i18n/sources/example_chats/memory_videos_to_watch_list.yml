@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Videos To Watch List"
   en: "Memory Videos To Watch List"
-  de: "Memory Videos To Watch List"
+  de: Video-Merkliste
   zh: "Memory Videos To Watch List"
   es: "Memory Videos To Watch List"
   fr: "Memory Videos To Watch List"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Videos To Watch List"
   en: "OpenMates uses saved videos to_watch_list memory in a real chat."
-  de: "OpenMates uses saved videos to_watch_list memory in a real chat."
+  de: OpenMates nutzt den gespeicherten „videos_to_watch_list“-Speicher in einem echten Chat.
   zh: "OpenMates uses saved videos to_watch_list memory in a real chat."
   es: "OpenMates uses saved videos to_watch_list memory in a real chat."
   fr: "OpenMates uses saved videos to_watch_list memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Videos To Watch List. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meinen gespeicherten Speicher für die Video-Merkliste, um mir vorzuschlagen, wie ich heute Abend beim Anschauen eines gespeicherten Videos Notizen machen sollte. Du kannst diesen gespeicherten Speicher anfordern und verwenden. Nachdem du den gespeicherten Speicher verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved videos-to-watch memory to suggest how I should take notes while watching a saved video tonight. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -87,16 +87,16 @@ message_2:
 
     Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
   de: |
-    Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
-
-    Since this topic covers complex architectural patterns and distributed systems, a structured method like the **Cornell Note-Taking System** or **Categorized Mapping** will be most effective. I recommend organizing your notes into these four specific categories to capture the technical depth of the talk:
-
-    1.  **Core Principles:** Focus on the "Three Pillars" often discussed in this context—Reliability, Scalability, and Maintainability. Note how the speaker defines each for modern systems.
-    2.  **The "Trade-offs":** Data-intensive design is rarely about finding a "perfect" solution but about choosing the right compromise. Create a specific section for "Pros vs. Cons" when the talk mentions different database models (e.g., Relational vs. Document) or replication strategies.
-    3.  **Visual Architecture:** Whenever a system diagram is shown, sketch a simplified version or describe the data flow. Pay attention to where the "source of truth" sits and how data is partitioned.
-    4.  **Personal Synthesis:** At the end of each major section, write one sentence on how a specific concept (like "Strong Consistency" or "Eventual Consistency") applies to the projects you are currently interested in.
-
-    Using these categories will help you transform the dense information from [Conference Talks](wiki:Conference) into a practical reference guide for future system design.
+    Basierend auf dem Video in deiner Watchlist, dem Vortrag „Designing Data-Intensive Applications“, ist hier ein Vorschlag für deine Notizen heute Abend.
+    
+    Da dieses Thema komplexe Architekturmuster und verteilte Systeme behandelt, ist eine strukturierte Methode wie das **Cornell-Notizsystem** oder **kategorisiertes Mapping** am effektivsten. Ich empfehle dir, deine Notizen in diese vier spezifischen Kategorien zu unterteilen, um die technische Tiefe des Vortrags zu erfassen:
+    
+    1.  **Kernprinzipien:** Konzentriere dich auf die „drei Säulen“, die in diesem Zusammenhang oft diskutiert werden – Zuverlässigkeit, Skalierbarkeit und Wartbarkeit. Notiere dir, wie der Sprecher diese jeweils für moderne Systeme definiert.
+    2.  **Die „Abwägungen“:** Bei datenintensivem Design geht es selten darum, eine „perfekte“ Lösung zu finden, sondern darum, den richtigen Kompromiss zu wählen. Erstelle einen eigenen Abschnitt für „Vor- und Nachteile“, wenn im Vortrag verschiedene Datenbankmodelle (z. B. relational vs. dokumentenbasiert) oder Replikationsstrategien erwähnt werden.
+    3.  **Visuelle Architektur:** Wann immer ein Systemdiagramm gezeigt wird, skizziere eine vereinfachte Version oder beschreibe den Datenfluss. Achte darauf, wo die „Source of Truth“ liegt und wie Daten partitioniert werden.
+    4.  **Persönliche Synthese:** Schreibe am Ende jedes größeren Abschnitts einen Satz darüber, wie ein bestimmtes Konzept (wie „starke Konsistenz“ oder „eventuelle Konsistenz“) auf die Projekte anwendbar ist, für die du dich aktuell interessierst.
+    
+    Die Verwendung dieser Kategorien wird dir helfen, die dichten Informationen aus [Konferenzvorträgen](wiki:Conference) in ein praktisches Nachschlagewerk für zukünftiges Systemdesign zu verwandeln.
   zh: |
     Based on the video in your watch list, Designing Data-Intensive Applications talk, here is a suggested approach for your notes tonight.
 

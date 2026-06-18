@@ -6,14 +6,76 @@
 # converter reference designs. Future providers can add categories such as
 # passives, connectors, semiconductors, JLCPCB/LCSC, Mouser, and Digi-Key.
 
+app_id: electronics
 name_translation_key: electronics
 description_translation_key: electronics.description
 icon_image: pcbdesign.svg
 category: work
 last_updated: "2026-05-23"
 settings_and_memories: []
-instructions: []
+instructions:
+  - for_embed_types:
+      - schematic
+    instruction: |
+      **PCB schematic generation with atopile**
+      atopile_version: 0.15.7
+      atopile_docs_version: 0.15.7
+
+      When the user asks for a PCB schematic, return one `atopile` fenced code block that builds with the OpenMates E2B compiler pinned to `atopile==0.15.7`. Use a top-level `module App:` entrypoint because OpenMates writes `ato.yaml` with `builds.default.entry: main.ato:App` and `requires-atopile: "^0.15.7"`. Keep simple requests self-contained; define small helper modules in the same file when needed.
+
+      Core Atopile syntax to use: `module Name:` for reusable blocks, `component Name:` only when representing a real physical part, `interface Name:` for reusable interfaces, `instance = new Type` for instantiation, and `a ~ b` to connect compatible interfaces; never write `new component`, anonymous component types, Python classes, JavaScript object syntax, or KiCad pin names.
+
+      Imports: for simple self-contained examples, the allowed imports are exactly `import Resistor`, `import Capacitor`, `import Diode`, and `import ElectricPower`. Do not import `LDO`, `LED`, `USBConn`, `USBC`, connector parts, regulator parts, or package-specific MPNs; define helper modules locally instead. For local files, use `from "path.ato" import Thing` only when that exact file is also generated. Never write legacy or Python/JS imports such as `import Resistor from "..."`, bare `from Package import Thing`, or unquoted `from package.ato import Thing`.
+
+      Built-in part fields and terminals: use `resistor.resistance`, `capacitor.capacitance`, resistor/capacitor pins as `.unnamed[0]` and `.unnamed[1]`, and diode pins as `.anode` and `.cathode`. Never use `.p1`, `.p2`, `.pin1`, `.pin2`, `.value`, `.a`, or `.c` unless a locally defined module explicitly declares those fields.
+
+      Units, ranges, tolerances, and solver constraints are first-class Atopile features. Assign physical values with tolerances or ranges, not exact passives: `resistor.resistance = 5.1kohm +/- 5%`, `capacitor.capacitance = 10uF +/- 20%`, `target_output_voltage = 3.0V to 3.6V`. Use `assert` only on declared variables or component parameters known to be operands: `assert current_limit < 500mA`, `assert r_led.resistance within 470ohm to 2kohm`, or declare `feedback_resistance: resistance` then constrain it with `assert feedback_resistance within 1kohm to 100kohm`. Do not assert on signal or `ElectricPower` internals such as `rail_3v3.vcc.voltage`; simple helper modules do not expose those as solver operands.
+
+      Use this compact known-good structure for simple power examples: import `ElectricPower`, define helper modules with `power = new ElectricPower` or `power_in`/`power_out`, connect `power.vcc` and `power.gnd`, instantiate `Resistor`/`Capacitor`/`Diode`, assign `.resistance`/`.capacitance` with tolerances, and connect passives through `.unnamed[0]` / `.unnamed[1]`. For a USB-C 5V to 3.3V LDO starting point, define local `USBCInput` and `LDO` modules using `ElectricPower`, add input/output capacitors with tolerances, and add `Diode` + `Resistor` on the 3.3V rail.
+
+      Compile success means the Atopile source built and artifacts were generated; it does not prove electrical safety, regulatory compliance, manufacturability, or expert review. For complex designs, package APIs, layout reuse, manufacturing exports, or uncertain current syntax, use `code.get_docs` with official Atopile docs before writing code.
 embed_types:
+  - id: schematic
+    category: direct
+    frontend_type: electronics-pcb-schematic
+    backend_type: pcb_schematic
+    has_children: false
+    groupable: true
+    preview_component: electronics/PcbSchematicEmbedPreview.svelte
+    fullscreen_component: electronics/PcbSchematicEmbedFullscreen.svelte
+    icon: pcbdesign
+    gradient_var: "--color-app-electronics"
+    i18n_namespace: embeds.electronics.pcb_schematic
+    content_catalog:
+      enabled: true
+      diff_editable: true
+      content_type_id: schematic
+      name: PCB schematic
+      description: Source-first Atopile PCB schematics with E2B compile artifacts for board preparation.
+      icon: pcbdesign
+      example_key: electronics.schematic
+      order: 10
+    content_fields:
+      - name: code
+        type: string
+        required: true
+      - name: language
+        type: string
+        required: true
+      - name: filename
+        type: string
+        required: true
+      - name: line_count
+        type: number
+        required: true
+      - name: title
+        type: string
+      - name: module_name
+        type: string
+      - name: compile_status
+        type: string
+      - name: artifact_manifest
+        type: object
   - id: search_components
     category: app-skill-use
     skill_id: search_components

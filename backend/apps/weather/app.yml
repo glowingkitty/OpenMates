@@ -21,10 +21,23 @@ embed_types:
     icon: weather
     gradient_var: "--color-app-weather"
     i18n_namespace: embeds.weather.forecast
+  - id: rain_radar
+    category: app-skill-use
+    skill_id: rain_radar
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    groupable: false
+    preview_component: weather/WeatherRainRadarEmbedPreview.svelte
+    fullscreen_component: weather/WeatherRainRadarEmbedFullscreen.svelte
+    icon: weather
+    gradient_var: "--color-app-weather"
+    i18n_namespace: embeds.weather.rain_radar
 settings_and_memories: []
 instructions:
   - instruction: |
       When you use the weather-forecast tool, the tool returns compact daily summaries for inference and creates one detailed weather day embed per requested day. Use the summaries for normal answers. If the user asks for exact hourly details, refer to or inspect the relevant day embed instead of guessing.
+  - instruction: |
+      When you use the weather-rain-radar tool, the tool returns deterministic rain summaries and compact timeline metadata for German DWD radar. Use those summaries for inference. Do not describe raw radar pixels or storage fields; the fullscreen embed renders the radar timeline separately.
 skills:
   - id: forecast
     name_translation_key: apps.weather.forecast
@@ -79,5 +92,55 @@ skills:
           description: "Unit system. Only metric is currently supported."
           enum: ["metric"]
           default: "metric"
+      required:
+        - location
+  - id: rain_radar
+    name_translation_key: apps.weather.rain_radar
+    description_translation_key: apps.weather.rain_radar.description
+    icon_image: weather.svg
+    preprocessor_hint: >
+      Get nearby German rain radar with a timeline, including whether rain is visible now,
+      whether rain is expected around the selected location in about 10 minutes, and compact
+      frame-by-frame rain intensity metadata. Use this for rain radar, precipitation radar,
+      and hyperlocal "will it rain here soon" questions in Germany.
+    stage: production
+    class_path: |
+      backend.apps.weather.skills.rain_radar_skill.RainRadarSkill
+    providers:
+      - name: Deutscher Wetterdienst (DWD)
+        no_api_key: true
+    suggestions_follow_up_requests:
+      - "Show the regular forecast"
+      - "Check a larger radar radius"
+      - "Will it rain at my exact location?"
+    exclude_fields_for_llm:
+      - files
+      - s3_base_url
+      - aes_key
+      - aes_nonce
+      - vault_wrapped_aes_key
+      - radar_blob_b64
+      - provider_raw
+    tool_schema:
+      type: object
+      properties:
+        location:
+          type: string
+          description: "German place name for the radar, e.g. Berlin, Hamburg, Munich. Required unless latitude and longitude are provided."
+        latitude:
+          type: number
+          description: "Optional latitude in decimal degrees. Use with longitude for exact coordinates. V1 supports Germany only."
+        longitude:
+          type: number
+          description: "Optional longitude in decimal degrees. Use with latitude for exact coordinates. V1 supports Germany only."
+        radius_km:
+          type: integer
+          description: "Radar radius around the location in kilometers. Defaults to 5 for a neighborhood/city-part view. Maximum 100."
+          minimum: 1
+          maximum: 100
+          default: 5
+        timezone:
+          type: string
+          description: "Optional IANA timezone. Defaults to provider/location timezone."
       required:
         - location

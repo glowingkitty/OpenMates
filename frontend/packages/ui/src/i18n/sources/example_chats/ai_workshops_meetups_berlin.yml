@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: AI Workshops and Meetups in Berlin"
   en: "AI Workshops and Meetups in Berlin"
-  de: "AI Workshops and Meetups in Berlin"
+  de: KI-Workshops und Meetups in Berlin
   zh: "AI Workshops and Meetups in Berlin"
   es: "AI Workshops and Meetups in Berlin"
   fr: "AI Workshops and Meetups in Berlin"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: AI Workshops and Meetups in Berlin"
   en: "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
-  de: "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
+  de: Finde praktische KI-Workshops und Meetups in Berlin, um zu lernen, wie man mit KI-Tools baut.
   zh: "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
   es: "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
   fr: "Find practical AI workshops and meetups in Berlin for learning to build with AI tools."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: AI Workshops and Meetups in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
-  de: "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
+  de: Finde aktuelle KI-Workshops und Meetups in Berlin, die für jemanden geeignet sind, der lernt, mit KI-Tools zu bauen. Gib praktische Details und Quellen an.
   zh: "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
   es: "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
   fr: "Find current AI workshops and meetups in Berlin that would be good for someone learning to build with AI tools. Include practical details and sources."
@@ -160,83 +160,83 @@ message_2:
     ```json
     {"type": "app_skill_use", "embed_id": "e7002718-62f4-43b0-9078-1ab77993edc0", "app_id": "events", "skill_id": "search", "query": "AI workshop", "provider": "meetup", "providers": ["meetup"]}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "b110fb02-f635-45b1-8ba7-aaf75b3f7de7", "app_id": "events", "skill_id": "search", "query": "AI meetup", "provider": "meetup", "providers": ["meetup"]}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "b2b2b2a7-6b9c-464d-a86e-86ceafcd3bcc", "app_id": "events", "skill_id": "search", "query": "build with AI", "provider": "meetup", "providers": ["meetup"]}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "0e453b88-1f20-43fc-9aa1-aad8aab6ae8a", "app_id": "web", "skill_id": "search", "query": "top AI developer meetups Berlin 2026 for beginners", "provider": "Brave"}
     ```
-
+    
     ```json
     {"type": "app_skill_use", "embed_id": "c7b51044-a947-4471-a287-496459454ad6", "app_id": "web", "skill_id": "search", "query": "Berlin AI builder communities and recurring workshops", "provider": "Brave"}
     ```
-
-    Berlin has one of Europe's most active [AI](wiki:Artificial_intelligence) builder scenes, transitioning from general theory to practical "hands-on" engineering. For someone learning to build with AI tools, the focus in June 2026 is heavily on [AI agents](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation), and production-ready architectures.
-
-    Here are the top upcoming workshops and meetups in Berlin where you can build, demo, and learn from other practitioners.
-
-    ### Featured Hands-On Workshops
-    These sessions are specifically designed for those who want to write code and build prototypes.
-
-    *   **BLISS x QuantCo: Build Your Own AI Agent**
-        *   **Date:** June 10, 2026 | 17:30
-        *   **Location:** Berlin-Mitte (Altonaer Str. 26)
-        *   **Focus:** An interactive session transitioning from [LLM APIs](wiki:Large_language_model) to building a custom agent that automates complex document workflows. **Bring your laptop.**
-        *   [Event Details & RSVP](embed:bliss-x-quantco-dWg)
-    *   **Open Source Europe Tour: AI in Practice**
-        *   **Date:** June 8, 2026 | 17:30
-        *   **Location:** Netlight Consulting (Invalidenstraße 117)
-        *   **Focus:** A "hype-free" walkthrough of modern AI, explaining Agentic AI, fine-tuning vs. RAG, and connecting AI to data architectures.
-        *   [Event Details & RSVP](embed:open-source-europe-S4k)
+    
+    Berlin hat eine der aktivsten [KI](wiki:Artificial_intelligence)-Builder-Szenen Europas, die sich von allgemeiner Theorie hin zu praktischem „Hands-on“-Engineering entwickelt. Für jemanden, der lernt, mit KI-Tools zu bauen, liegt der Fokus im Juni 2026 stark auf [KI-Agenten](wiki:Software_agent), [RAG (Retrieval-Augmented Generation)](wiki:Retrieval-augmented_generation) und produktionsreifen Architekturen.
+    
+    Hier sind die wichtigsten anstehenden Workshops und Meetups in Berlin, bei denen du bauen, Demos zeigen und von anderen Praktikern lernen kannst.
+    
+    ### Ausgewählte Hands-on-Workshops
+    Diese Sessions sind speziell für diejenigen gedacht, die Code schreiben und Prototypen bauen wollen.
+    
+    *   **BLISS x QuantCo: Baue deinen eigenen KI-Agenten**
+        *   **Datum:** 10. Juni 2026 | 17:30
+        *   **Ort:** Berlin-Mitte (Altonaer Str. 26)
+        *   **Fokus:** Eine interaktive Session, die den Übergang von [LLM-APIs](wiki:Large_language_model) zum Bau eines eigenen Agenten zeigt, der komplexe Dokumenten-Workflows automatisiert. **Bring deinen Laptop mit.**
+        *   [Event-Details & Anmeldung](embed:bliss-x-quantco-dWg)
+    *   **Open Source Europe Tour: KI in der Praxis**
+        *   **Datum:** 8. Juni 2026 | 17:30
+        *   **Ort:** Netlight Consulting (Invalidenstraße 117)
+        *   **Fokus:** Ein „hype-freier“ Durchgang durch moderne KI, der Agentic AI, Fine-Tuning vs. RAG und die Anbindung von KI an Datenarchitekturen erklärt.
+        *   [Event-Details & Anmeldung](embed:open-source-europe-S4k)
     *   **AI Future-Club Kickoff (Hackers / Founders)**
-        *   **Date:** June 11, 2026 | 18:00
-        *   **Location:** TBD (Berlin)
-        *   **Focus:** A session for developers to "get their hands dirty," discussing what to build and ship together, featuring live demos of recent projects.
-        *   [Event Details & RSVP](embed:ai-future-club-XOk)
-
-    ### Community Meetups for Builders
-    These events are excellent for networking and seeing what other local developers are currently building.
-
+        *   **Datum:** 11. Juni 2026 | 18:00
+        *   **Ort:** TBD (Berlin)
+        *   **Fokus:** Eine Session für Entwickler, um „sich die Hände schmutzig zu machen“, darüber zu diskutieren, was man gemeinsam bauen und veröffentlichen kann, inklusive Live-Demos aktueller Projekte.
+        *   [Event-Details & Anmeldung](embed:ai-future-club-XOk)
+    
+    ### Community-Meetups für Builder
+    Diese Events eignen sich hervorragend zum Networking und um zu sehen, was andere lokale Entwickler gerade bauen.
+    
     *   **OpenClaw Anonymous Berlin #9**
-        *   **Date:** June 9, 2026 | 19:00
-        *   **Location:** w3.hub (Möckernstraße 120)
-        *   **Focus:** Informal "laptop-out" meetup where people showcase OpenClaw and AI agent setups. Perfect for sharing what works and what doesn't.
-        *   [Event Details & RSVP](embed:openclaw-anonymous-berlin-JA8)
+        *   **Datum:** 9. Juni 2026 | 19:00
+        *   **Ort:** w3.hub (Möckernstraße 120)
+        *   **Fokus:** Informelles „Laptop-raus“-Meetup, bei dem OpenClaw- und KI-Agenten-Setups vorgestellt werden. Perfekt, um zu teilen, was funktioniert und was nicht.
+        *   [Event-Details & Anmeldung](embed:openclaw-anonymous-berlin-JA8)
     *   **AI Tinkerers Berlin**
-        *   **Date:** June 17, 2026
-        *   **Focus:** A screened, demo-first, "no-pitch" community. Expect live code, architecture lessons, and technical Q&A from local founders and engineers.
+        *   **Datum:** 17. Juni 2026
+        *   **Fokus:** Eine kuratierte, Demo-fokussierte „No-Pitch“-Community. Erwarte Live-Code, Architektur-Lektionen und technische Q&A von lokalen Gründern und Ingenieuren.
         *   Berlin AI Tinkerers Portal
-    *   **Spec-Driven Development: AI for Full-Stack Java**
-        *   **Date:** June 9, 2026 | 18:30
-        *   **Location:** Capgemini (Potsdamer Platz 5)
-        *   **Focus:** Learning how AI can generate code, diagrams, and tests from structured specifications.
-        *   [Event Details & RSVP](embed:spec-driven-development-rxI)
-
-    ### Key Hubs to Follow
-    If you want to stay in the loop, these organizations host the majority of builder-centric AI events in Berlin:
-
-    *   **Merantix AI Campus**: Located in Nord-Mitte, this 6,000m² campus is the heart of the Berlin AI ecosystem, hosting weekly reading groups and tech talks.
-        *   Campus Events Calendar
-    *   **BLISS (Berlin AI Community)**: A student and professional community that organizes high-quality workshops and speaker series.
-        *   BLISS Official Site
-    *   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Often hosts "Global AI Bootcamps" and hands-on sessions for students and the public at their Delta Campus in Neukölln.
-
-    ### Practical Tips for Joining
-    1.  **RSVP Early:** Many of these events (especially the BLISS and Tinkerers sessions) have limited spots and require screening or early registration.
-    2.  **Bring a Laptop:** Most "workshops" expect you to follow along with code. Ensure you have a local environment or a [GitHub](wiki:GitHub) account ready.
-    3.  **Join the Slacks:** Groups like AI Tinkerers and [Hackers/Founders](/#settings/apps/web) have local Slack/Discord channels where most "last-minute" build sessions are organized.
-
-    Would you like me to help you find more specific resources for a particular AI tool you're learning, such as [PyTorch](wiki:PyTorch) or [LangChain](wiki:LangChain)?
-
-    **Next Steps:**
-    - [Browse more AI events in Berlin](/#settings/apps/events)
-    - [Search for AI tutorials on YouTube](/#settings/apps/videos)
+    *   **Spec-Driven Development: KI für Full-Stack Java**
+        *   **Datum:** 9. Juni 2026 | 18:30
+        *   **Ort:** Capgemini (Potsdamer Platz 5)
+        *   **Fokus:** Lernen, wie KI Code, Diagramme und Tests aus strukturierten Spezifikationen generieren kann.
+        *   [Event-Details & Anmeldung](embed:spec-driven-development-rxI)
+    
+    ### Wichtige Hubs, denen du folgen solltest
+    Wenn du auf dem Laufenden bleiben willst: Diese Organisationen veranstalten den Großteil der Builder-zentrierten KI-Events in Berlin:
+    
+    *   **Merantix AI Campus**: Dieser 6.000 m² große Campus in Nord-Mitte ist das Herz des Berliner KI-Ökosystems und veranstaltet wöchentliche Reading Groups und Tech Talks.
+        *   Campus-Veranstaltungskalender
+    *   **BLISS (Berlin AI Community)**: Eine Community aus Studenten und Professionals, die hochwertige Workshops und Vortragsreihen organisiert.
+        *   Offizielle BLISS-Website
+    *   **[CODE University](wiki:CODE_University_of_Applied_Sciences)**: Veranstaltet oft „Global AI Bootcamps“ und Hands-on-Sessions für Studenten und die Öffentlichkeit auf ihrem Delta-Campus in Neukölln.
+    
+    ### Praktische Tipps für die Teilnahme
+    1.  **Frühzeitig anmelden:** Viele dieser Events (besonders die BLISS- und Tinkerers-Sessions) haben begrenzte Plätze und erfordern eine Auswahl oder frühzeitige Registrierung.
+    2.  **Laptop mitbringen:** Bei den meisten „Workshops“ wird erwartet, dass du den Code mitschreibst. Stelle sicher, dass du eine lokale Umgebung oder einen [GitHub](wiki:GitHub)-Account bereit hast.
+    3.  **Tritt den Slack-Kanälen bei:** Gruppen wie AI Tinkerers und [Hackers/Founders](/#settings/apps/web) haben lokale Slack/Discord-Kanäle, in denen die meisten kurzfristigen Build-Sessions organisiert werden.
+    
+    Soll ich dir helfen, spezifischere Ressourcen für ein bestimmtes KI-Tool zu finden, das du gerade lernst, wie zum Beispiel [PyTorch](wiki:PyTorch) oder [LangChain](wiki:LangChain)?
+    
+    **Nächste Schritte:**
+    - [Weitere KI-Events in Berlin durchsuchen](/#settings/apps/events)
+    - [Nach KI-Tutorials auf YouTube suchen](/#settings/apps/videos)
   zh: |
     ```json
     {"type": "app_skill_use", "embed_id": "e7002718-62f4-43b0-9078-1ab77993edc0", "app_id": "events", "skill_id": "search", "query": "AI workshop", "provider": "meetup", "providers": ["meetup"]}

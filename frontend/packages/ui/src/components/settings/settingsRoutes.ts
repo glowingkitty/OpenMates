@@ -3,7 +3,7 @@
  * Svelte components. Extracted from Settings.svelte to reduce file size and improve
  * maintainability.
  *
- * These are the "base" (static) routes. Dynamic routes for app store details and
+ * These are the "base" (static) routes. Dynamic routes for app details and
  * entry detail pages are built at runtime in Settings.svelte via buildSettingsViews().
  */
 
@@ -30,6 +30,7 @@ import SettingsBackupReminders from "./notifications/SettingsBackupReminders.sve
 // Privacy
 import SettingsPrivacy from "./SettingsPrivacy.svelte";
 import SettingsHidePersonalData from "./privacy/SettingsHidePersonalData.svelte";
+import SettingsConnectedAccounts from "./privacy/SettingsConnectedAccounts.svelte";
 import SettingsAddName from "./privacy/SettingsAddName.svelte";
 import SettingsAddAddress from "./privacy/SettingsAddAddress.svelte";
 import SettingsAddBirthday from "./privacy/SettingsAddBirthday.svelte";
@@ -116,6 +117,7 @@ import SettingsSoftwareUpdate from "./server/SettingsSoftwareUpdate.svelte";
 import SettingsStats from "./server/SettingsStats.svelte";
 import SettingsGiftCardGenerator from "./server/SettingsGiftCardGenerator.svelte";
 import SettingsFreeTestingCreditsBudget from "./server/SettingsFreeTestingCreditsBudget.svelte";
+import SettingsAnonymousFreeUsageBudget from "./server/SettingsAnonymousFreeUsageBudget.svelte";
 import SettingsTests from "./server/SettingsTests.svelte";
 import SettingsLogs from "./SettingsLogs.svelte";
 
@@ -137,12 +139,13 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // AI (model selection, pricing, providers, memories)
   ai: SettingsAI,
   // Apps
-  app_store: SettingsAppStore,
-  "app_store/all": SettingsAllApps,
+  apps: SettingsAppStore,
+  "apps/all": SettingsAllApps,
   // Memories hub — lists all user-created memories across apps
   settings_memories: SettingsMemoriesHub,
   // Privacy settings — anonymization, device permissions, auto deletion
   privacy: SettingsPrivacy,
+  "privacy/connected-accounts": SettingsConnectedAccounts,
   "privacy/hide-personal-data": SettingsHidePersonalData,
   "privacy/hide-personal-data/add-name": SettingsAddName,
   "privacy/hide-personal-data/add-address": SettingsAddAddress,
@@ -238,6 +241,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "server/stats": SettingsStats,
   "server/gift-cards": SettingsGiftCardGenerator,
   "server/free-testing-credits": SettingsFreeTestingCreditsBudget,
+  "server/anonymous-free-usage": SettingsAnonymousFreeUsageBudget,
   "server/tests": SettingsTests,
   // Admin logs viewer
   logs: SettingsLogs,
@@ -245,7 +249,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
 
 /**
  * Re-export AppDetailsWrapper for use in the dynamic route builder
- * (app_store/{app_id} and nested skill/focus/memory routes).
+ * (apps/{app_id} and nested skill/focus/memory routes).
  */
 export { AppDetailsWrapper };
 

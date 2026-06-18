@@ -2041,14 +2041,48 @@ export async function handlePendingAIResponseImpl(
   }
 
   try {
-    // Deduplicate: if this message already exists locally (e.g., the response
-    // was already delivered via normal streaming or background completion), skip it.
+    // Deduplicate only if the local row already contains the completed response.
+    // A tab can close mid-stream, leaving a partial assistant row behind; the
+    // reconnect-delivered pending response is the authoritative completed copy.
     const existingMessage = await chatDB.getMessage(message_id);
+    let shouldReplaceExistingAIResponse = false;
     if (existingMessage) {
-      console.debug(
-        `[ChatSyncService:PendingAI] Message ${message_id} already exists locally, skipping duplicate`,
-      );
-      return;
+      const existingContent =
+        typeof existingMessage.content === "string" ? existingMessage.content : "";
+      const isAlreadyCompleted =
+        (existingMessage.status === "synced" ||
+          existingMessage.status === "delivered") &&
+        existingContent === content;
+      if (existingMessage.status === "waiting_for_user") {
+        console.debug(
+          `[ChatSyncService:PendingAI] Message ${message_id} is waiting_for_user locally, skipping pending response`,
+        );
+        return;
+      }
+      const isKnownInterruptedState =
+        existingMessage.status === "streaming" ||
+        existingMessage.status === "processing";
+      const isPartialCompletedRow =
+        (existingMessage.status === "synced" ||
+          existingMessage.status === "delivered") &&
+        content.length > existingContent.length &&
+        content.startsWith(existingContent);
+      if (
+        !isAlreadyCompleted &&
+        existingMessage.role === "assistant" &&
+        (isKnownInterruptedState || isPartialCompletedRow)
+      ) {
+        shouldReplaceExistingAIResponse = true;
+        console.info(
+          `[ChatSyncService:PendingAI] Replacing stale local AI response ${message_id} ` +
+            `(${existingMessage.status}, ${existingContent.length} chars) with completed pending response (${content.length} chars)`,
+        );
+      } else {
+        console.debug(
+          `[ChatSyncService:PendingAI] Message ${message_id} already exists locally, skipping duplicate`,
+        );
+        return;
+      }
     }
 
     // Look up the chat - it must exist locally for us to encrypt with its key
@@ -2099,7 +2133,17 @@ export async function handlePendingAIResponseImpl(
     };
 
     // Save to IndexedDB (chatDB handles encryption with chat key)
-    await chatDB.saveMessage(aiMessage);
+    if (shouldReplaceExistingAIResponse) {
+      const replaced = await chatDB.replaceMessageById(aiMessage, {
+        allowedExistingStatuses: ["streaming", "processing", "synced", "delivered"],
+        expectedExistingRole: "assistant",
+      });
+      if (!replaced) {
+        return;
+      }
+    } else {
+      await chatDB.saveMessage(aiMessage);
+    }
     console.info(
       `[ChatSyncService:PendingAI] Saved pending AI response ${message_id} to IndexedDB for chat ${chat_id}`,
     );

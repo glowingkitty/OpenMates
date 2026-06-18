@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Memory Code Preferred Tech"
   en: "Memory Code Preferred Tech"
-  de: "Memory Code Preferred Tech"
+  de: Speicher Code Bevorzugte Tech
   zh: "Memory Code Preferred Tech"
   es: "Memory Code Preferred Tech"
   fr: "Memory Code Preferred Tech"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Memory Code Preferred Tech"
   en: "OpenMates uses saved code preferred_tech memory in a real chat."
-  de: "OpenMates uses saved code preferred_tech memory in a real chat."
+  de: OpenMates nutzt den gespeicherten Code-Speicher „preferred_tech“ in einem echten Chat.
   zh: "OpenMates uses saved code preferred_tech memory in a real chat."
   es: "OpenMates uses saved code preferred_tech memory in a real chat."
   fr: "OpenMates uses saved code preferred_tech memory in a real chat."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Memory Code Preferred Tech. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
-  de: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
+  de: Nutze meine gespeicherten Programmier-Präferenzen (preferred-tech), um einen Starter-Stack für ein kleines persönliches Dashboard vorzuschlagen, das ich dieses Wochenende bauen kann. Du darfst diesen gespeicherten Speicher anfordern und verwenden. Nachdem du den Speicher verwendet hast, suche nicht im Web, nutze keine App-Skills, erstelle keine Dokumente oder Dateien, erstelle keine Embeds und stelle keine Folgefrage.
   zh: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   es: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
   fr: "Use my saved coding preferred-tech memory to suggest a starter stack for a small personal dashboard I can build this weekend. You may request and use that saved memory. After using the saved memory, do not search the web, do not use app skills, do not create documents or files, do not create embeds, and do not ask a follow-up question."
@@ -86,15 +86,15 @@ message_2:
 
     This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
   de: |
-    Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
-
-    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Utilizing your existing expertise, this will allow you to quickly build a fast, reactive frontend with built-in API routing for your data.
-    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – This is ideal for rapid UI prototyping, allowing you to design a clean, responsive dashboard layout without writing custom [CSS](wiki:CSS).
-    3.  **Backend & Database**: Supabase – This provides an instant [PostgreSQL](wiki:PostgreSQL) database and [authentication](wiki:Authentication) layer, which is perfect for a short-term project where you want to focus on the UI rather than database configuration.
-    4.  **Charts**: [Chart.js](wiki:Chart.js) – A versatile library for creating the visual data representations essential for any dashboard.
-    5.  **Deployment**: [Vercel](wiki:Vercel) – It offers specialized support for SvelteKit, enabling you to deploy your project with a simple "git push."
-
-    This combination leverages your advanced knowledge of [Svelte](wiki:Svelte) while using tools designed for speed and developer experience.
+    Basierend auf deinen gespeicherten Präferenzen verfügst du über fortgeschrittene Kenntnisse in [SvelteKit](wiki:SvelteKit). Für ein kleines persönliches Dashboard, das du am Wochenende bauen kannst, schlage ich den folgenden Starter-Stack vor:
+    
+    1.  **Framework**: [SvelteKit](wiki:SvelteKit) – Durch die Nutzung deiner vorhandenen Expertise kannst du schnell ein schnelles, reaktives Frontend mit integriertem API-Routing für deine Daten erstellen.
+    2.  **Styling**: [Tailwind CSS](wiki:Tailwind_CSS) – Ideal für schnelles UI-Prototyping, damit du ein sauberes, responsives Dashboard-Layout entwerfen kannst, ohne eigenes [CSS](wiki:CSS) zu schreiben.
+    3.  **Backend & Datenbank**: Supabase – Bietet eine sofort einsatzbereite [PostgreSQL](wiki:PostgreSQL)-Datenbank und eine [Authentifizierungsschicht](wiki:Authentication), was perfekt für ein Kurzprojekt ist, bei dem du dich eher auf die UI als auf die Datenbankkonfiguration konzentrieren möchtest.
+    4.  **Charts**: [Chart.js](wiki:Chart.js) – Eine vielseitige Bibliothek zur Erstellung visueller Datendarstellungen, die für jedes Dashboard unerlässlich sind.
+    5.  **Deployment**: [Vercel](wiki:Vercel) – Bietet spezialisierte Unterstützung für SvelteKit, sodass du dein Projekt mit einem einfachen „git push“ bereitstellen kannst.
+    
+    Diese Kombination nutzt deine fortgeschrittenen Kenntnisse in [Svelte](wiki:Svelte) und verwendet gleichzeitig Tools, die auf Geschwindigkeit und Entwicklererfahrung ausgelegt sind.
   zh: |
     Based on your saved preferences, you have advanced proficiency in [SvelteKit](wiki:SvelteKit). For a small personal dashboard you can build over the weekend, I suggest the following starter stack:
 

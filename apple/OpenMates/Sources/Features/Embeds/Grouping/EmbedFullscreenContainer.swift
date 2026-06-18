@@ -32,6 +32,8 @@ struct EmbedFullscreenContainer: View {
     @State private var isPresented = false
     @State private var codePreviewActive = false
     @State private var shareTarget: EmbedRecord?
+    @State private var selectedVersionNumber: Int?
+    @State private var restoreConfirmVersion: Int?
     @StateObject private var codeRunViewModel = CodeRunViewModel()
     @Environment(\.openURL) private var openURL
 
@@ -113,6 +115,10 @@ struct EmbedFullscreenContainer: View {
                                 .padding(.horizontal, usesEdgeToEdgeContent ? 0 : .spacing8)
                                 .padding(.vertical, usesEdgeToEdgeContent ? 0 : .spacing10)
                                 .zIndex(0)
+
+                            if shouldShowVersionTimeline(for: embed) {
+                                versionTimeline(for: embed)
+                            }
 
                             if !embed.isAppSkillUse && !childEmbeds.isEmpty {
                                 childEmbedSection
@@ -252,6 +258,133 @@ struct EmbedFullscreenContainer: View {
     private func rawData(for embed: EmbedRecord) -> [String: AnyCodable]? {
         guard let data = embed.data, case .raw(let dict) = data else { return nil }
         return dict
+    }
+
+    private func currentVersionNumber(for embed: EmbedRecord) -> Int {
+        if let versionNumber = embed.versionNumber { return versionNumber }
+        guard let data = rawData(for: embed) else { return 1 }
+        if let value = data["version_number"]?.value as? Int { return value }
+        if let value = data["current_source_version"]?.value as? Int { return value }
+        return 1
+    }
+
+    private func timelineVersions(for embed: EmbedRecord) -> [EmbedVersionMetadata] {
+        if !embed.versionHistory.isEmpty { return embed.versionHistory }
+        let currentVersionNumber = currentVersionNumber(for: embed)
+        guard currentVersionNumber > 1 else { return [] }
+        return (1...currentVersionNumber).map {
+            EmbedVersionMetadata(versionNumber: $0, createdAt: 0, hasSnapshot: $0 == 1, hasPatch: $0 > 1, contentHash: nil)
+        }
+    }
+
+    private func selectedVersion(for embed: EmbedRecord) -> Int {
+        selectedVersionNumber ?? currentVersionNumber(for: embed)
+    }
+
+    private func shouldShowVersionTimeline(for embed: EmbedRecord) -> Bool {
+        timelineVersions(for: embed).count > 1
+    }
+
+    private func versionTimeline(for embed: EmbedRecord) -> some View {
+        let versions = timelineVersions(for: embed)
+        let currentVersion = currentVersionNumber(for: embed)
+        let selectedVersion = selectedVersion(for: embed)
+
+        return VStack(alignment: .leading, spacing: .spacing4) {
+            HStack {
+                Text("Version history")
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                Spacer()
+                Text("\(versions.count) versions")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: .spacing3) {
+                    ForEach(versions) { version in
+                        let isSelected = version.versionNumber == selectedVersion
+                        let isCurrent = version.versionNumber == currentVersion
+                        Button {
+                            selectedVersionNumber = version.versionNumber
+                            restoreConfirmVersion = nil
+                        } label: {
+                            VStack(spacing: .spacing2) {
+                                Circle()
+                                    .fill(isCurrent ? Color.buttonPrimary : (isSelected ? Color.buttonPrimary : Color.grey30))
+                                    .frame(width: 10, height: 10)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color.buttonPrimary.opacity(isSelected ? 0.25 : 0), lineWidth: 6)
+                                    )
+                                Text("v\(version.versionNumber)")
+                                    .font(.omMicro)
+                                    .foregroundStyle(isSelected ? Color.buttonPrimary : Color.fontSecondary)
+                            }
+                            .padding(.horizontal, .spacing4)
+                            .padding(.vertical, .spacing3)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("embed-version-dot-\(version.versionNumber)")
+                    }
+                    if selectedVersion != currentVersion {
+                        restoreButton(for: embed, selectedVersion: selectedVersion)
+                    }
+                }
+                .padding(.vertical, .spacing2)
+            }
+
+            VStack(alignment: .leading, spacing: .spacing3) {
+                Text(versionTimelineStatusText(selectedVersion: selectedVersion, currentVersion: currentVersion))
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+
+            if embed.versionHistoryReadonly {
+                Text("Read-only shared history")
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("embed-version-readonly")
+            }
+        }
+        .padding(.spacing5)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius5)
+                .stroke(Color.grey25, lineWidth: 1)
+        )
+        .padding(.horizontal, .spacing6)
+        .padding(.bottom, .spacing5)
+        .accessibilityIdentifier("embed-version-timeline")
+    }
+
+    private func restoreButton(for embed: EmbedRecord, selectedVersion: Int) -> some View {
+        Button {
+            guard !embed.versionHistoryReadonly else { return }
+            restoreConfirmVersion = restoreConfirmVersion == selectedVersion ? nil : selectedVersion
+        } label: {
+            Text(restoreConfirmVersion == selectedVersion ? "Confirm restore v\(selectedVersion)" : "Restore v\(selectedVersion)")
+                .font(.omXs)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.buttonPrimary)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing3)
+                .overlay(
+                    RoundedRectangle(cornerRadius: .radius3)
+                        .stroke(Color.buttonPrimary, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(embed.versionHistoryReadonly)
+        .accessibilityIdentifier("embed-version-restore-button")
+    }
+
+    private func versionTimelineStatusText(selectedVersion: Int, currentVersion: Int) -> String {
+        if selectedVersion == currentVersion { return "Current version v\(currentVersion)" }
+        return "Viewing historical version v\(selectedVersion)"
     }
 
     private func firstString(_ keys: [String], in data: [String: AnyCodable]) -> String? {

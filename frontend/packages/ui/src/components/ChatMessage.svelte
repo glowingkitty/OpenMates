@@ -117,6 +117,19 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     language?: string;
     lineCount?: number;
   }
+
+  interface ConnectedAccountActionReceiptContent {
+    type: 'connected_account_action_receipt';
+    action_id: string;
+    user_message_id?: string;
+    receipt?: {
+      action?: string;
+      decision?: string;
+      cancel_expires_at?: number;
+      undo_type?: string;
+      undo_available?: boolean;
+    };
+  }
   
   // Use a discriminated union so that "text" parts only have a string and "app-cards" parts only have AppCardData[]
   type TextMessagePart = {
@@ -204,6 +217,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   
   // State for thinking section expansion
   let thinkingExpanded = $state(false);
+
+  function formatCredits(credits: number): string {
+    return credits.toLocaleString('de-DE');
+  }
+
+  let exampleResponseCredits = $derived(
+    typeof original_message?.example_response_credits === 'number' && Number.isFinite(original_message.example_response_credits)
+      ? original_message.example_response_credits
+      : null,
+  );
 
   // --- Sub-chats tracking for assistant message turn ---
 
@@ -919,6 +942,129 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     return compressionSummaryText.split('\n').length > 4;
   });
 
+  function parseConnectedAccountReceipt(contentValue: unknown): ConnectedAccountActionReceiptContent | null {
+    if (typeof contentValue !== 'string' || !contentValue.trimStart().startsWith('{')) return null;
+    try {
+      const parsed = JSON.parse(contentValue);
+      return parsed?.type === 'connected_account_action_receipt'
+        ? parsed as ConnectedAccountActionReceiptContent
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function connectedAccountActionLabel(action: string | undefined): string {
+    if (action === 'read') return $text('chat.connected_account_receipts.action_read');
+    if (action === 'write') return $text('chat.connected_account_receipts.action_write');
+    if (action === 'update') return $text('chat.connected_account_receipts.action_update');
+    if (action === 'delete') return $text('chat.connected_account_receipts.action_delete');
+    if (action === 'undo') return $text('chat.connected_account_receipts.action_undo');
+    return action || $text('chat.connected_account_receipts.action_unknown');
+  }
+
+  function connectedAccountReceiptText(receipt: ConnectedAccountActionReceiptContent): string {
+    const action = connectedAccountActionLabel(receipt.receipt?.action);
+    if (receipt.receipt?.decision === 'undo_success') {
+      return $text('chat.connected_account_receipts.undone');
+    }
+    if (receipt.receipt?.decision === 'explicit_rejection') {
+      return $text('chat.connected_account_receipts.rejected', { values: { action } });
+    }
+    if (receipt.receipt?.decision === 'user_cancelled') {
+      return $text('chat.connected_account_receipts.cancelled', { values: { action } });
+    }
+    if (receipt.receipt?.decision === 'pending_cancel_window') {
+      return $text('chat.connected_account_receipts.pending_cancel', { values: { action } });
+    }
+    if (receipt.receipt?.decision === 'undo_failed' || receipt.receipt?.decision === 'technical_block' || receipt.receipt?.decision === 'failed') {
+      return $text('chat.connected_account_receipts.failed', { values: { action } });
+    }
+    const base = $text('chat.connected_account_receipts.completed', { values: { action } });
+    return receipt.receipt?.undo_available
+      ? `${base} ${$text('chat.connected_account_receipts.undo_available')}`
+      : base;
+  }
+
+  function systemRawContent(): string {
+    return typeof content === 'string'
+      ? content
+      : (typeof original_message?.content === 'string' ? original_message.content : '');
+  }
+
+  let connectedAccountReceipt = $derived.by(() => parseConnectedAccountReceipt(systemRawContent()));
+  let connectedAccountUndoLoading = $state(false);
+  let connectedAccountUndoError = $state('');
+  let connectedAccountCancelLoading = $state(false);
+  let connectedAccountCancelError = $state('');
+  let canCancelConnectedAccountReceipt = $derived(
+    !!connectedAccountReceipt?.action_id &&
+    connectedAccountReceipt.receipt?.decision === 'pending_cancel_window' &&
+    typeof connectedAccountReceipt.receipt?.cancel_expires_at === 'number' &&
+    connectedAccountReceipt.receipt.cancel_expires_at > Math.floor(Date.now() / 1000)
+  );
+  let canUndoConnectedAccountReceipt = $derived(
+    !!connectedAccountReceipt?.action_id &&
+    connectedAccountReceipt.receipt?.undo_available === true &&
+    connectedAccountReceipt.receipt?.decision !== 'undo_success'
+  );
+
+  async function handleConnectedAccountUndo(): Promise<void> {
+    const receipt = connectedAccountReceipt;
+    const chatId = original_message?.chat_id;
+    const sourceMessageId = receipt?.user_message_id || userMessageId || original_message?.user_message_id || messageId || original_message?.message_id;
+    if (!receipt?.action_id || !chatId || !sourceMessageId || connectedAccountUndoLoading) return;
+
+    connectedAccountUndoLoading = true;
+    connectedAccountUndoError = '';
+    try {
+      const { undoConnectedAccountAction } = await import('../services/connectedAccountActionService');
+      await undoConnectedAccountAction({
+        actionId: receipt.action_id,
+        chatId,
+        messageId: sourceMessageId,
+        undoType: receipt.receipt?.undo_type
+      });
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.success($text('chat.connected_account_receipts.undo_started'));
+    } catch (error) {
+      console.error('[ChatMessage] Connected-account undo failed:', error);
+      connectedAccountUndoError = $text('chat.connected_account_receipts.undo_failed');
+    } finally {
+      connectedAccountUndoLoading = false;
+    }
+  }
+
+  async function handleConnectedAccountCancel(): Promise<void> {
+    const receipt = connectedAccountReceipt;
+    const chatId = original_message?.chat_id;
+    const sourceMessageId = receipt?.user_message_id || userMessageId || original_message?.user_message_id || messageId || original_message?.message_id;
+    if (!receipt?.action_id || !chatId || !sourceMessageId || connectedAccountCancelLoading) return;
+
+    connectedAccountCancelLoading = true;
+    connectedAccountCancelError = '';
+    try {
+      const { cancelConnectedAccountAction } = await import('../services/connectedAccountActionService');
+      await cancelConnectedAccountAction({
+        actionId: receipt.action_id,
+        chatId,
+        messageId: sourceMessageId
+      });
+      const { notificationStore } = await import('../stores/notificationStore');
+      notificationStore.success($text('chat.connected_account_receipts.cancel_started'));
+    } catch (error) {
+      console.error('[ChatMessage] Connected-account cancel failed:', error);
+      connectedAccountCancelError = $text('chat.connected_account_receipts.cancel_failed');
+    } finally {
+      connectedAccountCancelLoading = false;
+    }
+  }
+
+  let systemMessageText = $derived.by(() => {
+    const rawContent = systemRawContent();
+    return connectedAccountReceipt ? connectedAccountReceiptText(connectedAccountReceipt) : rawContent;
+  });
+
   // Special handling for openmates_official category
   let displayName = $derived(role === 'user' ? '' : 
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
@@ -1362,7 +1508,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   }
 
   /**
-   * Navigate to the AI Ask model details page in the app store settings.
+   * Navigate to the AI Ask model details page in Apps settings.
    * Resolves the model_name (display name or ID) to its model ID for deep linking.
    */
   function handleGeneratedByClick() {
@@ -2048,7 +2194,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         );
       } else if (action === 'details') {
         console.debug('[ChatMessage] Focus mode details requested via context menu:', selectedFocusId);
-        // Navigate to the focus mode details page in settings / app store
+        // Navigate to the focus mode details page in Settings / Apps
         document.dispatchEvent(
           new CustomEvent('focusModeDetailsRequested', {
             bubbles: true,
@@ -2867,7 +3013,33 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
         </button>
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
-        <span class="system-message-text" data-testid="system-message-text">{typeof content === 'string' ? content : (typeof original_message?.content === 'string' ? original_message.content : '')}</span>
+        <span class="system-message-text" data-testid="system-message-text">{systemMessageText}</span>
+        {#if canCancelConnectedAccountReceipt}
+          <button
+            class="system-message-action-btn"
+            data-testid="connected-account-cancel-button"
+            disabled={connectedAccountCancelLoading}
+            onclick={handleConnectedAccountCancel}
+          >
+            {connectedAccountCancelLoading ? $text('chat.connected_account_receipts.cancelling') : $text('chat.connected_account_receipts.press_to_cancel')}
+          </button>
+        {/if}
+        {#if canUndoConnectedAccountReceipt}
+          <button
+            class="system-message-action-btn"
+            data-testid="connected-account-undo-button"
+            disabled={connectedAccountUndoLoading}
+            onclick={handleConnectedAccountUndo}
+          >
+            {connectedAccountUndoLoading ? $text('chat.connected_account_receipts.undoing') : $text('chat.connected_account_receipts.undo')}
+          </button>
+        {/if}
+        {#if connectedAccountUndoError}
+          <span class="system-message-text system-message-error">{connectedAccountUndoError}</span>
+        {/if}
+        {#if connectedAccountCancelError}
+          <span class="system-message-text system-message-error">{connectedAccountCancelError}</span>
+        {/if}
         {#if status === 'waiting_for_user'}
           <!-- Credit rejection: show a button to navigate to billing/buy-credits -->
           <button
@@ -3286,6 +3458,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
         <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+        {#if exampleResponseCredits !== null}
+          <span class="generated-by-cost" data-testid="generated-by-cost">
+            {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
+          </span>
+        {/if}
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}
@@ -3358,7 +3535,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
                 data-testid="app-settings-memory-category-badge"
                 onclick={() => {
                   // Navigate to app settings/memories category via deep link
-                  const path = `app_store/${cat.appId}/settings_memories/${cat.itemType}`;
+                  const path = `apps/${cat.appId}/settings_memories/${cat.itemType}`;
                   settingsDeepLink.set(path);
                   panelState.openSettings();
                 }}
@@ -3432,6 +3609,17 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
 
   .system-message-action-btn:hover {
     opacity: 0.85;
+  }
+
+  .system-message-action-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .system-message-error {
+    display: block;
+    margin-top: var(--spacing-3);
+    color: var(--color-error);
   }
 
   /* Credits-restored variant: positive green tone to signal good news. */
@@ -3922,6 +4110,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   .generated-by {
     font-size: var(--font-size-small);
     color: var(--color-grey-60);
+  }
+
+  .generated-by-cost {
+    color: var(--color-grey-60);
+    font-size: var(--font-size-small);
+    white-space: nowrap;
   }
 
   .generated-by-container {
