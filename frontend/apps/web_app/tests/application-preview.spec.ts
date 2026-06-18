@@ -12,8 +12,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount,
-	withMockMarker
+	getTestAccount
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
@@ -49,16 +48,16 @@ test('generated application embed starts explicit isolated live preview', async 
 
 	await sendMessage(
 		page,
-		withMockMarker(
-			'Create a tiny Svelte recipe manager application with package.json, src/App.svelte, and src/main.ts. Return it as a runnable generated application preview.',
-			'application_preview'
-		),
+		'Create a svelte based recipe manager application.',
 		logCheckpoint,
 		takeStepScreenshot,
 		'application-preview'
 	);
 
 	const applicationEmbed = await waitForEmbedFinished(page, 'code', 'application', 180_000);
+	await expect(page.getByText('application_preview')).toHaveCount(0);
+	await expect(page.getByText('json:package.json')).toHaveCount(0);
+	await expect(page.getByText('svelte:src/App.svelte')).toHaveCount(0);
 	await expect(applicationEmbed.getByTestId('application-preview-screenshot')).toBeVisible({ timeout: 10_000 });
 	await expect(applicationEmbed.getByTestId('application-preview-play-overlay')).toBeVisible({ timeout: 10_000 });
 
@@ -78,9 +77,13 @@ test('generated application embed starts explicit isolated live preview', async 
 	const iframe = fullscreenOverlay.getByTestId('application-preview-iframe');
 	await expect(iframe).toBeVisible({ timeout: 180_000 });
 	const iframeSrc = await iframe.getAttribute('src');
+	expect(iframeSrc, 'preview iframe src missing').toBeTruthy();
 	expect(iframeSrc).toContain('/t/');
 	expect(iframeSrc).toContain('.openmatesusercontent.org');
 	expect(iframeSrc).not.toContain('e2b.dev');
+	const previewResponse = await page.request.get(iframeSrc || '');
+	expect(previewResponse.ok(), `preview URL failed with ${previewResponse.status()}`).toBe(true);
+	await expect(iframe.contentFrame().getByText(/recipe/i).first()).toBeVisible({ timeout: 120_000 });
 
 	await expect(fullscreenOverlay.getByTestId('application-open-preview-window')).toBeVisible({ timeout: 10_000 });
 	await expect(fullscreenOverlay.getByTestId('application-stop-preview')).toBeVisible({ timeout: 10_000 });

@@ -6130,6 +6130,12 @@ async def _consume_main_processing_stream(
                     else:
                         # Accumulate content (code or document HTML)
                         current_code_content += chunk
+                        is_deferred_protocol_block = (
+                            _is_application_preview_combined_language(current_code_language)
+                            or _is_remotion_video_fence(current_code_language, current_code_filename)
+                            or toon_pending_validation
+                            or bool(current_code_language and current_code_language.lower() == 'tool_code')
+                        )
                         
                         # For document blocks, try to extract title from streaming content
                         if in_document_block and not current_document_title:
@@ -6235,11 +6241,12 @@ async def _consume_main_processing_stream(
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error updating embed: {e}", exc_info=True)
                         
-                        # Suppress content only when an embed was created (reference already sent).
-                        # When no embed exists (creation failed), keep chunk intact so raw
-                        # markdown flows to the client instead of being silently lost.
-                        if current_code_embed_id:
-                            chunk = ""  # Content goes to embed, not message
+                        # Suppress content when an embed was created or a protocol block is
+                        # deferred until closing fence. Deferred protocol content is either
+                        # replaced with an embed reference at close or emitted as raw markdown
+                        # there if parsing fails.
+                        if current_code_embed_id or is_deferred_protocol_block:
+                            chunk = ""  # Content goes to embed/protocol handler, not message
                         # else: no embed — chunk passes through as raw markdown
                 
                 # ── Table/sheet embed detection ─────────────────────────────────
