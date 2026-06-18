@@ -138,6 +138,7 @@ INVALID_TOOL_FALLBACK_MESSAGE = main_processor.INVALID_TOOL_FALLBACK_MESSAGE
 INVALID_TOOL_RESULT_REASON = main_processor.INVALID_TOOL_RESULT_REASON
 _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_history
 _get_skill_execution_args = main_processor._get_skill_execution_args
+_has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
 
 
 def test_invalid_tool_calls_are_hidden_protocol_bookkeeping() -> None:
@@ -213,3 +214,30 @@ def test_skill_execution_falls_back_to_fresh_args_without_placeholder_args() -> 
     parsed_args = {"requests": [{"id": "search_aethos", "query": "aethos"}]}
 
     assert _get_skill_execution_args(parsed_args, {"multiple": True}) is parsed_args
+
+
+def test_diff_prompt_uses_resolved_embed_file_path_index() -> None:
+    request = SimpleNamespace(
+        message_history=[SimpleNamespace(role="user", content="Please edit the previous artifact.")],
+        embed_file_path_index={"average.py-AbC": "embed-1"},
+    )
+
+    assert _has_diffable_embeds_for_prompt(request) is True
+
+
+def test_diff_prompt_accepts_compact_toon_type_marker() -> None:
+    request = SimpleNamespace(
+        message_history=[SimpleNamespace(role="assistant", content="```toon\ntype:code\nembed_ref: average.py-AbC\n```")],
+        embed_file_path_index=None,
+    )
+
+    assert _has_diffable_embeds_for_prompt(request) is True
+
+
+def test_diff_prompt_skips_when_no_prior_embed_reference_exists() -> None:
+    request = SimpleNamespace(
+        message_history=[SimpleNamespace(role="user", content="Write a brand new helper function.")],
+        embed_file_path_index=None,
+    )
+
+    assert _has_diffable_embeds_for_prompt(request) is False

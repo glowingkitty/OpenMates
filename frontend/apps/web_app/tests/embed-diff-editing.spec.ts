@@ -172,6 +172,7 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		await waitForStreamingComplete(page, log, 1);
 		await screenshot(page, '04-turn2-response');
+		await waitForBackgroundEmbedUpdates(page);
 
 		// Verify: the embed should still exist with the same embed_id
 		// After diff application, the embed is updated in-place
@@ -187,43 +188,41 @@ test.describe('Embed Diff-Based Editing', () => {
 		log(`Total finished code embeds on page: ${embedCount}`);
 		expect(embedCount).toBeGreaterThanOrEqual(1);
 
+		const renderedEmbedIds = await allCodeEmbeds.evaluateAll((elements: Element[]) =>
+			elements
+				.map((element) => element.getAttribute('data-embed-id'))
+				.filter((renderedEmbedId): renderedEmbedId is string => Boolean(renderedEmbedId))
+		);
+		log(`Rendered code embed IDs after edit: ${renderedEmbedIds.join(', ')}`);
+		expect(new Set(renderedEmbedIds)).toEqual(new Set([embedId]));
+
 		// Check that the updated embed contains the new function name
 		// Open fullscreen to see the full code
-		const firstEmbed = allCodeEmbeds.first();
-		await firstEmbed.click();
+		const originalEmbed = page.locator(
+			`[data-testid="embed-preview"][data-app-id="code"][data-status="finished"][data-embed-id="${embedId}"]`
+		).first();
+		await originalEmbed.click();
 		await page.waitForTimeout(1000);
 		await screenshot(page, '05-fullscreen-code');
 
 		// Look for the renamed function in fullscreen content
 		const fullscreenContent = page.locator('[data-testid="embed-fullscreen-content"]');
-		if (await fullscreenContent.isVisible({ timeout: 5000 }).catch(() => false)) {
-			const codeText = await fullscreenContent.textContent();
-			log(`Fullscreen code content length: ${codeText?.length || 0}`);
+		await expect(fullscreenContent).toBeVisible({ timeout: 5000 });
+		const codeText = await fullscreenContent.textContent();
+		log(`Fullscreen code content length: ${codeText?.length || 0}`);
+		expect(codeText).toContain('compute_mean');
+		expect(codeText).toContain('-> float');
+		expect(codeText).not.toContain('def calculate_average');
 
-			// If the diff was applied, the function should be renamed
-			// If it fell back to full regen, it should still have the new name
-			// Either way, the new name should be present
-			if (codeText && codeText.includes('compute_mean')) {
-				log('SUCCESS: Function renamed to compute_mean (diff applied or full regen)');
-			} else if (codeText && codeText.includes('calculate_average')) {
-				log('NOTE: Original function name still present — diff may not have been applied');
-				// This is acceptable in the first iteration — the LLM might regenerate fully
-			}
-		}
-
-		// Check for version timeline (if diff was applied, version > 1)
+		// Check for version timeline. A successful diff edit increments the version.
 		const versionTimeline = page.getByTestId('embed-version-timeline');
-		const hasTimeline = await versionTimeline.isVisible({ timeout: 3000 }).catch(() => false);
-		log(`Version timeline visible: ${hasTimeline}`);
-		if (hasTimeline) {
-			log('SUCCESS: Version timeline is visible — diff was applied and versioned');
-			await screenshot(page, '06-version-timeline');
-		}
+		await expect(versionTimeline).toBeVisible({ timeout: 5000 });
+		log('SUCCESS: Version timeline is visible — diff was applied and versioned');
+		await screenshot(page, '06-version-timeline');
 
 		// Close fullscreen
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(500);
-		await waitForBackgroundEmbedUpdates(page);
 
 		// Cleanup: delete the chat
 		await deleteActiveChat(page, log);

@@ -6,6 +6,7 @@ import inspect
 import logging
 from typing import Dict, Any, List, Optional, AsyncIterator, Tuple, Union
 import json
+import re
 import httpx
 import datetime
 import zoneinfo
@@ -82,6 +83,27 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 
 logger = logging.getLogger(__name__)
+
+_DIFFABLE_EMBED_TYPE_RE = re.compile(r"\btype\s*:\s*(code|document|sheet|mail)\b", re.IGNORECASE)
+
+
+def _message_content(message: Any) -> Optional[str]:
+    content = message.content if hasattr(message, "content") else (
+        message.get("content") if isinstance(message, dict) else None
+    )
+    return content if isinstance(content, str) else None
+
+
+def _has_diffable_embeds_for_prompt(request_data: AskSkillRequest) -> bool:
+    """Return True when the LLM can target an existing artifact with a diff fence."""
+    for message in request_data.message_history:
+        content = _message_content(message)
+        if content and _DIFFABLE_EMBED_TYPE_RE.search(content):
+            return True
+
+    # Resolved history can expose only the server-side ref index to this stage.
+    # The stream consumer already uses the same index to resolve diff:<embed_ref>.
+    return bool(getattr(request_data, "embed_file_path_index", None))
 
 INTERACTIVE_QUESTIONS_INSTRUCTION = """
 # INTERACTIVE QUESTIONS PROTOCOL
@@ -1987,17 +2009,7 @@ async def handle_main_processing(
 
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.
-    _has_diffable_embeds = False
-    for _msg in request_data.message_history:
-        _msg_content = _msg.content if hasattr(_msg, "content") else (
-            _msg.get("content") if isinstance(_msg, dict) else None
-        )
-        if not isinstance(_msg_content, str):
-            continue
-        if ("type: code" in _msg_content or "type: document" in _msg_content or
-                "type: sheet" in _msg_content or "type: mail" in _msg_content):
-            _has_diffable_embeds = True
-            break
+    _has_diffable_embeds = _has_diffable_embeds_for_prompt(request_data)
     if _has_diffable_embeds:
         prompt_parts.append(base_instructions.get("base_diff_editing_instruction", ""))
         logger.debug(f"{log_prefix} [DIFF_PROMPT] Injected diff editing instruction (diffable embeds in history)")
