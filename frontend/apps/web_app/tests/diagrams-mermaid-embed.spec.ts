@@ -28,13 +28,19 @@ test.describe('Diagrams Mermaid embeds', () => {
 
 		const preview = page.getByTestId('mermaid-diagram-preview').first();
 		await expect(preview).toBeVisible({ timeout: 20_000 });
+		let renderedPreviewCount = 0;
 		await expect(async () => {
-			const renderedCount = await preview.getByTestId('mermaid-rendered-preview').count();
+			renderedPreviewCount = await preview.getByTestId('mermaid-rendered-preview').count();
 			const fallbackCount = await preview.getByTestId('mermaid-source-fallback').count();
-			expect(renderedCount + fallbackCount).toBeGreaterThan(0);
+			expect(renderedPreviewCount + fallbackCount).toBeGreaterThan(0);
 		}).toPass({ timeout: 20_000 });
-		await expect(preview).toContainText('Email Signup Sequence');
-		await expect(preview).toContainText('sequenceDiagram');
+		if (renderedPreviewCount > 0) {
+			await expect(preview.getByTestId('mermaid-rendered-preview')).toContainText('User');
+			await expect(preview.getByTestId('mermaid-rendered-preview')).toContainText('API');
+		} else {
+			await expect(preview.getByTestId('mermaid-source-fallback')).toContainText('Email Signup Sequence');
+			await expect(preview.getByTestId('mermaid-source-fallback')).toContainText('sequenceDiagram');
+		}
 
 		await waitForComponentPreview(
 			page,
