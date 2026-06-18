@@ -17,7 +17,8 @@ Usage:
     python3 scripts/run_tests.py --only-failed             # rerun failures
     python3 scripts/run_tests.py --suite pytest             # just pytest
     python3 scripts/run_tests.py --suite vitest             # just vitest
-    python3 scripts/run_tests.py --suite playwright         # just E2E
+    python3 scripts/run_tests.py --suite playwright         # just browser E2E
+    python3 scripts/run_tests.py --suite cli                # just CLI integration
     python3 scripts/run_tests.py --daily                   # cron mode (3 AM nightly)
     python3 scripts/run_tests.py --daily --force            # skip commit check
     python3 scripts/run_tests.py --hourly-dev              # hourly dev smoke (4 specs)
@@ -4767,6 +4768,9 @@ class TestOrchestrator:
         if self.suite in ("all", "pytest"):
             suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
+        if self.suite in ("all", "cli"):
+            suites["cli"] = self._run_unit_suite_via_gha("cli-integration.yml", "cli-integration-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
             suites["playwright"] = self._run_playwright()
@@ -5369,7 +5373,7 @@ def main() -> int:
         description="OpenMates unified test orchestrator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--suite", choices=["all", "vitest", "pytest", "playwright"], default="all",
+    parser.add_argument("--suite", choices=["all", "vitest", "pytest", "cli", "playwright"], default="all",
                         help="Suite to run (default: all)")
     parser.add_argument("--spec", type=str, default=None,
                         help="Run a single Playwright spec (e.g., chat-flow.spec.ts)")

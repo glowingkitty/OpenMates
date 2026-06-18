@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-18
 ---
 
 # CLI Standards (TypeScript/Node.js)
@@ -176,6 +176,16 @@ node --test --experimental-strip-types frontend/packages/openmates-cli/tests/sto
 ```bash
 cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.test.ts
 ```
+
+### Live CLI integration tests (GitHub Actions)
+
+```bash
+python3 scripts/run_tests.py --suite cli
+```
+
+The CLI integration suite is separate from browser Playwright specs and fails
+when `OPENMATES_TEST_ACCOUNT_API_KEY` is missing. Do not hide live CLI coverage
+behind skipped Playwright phases.
 
 ### E2E tests (Playwright — requires running dev server + CLI binary)
 
