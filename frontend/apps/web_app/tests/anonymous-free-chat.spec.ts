@@ -381,11 +381,7 @@ test.describe('Anonymous free chat', () => {
 		});
 		await page.getByTestId('new-chat-cta-fullwidth').click();
 
-		const editor = page.getByTestId('message-editor');
-		await expect(editor).toBeVisible({ timeout: 10000 });
-		await editor.click();
-		await page.keyboard.insertText('Please summarize this image after I sign up.');
-		await expect(editor).toContainText('Please summarize this image after I sign up.');
+		const editor = await typeMessageText(page, 'Please summarize this image after I sign up.');
 
 		await page.getByTestId('message-file-input').setInputFiles({
 			name: 'anonymous-upload.png',
