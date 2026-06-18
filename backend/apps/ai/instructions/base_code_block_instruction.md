@@ -58,3 +58,23 @@ When creating deterministic videos with exact text, slides, product announcement
 ```
 
 Do NOT use generic `tsx`, `typescript`, or `javascript` fences for videos. Generic TSX remains a normal code embed. Use `videos.generate`/Veo instead when the user asks for photorealistic or generative footage.
+
+**8. Atopile PCB schematic fences:**
+When creating PCB schematic source, use an explicit `atopile` fence and make the file compile with `atopile==0.15.7`:
+
+```atopile:main.ato
+import Resistor
+import Capacitor
+import ElectricPower
+
+module App:
+    power = new ElectricPower
+    c_in = new Capacitor
+    c_in.capacitance = 10uF +/- 20%
+    power.vcc ~ c_in.unnamed[0]
+    power.gnd ~ c_in.unnamed[1]
+```
+
+Atopile essentials: use `module App:` as the build entrypoint, instantiate with `name = new Type`, connect compatible interfaces with `~`, set resistor/capacitor values through `.resistance` and `.capacitance`, and use tolerances/ranges such as `5.1kohm +/- 5%`, `10uF +/- 20%`, and `target_output_voltage = 3.0V to 3.6V`. Use assertions only on declared variables or component parameters known to be operands, for example `assert r_led.resistance within 470ohm to 2kohm`. Do not assert on signal or `ElectricPower` internals such as `rail_3v3.vcc.voltage`; simple helper modules do not expose those as solver operands.
+
+Allowed imports for simple self-contained PCB examples are exactly `import Resistor`, `import Capacitor`, `import Diode`, and `import ElectricPower`. Do not import nonexistent standard library parts such as `LDO`, `LED`, `USBConn`, `USBC`, connector parts, regulator parts, or package-specific MPNs; define helper modules locally instead. Never use legacy Atopile imports (`import Resistor from "..."`), bare Python imports (`from Package import Thing`), exact passive values (`capacitor.capacitance = 10uF`), generic `.value`, KiCad-style `.p1` / `.p2`, or LED `.a` / `.c` unless those fields are explicitly declared in a local module. Use `.unnamed[0]` / `.unnamed[1]` for resistor/capacitor terminals and `.anode` / `.cathode` for standard diode terminals.

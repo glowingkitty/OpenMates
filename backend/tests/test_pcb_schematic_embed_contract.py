@@ -16,6 +16,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ELECTRONICS_APP_YML = REPO_ROOT / "backend/apps/electronics/app.yml"
+BASE_CODE_BLOCK_INSTRUCTION = REPO_ROOT / "backend/apps/ai/instructions/base_code_block_instruction.md"
 
 
 def test_atopile_fence_metadata_defaults_to_electronics_pcb_embed() -> None:
@@ -75,16 +76,23 @@ def test_electronics_app_registers_pcb_schematic_with_version_matched_instructio
     assert "atopile==0.15.7" in text
     assert "atopile_docs_version: 0.15.7" in text
     assert "code.get_docs" in text
+    assert ".claude/skills/ato-language" not in text
     assert "requires-atopile: \"^0.15.7\"" in text
     assert "module App:" in text
     assert "never write `new component`" in text
+    assert "interface Name:" in text
+    assert "allowed imports are exactly `import Resistor`, `import Capacitor`, `import Diode`, and `import ElectricPower`" in text
+    assert "Do not import `LDO`, `LED`, `USBConn`, `USBC`" in text
     assert "bare `from Package import Thing`" in text
     assert "resistor.resistance" in text
     assert "capacitor.capacitance" in text
     assert ".unnamed[0]` / `.unnamed[1]" in text
-    assert "`.p1`, `.p2`, or `.value`" in text
+    assert "`.p1`, `.p2`, `.pin1`, `.pin2`, `.value`, `.a`, or `.c`" in text
     assert "10uF +/- 20%" in text
-    assert "never assign exact passive values" in text
+    assert "target_output_voltage = 3.0V to 3.6V" in text
+    assert "Do not assert on signal or `ElectricPower` internals" in text
+    assert "feedback_resistance: resistance" in text
+    assert "not exact passives" in text
 
 
 def test_code_embed_service_routes_atopile_language_to_pcb_schematic() -> None:
@@ -93,6 +101,26 @@ def test_code_embed_service_routes_atopile_language_to_pcb_schematic() -> None:
     assert "if _is_pcb_schematic_fence(language):" in text
     assert "return await self.create_pcb_schematic_embed_placeholder" in text
     assert "return await self.update_pcb_schematic_embed_content" in text
+
+
+def test_generic_code_block_instruction_has_atopile_pcb_guardrails() -> None:
+    text = BASE_CODE_BLOCK_INSTRUCTION.read_text()
+
+    assert "Atopile PCB schematic fences" in text
+    assert "```atopile:main.ato" in text
+    assert "module App:" in text
+    assert "atopile==0.15.7" in text
+    assert "Allowed imports for simple self-contained PCB examples are exactly" in text
+    assert "Do not import nonexistent standard library parts such as `LDO`, `LED`, `USBConn`, `USBC`" in text
+    assert "5.1kohm +/- 5%" in text
+    assert "10uF +/- 20%" in text
+    assert "target_output_voltage = 3.0V to 3.6V" in text
+    assert "Do not assert on signal or `ElectricPower` internals" in text
+    assert "import Resistor from" in text
+    assert "from Package import Thing" in text
+    assert "capacitor.capacitance = 10uF" in text
+    assert ".p1` / `.p2" in text
+    assert ".unnamed[0]` / `.unnamed[1]" in text
 
 
 
