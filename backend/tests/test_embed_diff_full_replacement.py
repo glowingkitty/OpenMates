@@ -13,6 +13,8 @@ import pytest
 
 from backend.apps.ai.tasks.stream_consumer import (
     _apply_requested_symbol_rename,
+    _apply_diff_block_to_existing_embed,
+    _is_diff_edit_fence,
     _is_edit_existing_artifact_request,
     _should_skip_code_block_for_embed,
     _select_cached_code_full_replacement_target,
@@ -204,6 +206,37 @@ class _FakeCacheService:
     async def get_embed_from_cache(self, embed_id: str) -> dict[str, object] | None:
         return self.embeds.get(embed_id)
 
+    async def set_embed_in_cache(self, embed_id: str, _user_id: str, embed: dict[str, object]) -> None:
+        self.embeds[embed_id] = embed
+
+
+class _FakeDirectusEmbedService:
+    async def get_embed_by_id(self, _embed_id: str) -> None:
+        return None
+
+
+class _FakeDirectusService:
+    def __init__(self) -> None:
+        self.embed = _FakeDirectusEmbedService()
+
+
+class _FakeEncryptionService:
+    def __init__(self, plaintext: str) -> None:
+        self.plaintext = plaintext
+
+    async def decrypt_with_user_key(self, _encrypted_content: str, _vault_key_id: str) -> str:
+        return self.plaintext
+
+
+class _FakeEmbedService:
+    def __init__(self) -> None:
+        self.updated_code: str | None = None
+        self.version_number: int | None = None
+
+    async def update_code_embed_content(self, **kwargs: object) -> None:
+        self.updated_code = str(kwargs["code_content"])
+        self.version_number = int(kwargs["version_number"])
+
 
 @pytest.mark.anyio
 async def test_selects_newest_cached_code_embed_when_ref_index_is_missing() -> None:
@@ -248,3 +281,69 @@ async def test_uses_current_user_content_when_history_lacks_current_turn() -> No
         "cached:embed-old",
         "embed-old",
     )
+
+
+def test_identifies_bare_diff_fence_when_single_edit_target_exists() -> None:
+    assert _is_diff_edit_fence("diff", None, {"main.py-AbC": "embed-1"}) is True
+    assert _is_diff_edit_fence("diff", None, {}) is False
+
+
+@pytest.mark.anyio
+async def test_applies_bare_diff_fence_to_existing_code_embed() -> None:
+    from toon_format import encode
+
+    original_code = (
+        "def calculate_average(numbers):\n"
+        "    if not numbers:\n"
+        "        return 0\n"
+        "    return sum(numbers) / len(numbers)"
+    )
+    diff_content = (
+        "@@ -1,4 +1,4 @@\n"
+        "-def calculate_average(numbers):\n"
+        "+def compute_mean(numbers) -> float:\n"
+        "     if not numbers:\n"
+        "         return 0\n"
+        "     return sum(numbers) / len(numbers)"
+    )
+    request = SimpleNamespace(
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="hash-1",
+        embed_file_path_index={"main.py-AbC": "embed-1"},
+    )
+    cache_service = _FakeCacheService({
+        "embed-1": {
+            "embed_id": "embed-1",
+            "type": "code",
+            "status": "finished",
+            "version_number": 1,
+            "encrypted_content": "encrypted",
+        },
+    })
+    embed_service = _FakeEmbedService()
+
+    response_chunk = await _apply_diff_block_to_existing_embed(
+        diff_content=diff_content,
+        diff_embed_ref=None,
+        request_data=request,
+        cache_service=cache_service,
+        directus_service=_FakeDirectusService(),
+        encryption_service=_FakeEncryptionService(encode({
+            "type": "code",
+            "code": original_code,
+            "language": "python",
+            "filename": "main.py",
+        })),
+        embed_service=embed_service,
+        user_vault_key_id="vault-1",
+        log_prefix="[test]",
+    )
+
+    assert '"embed_id": "embed-1"' in response_chunk
+    assert embed_service.updated_code is not None
+    assert "def compute_mean(numbers) -> float" in embed_service.updated_code
+    assert "def calculate_average" not in embed_service.updated_code
+    assert "@@" not in embed_service.updated_code
+    assert embed_service.version_number == 2

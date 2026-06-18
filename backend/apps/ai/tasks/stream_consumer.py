@@ -791,6 +791,253 @@ def _reconstruct_mail_fence(receiver: str, subject: str, content: str, footer: s
     return "\n".join(lines)
 
 
+def _is_diff_edit_fence(
+    language: Optional[str],
+    filename: Optional[str],
+    file_path_index: Optional[Dict[str, str]],
+) -> bool:
+    """Return whether a code fence should be handled as an artifact diff."""
+    return bool(
+        language
+        and language.lower() == "diff"
+        and (filename is not None or file_path_index)
+    )
+
+
+def _render_diff_visual_card(diff_embed_ref: Optional[str], diff_content: str, reason: Optional[str] = None) -> str:
+    label = diff_embed_ref or "existing artifact"
+    if reason:
+        return (
+            f"\n**Suggested changes to `{label}`** _({reason})_:\n"
+            f"```diff\n{diff_content}\n```\n"
+        )
+    return f"\n**Suggested changes to `{label}`:**\n```diff\n{diff_content}\n```\n"
+
+
+async def _apply_diff_block_to_existing_embed(
+    *,
+    diff_content: str,
+    diff_embed_ref: Optional[str],
+    request_data: AskSkillRequest,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    embed_service: Any,
+    user_vault_key_id: str,
+    log_prefix: str,
+) -> str:
+    """Apply a unified diff fence to an existing embed and return response markdown."""
+    from backend.core.api.app.services.embed_diff_service import (
+        parse_unified_diff, apply_patch
+    )
+    from toon_format import decode
+
+    file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
+    resolved_ref = diff_embed_ref or next(iter(file_path_index), None)
+
+    logger.info(
+        f"{log_prefix} [DIFF_BLOCK] Detected diff block targeting "
+        f"embed_ref={resolved_ref!r} ({len(diff_content)} chars)"
+    )
+
+    target_embed_id = file_path_index.get(resolved_ref) if resolved_ref else None
+    if not target_embed_id:
+        logger.warning(
+            f"{log_prefix} [DIFF_BLOCK] Could not resolve embed_ref "
+            f"{resolved_ref!r} to embed_id. Known refs: "
+            f"{list(file_path_index.keys())[:10]}. Showing visual diff card."
+        )
+        return _render_diff_visual_card(resolved_ref, diff_content)
+
+    cached_embed = await cache_service.get_embed_from_cache(target_embed_id)
+    if not cached_embed:
+        cached_embed = await directus_service.embed.get_embed_by_id(target_embed_id)
+
+    current_content = None
+    if cached_embed:
+        encrypted_content = cached_embed.get("encrypted_content")
+        if encrypted_content:
+            try:
+                decrypted_toon = await encryption_service.decrypt_with_user_key(
+                    encrypted_content, user_vault_key_id
+                )
+                decoded = decode(decrypted_toon)
+                if decoded.get("type") == "mail":
+                    current_content = _reconstruct_mail_fence(
+                        decoded.get("receiver", ""),
+                        decoded.get("subject", ""),
+                        decoded.get("content", ""),
+                        decoded.get("footer", ""),
+                    )
+                else:
+                    current_content = (
+                        decoded.get("code") or
+                        decoded.get("diagram_code") or
+                        decoded.get("html") or
+                        (json.dumps(decoded.get("docx_model"), ensure_ascii=False, indent=2) if decoded.get("docx_model") else None) or
+                        decoded.get("table") or
+                        ""
+                    )
+            except Exception as e:
+                logger.error(
+                    f"{log_prefix} [DIFF_BLOCK] Failed to decrypt/decode "
+                    f"embed {target_embed_id}: {e}"
+                )
+
+    if not current_content:
+        logger.warning(
+            f"{log_prefix} [DIFF_BLOCK] No content found for embed "
+            f"{target_embed_id}. Rendering diff as visual card."
+        )
+        return _render_diff_visual_card(resolved_ref, diff_content)
+
+    parsed_diff = parse_unified_diff(diff_content, resolved_ref)
+    patch_result = apply_patch(current_content, parsed_diff)
+    if not patch_result.success:
+        logger.warning(
+            f"{log_prefix} [DIFF_BLOCK] Patch failed: "
+            f"{patch_result.error}. Showing visual diff card."
+        )
+        return _render_diff_visual_card(resolved_ref, diff_content, "could not apply automatically")
+
+    current_version = cached_embed.get("version_number") or 1
+    version_history_rows = []
+    now = int(time.time())
+    if current_version == 1:
+        version_history_rows.append({
+            "embed_id": target_embed_id,
+            "version_number": 1,
+            "snapshot": current_content,
+            "created_at": now,
+        })
+
+    new_version = current_version + 1
+    new_content_hash = hashlib.sha256(patch_result.new_content.encode("utf-8")).hexdigest()
+    version_history_rows.append({
+        "embed_id": target_embed_id,
+        "version_number": new_version,
+        "patch": diff_content,
+        "created_at": now,
+    })
+
+    embed_type = cached_embed.get("type") or "code"
+    if embed_type == "code" or "code" in (cached_embed.get("encrypted_type") or ""):
+        await embed_service.update_code_embed_content(
+            embed_id=target_embed_id,
+            code_content=patch_result.new_content,
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            version_number=new_version,
+            content_hash=new_content_hash,
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix
+        )
+    elif embed_type == "document":
+        doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", patch_result.new_content)
+        await embed_service.update_document_embed_content(
+            embed_id=target_embed_id,
+            html_content="",
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="processing",
+            title=doc_title,
+            filename=doc_filename,
+            docx_model=docx_model,
+            version_number=new_version,
+            content_hash=new_content_hash,
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix
+        )
+        celery_config.app.send_task(
+            "apps.docs.tasks.generate_docx",
+            args=[{
+                "embed_id": target_embed_id,
+                "chat_id": request_data.chat_id,
+                "message_id": request_data.message_id,
+                "user_id": request_data.user_id,
+                "user_id_hash": request_data.user_id_hash,
+                "vault_key_id": user_vault_key_id,
+                "title": doc_title,
+                "filename": doc_filename,
+                "docx_model": docx_model,
+                "file_path_index": file_path_index,
+            }],
+            queue="app_docs",
+        )
+    elif embed_type == "sheet":
+        await embed_service.update_table_embed_content(
+            embed_id=target_embed_id,
+            table_content=patch_result.new_content,
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            version_number=new_version,
+            content_hash=new_content_hash,
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix
+        )
+    elif embed_type == "mail":
+        parsed = _parse_email_fence_content(patch_result.new_content)
+        await embed_service.update_mail_embed_content(
+            embed_id=target_embed_id,
+            receiver=parsed.get("receiver", ""),
+            subject=parsed.get("subject", ""),
+            content=parsed.get("content", ""),
+            footer=parsed.get("footer", ""),
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            version_number=new_version,
+            content_hash=new_content_hash,
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix
+        )
+    elif embed_type == "mermaid":
+        mermaid_metadata = _extract_mermaid_metadata(
+            "mermaid",
+            None,
+            patch_result.new_content,
+        )
+        await embed_service.update_mermaid_embed_content(
+            embed_id=target_embed_id,
+            diagram_code=patch_result.new_content,
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            title=mermaid_metadata["title"],
+            diagram_kind=mermaid_metadata["diagram_kind"],
+            version_number=new_version,
+            content_hash=new_content_hash,
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix,
+        )
+
+    cached_embed["version_number"] = new_version
+    await cache_service.set_embed_in_cache(target_embed_id, request_data.user_id, cached_embed)
+
+    embed_ref_json = json.dumps({
+        "type": embed_type,
+        "embed_id": target_embed_id
+    })
+    logger.info(
+        f"{log_prefix} [DIFF_BLOCK] Applied diff to "
+        f"{target_embed_id} (v{current_version} → v{new_version}, "
+        f"tier {patch_result.tier})"
+    )
+    return f"```json\n{embed_ref_json}\n```\n\n"
+
+
 async def _verify_and_strip_bad_quotes(
     aggregated_response: str,
     tool_calls_info: Optional[List[Dict[str, Any]]],
@@ -4252,13 +4499,10 @@ async def _consume_main_processing_stream(
                                 _diff_file_path_index = (
                                     getattr(request_data, "embed_file_path_index", None) or {}
                                 )
-                                is_diff_block = (
-                                    current_code_language and
-                                    current_code_language.lower() == 'diff' and
-                                    (
-                                        current_code_filename is not None or
-                                        bool(_diff_file_path_index)
-                                    )
+                                is_diff_block = _is_diff_edit_fence(
+                                    current_code_language,
+                                    current_code_filename,
+                                    _diff_file_path_index,
                                 )
                                 is_remotion_block = _is_remotion_video_fence(current_code_language, current_code_filename)
 
@@ -4282,241 +4526,17 @@ async def _consume_main_processing_stream(
 
                                 elif is_diff_block:
                                     # ─── DIFF BLOCK: Apply unified diff to existing embed ───
-                                    from backend.core.api.app.services.embed_diff_service import (
-                                        parse_unified_diff, apply_patch
+                                    chunk = await _apply_diff_block_to_existing_embed(
+                                        diff_content=code_content,
+                                        diff_embed_ref=current_code_filename,
+                                        request_data=request_data,
+                                        cache_service=cache_service,
+                                        directus_service=directus_service,
+                                        encryption_service=encryption_service,
+                                        embed_service=embed_service,
+                                        user_vault_key_id=user_vault_key_id,
+                                        log_prefix=log_prefix,
                                     )
-                                    from toon_format import decode
-
-                                    diff_embed_ref = current_code_filename or next(
-                                        iter(_diff_file_path_index), None
-                                    )
-                                    diff_content = code_content
-
-                                    logger.info(
-                                        f"{log_prefix} [DIFF_BLOCK] Detected diff block targeting "
-                                        f"embed_ref={diff_embed_ref!r} ({len(diff_content)} chars)"
-                                    )
-
-                                    # Resolve embed_ref → embed_id via file_path_index
-                                    _fp_index = _diff_file_path_index
-                                    target_embed_id = _fp_index.get(diff_embed_ref) if diff_embed_ref else None
-
-                                    if not target_embed_id:
-                                        logger.warning(
-                                            f"{log_prefix} [DIFF_BLOCK] Could not resolve embed_ref "
-                                            f"{diff_embed_ref!r} to embed_id. Known refs: "
-                                            f"{list(_fp_index.keys())[:10]}. "
-                                            f"Falling back to rendering as code block."
-                                        )
-                                        # Fall through to normal code block handling below
-                                    else:
-                                        # Fetch current content from cache, then fall back to Directus metadata.
-                                        cached_embed = await cache_service.get_embed_from_cache(target_embed_id)
-                                        if not cached_embed:
-                                            cached_embed = await directus_service.embed.get_embed_by_id(target_embed_id)
-                                        current_content = None
-                                        if cached_embed:
-                                            encrypted_content = cached_embed.get("encrypted_content")
-                                            if encrypted_content:
-                                                try:
-                                                    decrypted_toon = await encryption_service.decrypt_with_user_key(
-                                                        encrypted_content, user_vault_key_id
-                                                    )
-                                                    decoded = decode(decrypted_toon)
-                                                    # Extract the actual text content based on embed type
-                                                    if decoded.get("type") == "mail":
-                                                        # Mail embeds: reconstruct fence text from fields for diffing
-                                                        current_content = _reconstruct_mail_fence(
-                                                            decoded.get("receiver", ""),
-                                                            decoded.get("subject", ""),
-                                                            decoded.get("content", ""),
-                                                            decoded.get("footer", ""),
-                                                        )
-                                                    else:
-                                                        current_content = (
-                                                            decoded.get("code") or
-                                                            decoded.get("diagram_code") or
-                                                            decoded.get("html") or
-                                                            (json.dumps(decoded.get("docx_model"), ensure_ascii=False, indent=2) if decoded.get("docx_model") else None) or
-                                                            decoded.get("table") or
-                                                            ""
-                                                        )
-                                                except Exception as e:
-                                                    logger.error(
-                                                        f"{log_prefix} [DIFF_BLOCK] Failed to decrypt/decode "
-                                                        f"embed {target_embed_id}: {e}"
-                                                    )
-
-                                        if not current_content:
-                                            logger.warning(
-                                                f"{log_prefix} [DIFF_BLOCK] No content found for embed "
-                                                f"{target_embed_id}. Rendering diff as visual card."
-                                            )
-                                            chunk = f"\n**Suggested changes to `{diff_embed_ref}`:**\n```diff\n{diff_content}\n```\n"
-                                        else:
-                                            # Parse and apply the diff
-                                            parsed_diff = parse_unified_diff(diff_content, diff_embed_ref)
-                                            patch_result = apply_patch(current_content, parsed_diff)
-
-                                            if patch_result.success:
-                                                current_version = cached_embed.get("version_number") or 1
-
-                                                version_history_rows = []
-                                                if current_version == 1:
-                                                    version_history_rows.append({
-                                                        "embed_id": target_embed_id,
-                                                        "version_number": 1,
-                                                        "snapshot": current_content,
-                                                        "created_at": int(time.time()),
-                                                    })
-
-                                                new_version = current_version + 1
-                                                new_content_hash = hashlib.sha256(
-                                                    patch_result.new_content.encode("utf-8")
-                                                ).hexdigest()
-
-                                                version_history_rows.append({
-                                                    "embed_id": target_embed_id,
-                                                    "version_number": new_version,
-                                                    "patch": diff_content,
-                                                    "created_at": int(time.time()),
-                                                })
-
-                                                # Determine embed type and update via existing service methods
-                                                embed_type = cached_embed.get("type") or "code"
-                                                if embed_type == "code" or "code" in (cached_embed.get("encrypted_type") or ""):
-                                                    await embed_service.update_code_embed_content(
-                                                        embed_id=target_embed_id,
-                                                        code_content=patch_result.new_content,
-                                                        chat_id=request_data.chat_id,
-                                                        user_id=request_data.user_id,
-                                                        user_id_hash=request_data.user_id_hash,
-                                                        user_vault_key_id=user_vault_key_id,
-                                                        status="finished",
-                                                        version_number=new_version,
-                                                        content_hash=new_content_hash,
-                                                        version_history_rows=version_history_rows,
-                                                        log_prefix=log_prefix
-                                                    )
-                                                elif embed_type == "document":
-                                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", patch_result.new_content)
-                                                    await embed_service.update_document_embed_content(
-                                                        embed_id=target_embed_id,
-                                                        html_content="",
-                                                        chat_id=request_data.chat_id,
-                                                        user_id=request_data.user_id,
-                                                        user_id_hash=request_data.user_id_hash,
-                                                        user_vault_key_id=user_vault_key_id,
-                                                        status="processing",
-                                                        title=doc_title,
-                                                        filename=doc_filename,
-                                                        docx_model=docx_model,
-                                                        version_number=new_version,
-                                                        content_hash=new_content_hash,
-                                                        version_history_rows=version_history_rows,
-                                                        log_prefix=log_prefix
-                                                    )
-                                                    celery_config.app.send_task(
-                                                        "apps.docs.tasks.generate_docx",
-                                                        args=[{
-                                                            "embed_id": target_embed_id,
-                                                            "chat_id": request_data.chat_id,
-                                                            "message_id": request_data.message_id,
-                                                            "user_id": request_data.user_id,
-                                                            "user_id_hash": request_data.user_id_hash,
-                                                            "vault_key_id": user_vault_key_id,
-                                                            "title": doc_title,
-                                                            "filename": doc_filename,
-                                                            "docx_model": docx_model,
-                                                            "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
-                                                        }],
-                                                        queue="app_docs",
-                                                    )
-                                                elif embed_type == "sheet":
-                                                    await embed_service.update_table_embed_content(
-                                                        embed_id=target_embed_id,
-                                                        table_content=patch_result.new_content,
-                                                        chat_id=request_data.chat_id,
-                                                        user_id=request_data.user_id,
-                                                        user_id_hash=request_data.user_id_hash,
-                                                        user_vault_key_id=user_vault_key_id,
-                                                        status="finished",
-                                                        version_number=new_version,
-                                                        content_hash=new_content_hash,
-                                                        version_history_rows=version_history_rows,
-                                                        log_prefix=log_prefix
-                                                    )
-                                                elif embed_type == "mail":
-                                                    # Re-parse patched fence text into structured fields
-                                                    parsed = _parse_email_fence_content(patch_result.new_content)
-                                                    await embed_service.update_mail_embed_content(
-                                                        embed_id=target_embed_id,
-                                                        receiver=parsed.get("receiver", ""),
-                                                        subject=parsed.get("subject", ""),
-                                                        content=parsed.get("content", ""),
-                                                        footer=parsed.get("footer", ""),
-                                                        chat_id=request_data.chat_id,
-                                                        user_id=request_data.user_id,
-                                                        user_id_hash=request_data.user_id_hash,
-                                                        user_vault_key_id=user_vault_key_id,
-                                                        status="finished",
-                                                        version_number=new_version,
-                                                        content_hash=new_content_hash,
-                                                        version_history_rows=version_history_rows,
-                                                        log_prefix=log_prefix
-                                                    )
-                                                elif embed_type == "mermaid":
-                                                    mermaid_metadata = _extract_mermaid_metadata(
-                                                        "mermaid",
-                                                        None,
-                                                        patch_result.new_content,
-                                                    )
-                                                    await embed_service.update_mermaid_embed_content(
-                                                        embed_id=target_embed_id,
-                                                        diagram_code=patch_result.new_content,
-                                                        chat_id=request_data.chat_id,
-                                                        user_id=request_data.user_id,
-                                                        user_id_hash=request_data.user_id_hash,
-                                                        user_vault_key_id=user_vault_key_id,
-                                                        status="finished",
-                                                        title=mermaid_metadata["title"],
-                                                        diagram_kind=mermaid_metadata["diagram_kind"],
-                                                        version_number=new_version,
-                                                        content_hash=new_content_hash,
-                                                        version_history_rows=version_history_rows,
-                                                        log_prefix=log_prefix,
-                                                    )
-
-                                                # Update version_number in cache
-                                                cached_embed["version_number"] = new_version
-                                                await cache_service.set_embed_in_cache(
-                                                    target_embed_id, request_data.user_id,
-                                                    cached_embed
-                                                )
-
-                                                # Emit embed reference (reuses existing embed_id)
-                                                embed_ref_json = json.dumps({
-                                                    "type": embed_type,
-                                                    "embed_id": target_embed_id
-                                                })
-                                                chunk = f"```json\n{embed_ref_json}\n```\n\n"
-
-                                                logger.info(
-                                                    f"{log_prefix} [DIFF_BLOCK] Applied diff to "
-                                                    f"{target_embed_id} (v{current_version} → v{new_version}, "
-                                                    f"tier {patch_result.tier})"
-                                                )
-                                            else:
-                                                # Tier 3: Visual fallback
-                                                logger.warning(
-                                                    f"{log_prefix} [DIFF_BLOCK] Patch failed: "
-                                                    f"{patch_result.error}. Showing visual diff card."
-                                                )
-                                                chunk = (
-                                                    f"\n**Suggested changes to `{diff_embed_ref}`** "
-                                                    f"_(could not apply automatically)_:\n"
-                                                    f"```diff\n{diff_content}\n```\n"
-                                                )
 
                                     # Reset code block state
                                     in_code_block = False
@@ -5217,6 +5237,17 @@ async def _consume_main_processing_stream(
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created Mermaid embed placeholder {current_code_embed_id}")
                                 else:
+                                    if _is_diff_edit_fence(
+                                        current_code_language,
+                                        current_code_filename,
+                                        getattr(request_data, "embed_file_path_index", None) or {},
+                                    ):
+                                        chunk = ""
+                                        logger.info(
+                                            f"{log_prefix} [DIFF_BLOCK] Deferring streamed diff fence until closing fence"
+                                        )
+                                        continue
+
                                     replacement_target = await _select_any_code_full_replacement_target(
                                         request_data,
                                         current_code_filename,
@@ -5372,6 +5403,17 @@ async def _consume_main_processing_stream(
                             chunk = ""
                             logger.info(
                                 f"{log_prefix} Deferring combined application preview block until closing fence"
+                            )
+                            continue
+
+                        if _is_diff_edit_fence(
+                            current_code_language,
+                            current_code_filename,
+                            getattr(request_data, "embed_file_path_index", None) or {},
+                        ):
+                            chunk = ""
+                            logger.info(
+                                f"{log_prefix} [DIFF_BLOCK] Deferring streamed diff fence until closing fence"
                             )
                             continue
 
@@ -5955,6 +5997,43 @@ async def _consume_main_processing_stream(
                                     chunk = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
                             else:
                                 chunk = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
+
+                            in_code_block = False
+                            in_plot_block = False
+                            in_document_block = False
+                            in_email_block = False
+                            in_pcb_schematic_block = False
+                            in_mermaid_block = False
+                            current_document_title = None
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
+                        elif (
+                            not current_code_embed_id
+                            and _is_diff_edit_fence(
+                                current_code_language,
+                                current_code_filename,
+                                getattr(request_data, "embed_file_path_index", None) or {},
+                            )
+                            and directus_service
+                            and encryption_service
+                            and user_vault_key_id
+                        ):
+                            from backend.core.api.app.services.embed_service import EmbedService
+
+                            embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                            chunk = await _apply_diff_block_to_existing_embed(
+                                diff_content=current_code_content,
+                                diff_embed_ref=current_code_filename,
+                                request_data=request_data,
+                                cache_service=cache_service,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service,
+                                embed_service=embed_service,
+                                user_vault_key_id=user_vault_key_id,
+                                log_prefix=log_prefix,
+                            )
 
                             in_code_block = False
                             in_plot_block = False

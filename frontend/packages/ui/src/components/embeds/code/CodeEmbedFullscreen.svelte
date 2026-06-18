@@ -1265,6 +1265,7 @@
           <EmbedHeaderCtaButton
             label={previewActive ? $text('app_skills.code.preview_hide') : $text('app_skills.code.preview_show')}
             onclick={togglePreview}
+            variant="secondary"
             testId="embed-preview-button"
           />
         {/if}
