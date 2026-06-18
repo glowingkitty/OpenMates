@@ -76,6 +76,7 @@ RENOTIFY_AFTER_TICKS = 3
 ESSENTIAL_FAILURE_SUBJECT = "URGENT: Essential services seem to be broken"
 ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
 WORKFLOW_NAME = "playwright-spec.yml"
+CLI_INTEGRATION_SPEC = "__cli_integration_code_docs__"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
 GH_REPO = "glowingkitty/OpenMates"
 GH_BRANCH = "dev"
@@ -4762,14 +4763,14 @@ class TestOrchestrator:
                 _log(f"Archived previous screenshots to screenshots/{prev_date}/")
 
         # Run all suites via GitHub Actions (prevents dev server overload)
-        if self.suite in ("all", "vitest"):
+        if not self.spec and self.suite in ("all", "vitest"):
             suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
-        if self.suite in ("all", "pytest"):
+        if not self.spec and self.suite in ("all", "pytest"):
             suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
 
-        if self.suite in ("all", "cli"):
-            suites["cli"] = self._run_unit_suite_via_gha("cli-integration.yml", "cli-integration-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+        if not self.spec and self.suite in ("all", "cli"):
+            suites["cli"] = self._run_cli_integration()
 
         # Run Playwright via GitHub Actions
         if self.suite in ("all", "playwright"):
@@ -5101,6 +5102,65 @@ class TestOrchestrator:
             self._merge_cookie_audits()
 
         return result
+
+    def _run_cli_integration(self) -> SuiteResult:
+        """Run CLI integration checks through a registered GitHub Actions workflow.
+
+        GitHub only allows dispatching workflow files that already exist on the
+        repository default branch. Reusing the registered single-spec workflow
+        keeps `--suite cli` first-class on dev branches while the workflow step
+        runs the standalone CLI script rather than Playwright.
+        """
+        _log("CLI integration: dispatching via GitHub Actions...")
+
+        if self.dry_run:
+            _log(f"Dry run — would dispatch {CLI_INTEGRATION_SPEC}")
+            return SuiteResult(status="skipped", reason="dry run")
+
+        client = GitHubActionsClient()
+        run_id = client.dispatch_spec(CLI_INTEGRATION_SPEC, account=1, use_mocks=self.use_mocks)
+        if run_id is None:
+            detail = client.last_dispatch_error or "Could not dispatch CLI integration workflow"
+            return SuiteResult(
+                status="failed",
+                tests=[{
+                    "name": "cli-integration-dispatch",
+                    "status": "dispatch_error",
+                    "duration_seconds": 0,
+                    "error": detail,
+                }],
+            )
+
+        _log(f"  CLI integration: waiting for run {run_id}...")
+        statuses = client.wait_for_runs([run_id], fail_fast=False)
+        conclusion = statuses.get(run_id, {}).get("conclusion", "unknown")
+        _log(f"  CLI integration: run {run_id} → {conclusion}")
+
+        artifact_dir = Path(tempfile.mkdtemp(prefix="cli-integration-artifacts-"))
+        artifact_name = f"playwright-{CLI_INTEGRATION_SPEC.replace('/', '-')}"
+        artifact_path = client.download_artifact(run_id, artifact_name, artifact_dir)
+
+        tests: list[dict] = []
+        if artifact_path:
+            tests = self._parse_unit_test_artifact(artifact_path, "cli-integration")
+
+        if not tests:
+            log_error = client.get_failed_job_error(run_id)
+            tests = [{
+                "name": "cli-integration-run",
+                "status": "failed" if conclusion != "success" else "error",
+                "duration_seconds": 0,
+                "error": log_error or f"CLI integration produced no parseable result artifact; run conclusion: {conclusion}",
+            }]
+
+        has_failures = any(_is_problem_status(test.get("status", "")) for test in tests)
+        overall_status = "failed" if conclusion != "success" or has_failures else "passed"
+        shutil.rmtree(artifact_dir, ignore_errors=True)
+
+        passed = sum(1 for test in tests if test.get("status") == "passed")
+        _log(f"  CLI integration: {passed}/{len(tests)} passed")
+
+        return SuiteResult(status=overall_status, tests=tests)
 
     @staticmethod
     def _dict_to_spec_result(data: dict) -> SpecResult:
