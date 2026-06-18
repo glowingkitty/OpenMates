@@ -870,7 +870,7 @@ ${downloadHtmlContent}
         currentContent={latestHtmlContent}
         buildRestoredContent={(content, newVersion) => ({ ...dc, html: content, version_number: newVersion })}
         onVersionSelect={(version, content) => {
-          if (content !== null) includedOriginalHtmlContent = content;
+          includedOriginalHtmlContent = content;
           console.log('[DocsEmbedFullscreen] Version selected:', version);
         }}
       />

@@ -247,6 +247,29 @@ test.describe('Embed Diff-Based Editing', () => {
 		log('SUCCESS: Version timeline is visible — diff was applied and versioned');
 		await screenshot(page, '06-version-timeline');
 
+		await page.getByTestId('version-dot-1').click();
+		await expect
+			.poll(async () => page.getByTestId('code-fullscreen-code').textContent(), {
+				timeout: 10000,
+				intervals: [500, 1000, 2000]
+			})
+			.toContain('calculate_average');
+		const versionOneCodeText = await fullscreenCode.textContent();
+		log(`Version 1 code content length: ${versionOneCodeText?.length || 0}`);
+		expect(versionOneCodeText).not.toContain('compute_mean');
+
+		await page.getByTestId('version-dot-2').click();
+		await expect
+			.poll(async () => page.getByTestId('code-fullscreen-code').textContent(), {
+				timeout: 10000,
+				intervals: [500, 1000, 2000]
+			})
+			.toContain('compute_mean');
+		const currentVersionCodeText = await fullscreenCode.textContent();
+		log(`Current version code content length: ${currentVersionCodeText?.length || 0}`);
+		expect(currentVersionCodeText).toContain('-> float');
+		expect(currentVersionCodeText).not.toContain('def calculate_average');
+
 		// Close fullscreen
 		await page.keyboard.press('Escape');
 		await page.waitForTimeout(500);

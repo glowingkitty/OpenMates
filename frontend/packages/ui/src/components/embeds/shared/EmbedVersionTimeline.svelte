@@ -38,6 +38,7 @@
 	let showChanges: boolean = $state(false);
 	let selectedContent: string | null = $state(null);
 	let restoreConfirmVersion: number | null = $state(null);
+	let contentRequestId = 0;
 	let selectedMeta = $derived(versions.find((version) => version.version_number === selectedVersion));
 	let changeLines = $derived.by(() => buildLineDiff(selectedContent, currentContent));
 
@@ -77,20 +78,30 @@
 	}
 
 	async function selectVersion(version: number) {
+		const requestId = ++contentRequestId;
 		selectedVersion = version;
 		restoreConfirmVersion = null;
-		loadingContent = true;
 		errorMessage = '';
+		if (version === activeCurrentVersion) {
+			loadingContent = false;
+			selectedContent = null;
+			onVersionSelect(version, null);
+			return;
+		}
+		selectedContent = null;
+		loadingContent = true;
 		try {
 			const response = await fetchEmbedVersionContent(embedId, version);
+			if (requestId !== contentRequestId) return;
 			selectedContent = response.content;
 			onVersionSelect(version, response.content);
 		} catch (e) {
+			if (requestId !== contentRequestId) return;
 			errorMessage = e instanceof Error ? e.message : 'Failed to load version content';
 			selectedContent = null;
 			onVersionSelect(version, null);
 		} finally {
-			loadingContent = false;
+			if (requestId === contentRequestId) loadingContent = false;
 		}
 	}
 

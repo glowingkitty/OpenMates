@@ -594,7 +594,7 @@
         currentContent={latestTableContent}
         buildRestoredContent={(content, newVersion) => ({ ...dc, table: content, version_number: newVersion })}
         onVersionSelect={(version, content) => {
-          if (content !== null) includedOriginalTableContent = content;
+          includedOriginalTableContent = content;
           console.log('[SheetEmbedFullscreen] Version selected:', version);
         }}
       />

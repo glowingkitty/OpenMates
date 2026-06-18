@@ -1538,7 +1538,7 @@
         currentContent={latestCodeContent}
         buildRestoredContent={(content, newVersion) => ({ ...dc, code: content, version_number: newVersion })}
         onVersionSelect={(version, content) => {
-          if (content !== null) includedOriginalCodeContent = content;
+          includedOriginalCodeContent = content;
           console.log('[CodeEmbedFullscreen] Version selected:', version);
         }}
       />

@@ -290,7 +290,11 @@
             version_number: newVersion,
           })}
           onVersionSelect={(version, content) => {
-            if (content !== null) applyVersionContent(content);
+            if (content !== null) {
+              applyVersionContent(content);
+            } else {
+              includedOriginalFields = null;
+            }
             console.log('[MailEmbedFullscreen] Version selected:', version);
           }}
         />

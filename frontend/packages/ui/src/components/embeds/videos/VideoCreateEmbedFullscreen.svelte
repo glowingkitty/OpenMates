@@ -185,7 +185,7 @@
           currentContent={source}
           buildRestoredContent={(content, newVersion) => ({ ...dc, remotion_source: content, current_source_version: newVersion, version_number: newVersion })}
           onVersionSelect={(version, content) => {
-            if (content !== null) selectedSource = content;
+            selectedSource = content;
             console.log('[VideoCreateEmbedFullscreen] Version selected:', version);
           }}
         />
