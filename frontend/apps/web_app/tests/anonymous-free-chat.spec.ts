@@ -37,7 +37,7 @@ async function mockAnonymousActiveServerStatus(page: any) {
 			body: JSON.stringify(anonymousActiveServerStatusBody())
 		});
 	});
-	await page.route('**/v1/anonymous/free-usage/status', async (route: any) => {
+	await page.route('**/v1/anonymous/free-usage/status**', async (route: any) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -69,7 +69,7 @@ async function mockAnonymousExhaustedServerStatus(page: any) {
 			})
 		});
 	});
-	await page.route('**/v1/anonymous/free-usage/status', async (route: any) => {
+	await page.route('**/v1/anonymous/free-usage/status**', async (route: any) => {
 		await route.fulfill({
 			status: 200,
 			contentType: 'application/json',
