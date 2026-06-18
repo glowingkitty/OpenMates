@@ -118,6 +118,8 @@ struct ChatView: View {
     var onOpenChat: ((String) -> Void)? = nil
     /// Opens the new-chat surface in the owning app shell window.
     var onNewChat: (() -> Void)? = nil
+    /// Opens the app-owned issue report settings pane with an optional prefill.
+    var onReportIssue: ((ReportIssuePrefill) -> Void)? = nil
     /// Sends the last visible message ID to the app shell for cross-device sync.
     var onScrollPositionChanged: ((String) -> Void)? = nil
 
@@ -148,6 +150,9 @@ struct ChatView: View {
     @State private var hasRestoredInitialScroll = false
     @State private var isRestoringScroll = false
     @State private var lastReportedVisibleMessageId: String?
+    @State private var assistantFeedbackMessageId: String?
+    @State private var selectedAssistantRating: Int?
+    @State private var assistantFeedbackSubmitted = false
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
     @State private var broadcastToSiblingSubChats = false
     @StateObject private var focusModeManager = FocusModeManager()
@@ -164,6 +169,16 @@ struct ChatView: View {
 
     private var isExampleChat: Bool {
         chatId.hasPrefix("example-")
+    }
+
+    private var latestAssistantMessageId: String? {
+        viewModel.messages.last { message in
+            message.role == .assistant && !(message.content ?? "").isEmpty
+        }?.id
+    }
+
+    private var showAssistantFeedback: Bool {
+        latestAssistantMessageId != nil && !viewModel.isStreaming
     }
 
     private var introTeaserVideoURL: URL? {
@@ -295,6 +310,12 @@ struct ChatView: View {
                 userInfo: ["url": URL(string: "openmates://chat/\(newChatId)")!]
             )
             viewModel.forkedChatId = nil
+        }
+        .onChange(of: latestAssistantMessageId) { _, newMessageId in
+            guard assistantFeedbackMessageId != newMessageId else { return }
+            assistantFeedbackMessageId = newMessageId
+            selectedAssistantRating = nil
+            assistantFeedbackSubmitted = false
         }
         .onChange(of: initialMessageSyncSignature) { _, _ in
             Task {
@@ -555,6 +576,20 @@ struct ChatView: View {
                                         .id("streaming")
                                 }
 
+                                if showAssistantFeedback {
+                                    AssistantResponseFeedbackView(
+                                        selectedRating: $selectedAssistantRating,
+                                        submitted: assistantFeedbackSubmitted,
+                                        onSubmit: handleAssistantFeedbackSubmit,
+                                        onRequestFeature: {
+                                            onReportIssue?(.featureRequest())
+                                        }
+                                    )
+                                    .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 75 : 0)
+                                    .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 20 : 0)
+                                    .id("assistant-response-feedback")
+                                }
+
                                 if !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
                                     FollowUpSuggestions(
                                         suggestions: viewModel.followUpSuggestions,
@@ -665,6 +700,15 @@ struct ChatView: View {
         lastReportedVisibleMessageId = nil
         scrollPositionDebounceTask?.cancel()
         scrollPositionDebounceTask = nil
+    }
+
+    private func handleAssistantFeedbackSubmit() {
+        guard let selectedAssistantRating else { return }
+        assistantFeedbackSubmitted = true
+
+        if selectedAssistantRating <= 3 {
+            onReportIssue?(.assistantResponseQuality())
+        }
     }
 
     private func restoreInitialScrollIfNeeded(proxy: ScrollViewProxy) {
@@ -1652,6 +1696,87 @@ struct ChatView: View {
     }
 }
 
+private struct AssistantResponseFeedbackView: View {
+    @Binding var selectedRating: Int?
+    let submitted: Bool
+    let onSubmit: () -> Void
+    let onRequestFeature: () -> Void
+
+    private let ratings = [1, 2, 3, 4, 5]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            if submitted {
+                Text(AppStrings.assistantFeedbackThanks)
+                    .font(.omSmall)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("assistant-feedback-thanks")
+            } else {
+                HStack(alignment: .center, spacing: .spacing3) {
+                    Text(AppStrings.assistantFeedbackRateLabel)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+
+                    HStack(spacing: .spacing1) {
+                        ForEach(ratings, id: \.self) { rating in
+                            Button {
+                                selectedRating = rating
+                            } label: {
+                                Text(verbatim: "★")
+                                    .font(.omP)
+                                    .foregroundStyle(starColor(for: rating))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(AppStrings.assistantFeedbackStarLabel(count: rating))
+                            .accessibilityIdentifier("assistant-feedback-star-\(rating)")
+                        }
+                    }
+
+                    if selectedRating != nil {
+                        Button(action: onSubmit) {
+                            Text(submitLabel)
+                                .font(.omXs.weight(.semibold))
+                                .foregroundStyle(Color.fontButton)
+                                .padding(.horizontal, .spacing4)
+                                .padding(.vertical, .spacing2)
+                                .background(Color.buttonPrimary)
+                                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("assistant-feedback-submit")
+                    }
+                }
+            }
+
+            Button(action: onRequestFeature) {
+                Text(AppStrings.requestFeature)
+                    .font(.omXs)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("chat-history-request-feature")
+        }
+        .padding(.top, .spacing2)
+        .accessibilityIdentifier("assistant-response-feedback")
+    }
+
+    private var submitLabel: String {
+        guard let selectedRating, selectedRating <= 3 else {
+            return AppStrings.assistantFeedbackSubmit
+        }
+        return AppStrings.settingsReportIssue
+    }
+
+    private func starColor(for rating: Int) -> Color {
+        guard let selectedRating, rating <= selectedRating else {
+            return Color.grey50
+        }
+        return Color.buttonPrimary
+    }
+}
+
 // MARK: - Message bubble with embed support
 
 struct MessageBubble: View {
@@ -1669,7 +1794,6 @@ struct MessageBubble: View {
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var hasAppeared = false
-    @State private var isReportHovered = false
 
     var isUser: Bool { message.role == .user }
     /// Web: ≤500px uses stacked layout (avatar above message).
@@ -1904,41 +2028,13 @@ struct MessageBubble: View {
     }
 
     private func generatedByContainer(modelName: String) -> some View {
-        HStack(alignment: .center, spacing: .spacing4) {
-            Text(AppStrings.generatedBy(modelName))
-                .font(.omSmall)
-                .fontWeight(.medium)
-                .foregroundStyle(Color.grey60)
-
-            Button {
-                // TODO: wire to native model settings once AI model detail routing exists.
-            } label: {
-                HStack(spacing: .spacing3) {
-                    Icon("thumbsup", size: 16)
-                        .foregroundStyle(isReportHovered ? Color.primary : Color.grey60)
-                        .rotationEffect(.degrees(180))
-
-                    if isReportHovered {
-                        Text(AppStrings.reportBadAnswer)
-                            .font(.omXxs)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.primary)
-                            .transition(.opacity.animation(.easeInOut(duration: 0.15)))
-                    }
-                }
-                .padding(.horizontal, .spacing3)
-                .padding(.vertical, .spacing1)
-                .background(isReportHovered ? Color.grey20 : Color.clear)
-                .clipShape(RoundedRectangle(cornerRadius: .radius2))
-                .foregroundStyle(isReportHovered ? Color.primary : Color.grey60)
-            }
-            .buttonStyle(.plain)
-            .onHover { isReportHovered = $0 }
-            .accessibilityLabel(AppStrings.reportBadAnswer)
-        }
-        .padding(.top, .spacing3)
-        .padding(.leading, .spacing6)
-        .padding(.bottom, .spacing5)
+        Text(AppStrings.generatedBy(modelName))
+            .font(.omSmall)
+            .fontWeight(.medium)
+            .foregroundStyle(Color.grey60)
+            .padding(.top, .spacing3)
+            .padding(.leading, .spacing6)
+            .padding(.bottom, .spacing5)
     }
 
     var body: some View {

@@ -569,6 +569,7 @@ enum EmbedType: String, CaseIterable {
     case codeCode = "code-code"
     case codeApplication = "code-application"
     case docsDoc = "docs-doc"
+    case diagramsMermaid = "diagrams-mermaid"
     case electronicsComponent = "electronics-component"
     case image
     case mailEmail = "mail-email"
@@ -670,6 +671,7 @@ enum EmbedType: String, CaseIterable {
             switch self {
             case .codeRepo, .codeCode, .codeApplication: return "code"
             case .docsDoc: return "docs"
+            case .diagramsMermaid: return "diagrams"
             case .electronicsComponent: return "electronics"
             case .recording: return "audio"
             case .image, .imagesImageResult: return "images"
@@ -708,6 +710,7 @@ enum EmbedType: String, CaseIterable {
         case .codeApplication: return "Application"
         case .codeGetDocs: return "Docs"
         case .docsDoc: return "Document"
+        case .diagramsMermaid: return "Diagram"
         case .electronicsSearch: return "Component Search"
         case .electronicsComponent: return "Component"
         case .image: return "Image"

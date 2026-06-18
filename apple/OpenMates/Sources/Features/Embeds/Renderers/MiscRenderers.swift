@@ -77,6 +77,81 @@ struct MathPlotRenderer: View {
     }
 }
 
+struct MermaidDiagramRenderer: View {
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var title: String { (data?["title"]?.value as? String) ?? "Mermaid Diagram" }
+    private var diagramKind: String { (data?["diagram_kind"]?.value as? String) ?? "mermaid" }
+    private var diagramCode: String { (data?["diagram_code"]?.value as? String) ?? "" }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            VStack(alignment: .leading, spacing: .spacing3) {
+                HStack(spacing: .spacing2) {
+                    Icon("diagram", size: 22)
+                        .foregroundStyle(Color.buttonPrimary)
+                    Text(title)
+                        .font(.omSmall)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
+                }
+                Text(diagramKind)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                MermaidSourcePreview(source: diagramCode, lineLimit: 5)
+            }
+            .padding(.spacing4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+        case .fullscreen:
+            ScrollView {
+                VStack(alignment: .leading, spacing: .spacing5) {
+                    HStack(spacing: .spacing3) {
+                        Icon("diagram", size: 32)
+                            .foregroundStyle(Color.buttonPrimary)
+                        VStack(alignment: .leading, spacing: .spacing1) {
+                            Text(title)
+                                .font(.omH4)
+                                .fontWeight(.medium)
+                                .foregroundStyle(Color.fontPrimary)
+                            Text(diagramKind)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontSecondary)
+                        }
+                    }
+                    MermaidSourcePreview(source: diagramCode, lineLimit: nil)
+                        .textSelection(.enabled)
+                }
+                .padding(.spacing5)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        }
+    }
+}
+
+private struct MermaidSourcePreview: View {
+    let source: String
+    let lineLimit: Int?
+
+    var body: some View {
+        Text(displaySource)
+            .font(.omMicro)
+            .foregroundStyle(Color.fontSecondary)
+            .padding(.spacing3)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .background(Color.grey15)
+            .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            .lineLimit(lineLimit)
+    }
+
+    private var displaySource: String {
+        source.isEmpty ? "No Mermaid source available." : source
+    }
+}
+
 // SVG rendering via WKWebView for plot data
 #if os(iOS)
 import WebKit

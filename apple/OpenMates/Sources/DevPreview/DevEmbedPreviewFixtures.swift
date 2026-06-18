@@ -18,6 +18,7 @@ import Foundation
 enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
     case audio
     case code
+    case diagrams
     case docs
     case electronics
     case health
@@ -46,6 +47,7 @@ enum DevEmbedPreviewApp: String, CaseIterable, Identifiable {
         switch self {
         case .audio: return "Audio"
         case .code: return "Code"
+        case .diagrams: return "Diagrams"
         case .docs: return "Docs"
         case .electronics: return "Electronics"
         case .health: return "Health"
@@ -86,6 +88,8 @@ enum DevEmbedPreviewFixtures {
             return [recording]
         case .code:
             return [codeEmbed, codeRepoSearch, codeRepo, codeApplication, codeGetDocs]
+        case .diagrams:
+            return [diagramsMermaid]
         case .docs:
             return [docsDocument]
         case .electronics:
@@ -527,6 +531,38 @@ enum DevEmbedPreviewFixtures {
     private static var codeApplication: DevEmbedPreviewSkill {
         let embed = record(id: "preview-code-application-1", type: EmbedType.codeApplication.rawValue, appId: "code", data: ["title": "Habit Garden", "framework": "vite", "status": "finished"])
         return skill(id: "code-application", label: "Application", primary: embed)
+    }
+
+    private static var diagramsMermaid: DevEmbedPreviewSkill {
+        let embed = record(
+            id: "preview-diagrams-mermaid-1",
+            type: EmbedType.diagramsMermaid.rawValue,
+            appId: "diagrams",
+            skillId: "mermaid",
+            data: [
+                "type": "mermaid",
+                "app_id": "diagrams",
+                "skill_id": "mermaid",
+                "title": "Signup Flow",
+                "diagram_kind": "sequenceDiagram",
+                "diagram_code": """
+                sequenceDiagram
+                    participant User
+                    participant App
+                    participant API
+                    User->>App: Enter email
+                    App->>API: Request verification code
+                    API-->>User: Send email code
+                    User->>App: Submit code
+                    App->>API: Verify code
+                    API-->>App: Create session
+                """,
+                "line_count": 9,
+                "status": "finished"
+            ],
+            versionNumber: 1
+        )
+        return skill(id: "diagrams-mermaid", label: "Mermaid", primary: embed)
     }
 
     private static var docsDocument: DevEmbedPreviewSkill {

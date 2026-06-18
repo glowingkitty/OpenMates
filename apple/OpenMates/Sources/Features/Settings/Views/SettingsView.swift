@@ -211,15 +211,24 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
     var onClose: (() -> Void)?
     var onOpenExampleChat: ((String) -> Void)?
+    var reportIssuePrefill: ReportIssuePrefill?
     @State private var showIncognitoInfo = false
     @State private var destination: SettingsDestination?
+    @State private var activeReportIssuePrefill: ReportIssuePrefill?
     @State private var navigationDirection: SettingsNavigationDirection = .forward
     @State private var homeScrollTop: CGFloat = 0
     @State private var destinationScrollTop: CGFloat = 0
 
-    init(onClose: (() -> Void)? = nil, onOpenExampleChat: ((String) -> Void)? = nil) {
+    init(
+        reportIssuePrefill: ReportIssuePrefill? = nil,
+        onClose: (() -> Void)? = nil,
+        onOpenExampleChat: ((String) -> Void)? = nil
+    ) {
+        self.reportIssuePrefill = reportIssuePrefill
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
+        _destination = State(initialValue: reportIssuePrefill == nil ? nil : .reportIssue)
+        _activeReportIssuePrefill = State(initialValue: reportIssuePrefill)
     }
 
     private var isAuthenticated: Bool { authManager.currentUser != nil || AccountSettingsUITestFixture.enabled }
@@ -248,6 +257,11 @@ struct SettingsView: View {
             if showIncognitoInfo {
                 incognitoOverlay
             }
+        }
+        .onChange(of: reportIssuePrefill) { _, newPrefill in
+            guard let newPrefill else { return }
+            activeReportIssuePrefill = newPrefill
+            navigateTo(.reportIssue)
         }
     }
 
@@ -759,7 +773,9 @@ struct SettingsView: View {
             case .developers: SettingsDeveloperView()
             case .newsletter: NewsletterSettingsView()
             case .support: SettingsSupportView()
-            case .reportIssue: ReportIssueView()
+            case .reportIssue:
+                ReportIssueView(prefill: activeReportIssuePrefill)
+                    .id(activeReportIssuePrefill?.id)
             case .serverConnection: SettingsServerConnectionView()
             case .server: SettingsServerView()
             case .logs: SettingsLogsView()

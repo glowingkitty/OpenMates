@@ -88,4 +88,18 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(generatedVideo.type, EmbedType.videosGenerate.rawValue)
         XCTAssertEqual(generatedVideo.rawData?["title"]?.value as? String, "Product launch promo")
     }
+
+    func testDiagramsMermaidFixtureDecodesSourcePayload() throws {
+        let diagramsSkills = DevEmbedPreviewFixtures.skills(for: .diagrams)
+        let mermaid = try XCTUnwrap(diagramsSkills.first { $0.id == "diagrams-mermaid" }?.primaryEmbed)
+
+        XCTAssertEqual(mermaid.type, EmbedType.diagramsMermaid.rawValue)
+        XCTAssertEqual(EmbedType.diagramsMermaid.appId, "diagrams")
+        XCTAssertEqual(EmbedType.diagramsMermaid.displayName, "Diagram")
+        XCTAssertEqual(mermaid.appId, "diagrams")
+        XCTAssertEqual(mermaid.skillId, "mermaid")
+        XCTAssertEqual(mermaid.rawData?["title"]?.value as? String, "Signup Flow")
+        XCTAssertEqual(mermaid.rawData?["diagram_kind"]?.value as? String, "sequenceDiagram")
+        XCTAssertTrue((mermaid.rawData?["diagram_code"]?.value as? String ?? "").contains("User->>App"))
+    }
 }

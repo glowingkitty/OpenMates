@@ -57,6 +57,7 @@ final class ChatViewModel: ObservableObject {
     private var assistantMessageCreatedAtById: [String: String] = [:]
     private var assistantCategoryByMessageId: [String: String] = [:]
     private var assistantModelNameByMessageId: [String: String] = [:]
+    private var anonymousFeatureNoticeInserted = false
     nonisolated(unsafe) private var embedRefreshObserver: Any?
     nonisolated(unsafe) private var chatLifecycleObserver: Any?
 
@@ -530,6 +531,10 @@ final class ChatViewModel: ObservableObject {
         broadcastToSiblings: Bool = false
     ) async {
         guard let currentChat = chat else { return }
+        if AnonymousFreeUsageService.shared.isAnonymousChat(currentChat.id) {
+            await sendAnonymousMessage(content, in: currentChat)
+            return
+        }
         do {
             let composerEmbeds = pendingComposerEmbeds
             let result = try await sendPipeline.sendUserMessage(
@@ -554,6 +559,144 @@ final class ChatViewModel: ObservableObject {
         } catch {
             self.error = error.localizedDescription
             isStreaming = false
+        }
+    }
+
+    private func sendAnonymousMessage(_ content: String, in currentChat: Chat) async {
+        guard AnonymousFreeUsageService.shared.canSendAnonymously else {
+            error = AppStrings.signUp
+            return
+        }
+        guard !hasPendingComposerEmbeds else {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return
+        }
+        do {
+            let chatKey = try await AnonymousFreeUsageService.shared.ensureAnonymousChatKey(chatId: currentChat.id)
+            let createdAt = ChatSendPipeline.isoString(from: Date())
+            var updatedChat = anonymousUpdatedChat(currentChat, lastMessageAt: createdAt)
+
+            if !anonymousFeatureNoticeInserted && !allMessages.contains(where: { $0.role == .system }) {
+                let notice = Message(
+                    id: "\(currentChat.id.suffix(10))-notice",
+                    chatId: currentChat.id,
+                    role: .system,
+                    content: AppStrings.anonymousFreeUsageFeatureNotice,
+                    encryptedContent: nil,
+                    createdAt: createdAt,
+                    updatedAt: nil,
+                    appId: nil,
+                    isStreaming: false,
+                    embedRefs: nil
+                )
+                appendOrReplaceLocalMessage(notice)
+                anonymousFeatureNoticeInserted = true
+            }
+
+            let userMessageId = "\(currentChat.id.suffix(10))-\(UUID().uuidString)"
+            let assistantMessageId = "\(currentChat.id.suffix(10))-\(UUID().uuidString)"
+            let userMessage = Message(
+                id: userMessageId,
+                chatId: currentChat.id,
+                role: .user,
+                content: content,
+                encryptedContent: try await CryptoManager.shared.encryptContent(content, key: chatKey),
+                createdAt: createdAt,
+                updatedAt: nil,
+                appId: nil,
+                isStreaming: false,
+                embedRefs: nil
+            )
+
+            chat = updatedChat
+            chatStore?.upsertChat(updatedChat)
+            appendOrReplaceLocalMessage(userMessage)
+            isStreaming = true
+            streamingContent = ""
+            streamingMessageId = assistantMessageId
+
+            let response = try await AnonymousFreeUsageService.shared.sendAnonymousMessage(
+                chatId: currentChat.id,
+                assistantMessageId: assistantMessageId,
+                plaintext: content,
+                history: anonymousHistory(excluding: userMessageId)
+            )
+            let assistantCreatedAt = ChatSendPipeline.isoString(from: Date())
+            let assistant = Message(
+                id: response.messageId,
+                chatId: response.chatId,
+                role: .assistant,
+                content: response.assistant,
+                encryptedContent: try await CryptoManager.shared.encryptContent(response.assistant, key: chatKey),
+                createdAt: assistantCreatedAt,
+                updatedAt: nil,
+                appId: response.category,
+                isStreaming: false,
+                embedRefs: nil,
+                modelName: response.modelName
+            )
+            updatedChat = anonymousUpdatedChat(updatedChat, lastMessageAt: assistantCreatedAt, category: response.category)
+            chat = updatedChat
+            chatStore?.upsertChat(updatedChat)
+            appendOrReplaceLocalMessage(assistant)
+            followUpSuggestions = response.followUpSuggestions
+            isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
+        } catch {
+            self.error = error.localizedDescription
+            isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
+        }
+    }
+
+    private func anonymousUpdatedChat(_ chat: Chat, lastMessageAt: String, category: String? = nil) -> Chat {
+        let messageCount = allMessages.filter { $0.role != .system }.count + 1
+        let fallbackTitle = allMessages.first(where: { $0.role == .user })?.content ?? AppStrings.newChat
+        return Chat(
+            id: chat.id,
+            title: chat.title ?? String(fallbackTitle.prefix(64)),
+            lastMessageAt: lastMessageAt,
+            createdAt: chat.createdAt,
+            updatedAt: lastMessageAt,
+            isArchived: chat.isArchived,
+            isPinned: chat.isPinned,
+            appId: chat.appId ?? "ai",
+            category: category ?? chat.category,
+            icon: chat.icon,
+            chatSummary: chat.chatSummary,
+            encryptedTitle: chat.encryptedTitle,
+            encryptedCategory: chat.encryptedCategory,
+            encryptedIcon: chat.encryptedIcon,
+            encryptedChatSummary: chat.encryptedChatSummary,
+            encryptedChatKey: chat.encryptedChatKey,
+            messagesV: messageCount,
+            titleV: chat.titleV,
+            draftV: chat.draftV,
+            lastVisibleMessageId: chat.lastVisibleMessageId,
+            parentId: chat.parentId,
+            isSubChat: chat.isSubChat,
+            subChatSettings: chat.subChatSettings,
+            budgetLimit: chat.budgetLimit,
+            budgetSpent: chat.budgetSpent,
+            encryptedActiveFocusId: chat.encryptedActiveFocusId,
+            activeFocusId: chat.activeFocusId
+        )
+    }
+
+    private func anonymousHistory(excluding messageId: String) -> [AnonymousHistoryMessage] {
+        allMessages.compactMap { message in
+            guard message.id != messageId,
+                  message.role != .system,
+                  let content = message.content,
+                  !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return AnonymousHistoryMessage(
+                role: message.role.rawValue,
+                content: content,
+                createdAt: ChatSendPipeline.unixSeconds(from: message.createdAt),
+                senderName: message.role == .user ? "User" : "Assistant"
+            )
         }
     }
 
@@ -1226,6 +1369,10 @@ final class ChatViewModel: ObservableObject {
     @discardableResult
     func uploadAttachment(data: Data, filename: String) async -> UploadFileResponse? {
         guard let chatId = chat?.id else { return nil }
+        guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return nil
+        }
         let safeData = redactedUploadDataIfNeeded(data, filename: filename)
         let uploadId = UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
@@ -1265,8 +1412,12 @@ final class ChatViewModel: ObservableObject {
     }
 
     func uploadRecording(url: URL, duration: TimeInterval) async -> String? {
-        guard let chatId = chat?.id,
-              let data = try? Data(contentsOf: url) else { return nil }
+        guard let chatId = chat?.id else { return nil }
+        guard !AnonymousFreeUsageService.shared.isAnonymousChat(chatId) else {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return nil
+        }
+        guard let data = try? Data(contentsOf: url) else { return nil }
         let uploadId = UUID().uuidString
         let filename = url.lastPathComponent
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
@@ -1373,6 +1524,10 @@ final class ChatViewModel: ObservableObject {
     }
 
     func uploadFile(url: URL) async {
+        if let chatId = chat?.id, AnonymousFreeUsageService.shared.isAnonymousChat(chatId) {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return
+        }
         guard let data = try? Data(contentsOf: url) else { return }
         await uploadAttachment(data: data, filename: url.lastPathComponent)
     }

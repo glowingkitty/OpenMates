@@ -5,6 +5,20 @@
 import SwiftUI
 import PhotosUI
 
+struct ReportIssuePrefill: Equatable {
+    let id = UUID()
+    let title: String
+    let category: String
+
+    @MainActor static func assistantResponseQuality() -> ReportIssuePrefill {
+        ReportIssuePrefill(title: AppStrings.assistantFeedbackReportTitle, category: "bug")
+    }
+
+    @MainActor static func featureRequest() -> ReportIssuePrefill {
+        ReportIssuePrefill(title: AppStrings.requestFeaturePrefill, category: "feature")
+    }
+}
+
 struct ReportIssueView: View {
     @Environment(\.dismiss) var dismiss
     @State private var title = ""
@@ -28,6 +42,11 @@ struct ReportIssueView: View {
     private var isValid: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty &&
         !description.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    init(prefill: ReportIssuePrefill? = nil) {
+        _title = State(initialValue: prefill?.title ?? "")
+        _category = State(initialValue: prefill?.category ?? "bug")
     }
 
     var body: some View {
