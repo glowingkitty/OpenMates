@@ -474,13 +474,13 @@ class ClientLogForwarderService {
    * Flush the current buffer to the backend.
    * Never throws — log forwarding must never break the app.
    *
-   * When E2E mode is active, logs are sent to BOTH the admin/debug endpoint
-   * (if running) AND the E2E endpoint in parallel. This ensures no logs are
-   * lost regardless of which mode is primary.
+   * When E2E mode is active, the main queue is sent only to the E2E endpoint.
+   * Admin/debug forwarding uses cookies and can fail CORS during Playwright
+   * runs; `/e2e/client-logs` is the authenticated test-only capture path.
    */
   private async flush(force: boolean = false): Promise<void> {
     if (this.flushInProgress) return;
-    const shouldFlushNormal = this.running || force;
+    const shouldFlushNormal = (this.running || force) && !this.e2eMode;
     const shouldFlushE2E = this.e2eMode !== null;
     if (!shouldFlushNormal && !shouldFlushE2E) return;
 
