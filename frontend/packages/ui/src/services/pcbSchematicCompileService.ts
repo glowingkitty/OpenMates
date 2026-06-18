@@ -6,6 +6,8 @@
  * prepare-files requests and fetches status records for fullscreen rendering.
  */
 
+import { getApiEndpoint } from '../config/api';
+
 export interface PcbSchematicArtifactEntry {
   id: string;
   type: string;
@@ -43,7 +45,7 @@ async function parseResponse(response: Response): Promise<PcbSchematicCompileRes
 }
 
 export async function preparePcbSchematicFiles(embedId: string, force = false): Promise<PcbSchematicCompileResponse> {
-  const response = await fetch(`/v1/electronics/pcb-schematic/embeds/${encodeURIComponent(embedId)}/prepare-files`, {
+  const response = await fetch(getApiEndpoint(`/v1/electronics/pcb-schematic/embeds/${encodeURIComponent(embedId)}/prepare-files`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -53,7 +55,7 @@ export async function preparePcbSchematicFiles(embedId: string, force = false): 
 }
 
 export async function getPcbSchematicCompileStatus(compileId: string): Promise<PcbSchematicCompileResponse> {
-  const response = await fetch(`/v1/electronics/pcb-schematic/compile/${encodeURIComponent(compileId)}`, {
+  const response = await fetch(getApiEndpoint(`/v1/electronics/pcb-schematic/compile/${encodeURIComponent(compileId)}`), {
     method: 'GET',
     credentials: 'include',
   });
@@ -61,5 +63,5 @@ export async function getPcbSchematicCompileStatus(compileId: string): Promise<P
 }
 
 export function getPcbSchematicArtifactDownloadUrl(compileId: string, artifactId: string): string {
-  return `/v1/electronics/pcb-schematic/compile/${encodeURIComponent(compileId)}/artifacts/${encodeURIComponent(artifactId)}`;
+  return getApiEndpoint(`/v1/electronics/pcb-schematic/compile/${encodeURIComponent(compileId)}/artifacts/${encodeURIComponent(artifactId)}`);
 }

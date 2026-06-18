@@ -334,8 +334,10 @@ export function highlightCode(code: string, language?: string): string {
   try {
     let highlighted: string;
 
-    // If language is provided and not plaintext, try to use it
-    if (language && language !== "text" && language !== "plaintext") {
+    // If language is provided and not plaintext, try to use it. Check support
+    // before calling highlight.js so unsupported domain languages (e.g. Atopile)
+    // do not emit noisy console errors while falling back.
+    if (language && language !== "text" && language !== "plaintext" && isLanguageSupported(language)) {
       try {
         highlighted = hljs.highlight(code, { language }).value;
       } catch {
