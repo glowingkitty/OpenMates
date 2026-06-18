@@ -165,7 +165,7 @@ enum RealAccountUITestSupport {
     }
 
     private static func openNewChatIfNeeded(app: XCUIApplication) {
-        let newChatButton = app.buttons.matching(identifier: "new-chat-button").firstMatch
+        let newChatButton = accessibilityElement(in: app, identifier: "new-chat-button")
         guard newChatButton.waitForExistence(timeout: 2) else { return }
         newChatButton.tap()
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 10))
