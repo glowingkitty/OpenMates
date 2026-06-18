@@ -234,6 +234,46 @@ async function assertLlmQuickTipCardVisible(
 	expect(LLM_QUICK_TIP_SLUGS).toContain(slug as string);
 }
 
+async function assertAssistantFeedbackReportIssueFlow(
+	page: any,
+	logCheckpoint: (...args: any[]) => void,
+	takeStepScreenshot: (...args: any[]) => Promise<void>
+): Promise<void> {
+	const feedback = page.getByTestId('assistant-response-feedback');
+	const quickTipCard = page.getByTestId('quick-tip-card');
+	await expect(feedback).toBeVisible({ timeout: 30000 });
+	await expect(feedback).toContainText('Rate assistant response:', { timeout: 10000 });
+	await expect(quickTipCard).toBeVisible({ timeout: 90000 });
+
+	const feedbackBeforeQuickTip = await page.evaluate(() => {
+		const feedbackEl = document.querySelector('[data-testid="assistant-response-feedback"]');
+		const quickTipEl = document.querySelector('[data-testid="quick-tip-card"]');
+		if (!feedbackEl || !quickTipEl) return false;
+		return Boolean(feedbackEl.compareDocumentPosition(quickTipEl) & Node.DOCUMENT_POSITION_FOLLOWING);
+	});
+	expect(feedbackBeforeQuickTip, 'Assistant response feedback should render before quick tips').toBe(true);
+	logCheckpoint('Assistant response feedback is visible before quick tips.');
+
+	await page.getByTestId('assistant-feedback-star-3').click();
+	const feedbackSubmit = page.getByTestId('assistant-feedback-submit');
+	await expect(feedbackSubmit).toBeVisible({ timeout: 5000 });
+	await expect(feedbackSubmit).toContainText(/Report Issue/i);
+	await takeStepScreenshot(page, '04b-assistant-feedback-report-issue-ready');
+
+	await feedbackSubmit.click();
+	await expect(page.getByTestId('assistant-feedback-thanks')).toContainText('Thanks for the feedback!', { timeout: 10000 });
+	await expect(page.getByTestId('report-issue-form')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('report-issue-title')).toHaveValue('Assistant response quality bad:', { timeout: 10000 });
+	logCheckpoint('Low assistant response rating opened report issue with prefilled title.');
+	await takeStepScreenshot(page, '04c-assistant-feedback-report-issue-prefilled');
+
+	const closeSettings = page.getByTestId('icon-button-close');
+	if (await closeSettings.isVisible().catch(() => false)) {
+		await closeSettings.click();
+		await expect(page.getByTestId('settings-menu')).not.toHaveClass(/visible/, { timeout: 10000 });
+	}
+}
+
 /**
  * Ensure the sidebar (chats panel) is open.
  * The sidebar defaults to CLOSED — this helper clicks the menu toggle to open it
@@ -614,7 +654,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const messageEditor = page.getByTestId('message-editor');
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
-	const firstMessage = `First write the exact phrase "${QUICK_TIP_CHAT_RESPONSE_MARKER}", then give one concise sentence about planning food, transit, and local events for a weekend trip.`;
+	const firstMessage = `First write the exact phrase "${QUICK_TIP_CHAT_RESPONSE_MARKER}", then write exactly this sentence: A weekend trip plan should balance meals, transit, and rest.`;
 	await page.keyboard.type(firstMessage);
 	await takeStepScreenshot(page, '02-message-filled');
 
@@ -663,11 +703,14 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	console.log(`[PERF] chat_flow_message_response_ms=${messageResponseMs}`);
 	logChatCheckpoint(`Message response latency: ${messageResponseMs}ms`, { messageResponseMs });
 	expect(messageResponseMs, 'Chat response should arrive within the E2E smoke timeout').toBeLessThan(CHAT_RESPONSE_SMOKE_TIMEOUT_MS);
+	await expect(page.getByTestId('stop-processing-button')).not.toBeVisible({ timeout: 180000 });
+	logChatCheckpoint('Assistant response finished streaming.');
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed travel-planning assistant response.');
 
 	await assertLlmQuickTipCardVisible(page, logChatCheckpoint, 'after_initial_response');
 	await takeStepScreenshot(page, '04a-quick-tip-visible');
+	await assertAssistantFeedbackReportIssueFlow(page, logChatCheckpoint, takeStepScreenshot);
 
 	// CRITICAL: Verify exactly 2 messages in the DOM (1 user + 1 assistant).
 	// This catches the "for-everyone" demo message bleed-through bug where the

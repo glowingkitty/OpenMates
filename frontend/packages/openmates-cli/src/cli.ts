@@ -60,6 +60,7 @@ import {
   toWaitingForUserResult,
   type WaitingForUserResult,
 } from "./interactiveQuestions.js";
+import { buildAssistantFeedbackDecision } from "./feedback.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -141,6 +142,10 @@ async function main(): Promise<void> {
     }
     if (command === "server") {
       printServerHelp();
+      return;
+    }
+    if (command === "feedback") {
+      printFeedbackHelp();
       return;
     }
     if (command === "docs") {
@@ -226,6 +231,11 @@ async function main(): Promise<void> {
 
   if (command === "newchatsuggestions") {
     await handleNewChatSuggestions(client, parsed.flags);
+    return;
+  }
+
+  if (command === "feedback") {
+    handleFeedback(subcommand, rest, parsed.flags);
     return;
   }
 
@@ -3194,6 +3204,38 @@ async function handleMemories(
 // Argument parsing
 // ---------------------------------------------------------------------------
 
+function handleFeedback(
+  subcommand: string | undefined,
+  _rest: string[],
+  flags: Record<string, string | boolean>,
+): void {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printFeedbackHelp();
+    return;
+  }
+
+  if (subcommand !== "assistant-response") {
+    throw new Error(`Unknown feedback command '${subcommand}'. Run 'openmates feedback --help'.`);
+  }
+
+  const rawRating = flags.rating;
+  if (typeof rawRating !== "string") {
+    throw new Error("Missing --rating <1-5>.");
+  }
+
+  const decision = buildAssistantFeedbackDecision(Number(rawRating));
+  if (flags.json === true) {
+    printJson(decision);
+    return;
+  }
+
+  console.log(decision.message);
+  if (decision.action === "report_issue") {
+    console.log(`Report issue title: ${decision.reportTitle}`);
+    console.log("Open the report issue form and include the affected assistant response.");
+  }
+}
+
 function parseArgs(argv: string[]): CliArgs {
   const positionals: string[] = [];
   const flags: Record<string, string | boolean> = {};
@@ -5577,6 +5619,7 @@ Commands:
   openmates settings [--help]                Predefined settings commands
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
+  openmates feedback [--help]                Assistant response feedback helpers
   openmates server [--help]                   Server management (install, start, stop, ...)
   openmates docs [--help]                     Browse, search, and download documentation
   openmates e2e provision-auth-accounts       Provision local E2E auth-account artifacts
@@ -5586,6 +5629,19 @@ Flags:
   --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
+}
+
+function printFeedbackHelp(): void {
+  console.log(`Feedback commands:
+  openmates feedback assistant-response --rating <1-5> [--json]
+
+Mirrors the web chat assistant-response feedback decision:
+  4-5 stars  Thank the user only
+  1-3 stars  Thank the user and prompt a report issue with the standard prefill
+
+Options:
+  --rating <1-5>  Required star rating
+  --json          Output the decision contract as JSON`);
 }
 
 function printSignupHelp(): void {

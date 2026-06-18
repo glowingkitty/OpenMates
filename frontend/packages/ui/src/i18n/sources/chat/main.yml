@@ -70,6 +70,126 @@ request_feature_prefill:
   sv: "Begärd funktion:"
   he: "התכונה המבוקשת:"
   verified_by_human: []
+assistant_feedback.rate_label:
+  context: Small label shown below the latest assistant response before the 1-5 star rating control
+  en: "Rate assistant response:"
+  de: "Antwort des Assistenten bewerten:"
+  zh: "评价助手回复："
+  es: "Califica la respuesta del asistente:"
+  fr: "Évaluer la réponse de l'assistant :"
+  pt: "Avalie a resposta do assistente:"
+  ru: "Оцените ответ ассистента:"
+  ja: "アシスタントの回答を評価："
+  ko: "어시스턴트 응답 평가:"
+  it: "Valuta la risposta dell'assistente:"
+  tr: "Asistan yanıtını değerlendir:"
+  vi: "Đánh giá phản hồi của trợ lý:"
+  id: "Beri nilai respons asisten:"
+  pl: "Oceń odpowiedź asystenta:"
+  nl: "Beoordeel het antwoord van de assistent:"
+  ar: "قيّم رد المساعد:"
+  hi: "सहायक के जवाब को रेट करें:"
+  th: "ให้คะแนนคำตอบของผู้ช่วย:"
+  cs: "Ohodnoťte odpověď asistenta:"
+  sv: "Betygsätt assistentens svar:"
+  he: "דרג את תגובת המסייע:"
+  verified_by_human: []
+assistant_feedback.star_label:
+  context: Accessibility label for selecting a star rating for the latest assistant response
+  en: "Rate {count} out of 5"
+  de: "{count} von 5 bewerten"
+  zh: "评分 {count}/5"
+  es: "Calificar {count} de 5"
+  fr: "Noter {count} sur 5"
+  pt: "Avaliar {count} de 5"
+  ru: "Оценка {count} из 5"
+  ja: "5段階中{count}で評価"
+  ko: "5점 만점에 {count}점 평가"
+  it: "Valuta {count} su 5"
+  tr: "5 üzerinden {count} puan ver"
+  vi: "Đánh giá {count} trên 5"
+  id: "Beri nilai {count} dari 5"
+  pl: "Oceń {count} z 5"
+  nl: "Beoordeel {count} van 5"
+  ar: "قيّم {count} من 5"
+  hi: "5 में से {count} रेट करें"
+  th: "ให้คะแนน {count} จาก 5"
+  cs: "Ohodnotit {count} z 5"
+  sv: "Betygsätt {count} av 5"
+  he: "דרג {count} מתוך 5"
+  verified_by_human: []
+assistant_feedback.submit:
+  context: Button label shown after the user selects a 4-5 star assistant response rating
+  en: Submit
+  de: Absenden
+  zh: 提交
+  es: Enviar
+  fr: Envoyer
+  pt: Enviar
+  ru: Отправить
+  ja: 送信
+  ko: 제출
+  it: Invia
+  tr: Gönder
+  vi: Gửi
+  id: Kirim
+  pl: Prześlij
+  nl: Verzenden
+  ar: إرسال
+  hi: सबमिट करें
+  th: ส่ง
+  cs: Odeslat
+  sv: Skicka
+  he: שליחה
+  verified_by_human: []
+assistant_feedback.thanks:
+  context: Confirmation text shown after submitting an assistant response rating
+  en: Thanks for the feedback!
+  de: Danke für dein Feedback!
+  zh: 感谢你的反馈！
+  es: ¡Gracias por tus comentarios!
+  fr: Merci pour votre retour !
+  pt: Obrigado pelo feedback!
+  ru: Спасибо за отзыв!
+  ja: フィードバックありがとうございます！
+  ko: 피드백 감사합니다!
+  it: Grazie per il feedback!
+  tr: Geri bildirimin için teşekkürler!
+  vi: Cảm ơn bạn đã phản hồi!
+  id: Terima kasih atas masukan Anda!
+  pl: Dziękujemy za opinię!
+  nl: Bedankt voor je feedback!
+  ar: شكرًا على ملاحظاتك!
+  hi: प्रतिक्रिया के लिए धन्यवाद!
+  th: ขอบคุณสำหรับความคิดเห็น!
+  cs: Děkujeme za zpětnou vazbu!
+  sv: Tack för din feedback!
+  he: תודה על המשוב!
+  verified_by_human: []
+assistant_feedback.report_title:
+  context: Prefilled report issue title when a user rates the assistant response 1-3 stars
+  en: "Assistant response quality bad:"
+  de: "Qualität der Assistentenantwort schlecht:"
+  zh: "助手回复质量差："
+  es: "Mala calidad de la respuesta del asistente:"
+  fr: "Mauvaise qualité de la réponse de l'assistant :"
+  pt: "Qualidade da resposta do assistente ruim:"
+  ru: "Плохое качество ответа ассистента:"
+  ja: "アシスタントの回答品質が低い："
+  ko: "어시스턴트 응답 품질 나쁨:"
+  it: "Qualità della risposta dell'assistente scarsa:"
+  tr: "Asistan yanıt kalitesi kötü:"
+  vi: "Chất lượng phản hồi của trợ lý kém:"
+  id: "Kualitas respons asisten buruk:"
+  pl: "Zła jakość odpowiedzi asystenta:"
+  nl: "Slechte kwaliteit van het assistentantwoord:"
+  ar: "جودة رد المساعد سيئة:"
+  hi: "सहायक के जवाब की गुणवत्ता खराब:"
+  th: "คุณภาพคำตอบของผู้ช่วยไม่ดี:"
+  cs: "Špatná kvalita odpovědi asistenta:"
+  sv: "Dålig kvalitet på assistentens svar:"
+  he: "איכות תגובת המסייע ירודה:"
+  verified_by_human: []
 anonymous_free_usage.feature_notice:
   context: Local system notice shown in anonymous free-usage chats explaining free credits and signup-only features
   en: You are using free anonymous credits. File uploads, memories, chat sync, and some other features require creating an account.
@@ -839,7 +959,6 @@ generated_by:
   sv: "genererad av {model}"
   he: "נוצר על ידי {model}"
   verified_by_human: []
-
 pii_hide:
   context: Tooltip for the PII toggle button when sensitive data is currently visible (clicking will hide it)
   en: Hide sensitive data

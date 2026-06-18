@@ -774,6 +774,11 @@
     return null;
   });
 
+  const ASSISTANT_RATING_VALUES = [1, 2, 3, 4, 5] as const;
+  let assistantFeedbackMessageId = $state<string | null>(null);
+  let selectedAssistantRating = $state<number | null>(null);
+  let assistantFeedbackSubmitted = $state(false);
+
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
   let showMessages = $state(true);
 
@@ -1108,20 +1113,43 @@
     !isCurrentlyStreaming
   );
 
+  let showAssistantFeedback = $derived(
+    lastAssistantMessageId !== null &&
+    !isCurrentlyStreaming
+  );
+
   function handleQuickTipAction(tip: QuickTipDefinition): void {
     dispatch('quickTipAction', tip);
   }
 
-  function openReportIssue(issueType: 'bug_report' | 'feature_request'): void {
+  $effect(() => {
+    if (assistantFeedbackMessageId === lastAssistantMessageId) return;
+
+    assistantFeedbackMessageId = lastAssistantMessageId;
+    selectedAssistantRating = null;
+    assistantFeedbackSubmitted = false;
+  });
+
+  function openReportIssue(issueType: 'bug_report' | 'feature_request', title?: string): void {
     reportIssueStore.set({
-      title: issueType === 'feature_request'
+      title: title ?? (issueType === 'feature_request'
         ? $text('chat.request_feature_prefill')
-        : '',
+        : ''),
       issueType,
       shareChat: true,
     });
     settingsDeepLink.set('report_issue');
     panelState.openSettings();
+  }
+
+  function handleAssistantFeedbackSubmit(): void {
+    if (selectedAssistantRating === null) return;
+
+    assistantFeedbackSubmitted = true;
+
+    if (selectedAssistantRating <= 3) {
+      openReportIssue('bug_report', $text('chat.assistant_feedback.report_title'));
+    }
   }
   
   // NOTE: The centered AI status overlay has been removed. The spacer system directly uses
@@ -2316,6 +2344,58 @@
                 <div class="streaming-spacer" style="height: {spacerHeight}px;"></div>
             {/if}
             
+            {#if showAssistantFeedback}
+                <div class="assistant-response-feedback" data-testid="assistant-response-feedback" in:fade={{ duration: 200 }}>
+                    {#if assistantFeedbackSubmitted}
+                        <p class="assistant-feedback-thanks" data-testid="assistant-feedback-thanks">
+                            {$text('chat.assistant_feedback.thanks')}
+                        </p>
+                    {:else}
+                        <div class="assistant-feedback-rating-row">
+                            <span class="assistant-feedback-label">
+                                {$text('chat.assistant_feedback.rate_label')}
+                            </span>
+                            <div class="assistant-feedback-stars" role="radiogroup" aria-label={$text('chat.assistant_feedback.rate_label')}>
+                                {#each ASSISTANT_RATING_VALUES as rating}
+                                    <button
+                                        type="button"
+                                        class="assistant-feedback-star"
+                                        class:selected={selectedAssistantRating !== null && rating <= selectedAssistantRating}
+                                        role="radio"
+                                        aria-checked={selectedAssistantRating === rating}
+                                        aria-label={$text('chat.assistant_feedback.star_label', { values: { count: rating } })}
+                                        data-testid={`assistant-feedback-star-${rating}`}
+                                        onclick={() => selectedAssistantRating = rating}
+                                    >
+                                        ★
+                                    </button>
+                                {/each}
+                            </div>
+                            {#if selectedAssistantRating !== null}
+                                <button
+                                    type="button"
+                                    class="assistant-feedback-submit"
+                                    data-testid="assistant-feedback-submit"
+                                    onclick={handleAssistantFeedbackSubmit}
+                                >
+                                    {selectedAssistantRating <= 3
+                                        ? $text('settings.report_issue')
+                                        : $text('chat.assistant_feedback.submit')}
+                                </button>
+                            {/if}
+                        </div>
+                    {/if}
+                    <button
+                        type="button"
+                        class="chat-history-feedback-link"
+                        data-testid="chat-history-request-feature"
+                        onclick={() => openReportIssue('feature_request')}
+                    >
+                        {$text('chat.request_feature')}
+                    </button>
+                </div>
+            {/if}
+
             <!-- Follow-up suggestions shown after the last assistant message.
                  Visible without requiring the user to focus the message input first. -->
             {#if showQuickTipsInHistory}
@@ -2338,26 +2418,6 @@
                 </div>
             {/if}
 
-            {#if messages.length > 0}
-                <div class="chat-history-feedback-links" data-testid="chat-history-feedback-links">
-                    <button
-                        type="button"
-                        class="chat-history-feedback-link"
-                        data-testid="chat-history-request-feature"
-                        onclick={() => openReportIssue('feature_request')}
-                    >
-                        {$text('chat.request_feature')}
-                    </button>
-                    <button
-                        type="button"
-                        class="chat-history-feedback-link"
-                        data-testid="chat-history-report-issue"
-                        onclick={() => openReportIssue('bug_report')}
-                    >
-                        {$text('settings.report_issue')}
-                    </button>
-                </div>
-            {/if}
         </div>
     {/if}
     
@@ -2531,14 +2591,81 @@
     width: 100%;
   }
 
-  .chat-history-feedback-links {
+  .assistant-response-feedback {
     display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: var(--spacing-4);
-    padding: 0 20px 24px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+    padding: 8px 20px 14px;
     box-sizing: border-box;
     width: 100%;
+  }
+
+  .assistant-feedback-rating-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+
+  .assistant-feedback-label,
+  .assistant-feedback-thanks {
+    margin: 0;
+    color: var(--color-grey-60);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .assistant-feedback-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+  }
+
+  .assistant-feedback-star {
+    all: unset;
+    cursor: pointer;
+    color: var(--color-grey-40);
+    font-size: 15px;
+    line-height: 1;
+    transition: color var(--duration-fast) var(--easing-default), transform var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-feedback-star.selected,
+  .assistant-feedback-star:hover,
+  .assistant-feedback-star:focus-visible {
+    color: var(--color-orange-50, #f59e0b);
+  }
+
+  .assistant-feedback-star:hover {
+    transform: translateY(-1px);
+  }
+
+  .assistant-feedback-star:focus-visible,
+  .assistant-feedback-submit:focus-visible {
+    outline: 2px solid var(--color-grey-70);
+    outline-offset: 3px;
+    border-radius: var(--radius-3);
+  }
+
+  .assistant-feedback-submit {
+    all: unset;
+    cursor: pointer;
+    color: var(--color-grey-100);
+    background: var(--color-grey-15);
+    border: 1px solid var(--color-grey-30);
+    border-radius: var(--radius-6);
+    padding: 4px 10px;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    line-height: 1.25;
+    transition: background-color var(--duration-fast) var(--easing-default), border-color var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-feedback-submit:hover {
+    background: var(--color-grey-20);
+    border-color: var(--color-grey-40);
   }
 
   .chat-history-feedback-link {
@@ -2571,8 +2698,7 @@
       padding-inline-end: 10px;
     }
 
-    .chat-history-feedback-links {
-      justify-content: center;
+    .assistant-response-feedback {
       padding-inline-start: 10px;
       padding-inline-end: 10px;
     }

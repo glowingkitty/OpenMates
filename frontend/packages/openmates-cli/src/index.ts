@@ -16,6 +16,12 @@ export {
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
+export {
+  ASSISTANT_FEEDBACK_REPORT_TITLE,
+  ASSISTANT_FEEDBACK_THANKS,
+  buildAssistantFeedbackDecision,
+} from "./feedback.js";
+export type { AssistantFeedbackDecision } from "./feedback.js";
 export type {
   DecryptedMemoryEntry,
   DecryptedMessage,
