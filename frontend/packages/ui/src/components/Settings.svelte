@@ -314,7 +314,8 @@ changes to the documentation (to keep the documentation up to date).
                 if (key === 'billing' || key.startsWith('billing/') || 
                     key === 'shared/tip' || // Tips also require payment
                     key === 'server/gift-cards' ||
-                    key === 'server/free-testing-credits') {
+                    key === 'server/free-testing-credits' ||
+                    key === 'server/anonymous-free-usage') {
                     return filtered; // Skip this route
                 }
             }
@@ -1539,6 +1540,8 @@ changes to the documentation (to keep the documentation up to date).
             } else if (settingsPath === 'server/software-update') {
                 // Software update page — use the existing root-level key (not settings.server.software_update)
                 activeSubMenuTitleKey = 'settings.software_updates';
+            } else if (settingsPath === 'server/anonymous-free-usage') {
+                activeSubMenuTitleKey = 'settings.server.anonymous_free_usage_budget.title';
             } else if (settingsPath === 'privacy/connected-accounts') {
                 activeSubMenuTitleKey = 'settings.privacy.connected_accounts.title';
             } else if (settingsPath.startsWith('account/storage/')) {
