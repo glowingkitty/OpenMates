@@ -1749,7 +1749,11 @@ export class ChatSynchronizationService extends EventTarget {
     if (!get(authStore).isAuthenticated) return undefined;
     try {
       const rows = await listConnectedAccounts();
-      return buildConnectedAccountSendContext({ rows, appId: "calendar" });
+      return buildConnectedAccountSendContext({
+        rows,
+        appId: "calendar",
+        defaultAllowedActions: ["read"],
+      });
     } catch (error) {
       console.warn(
         "[ChatSyncService] Connected account lookup failed; sending without connected account context.",

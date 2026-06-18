@@ -163,7 +163,8 @@ export async function buildConnectedAccountSendContext(params: {
 
 	for (const row of rows) {
 		assertNoPlaintextConnectedAccountFields(row);
-		const [label, capabilities, permissions, directoryHint] = await Promise.all([
+		const [providerId, label, capabilities, permissions, directoryHint] = await Promise.all([
+			decryptConnectedAccountValue<string>(row.encrypted_provider_type, 'encrypted_provider_type'),
 			decryptConnectedAccountValue<string>(row.encrypted_account_label, 'encrypted_account_label'),
 			decryptConnectedAccountValue<string[] | { capabilities?: string[] }>(
 				row.encrypted_capabilities,
@@ -182,12 +183,19 @@ export async function buildConnectedAccountSendContext(params: {
 		]);
 
 		const capabilityList = normalizeCapabilityList(capabilities);
-		const appId = normalizeConnectedAccountAppId(permissions.app_id ?? params.appId);
-		const fallbackCapabilities = capabilitiesForActions(permissions.allowed_actions ?? []);
+		const requestedAppId = normalizeConnectedAccountAppId(params.appId);
+		const appId = normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId));
+		if (appId !== requestedAppId) continue;
+		const defaultCapabilityActions = appId === 'calendar' && isLegacyMissingCapabilityList(capabilities)
+			? params.defaultAllowedActions ?? []
+			: [];
+		const fallbackCapabilities = capabilitiesForActions(
+			permissions.allowed_actions ?? defaultCapabilityActions
+		);
 		const directoryCapabilities = normalizeCapabilityList(directoryHint?.capabilities);
 		const allowedActions = params.allowedActionsOverride
 			?? preauthorizedActions(
-				permissions.allowed_actions ?? params.defaultAllowedActions ?? [],
+				permissions.allowed_actions ?? [],
 				directoryHint?.runtime_modes
 			);
 		const actionScopes = params.actionScopesOverride?.length
@@ -298,6 +306,15 @@ function normalizeCapabilityList(value: unknown): string[] {
 		.filter(Boolean);
 	if (!tokens.length || tokens.some((token) => !knownCapabilities.has(token))) return [];
 	return Array.from(new Set(tokens));
+}
+
+function isLegacyMissingCapabilityList(value: unknown): boolean {
+	if (value === undefined || value === null) return true;
+	if (Array.isArray(value)) return value.length === 0;
+	if (value && typeof value === 'object' && Array.isArray((value as { capabilities?: unknown }).capabilities)) {
+		return ((value as { capabilities?: unknown[] }).capabilities ?? []).length === 0;
+	}
+	return false;
 }
 
 function capabilitiesForActions(actions: string[]): string[] {

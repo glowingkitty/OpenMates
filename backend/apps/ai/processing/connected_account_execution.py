@@ -163,7 +163,7 @@ def _find_token_ref(
 ) -> dict[str, Any] | None:
     request_scope = _action_scope_for_request(request, action)
     for token_ref in token_refs:
-        if token_ref.get("app_id") != app_id:
+        if _normalize_app_id(token_ref.get("app_id")) != app_id:
             continue
         allowed_actions = set(token_ref.get("allowed_actions") or [])
         if action not in allowed_actions:
@@ -174,6 +174,12 @@ def _find_token_ref(
         if token_ref.get("turn_token_ref"):
             return token_ref
     return None
+
+
+def _normalize_app_id(value: Any) -> str:
+    if value == "google_calendar":
+        return "calendar"
+    return str(value or "")
 
 
 def _action_scope_for_request(request: dict[str, Any], action: str) -> dict[str, Any]:

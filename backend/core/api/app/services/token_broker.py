@@ -272,7 +272,7 @@ class TokenBrokerService:
             raise PermissionError("turn token ref chat mismatch")
         if payload.get("message_id") != message_id:
             raise PermissionError("turn token ref message mismatch")
-        if payload.get("app_id") != app_id:
+        if _normalize_app_id(payload.get("app_id")) != _normalize_app_id(app_id):
             raise PermissionError("turn token ref app mismatch")
         if action not in set(payload.get("allowed_actions") or []):
             raise PermissionError("turn token ref action mismatch")
@@ -293,7 +293,7 @@ class TokenBrokerService:
             raise PermissionError("access token handle chat mismatch")
         if payload.get("message_id") != message_id:
             raise PermissionError("access token handle message mismatch")
-        if payload.get("app_id") != app_id:
+        if _normalize_app_id(payload.get("app_id")) != _normalize_app_id(app_id):
             raise PermissionError("access token handle app mismatch")
         if payload.get("action") != action:
             raise PermissionError("access token handle action mismatch")
@@ -305,3 +305,9 @@ class TokenBrokerService:
     @staticmethod
     def _access_token_key(handle: str) -> str:
         return f"{ACCESS_TOKEN_HANDLE_PREFIX}{handle}"
+
+
+def _normalize_app_id(value: Any) -> str:
+    if value == "google_calendar":
+        return "calendar"
+    return str(value or "")

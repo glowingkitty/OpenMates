@@ -157,7 +157,15 @@ def _redacted_accounts(
     for account in connected_account_directory:
         if _normalize_app_id(account.get("app_id")) != app_id:
             continue
-        capabilities = _normalize_capabilities(account.get("capabilities"))
+        raw_capabilities = account.get("capabilities")
+        capabilities = _normalize_capabilities(raw_capabilities)
+        if (
+            not capabilities
+            and app_id == "calendar"
+            and action == "read"
+            and _is_legacy_missing_capabilities(raw_capabilities)
+        ):
+            capabilities = ["read"]
         if not _capabilities_allow_action(capabilities, action):
             continue
         accounts.append(
@@ -191,6 +199,16 @@ def _normalize_capabilities(value: Any) -> list[str]:
     if not tokens or any(token not in known_capabilities for token in tokens):
         return []
     return list(dict.fromkeys(tokens))
+
+
+def _is_legacy_missing_capabilities(value: Any) -> bool:
+    if value is None:
+        return True
+    if value == []:
+        return True
+    if isinstance(value, dict) and value.get("capabilities") == []:
+        return True
+    return False
 
 
 def _split_capability_string(value: str) -> list[str]:

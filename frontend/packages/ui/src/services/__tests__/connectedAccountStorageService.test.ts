@@ -24,8 +24,8 @@ import {
 
 const encryptedRow = {
 	id: 'acct-1',
-	encrypted_provider_type: 'enc:google',
-	provider_type_hash: 'hash:google',
+	encrypted_provider_type: 'enc:google_calendar',
+	provider_type_hash: 'hash:google_calendar',
 	encrypted_account_label: 'enc:Work calendar',
 	encrypted_refresh_token_bundle: 'enc:refresh-token-envelope',
 	encrypted_capabilities: 'enc:read-write',
@@ -219,6 +219,35 @@ describe('connectedAccountStorageService', () => {
 		expect(context?.directory?.[0].capabilities).not.toContain('write');
 	});
 
+	it('uses default read capability for legacy Calendar chat send directories only', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			defaultAllowedActions: ['read'],
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:[]',
+					encrypted_app_permissions: 'enc:{"app_id":"calendar"}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}',
+					encrypted_account_directory_hint:
+						'enc:{"account_ref":"calendar-work","label":"Work","capabilities":[],"runtime_modes":{"read":"allow_automatically"}}'
+				}
+			]
+		});
+
+		expect(context?.directory?.[0]).toMatchObject({
+			app_id: 'calendar',
+			capabilities: ['read'],
+			runtime_modes: { read: 'allow_automatically' }
+		});
+		expect(context?.tokenRefInputs).toEqual([]);
+		expect(vi.mocked(decryptWithMasterKey)).not.toHaveBeenCalledWith(
+			'enc:{"refresh_token":"secret-refresh","provider":"google"}'
+		);
+	});
+
 	it('does not derive capabilities from ambiguous legacy strings', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -235,6 +264,47 @@ describe('connectedAccountStorageService', () => {
 		});
 
 		expect(context?.directory?.[0].capabilities).toEqual([]);
+	});
+
+	it('does not use default read fallback for ambiguous legacy capability strings', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			defaultAllowedActions: ['read'],
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:cannot_delete',
+					encrypted_app_permissions: 'enc:{"app_id":"calendar"}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}'
+				}
+			]
+		});
+
+		expect(context?.directory?.[0].capabilities).toEqual([]);
+	});
+
+	it('does not apply Calendar default read fallback to other connected-account apps', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			defaultAllowedActions: ['read'],
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_provider_type: 'enc:other_provider',
+					provider_type_hash: 'hash:other_provider',
+					encrypted_account_label: 'enc:"Other account"',
+					encrypted_capabilities: 'enc:[]',
+					encrypted_app_permissions: 'enc:{}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"other"}'
+				}
+			]
+		});
+
+		expect(context?.directory).toEqual([]);
+		expect(context?.tokenRefInputs).toEqual([]);
 	});
 
 	it('summarizes connected account rows without decrypting refresh token envelopes', async () => {

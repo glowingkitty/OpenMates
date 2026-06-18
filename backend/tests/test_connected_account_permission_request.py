@@ -209,6 +209,39 @@ async def test_connected_account_permission_request_accepts_legacy_calendar_dire
 
 
 @pytest.mark.anyio
+async def test_connected_account_permission_request_accepts_legacy_calendar_read_without_capabilities() -> None:
+    from backend.apps.ai.processing.connected_account_permission_request import create_connected_account_permission_request
+
+    cache = FakeCache()
+
+    request_id = await create_connected_account_permission_request(
+        cache_service=cache,
+        user_id="user-1",
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id_hash="hash-1",
+        app_id="calendar",
+        skill_id="get-events",
+        action="read",
+        skill_arguments={"requests": [{"calendar_id": "primary"}]},
+        connected_account_directory=[
+            {
+                "connected_account_id": "acct-1",
+                "app_id": "calendar",
+                "account_ref": "calendar-work",
+                "label": "Work calendar",
+                "capabilities": [],
+            }
+        ],
+        reason="No matching token ref",
+        task_id="task-1",
+    )
+
+    assert request_id is not None
+    assert cache.pending[request_id]["accounts"][0]["capabilities"] == ["read"]
+
+
+@pytest.mark.anyio
 async def test_connected_account_permission_request_rejects_ambiguous_capability_strings() -> None:
     from backend.apps.ai.processing.connected_account_permission_request import create_connected_account_permission_request
 
@@ -224,6 +257,37 @@ async def test_connected_account_permission_request_rejects_ambiguous_capability
         skill_id="delete-event",
         action="delete",
         skill_arguments={"requests": [{"calendar_id": "primary", "event_id": "event-1"}]},
+        connected_account_directory=[
+            {
+                "connected_account_id": "acct-1",
+                "app_id": "calendar",
+                "capabilities": "cannot_delete",
+            }
+        ],
+        reason="No matching token ref",
+        task_id="task-1",
+    )
+
+    assert request_id is None
+    assert cache.pending == {}
+
+
+@pytest.mark.anyio
+async def test_connected_account_permission_request_does_not_read_fallback_ambiguous_strings() -> None:
+    from backend.apps.ai.processing.connected_account_permission_request import create_connected_account_permission_request
+
+    cache = FakeCache()
+
+    request_id = await create_connected_account_permission_request(
+        cache_service=cache,
+        user_id="user-1",
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id_hash="hash-1",
+        app_id="calendar",
+        skill_id="get-events",
+        action="read",
+        skill_arguments={"requests": [{"calendar_id": "primary"}]},
         connected_account_directory=[
             {
                 "connected_account_id": "acct-1",

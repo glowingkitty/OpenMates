@@ -41,7 +41,7 @@ async def test_prepare_connected_account_execution_injects_handles_and_cleans_up
         connected_account_id="acct-1",
         chat_id="chat-1",
         message_id="msg-1",
-        app_id="calendar",
+        app_id="google_calendar",
         allowed_actions=["read"],
         refresh_token_envelope={"refresh_token": "refresh-secret"},
         action_scope={
@@ -113,6 +113,58 @@ async def test_prepare_connected_account_execution_injects_handles_and_cleans_up
 
     assert any(ref.turn_token_ref in key for key in cache.deleted)
     assert any(handle in key for key in cache.deleted)
+
+
+@pytest.mark.anyio
+async def test_prepare_connected_account_execution_accepts_legacy_calendar_token_ref_app_id(monkeypatch) -> None:
+    from backend.apps.ai.processing import connected_account_execution
+    from backend.apps.ai.processing.connected_account_execution import prepare_connected_account_skill_execution
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    async def exchange(refresh_token: str, _scope: dict[str, Any]) -> dict[str, Any]:
+        return {"access_token": f"access-for-{refresh_token}", "expires_in": 3600}
+
+    monkeypatch.setattr(connected_account_execution, "exchange_google_refresh_token", exchange)
+
+    cache = FakeCache()
+    broker = TokenBrokerService(
+        cache_service=cache,
+        encryption_service=FakeEncryption(),
+        exchange_refresh_token=exchange,
+    )
+    ref = await broker.create_turn_token_ref(
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        connected_account_id="acct-1",
+        chat_id="chat-1",
+        message_id="msg-1",
+        app_id="calendar",
+        allowed_actions=["read"],
+        refresh_token_envelope={"refresh_token": "refresh-secret"},
+        action_scope={"calendar_id": "primary"},
+    )
+
+    context = await prepare_connected_account_skill_execution(
+        app_id="calendar",
+        skill_id="get-events",
+        skill_arguments={"requests": [{"calendar_id": "primary"}]},
+        connected_account_token_refs=[
+            {
+                "connected_account_id": "acct-1",
+                "app_id": "google_calendar",
+                "allowed_actions": ["read"],
+                "turn_token_ref": ref.turn_token_ref,
+            }
+        ],
+        user_id="user-1",
+        user_vault_key_id="vault-key",
+        chat_id="chat-1",
+        message_id="msg-1",
+        cache_service=cache,
+        encryption_service=FakeEncryption(),
+    )
+
+    assert context.skill_arguments["requests"][0]["access_token_handle"].startswith("ath_")
 
 
 @pytest.mark.anyio
