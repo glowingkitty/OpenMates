@@ -26,6 +26,17 @@ _EMBED_DIRECTUS_ID_CACHE_TTL: int = 7 * 86400  # 7 days in seconds
 # Maximum number of embeds returned per page in bulk-fetch methods.
 # Prevents unbounded memory usage when fetching embeds for many chats.
 _BULK_FETCH_PAGE_SIZE: int = 500
+_VAULT_CIPHERTEXT_PREFIX = "vault:v1:"
+
+
+def _validate_client_encrypted_embed_content(embed_id: str, payload: Dict[str, Any]) -> None:
+    """Block server-side Vault ciphertext from being persisted as chat embed content."""
+    encrypted_content = payload.get("encrypted_content")
+    if isinstance(encrypted_content, str) and encrypted_content.startswith(_VAULT_CIPHERTEXT_PREFIX):
+        raise ValueError(
+            f"Embed {embed_id} encrypted_content must be client-side encrypted; "
+            "Vault ciphertext is only allowed in inference/runtime cache."
+        )
 
 # Fields for embed operations
 EMBED_ALL_FIELDS = (
@@ -225,7 +236,9 @@ class EmbedMethods:
         Returns:
             Created embed dictionary if successful, None otherwise
         """
-        logger.debug(f"Creating embed with embed_id: {embed_data.get('embed_id', 'unknown')}")
+        embed_id = str(embed_data.get('embed_id', 'unknown'))
+        _validate_client_encrypted_embed_content(embed_id, embed_data)
+        logger.debug(f"Creating embed with embed_id: {embed_id}")
         try:
             # Use create_item from api_methods
             from backend.core.api.app.services.directus.api_methods import create_item
@@ -237,7 +250,7 @@ class EmbedMethods:
                 embed_data
             )
             if success and created_embed:
-                logger.info(f"Successfully created embed {embed_data.get('embed_id', 'unknown')}")
+                logger.info(f"Successfully created embed {embed_id}")
                 
                 # Update Global Stats (Incremental)
                 try:
@@ -247,7 +260,7 @@ class EmbedMethods:
                     
                 return created_embed
             else:
-                logger.error(f"Failed to create embed {embed_data.get('embed_id', 'unknown')}: {created_embed}")
+                logger.error(f"Failed to create embed {embed_id}: {created_embed}")
                 return None
         except Exception as e:
             logger.error(f"Error creating embed: {e}", exc_info=True)
@@ -269,6 +282,7 @@ class EmbedMethods:
         Returns:
             Updated embed dictionary if successful, None otherwise
         """
+        _validate_client_encrypted_embed_content(embed_id, update_data)
         logger.debug(f"Updating embed with embed_id: {embed_id}")
         try:
             # ── Step 1: Resolve the Directus internal UUID ────────────────────
