@@ -37,6 +37,8 @@ def test_stream_consumer_strips_raw_application_source_after_parent_embed() -> N
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
 
     assert "def _strip_generated_application_source_text" in source
+    assert "def _extract_loose_application_preview_files_from_text" in source
+    assert "APPLICATION_PREVIEW_DEFAULT_PACKAGE_JSON" in source
     assert "_find_application_embed_reference_start(response_text, bundle_start)" in source
     assert "payload.get(\"type\") == \"application\"" in source
     assert "_strip_generated_application_source_text(" in source

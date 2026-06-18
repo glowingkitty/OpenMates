@@ -22,6 +22,7 @@ try:
         _build_application_manifest_from_code_embeds,
         _extract_code_embed_ids_from_response,
         _extract_application_preview_files_from_markdown_code_block,
+        _extract_loose_application_preview_files_from_text,
         _has_stream_ready_application_manifest,
         _parse_application_preview_combined_files,
         _parse_application_preview_json_bundle_files,
@@ -426,6 +427,29 @@ console.log('hello');
         assert "html:index.html" not in cleaned
         assert "svelte:src/App.svelte" not in cleaned
         assert "Recipe Manager" not in cleaned
+
+    def test_extracts_loose_application_files_and_synthesizes_manifest(self):
+        files, cleaned = _extract_loose_application_preview_files_from_text(
+            "Here is the recipe manager app.\n\n"
+            "html-index.html\n"
+            "Svelte Recipe Manager\n"
+            "typescript:src/main.ts\n"
+            "import App from './App.svelte';\n"
+            "const app = new App({ target: document.body });\n"
+            "svelte:src/App.svelte\n"
+            "<main>Recipe Manager</main>\n"
+        )
+
+        paths = [file["filename"] for file in files]
+        by_path = {file["filename"]: file for file in files}
+        assert cleaned == "Here is the recipe manager app."
+        assert paths[0] == "package.json"
+        assert "index.html" in paths
+        assert "src/main.ts" in paths
+        assert "src/App.svelte" in paths
+        assert "vite.config.ts" in paths
+        assert "@sveltejs/vite-plugin-svelte" in by_path["package.json"]["content"]
+        assert 'src="/src/main.ts"' in by_path["index.html"]["content"]
 
 
 class FakeApplicationArtifactEmbedService:

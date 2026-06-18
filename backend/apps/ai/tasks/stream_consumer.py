@@ -2359,6 +2359,24 @@ APPLICATION_PREVIEW_EXTENSION_LANGUAGES = {
     ".tsx": "tsx",
     ".vue": "vue",
 }
+APPLICATION_PREVIEW_DEFAULT_PACKAGE_JSON = json.dumps({
+    "scripts": {"dev": "vite"},
+    "dependencies": {
+        "@sveltejs/vite-plugin-svelte": "latest",
+        "vite": "latest",
+        "svelte": "latest",
+        "typescript": "latest",
+    },
+    "devDependencies": {},
+}, indent=2)
+APPLICATION_PREVIEW_DEFAULT_INDEX_HTML = '<div id="app"></div>\n<script type="module" src="/src/main.ts"></script>'
+APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG = (
+    "import { svelte } from '@sveltejs/vite-plugin-svelte';\n"
+    "import { defineConfig } from 'vite';\n\n"
+    "export default defineConfig({\n"
+    "  plugins: [svelte()]\n"
+    "});\n"
+)
 
 INTERACTIVE_QUESTION_FALLBACK_TEXT = "Failed to display question."
 INTERACTIVE_QUESTION_TYPES = {"choice", "input", "slider", "swipe", "rating"}
@@ -2819,7 +2837,10 @@ def _is_application_preview_combined_language(language: Optional[str]) -> bool:
 
 
 def _parse_generated_app_file_header(line: str) -> Optional[Dict[str, str]]:
-    match = re.match(r'^([a-zA-Z0-9_+.#-]{1,32}):(.{1,512})$', line.strip())
+    stripped = line.strip()
+    match = re.match(r'^([a-zA-Z0-9_+.#-]{1,32}):(.{1,512})$', stripped)
+    if not match:
+        match = re.match(r'^([a-zA-Z0-9_+.#-]{1,32})-(.{1,512})$', stripped)
     if not match:
         return None
 
@@ -2837,6 +2858,51 @@ def _parse_generated_app_file_header(line: str) -> Optional[Dict[str, str]]:
         return None
 
     return {"language": language, "filename": filename}
+
+
+def _normalize_loose_application_preview_files(files: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    seen: set[str] = set()
+    normalized_files: List[Dict[str, str]] = []
+    for file in files:
+        filename = _normalize_generated_app_file_path(file.get("filename"))
+        if not filename or filename in seen:
+            continue
+        content = file.get("content") if isinstance(file.get("content"), str) else ""
+        if filename == "index.html" and "src/main" not in content:
+            content = APPLICATION_PREVIEW_DEFAULT_INDEX_HTML
+        seen.add(filename)
+        normalized_files.append({
+            "language": file.get("language") or _language_for_generated_app_path(filename),
+            "filename": filename,
+            "content": content,
+        })
+
+    paths = {file["filename"] for file in normalized_files}
+    has_svelte_source = any(path.endswith(".svelte") for path in paths)
+    has_entrypoint = any(path in paths for path in APPLICATION_PREVIEW_MAIN_FILES)
+    has_source = any(path.endswith(APPLICATION_PREVIEW_SOURCE_EXTENSIONS) for path in paths)
+    if not has_source or not has_entrypoint:
+        return []
+
+    if "package.json" not in paths:
+        normalized_files.insert(0, {
+            "language": "json",
+            "filename": "package.json",
+            "content": APPLICATION_PREVIEW_DEFAULT_PACKAGE_JSON,
+        })
+    if has_svelte_source and "vite.config.ts" not in paths and "vite.config.js" not in paths:
+        normalized_files.append({
+            "language": "typescript",
+            "filename": "vite.config.ts",
+            "content": APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG,
+        })
+    if "index.html" not in paths:
+        normalized_files.append({
+            "language": "html",
+            "filename": "index.html",
+            "content": APPLICATION_PREVIEW_DEFAULT_INDEX_HTML,
+        })
+    return normalized_files
 
 
 def _extract_code_embed_ids_from_response(response_text: str) -> List[str]:
@@ -2976,6 +3042,51 @@ def _extract_application_preview_files_from_markdown_code_block(
         cleaned_response = response_text[:match.start()] + response_text[match.end():]
         return files, cleaned_response.strip()
     return [], response_text
+
+
+def _extract_loose_application_preview_files_from_text(
+    response_text: str,
+) -> tuple[List[Dict[str, str]], str]:
+    files: List[Dict[str, str]] = []
+    current: Optional[Dict[str, str]] = None
+    current_lines: List[str] = []
+    bundle_start: Optional[int] = None
+    last_content_end: Optional[int] = None
+
+    def flush_current() -> None:
+        nonlocal current, current_lines
+        if current:
+            content = "\n".join(current_lines).strip("\n")
+            if content.strip():
+                files.append({**current, "content": content})
+        current = None
+        current_lines = []
+
+    line_pattern = re.compile(r'.*(?:\n|$)')
+    for match in line_pattern.finditer(response_text.replace("\r\n", "\n").replace("\r", "\n")):
+        line = match.group()
+        if not line:
+            continue
+        line_without_newline = line[:-1] if line.endswith("\n") else line
+        header = _parse_generated_app_file_header(line_without_newline)
+        if header:
+            flush_current()
+            if bundle_start is None:
+                bundle_start = match.start()
+            current = header
+            last_content_end = match.end()
+            continue
+        if current:
+            current_lines.append(line_without_newline)
+            last_content_end = match.end()
+
+    flush_current()
+    normalized_files = _normalize_loose_application_preview_files(files)
+    if not normalized_files or bundle_start is None:
+        return [], response_text
+
+    cleaned_response = response_text[:bundle_start] + response_text[last_content_end or len(response_text):]
+    return normalized_files, cleaned_response.strip()
 
 
 def _find_application_embed_reference_start(response_text: str, start_index: int) -> int:
@@ -6609,6 +6720,10 @@ async def _consume_main_processing_stream(
                 raw_application_files, cleaned_response = _extract_application_preview_files_from_markdown_code_block(
                     aggregated_response,
                 )
+                if not raw_application_files:
+                    raw_application_files, cleaned_response = _extract_loose_application_preview_files_from_text(
+                        aggregated_response,
+                    )
                 if raw_application_files:
                     from backend.core.api.app.services.embed_service import EmbedService
 
