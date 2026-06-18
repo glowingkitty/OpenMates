@@ -4,6 +4,8 @@
 # Usage:
 #   sudo deployment/apply-caddy-config.sh [path-to-caddyfile]
 #   sudo deployment/apply-caddy-config.sh --check [path-to-caddyfile]
+#   sudo deployment/apply-caddy-config.sh --set-gandi-token [token]
+#   sudo deployment/apply-caddy-config.sh --rotate-gandi-token [token]
 #
 # If no path is provided, automatically detects Caddyfile:
 # 1. Checks for deployment/dev_server/Caddyfile (default)
@@ -31,16 +33,36 @@ DEV_CADDYFILE="$SCRIPT_DIR/dev_server/Caddyfile"
 SYSTEM_CADDYFILE="${OPENMATES_SYSTEM_CADDYFILE:-/etc/caddy/Caddyfile}"
 CADDY_BIN="${OPENMATES_CADDY_BIN:-caddy}"
 CADDY_GANDI_MODULE="dns.providers.gandi"
-CADDY_GANDI_PACKAGE="github.com/caddy-dns/gandi@${OPENMATES_CADDY_GANDI_VERSION:-v1.0.0}"
+REQUIRED_CADDY_VERSION="${OPENMATES_CADDY_VERSION:-v2.10.2}"
+REQUIRED_CADDY_GANDI_VERSION="${OPENMATES_CADDY_GANDI_VERSION:-v1.1.0}"
+REQUIRED_LIBDNS_GANDI_VERSION="${OPENMATES_LIBDNS_GANDI_VERSION:-v1.1.0}"
+CADDY_GANDI_PACKAGE="github.com/caddy-dns/gandi@${REQUIRED_CADDY_GANDI_VERSION}"
 CADDY_XCADDY_PACKAGE="github.com/caddyserver/xcaddy/cmd/xcaddy@${OPENMATES_XCADDY_VERSION:-latest}"
 CADDY_DUMMY_GANDI_TOKEN="openmates-caddyfile-syntax-check-token"
 CADDY_SERVICE_ENV_FILE="${OPENMATES_CADDY_SERVICE_ENV_FILE:-/etc/caddy/openmates-gandi.env}"
 CADDY_SERVICE_DROPIN="${OPENMATES_CADDY_SERVICE_DROPIN:-/etc/systemd/system/caddy.service.d/openmates-gandi-token.conf}"
+CADDY_SERVICE_NO_ENVIRON_DROPIN="${OPENMATES_CADDY_SERVICE_NO_ENVIRON_DROPIN:-/etc/systemd/system/caddy.service.d/openmates-no-environ.conf}"
+AUTO_INSTALL_PREREQS="${OPENMATES_CADDY_AUTO_INSTALL_PREREQS:-}"
+REQUIRED_GO_MIN_VERSION="${OPENMATES_CADDY_GO_MIN_VERSION:-1.24.0}"
+GO_INSTALL_VERSION="${OPENMATES_CADDY_GO_VERSION:-1.26.4}"
+GO_INSTALL_ROOT="${OPENMATES_CADDY_GO_INSTALL_ROOT:-/usr/local}"
+GO_LINUX_AMD64_SHA256="1153d3d50e0ac764b447adfe05c2bcf08e889d42a02e0fe0259bd47f6733ad7f"
+GO_LINUX_ARM64_SHA256="ef758ae7c6cf9267c9c0ef080b8965f453d89ab2d25d9eb22de4405925238768"
 
 CHECK_ONLY=false
+SET_GANDI_TOKEN_ONLY=false
+GANDI_TOKEN_ARG=""
 if [ "${1:-}" = "--check" ]; then
     CHECK_ONLY=true
     shift
+fi
+if [ "${1:-}" = "--set-gandi-token" ] || [ "${1:-}" = "--rotate-gandi-token" ]; then
+    SET_GANDI_TOKEN_ONLY=true
+    shift
+    GANDI_TOKEN_ARG="${1:-}"
+    if [ -n "${1:-}" ]; then
+        shift
+    fi
 fi
 
 # Load SERVER_ENVIRONMENT from .env if not already set
@@ -84,7 +106,7 @@ if [ "$CHECK_ONLY" != true ] && [ "$EUID" -ne 0 ] && [ "${OPENMATES_CADDY_APPLY_
 fi
 
 # Check if source Caddyfile exists
-if [ ! -f "$CADDYFILE_PATH" ]; then
+if [ "$SET_GANDI_TOKEN_ONLY" != true ] && [ ! -f "$CADDYFILE_PATH" ]; then
     echo -e "${RED}Error: Caddyfile not found at: $CADDYFILE_PATH${NC}"
     exit 1
 fi
@@ -114,8 +136,139 @@ caddy_has_module() {
     "$CADDY_BIN" list-modules 2>/dev/null | grep -qx "$1"
 }
 
+caddy_build_info_has_dependency() {
+    local module="$1" version="$2"
+    "$CADDY_BIN" build-info 2>/dev/null \
+        | grep -Eq "[[:space:]]${module//\//\/}[[:space:]]+${version//./\.}([[:space:]]|$)"
+}
+
+caddy_gandi_module_is_compatible() {
+    caddy_has_module "$CADDY_GANDI_MODULE" || return 1
+    caddy_build_info_has_dependency "github.com/caddy-dns/gandi" "$REQUIRED_CADDY_GANDI_VERSION" || return 1
+    caddy_build_info_has_dependency "github.com/libdns/gandi" "$REQUIRED_LIBDNS_GANDI_VERSION" || return 1
+}
+
+caddy_gandi_module_status() {
+    if ! caddy_has_module "$CADDY_GANDI_MODULE"; then
+        echo "missing"
+    elif ! caddy_gandi_module_is_compatible; then
+        echo "stale"
+    else
+        echo "compatible"
+    fi
+}
+
 installed_caddy_version() {
     "$CADDY_BIN" version 2>/dev/null | awk '{print $1}'
+}
+
+version_ge() {
+    local current="${1#v}" required="${2#v}"
+    current="${current#go}"
+    required="${required#go}"
+    [ "$(printf '%s\n%s\n' "$required" "$current" | sort -V | head -n1)" = "$required" ]
+}
+
+is_truthy() {
+    case "${1:-}" in
+        1|true|TRUE|yes|YES|y|Y)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+go_is_available() {
+    if [ "${OPENMATES_CADDY_APPLY_TEST_GO_MISSING:-}" = "1" ]; then
+        return 1
+    fi
+    command -v go >/dev/null 2>&1 && version_ge "$(go env GOVERSION 2>/dev/null || go version | awk '{print $3}')" "$REQUIRED_GO_MIN_VERSION"
+}
+
+describe_go_install_command() {
+    echo "Install Go ${GO_INSTALL_VERSION} from go.dev into ${GO_INSTALL_ROOT}/go"
+}
+
+run_go_install_command() {
+    local goos goarch tarball url expected_sha temp_dir
+    goos="$(go env GOOS 2>/dev/null || uname | tr '[:upper:]' '[:lower:]')"
+    goarch="$(go env GOARCH 2>/dev/null || uname -m)"
+    case "$goarch" in
+        x86_64) goarch="amd64" ;;
+        aarch64) goarch="arm64" ;;
+    esac
+    if [ "$goos" != "linux" ]; then
+        echo -e "${RED}✗ Automatic Go install currently supports Linux only (detected $goos).${NC}"
+        return 1
+    fi
+    case "$goarch" in
+        amd64) expected_sha="$GO_LINUX_AMD64_SHA256" ;;
+        arm64) expected_sha="$GO_LINUX_ARM64_SHA256" ;;
+        *)
+            echo -e "${RED}✗ Automatic Go install supports amd64/arm64 only (detected $goarch).${NC}"
+            return 1
+            ;;
+    esac
+    if ! command -v curl >/dev/null 2>&1; then
+        echo -e "${RED}✗ curl is required to install Go from go.dev.${NC}"
+        return 1
+    fi
+    temp_dir="$(mktemp -d /tmp/openmates-go-install.XXXXXX)"
+    tarball="go${GO_INSTALL_VERSION}.linux-${goarch}.tar.gz"
+    url="https://go.dev/dl/${tarball}"
+    echo -e "${BLUE}Downloading $url...${NC}"
+    curl -fsSLo "$temp_dir/$tarball" "$url"
+    printf '%s  %s\n' "$expected_sha" "$temp_dir/$tarball" | sha256sum -c -
+    rm -rf "$GO_INSTALL_ROOT/go"
+    mkdir -p "$GO_INSTALL_ROOT"
+    tar -C "$GO_INSTALL_ROOT" -xzf "$temp_dir/$tarball"
+    rm -rf "$temp_dir"
+}
+
+ensure_go_for_caddy_build() {
+    local install_command reply
+    if go_is_available; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}Go ${REQUIRED_GO_MIN_VERSION}+ is required to build Caddy with $CADDY_GANDI_MODULE.${NC}"
+    if ! install_command="$(describe_go_install_command)"; then
+        echo -e "${RED}✗ No supported package manager found for automatic Go installation.${NC}"
+        echo -e "${YELLOW}Install Go manually, or provision a wildcard certificate externally and configure Caddy to load cert files.${NC}"
+        return 1
+    fi
+
+    echo -e "${BLUE}Suggested install command: $install_command${NC}"
+    if is_truthy "$AUTO_INSTALL_PREREQS"; then
+        echo -e "${BLUE}OPENMATES_CADDY_AUTO_INSTALL_PREREQS is enabled; installing Go now.${NC}"
+    elif [ -t 0 ] || [ "${OPENMATES_CADDY_APPLY_TEST:-}" = "1" ]; then
+        echo -e "${BLUE}Install Go now so Caddy can be rebuilt with $CADDY_GANDI_MODULE? [y/N]${NC}"
+        read -r reply
+        if ! is_truthy "$reply"; then
+            echo -e "${RED}✗ Go installation declined.${NC}"
+            echo -e "${YELLOW}Install Go manually, then rerun this script.${NC}"
+            return 1
+        fi
+    else
+        echo -e "${RED}✗ Cannot install Go from a non-interactive shell without explicit opt-in.${NC}"
+        echo -e "${YELLOW}Rerun with OPENMATES_CADDY_AUTO_INSTALL_PREREQS=1, or install Go manually.${NC}"
+        return 1
+    fi
+
+    run_go_install_command || {
+        echo -e "${RED}✗ Failed to install Go using: $install_command${NC}"
+        return 1
+    }
+
+    unset OPENMATES_CADDY_APPLY_TEST_GO_MISSING
+    export PATH="$GO_INSTALL_ROOT/go/bin:$PATH"
+    if ! go_is_available; then
+        echo -e "${RED}✗ Go installation finished but Go ${REQUIRED_GO_MIN_VERSION}+ is still not available on PATH.${NC}"
+        return 1
+    fi
+    echo -e "${GREEN}✓ Go is available for Caddy module build${NC}"
 }
 
 warn_if_gandi_token_not_in_shell() {
@@ -138,22 +291,17 @@ caddy_with_validation_env() {
 }
 
 install_caddy_with_gandi_module() {
-    local caddy_path version temp_dir xcaddy_bin built_caddy backup_path
+    local caddy_path temp_dir xcaddy_bin built_caddy backup_path
     caddy_path="$(command -v "$CADDY_BIN" || true)"
     if [ -z "$caddy_path" ]; then
         echo -e "${RED}✗ Cannot find Caddy binary '$CADDY_BIN'.${NC}"
         return 1
     fi
 
-    if ! command -v go >/dev/null 2>&1; then
-        echo -e "${RED}✗ Go is required to build Caddy with $CADDY_GANDI_MODULE but was not found.${NC}"
-        echo -e "${YELLOW}Install Go, or provision a wildcard certificate externally and configure Caddy to load cert files.${NC}"
-        return 1
-    fi
+    ensure_go_for_caddy_build || return 1
 
-    version="$(installed_caddy_version)"
-    if ! echo "$version" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+'; then
-        echo -e "${RED}✗ Could not determine installed Caddy version from '$version'.${NC}"
+    if ! echo "$REQUIRED_CADDY_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+'; then
+        echo -e "${RED}✗ Invalid required Caddy version '$REQUIRED_CADDY_VERSION'.${NC}"
         return 1
     fi
 
@@ -161,13 +309,21 @@ install_caddy_with_gandi_module() {
     xcaddy_bin="$temp_dir/xcaddy"
     built_caddy="$temp_dir/caddy"
     echo -e "${BLUE}Installing xcaddy into temporary build directory...${NC}"
-    GOBIN="$temp_dir" go install "$CADDY_XCADDY_PACKAGE"
+    PATH="$GO_INSTALL_ROOT/go/bin:$PATH" GOBIN="$temp_dir" GOTOOLCHAIN=local go install "$CADDY_XCADDY_PACKAGE"
 
-    echo -e "${BLUE}Building Caddy $version with $CADDY_GANDI_PACKAGE...${NC}"
-    "$xcaddy_bin" build "$version" --with "$CADDY_GANDI_PACKAGE" --output "$built_caddy"
+    echo -e "${BLUE}Building Caddy $REQUIRED_CADDY_VERSION with $CADDY_GANDI_PACKAGE...${NC}"
+    PATH="$GO_INSTALL_ROOT/go/bin:$PATH" GOTOOLCHAIN=local "$xcaddy_bin" build "$REQUIRED_CADDY_VERSION" --with "$CADDY_GANDI_PACKAGE" --output "$built_caddy"
 
     if ! "$built_caddy" list-modules 2>/dev/null | grep -qx "$CADDY_GANDI_MODULE"; then
         echo -e "${RED}✗ Built Caddy binary does not contain $CADDY_GANDI_MODULE.${NC}"
+        return 1
+    fi
+    if ! "$built_caddy" build-info 2>/dev/null | grep -Eq "[[:space:]]github.com/caddy-dns/gandi[[:space:]]+${REQUIRED_CADDY_GANDI_VERSION//./\.}([[:space:]]|$)"; then
+        echo -e "${RED}✗ Built Caddy binary does not contain github.com/caddy-dns/gandi $REQUIRED_CADDY_GANDI_VERSION.${NC}"
+        return 1
+    fi
+    if ! "$built_caddy" build-info 2>/dev/null | grep -Eq "[[:space:]]github.com/libdns/gandi[[:space:]]+${REQUIRED_LIBDNS_GANDI_VERSION//./\.}([[:space:]]|$)"; then
+        echo -e "${RED}✗ Built Caddy binary does not contain github.com/libdns/gandi $REQUIRED_LIBDNS_GANDI_VERSION.${NC}"
         return 1
     fi
 
@@ -176,7 +332,7 @@ install_caddy_with_gandi_module() {
     cp "$caddy_path" "$backup_path"
     chmod 755 "$backup_path"
     install -m 755 "$built_caddy" "$caddy_path"
-    echo -e "${GREEN}✓ Installed Caddy with $CADDY_GANDI_MODULE${NC}"
+    echo -e "${GREEN}✓ Installed Caddy $REQUIRED_CADDY_VERSION with $CADDY_GANDI_MODULE $REQUIRED_CADDY_GANDI_VERSION${NC}"
     echo -e "${GREEN}✓ Previous Caddy binary backed up at $backup_path${NC}"
 }
 
@@ -240,15 +396,37 @@ write_gandi_token_for_service() {
     chown root:root "$tmp_dropin"
     chmod 644 "$tmp_dropin"
     mv "$tmp_dropin" "$CADDY_SERVICE_DROPIN"
+    write_caddy_no_environ_dropin || return 1
     systemctl daemon-reload
 
     echo -e "${GREEN}✓ Stored Gandi token for the Caddy service at $CADDY_SERVICE_ENV_FILE${NC}"
     echo -e "${GREEN}✓ Installed systemd drop-in at $CADDY_SERVICE_DROPIN${NC}"
 }
 
+write_caddy_no_environ_dropin() {
+    local dropin_dir tmp_dropin caddy_path
+    caddy_path="$(command -v "$CADDY_BIN" || true)"
+    if [ -z "$caddy_path" ]; then
+        echo -e "${RED}✗ Cannot find Caddy binary '$CADDY_BIN' for systemd ExecStart override.${NC}"
+        return 1
+    fi
+
+    dropin_dir="$(dirname "$CADDY_SERVICE_NO_ENVIRON_DROPIN")"
+    mkdir -p "$dropin_dir"
+
+    tmp_dropin="$(mktemp "$dropin_dir/openmates-no-environ.conf.XXXXXX")"
+    printf '[Service]\nExecStart=\nExecStart=%s run --config %s\n' "$caddy_path" "$SYSTEM_CADDYFILE" >"$tmp_dropin"
+    chown root:root "$tmp_dropin"
+    chmod 644 "$tmp_dropin"
+    mv "$tmp_dropin" "$CADDY_SERVICE_NO_ENVIRON_DROPIN"
+    echo -e "${GREEN}✓ Installed systemd ExecStart override without --environ at $CADDY_SERVICE_NO_ENVIRON_DROPIN${NC}"
+}
+
 ensure_gandi_token_for_service() {
     if gandi_token_configured_for_service; then
         echo -e "${GREEN}✓ Caddy service already has a Gandi token configured${NC}"
+        write_caddy_no_environ_dropin || return 1
+        systemctl daemon-reload
         return 0
     fi
 
@@ -262,19 +440,38 @@ ensure_gandi_token_for_service() {
     write_gandi_token_for_service "$GANDI_BEARER_TOKEN"
 }
 
+if [ "$SET_GANDI_TOKEN_ONLY" = true ]; then
+    if [ -z "$GANDI_TOKEN_ARG" ]; then
+        prompt_for_gandi_token || exit 1
+        GANDI_TOKEN_ARG="$GANDI_BEARER_TOKEN"
+    fi
+    write_gandi_token_for_service "$GANDI_TOKEN_ARG" || exit 1
+    echo -e "${GREEN}=== Gandi token stored; restart Caddy after revoking the old token ===${NC}"
+    exit 0
+fi
+
 # Ensure Caddy can load DNS provider modules before adaptation. This is done
 # before caddy adapt because Caddyfile adaptation fails if the module is missing
 # or if the provider token placeholder expands to an empty value.
 if config_requires_gandi_dns; then
     echo -e "${BLUE}Checking Caddy Gandi DNS provider support...${NC}"
-    if caddy_has_module "$CADDY_GANDI_MODULE"; then
-        echo -e "${GREEN}✓ Caddy has $CADDY_GANDI_MODULE${NC}"
+    gandi_module_status="$(caddy_gandi_module_status)"
+    if [ "$gandi_module_status" = "compatible" ]; then
+        echo -e "${GREEN}✓ Caddy has $CADDY_GANDI_MODULE with compatible Gandi/libdns versions${NC}"
     elif [ "$CHECK_ONLY" = true ]; then
-        echo -e "${RED}✗ Caddyfile requires $CADDY_GANDI_MODULE but the installed Caddy binary does not include it.${NC}"
-        echo -e "${YELLOW}Run without --check as root to let this script build and install the required Caddy extension.${NC}"
+        if [ "$gandi_module_status" = "missing" ]; then
+            echo -e "${RED}✗ Caddyfile requires $CADDY_GANDI_MODULE but the installed Caddy binary does not include it.${NC}"
+        else
+            echo -e "${RED}✗ Caddyfile requires $CADDY_GANDI_MODULE but the installed Caddy binary has stale Gandi/libdns module versions.${NC}"
+        fi
+        echo -e "${YELLOW}Run without --check as root to let this script build and install Caddy $REQUIRED_CADDY_VERSION with caddy-dns/gandi $REQUIRED_CADDY_GANDI_VERSION.${NC}"
         exit 1
     else
-        echo -e "${YELLOW}Caddy is missing $CADDY_GANDI_MODULE; building and installing a compatible binary.${NC}"
+        if [ "$gandi_module_status" = "missing" ]; then
+            echo -e "${YELLOW}Caddy is missing $CADDY_GANDI_MODULE; building and installing a compatible binary.${NC}"
+        else
+            echo -e "${YELLOW}Caddy has stale Gandi/libdns module versions; rebuilding a compatible binary.${NC}"
+        fi
         install_caddy_with_gandi_module || exit 1
     fi
 

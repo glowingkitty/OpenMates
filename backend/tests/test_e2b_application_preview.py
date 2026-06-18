@@ -47,6 +47,60 @@ def test_preview_planning_supports_fastapi_backend_entrypoint() -> None:
     assert plan.start_commands == [{"name": "api", "command": "uvicorn backend.main:app --host 0.0.0.0 --port 8000", "port": 8000}]
 
 
+def test_preview_planning_adds_tailwind_configs_when_generated_css_uses_directives() -> None:
+    plan = plan_application_preview_startup(
+        files=[
+            ApplicationPreviewFile(
+                path="package.json",
+                content=(
+                    '{"scripts":{"dev":"vite"},'
+                    '"devDependencies":{"@vitejs/plugin-react":"latest","tailwindcss":"latest","postcss":"latest","autoprefixer":"latest"}}'
+                ),
+            ),
+            ApplicationPreviewFile(path="index.html", content='<div id="root"></div><script type="module" src="/src/main.tsx"></script>'),
+            ApplicationPreviewFile(path="src/index.css", content="@tailwind base;\n@tailwind components;\n@tailwind utilities;\nbody { @apply bg-gray-50; }\n"),
+        ],
+        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+    )
+
+    files_by_path = {file.path: file.content for file in plan.files}
+    assert "tailwind.config.cjs" in files_by_path
+    assert "postcss.config.cjs" in files_by_path
+    assert "./src/**/*.{js,ts,jsx,tsx,svelte,html}" in files_by_path["tailwind.config.cjs"]
+    assert "tailwindcss: {}" in files_by_path["postcss.config.cjs"]
+
+
+def test_preview_planning_does_not_add_tailwind_configs_for_plain_css() -> None:
+    plan = plan_application_preview_startup(
+        files=[
+            ApplicationPreviewFile(path="package.json", content='{"scripts":{"dev":"vite"},"devDependencies":{"tailwindcss":"latest"}}'),
+            ApplicationPreviewFile(path="src/index.css", content="body { background: white; }\n"),
+        ],
+        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+    )
+
+    assert "tailwind.config.cjs" not in {file.path for file in plan.files}
+    assert "postcss.config.cjs" not in {file.path for file in plan.files}
+
+
+def test_preview_planning_keeps_existing_tailwind_configs() -> None:
+    plan = plan_application_preview_startup(
+        files=[
+            ApplicationPreviewFile(path="package.json", content='{"scripts":{"dev":"vite"},"devDependencies":{"tailwindcss":"latest"}}'),
+            ApplicationPreviewFile(path="tailwind.config.js", content="export default {};\n"),
+            ApplicationPreviewFile(path="postcss.config.js", content="export default {};\n"),
+            ApplicationPreviewFile(path="src/index.css", content="@tailwind base;\n"),
+        ],
+        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
+    )
+
+    paths = [file.path for file in plan.files]
+    assert paths.count("tailwind.config.js") == 1
+    assert paths.count("postcss.config.js") == 1
+    assert "tailwind.config.cjs" not in paths
+    assert "postcss.config.cjs" not in paths
+
+
 def test_preview_start_command_allows_exact_e2b_vite_hosts() -> None:
     hosts = _vite_allowed_hosts(
         {
