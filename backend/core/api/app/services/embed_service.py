@@ -645,6 +645,27 @@ class EmbedService:
             None if creation fails
         """
         try:
+            from backend.apps.ai.utils.pcb_schematic_fences import (
+                _extract_pcb_schematic_metadata,
+                _is_pcb_schematic_fence,
+            )
+
+            if _is_pcb_schematic_fence(language):
+                metadata = _extract_pcb_schematic_metadata(language, filename, "")
+                return await self.create_pcb_schematic_embed_placeholder(
+                    language=metadata["language"],
+                    filename=metadata["filename"],
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    title=metadata["title"],
+                    module_name=metadata["module_name"],
+                    log_prefix=log_prefix,
+                )
+
             # Hash sensitive IDs for privacy protection
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
@@ -798,6 +819,27 @@ class EmbedService:
                 language = ""
                 filename = None
                 embed_ref = None
+
+            from backend.apps.ai.utils.pcb_schematic_fences import (
+                _extract_pcb_schematic_metadata,
+                _is_pcb_schematic_fence,
+            )
+
+            if _is_pcb_schematic_fence(language):
+                metadata = _extract_pcb_schematic_metadata(language, filename, code_content)
+                return await self.update_pcb_schematic_embed_content(
+                    embed_id=embed_id,
+                    code_content=code_content,
+                    chat_id=chat_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status=status,
+                    title=metadata["title"],
+                    module_name=metadata["module_name"],
+                    filename=metadata["filename"],
+                    log_prefix=log_prefix,
+                )
 
             # Create updated content with new code
             # Calculate line count for display (count all lines including empty ones)

@@ -39,7 +39,7 @@ sys.modules.setdefault("backend.shared.providers.youtube.youtube_metadata", yout
 
 github_stub = types.ModuleType("backend.shared.providers.github")
 github_stub.build_github_repo_embed = lambda url: None
-github_stub.is_github_repo_url = lambda url: False
+github_stub.is_github_repo_url = lambda url: isinstance(url, str) and url.rstrip("/").count("/") == 4 and url.startswith("https://github.com/")
 sys.modules.setdefault("backend.shared.providers.github", github_stub)
 
 e2b_preview_stub = types.ModuleType("backend.shared.providers.e2b_application_preview")

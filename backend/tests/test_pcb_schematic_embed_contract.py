@@ -78,6 +78,22 @@ def test_electronics_app_registers_pcb_schematic_with_version_matched_instructio
     assert "requires-atopile: \"^0.15.7\"" in text
     assert "module App:" in text
     assert "never write `new component`" in text
+    assert "bare `from Package import Thing`" in text
+    assert "resistor.resistance" in text
+    assert "capacitor.capacitance" in text
+    assert ".unnamed[0]` / `.unnamed[1]" in text
+    assert "`.p1`, `.p2`, or `.value`" in text
+    assert "10uF +/- 20%" in text
+    assert "never assign exact passive values" in text
+
+
+def test_code_embed_service_routes_atopile_language_to_pcb_schematic() -> None:
+    text = (REPO_ROOT / "backend/core/api/app/services/embed_service.py").read_text()
+
+    assert "if _is_pcb_schematic_fence(language):" in text
+    assert "return await self.create_pcb_schematic_embed_placeholder" in text
+    assert "return await self.update_pcb_schematic_embed_content" in text
+
 
 
 def test_pcb_schematic_provider_builds_safe_atopile_project(monkeypatch: pytest.MonkeyPatch) -> None:
