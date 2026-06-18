@@ -40,8 +40,8 @@ final class SettingsIPadLayoutParityUITests: XCTestCase {
         app.descendants(matching: .any)["settings-all-app-row-weather"].tap()
         XCTAssertTrue(waitForElement("settings-app-detail-page", in: app, timeout: 8))
         XCTAssertTrue(waitForElement("settings-app-skill-row-forecast", in: app, timeout: 5))
-        XCTAssertTrue(waitForElement("settings-app-focus-row-travel_weather", in: app, timeout: 5))
         assertElementInsideWindow(app.descendants(matching: .any)["settings-app-skill-row-forecast"], in: app)
+        XCTAssertTrue(waitForElement("settings-app-focus-row-travel_weather", in: app, timeout: 5))
 
         app.descendants(matching: .any)["settings-app-skill-row-forecast"].tap()
         XCTAssertTrue(waitForElement("settings-skill-detail-page", in: app, timeout: 5))
