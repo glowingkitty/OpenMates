@@ -194,8 +194,8 @@ test('admin can view and save anonymous free usage budget settings', async ({ pa
 	await page.getByTestId('anonymous-free-usage-budget-save-button').click();
 
 	await expect(page.getByText('Anonymous free usage is active for new logged-out users.')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('anonymous-free-usage-budget-settings').getByText('3,000')).toBeVisible();
-	await expect(page.getByTestId('anonymous-free-usage-budget-settings').getByText('15,000')).toBeVisible();
+	await expect(page.getByTestId('anonymous-free-usage-budget-settings').getByText('3,000').first()).toBeVisible();
+	await expect(page.getByTestId('anonymous-free-usage-budget-settings').getByText('15,000').first()).toBeVisible();
 	expect(budgetApi.getLastPutBody()).toMatchObject({
 		enabled: true,
 		monthly_budget_credits: 60000,
