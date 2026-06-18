@@ -4,6 +4,7 @@
 # streamed tool_use blocks still need matched tool_result entries for provider
 # protocol integrity across Gemini, Bedrock, OpenAI, Anthropic, and Mistral.
 
+import asyncio
 import importlib
 import json
 import sys
@@ -222,7 +223,7 @@ def test_diff_prompt_uses_resolved_embed_file_path_index() -> None:
         embed_file_path_index={"average.py-AbC": "embed-1"},
     )
 
-    assert _has_diffable_embeds_for_prompt(request) is True
+    assert asyncio.run(_has_diffable_embeds_for_prompt(request)) is True
 
 
 def test_diff_prompt_accepts_compact_toon_type_marker() -> None:
@@ -231,7 +232,53 @@ def test_diff_prompt_accepts_compact_toon_type_marker() -> None:
         embed_file_path_index=None,
     )
 
-    assert _has_diffable_embeds_for_prompt(request) is True
+    assert asyncio.run(_has_diffable_embeds_for_prompt(request)) is True
+
+
+def test_diff_prompt_uses_cached_chat_embed_metadata() -> None:
+    class CacheServiceStub:
+        async def get_chat_embed_ids(self, chat_id: str) -> list[str]:
+            assert chat_id == "chat-1"
+            return ["embed-1"]
+
+        async def get_embed_from_cache(self, embed_id: str) -> dict[str, str]:
+            assert embed_id == "embed-1"
+            return {"type": "code"}
+
+    request = SimpleNamespace(
+        chat_id="chat-1",
+        message_history=[SimpleNamespace(role="user", content="Please edit the previous artifact.")],
+        embed_file_path_index=None,
+    )
+
+    assert asyncio.run(_has_diffable_embeds_for_prompt(request, cache_service=CacheServiceStub())) is True
+
+
+def test_diff_prompt_uses_directus_file_path_metadata_when_cache_misses() -> None:
+    class CacheServiceStub:
+        async def get_chat_embed_ids(self, chat_id: str) -> list[str]:
+            assert chat_id == "chat-1"
+            return []
+
+    class EmbedMethodsStub:
+        async def get_embeds_by_hashed_chat_id(self, hashed_chat_id: str) -> list[dict[str, str]]:
+            assert hashed_chat_id
+            return [{"file_path": "average.py"}]
+
+    request = SimpleNamespace(
+        chat_id="chat-1",
+        message_history=[SimpleNamespace(role="user", content="Please edit the previous artifact.")],
+        embed_file_path_index=None,
+    )
+    directus_service = SimpleNamespace(embed=EmbedMethodsStub())
+
+    assert asyncio.run(
+        _has_diffable_embeds_for_prompt(
+            request,
+            cache_service=CacheServiceStub(),
+            directus_service=directus_service,
+        )
+    ) is True
 
 
 def test_diff_prompt_skips_when_no_prior_embed_reference_exists() -> None:
@@ -240,4 +287,4 @@ def test_diff_prompt_skips_when_no_prior_embed_reference_exists() -> None:
         embed_file_path_index=None,
     )
 
-    assert _has_diffable_embeds_for_prompt(request) is False
+    assert asyncio.run(_has_diffable_embeds_for_prompt(request)) is False

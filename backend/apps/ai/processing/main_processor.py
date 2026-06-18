@@ -94,7 +94,81 @@ def _message_content(message: Any) -> Optional[str]:
     return content if isinstance(content, str) else None
 
 
-def _has_diffable_embeds_for_prompt(request_data: AskSkillRequest) -> bool:
+def _embed_data_has_diffable_type(embed_data: Any) -> bool:
+    if not isinstance(embed_data, dict):
+        return False
+
+    embed_type = embed_data.get("type") or embed_data.get("embed_type")
+    return isinstance(embed_type, str) and embed_type.lower() in {"code", "document", "sheet", "mail"}
+
+
+async def _has_diffable_embeds_in_cache(
+    request_data: AskSkillRequest,
+    cache_service: Optional[CacheService],
+    log_prefix: str,
+) -> bool:
+    if not cache_service or not getattr(request_data, "chat_id", None):
+        return False
+
+    get_chat_embed_ids = getattr(cache_service, "get_chat_embed_ids", None)
+    get_embed_from_cache = getattr(cache_service, "get_embed_from_cache", None)
+    if not callable(get_chat_embed_ids) or not callable(get_embed_from_cache):
+        return False
+
+    try:
+        embed_ids = await get_chat_embed_ids(request_data.chat_id)
+    except Exception as exc:
+        logger.warning(f"{log_prefix} [DIFF_PROMPT] Could not read chat embed index from cache: {exc}", exc_info=True)
+        return False
+
+    for embed_id in embed_ids or []:
+        try:
+            embed_data = await get_embed_from_cache(str(embed_id))
+        except Exception as exc:
+            logger.warning(f"{log_prefix} [DIFF_PROMPT] Could not read cached embed {embed_id}: {exc}", exc_info=True)
+            continue
+        if _embed_data_has_diffable_type(embed_data):
+            return True
+
+    return False
+
+
+async def _has_diffable_embeds_in_directus(
+    request_data: AskSkillRequest,
+    directus_service: Optional[DirectusService],
+    log_prefix: str,
+) -> bool:
+    if not directus_service or not getattr(request_data, "chat_id", None):
+        return False
+
+    embed_methods = getattr(directus_service, "embed", None)
+    get_embeds_by_hashed_chat_id = getattr(embed_methods, "get_embeds_by_hashed_chat_id", None)
+    if not callable(get_embeds_by_hashed_chat_id):
+        return False
+
+    hashed_chat_id = hashlib.sha256(request_data.chat_id.encode()).hexdigest()
+    try:
+        embeds = await get_embeds_by_hashed_chat_id(hashed_chat_id)
+    except Exception as exc:
+        logger.warning(f"{log_prefix} [DIFF_PROMPT] Could not read chat embeds from Directus: {exc}", exc_info=True)
+        return False
+
+    for embed_data in embeds or []:
+        # Persisted embed types are encrypted, but editable file-backed artifacts
+        # retain file_path metadata. Use this only as a DB fallback when prompt
+        # history and Redis did not expose a direct type signal.
+        if _embed_data_has_diffable_type(embed_data) or embed_data.get("file_path"):
+            return True
+
+    return False
+
+
+async def _has_diffable_embeds_for_prompt(
+    request_data: AskSkillRequest,
+    cache_service: Optional[CacheService] = None,
+    directus_service: Optional[DirectusService] = None,
+    log_prefix: str = "",
+) -> bool:
     """Return True when the LLM can target an existing artifact with a diff fence."""
     for message in request_data.message_history:
         content = _message_content(message)
@@ -103,7 +177,13 @@ def _has_diffable_embeds_for_prompt(request_data: AskSkillRequest) -> bool:
 
     # Resolved history can expose only the server-side ref index to this stage.
     # The stream consumer already uses the same index to resolve diff:<embed_ref>.
-    return bool(getattr(request_data, "embed_file_path_index", None))
+    if getattr(request_data, "embed_file_path_index", None):
+        return True
+
+    if await _has_diffable_embeds_in_cache(request_data, cache_service, log_prefix):
+        return True
+
+    return await _has_diffable_embeds_in_directus(request_data, directus_service, log_prefix)
 
 INTERACTIVE_QUESTIONS_INSTRUCTION = """
 # INTERACTIVE QUESTIONS PROTOCOL
@@ -2014,7 +2094,12 @@ async def handle_main_processing(
 
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.
-    _has_diffable_embeds = _has_diffable_embeds_for_prompt(request_data)
+    _has_diffable_embeds = await _has_diffable_embeds_for_prompt(
+        request_data,
+        cache_service=cache_service,
+        directus_service=directus_service,
+        log_prefix=log_prefix,
+    )
     if _has_diffable_embeds:
         prompt_parts.append(base_instructions.get("base_diff_editing_instruction", ""))
         logger.debug(f"{log_prefix} [DIFF_PROMPT] Injected diff editing instruction (diffable embeds in history)")
