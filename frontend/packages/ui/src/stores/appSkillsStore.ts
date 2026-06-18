@@ -181,11 +181,12 @@ class AppSkillsStore {
             for (const [appId, appMetadata] of Object.entries(annotatedApps)) {
                 const availableSkillIds = userSkillsState.skillsByApp[appId];
                 if (availableSkillIds === undefined) {
+                    const hasNoSkills = (appMetadata.skills?.length ?? 0) === 0;
                     const hasNonSkillComponents =
                         (appMetadata.focus_modes?.length ?? 0) > 0 ||
                         (appMetadata.settings_and_memories?.length ?? 0) > 0;
 
-                    if (hasNonSkillComponents) {
+                    if (hasNoSkills || hasNonSkillComponents) {
                         userFilteredApps[appId] = {
                             ...appMetadata,
                             skills: [],
