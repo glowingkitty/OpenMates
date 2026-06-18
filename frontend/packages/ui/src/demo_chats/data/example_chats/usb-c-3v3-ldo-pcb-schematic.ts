@@ -43,5 +43,6 @@ export const usbC3v3LdoPcbSchematicChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 103,
+    content_embed_examples: ["electronics.schematic"],
   },
 };

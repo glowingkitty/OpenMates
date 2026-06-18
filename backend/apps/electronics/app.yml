@@ -46,6 +46,14 @@ embed_types:
     icon: pcbdesign
     gradient_var: "--color-app-electronics"
     i18n_namespace: embeds.electronics.pcb_schematic
+    content_catalog:
+      enabled: true
+      content_type_id: schematic
+      name: PCB schematic
+      description: Source-first Atopile PCB schematics with E2B compile artifacts for board preparation.
+      icon: pcbdesign
+      example_key: electronics.schematic
+      order: 10
     content_fields:
       - name: code
         type: string
