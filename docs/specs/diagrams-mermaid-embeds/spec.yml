@@ -387,9 +387,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/run_tests.py --suite playwright --spec diagrams-mermaid-embed.spec.ts / GitHub Actions 27753940934 / deployed aede9321c"
+        timestamp: "2026-06-18T10:43:21Z"
 
   - id: T-EXAMPLE-CHAT-AUDIT
     type: lint
@@ -488,9 +488,9 @@ tests:
       required: true
       expected: pass_or_sanitized_infra_failure
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/apple_remote.py status (ssh_reachable=True); python3 scripts/apple_remote.py build-ios (exit_code=0)"
+        timestamp: "2026-06-18T10:44:00Z"
 
 implementation_plan:
   existing_patterns:

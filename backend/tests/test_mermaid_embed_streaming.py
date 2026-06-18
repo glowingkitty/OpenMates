@@ -18,6 +18,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DIAGRAMS_APP_YML = REPO_ROOT / "backend/apps/diagrams/app.yml"
+STREAM_CONSUMER = REPO_ROOT / "backend/apps/ai/tasks/stream_consumer.py"
 
 
 def test_mermaid_fence_metadata_defaults_to_diagrams_embed() -> None:
@@ -66,6 +67,19 @@ def test_diagrams_app_registers_mermaid_direct_embed() -> None:
     assert "sequenceDiagram" in text
     assert "flowchart" in text
     assert "Do not wrap Mermaid" in text
+
+
+def test_streaming_path_routes_incremental_mermaid_blocks_before_code() -> None:
+    source = STREAM_CONSUMER.read_text(encoding="utf-8")
+    multi_chunk_branch = source[source.index("is_mermaid_block_multi = _is_mermaid_fence(current_code_language)") :]
+    finalization_branch = source[source.index("if in_plot_block:", source.index("# Finalize embed")) :]
+
+    assert "is_mermaid_block_multi = _is_mermaid_fence(current_code_language)" in source
+    assert "elif is_mermaid_block_multi:" in source
+    assert "create_mermaid_embed_placeholder" in source
+    assert "update_mermaid_embed_content" in source
+    assert multi_chunk_branch.index("elif is_mermaid_block_multi:") < multi_chunk_branch.index("create_code_embed_placeholder(")
+    assert finalization_branch.index("elif in_mermaid_block:") < finalization_branch.index("Finalized code embed")
 
 
 redis_stub = types.ModuleType("redis")

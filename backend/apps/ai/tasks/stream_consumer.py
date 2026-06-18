@@ -3444,6 +3444,10 @@ async def _consume_main_processing_stream(
     # Electronics-owned pcb_schematic embeds instead of generic Code embeds.
     in_pcb_schematic_block = False
 
+    # Mermaid diagram tracking: ```mermaid ... ``` fences produce Diagrams-owned
+    # direct embeds instead of generic Code embeds during incremental streaming.
+    in_mermaid_block = False
+
     # Table/sheet embed tracking: detect markdown tables (|...|) and convert to embeds.
     # Tables don't have explicit delimiters like code blocks (```). Instead, they are
     # sequences of pipe-delimited lines (|col1|col2|). A table ends when we see a
@@ -4787,6 +4791,7 @@ async def _consume_main_processing_stream(
                         is_document_html = _is_document_fence(current_code_language)
                         is_email_block_multi = current_code_language.lower() == 'email' if current_code_language else False
                         is_pcb_schematic_block_multi = _is_pcb_schematic_fence(current_code_language)
+                        is_mermaid_block_multi = _is_mermaid_fence(current_code_language)
                         if is_plot_block_multi:
                             in_plot_block = True
                         elif is_document_html:
@@ -4800,6 +4805,8 @@ async def _consume_main_processing_stream(
                                     current_document_title = title_match.group(1)
                         elif is_pcb_schematic_block_multi:
                             in_pcb_schematic_block = True
+                        elif is_mermaid_block_multi:
+                            in_mermaid_block = True
                         
                         if directus_service and encryption_service and user_vault_key_id:
                             try:
@@ -4941,6 +4948,44 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created PCB schematic embed placeholder {current_code_embed_id}")
+                                elif is_mermaid_block_multi:
+                                    mermaid_metadata = _extract_mermaid_metadata(
+                                        current_code_language,
+                                        current_code_filename,
+                                        current_code_content,
+                                    )
+                                    embed_data = await embed_service.create_mermaid_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=mermaid_metadata["title"],
+                                        diagram_kind=mermaid_metadata["diagram_kind"],
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+
+                                        if current_code_content:
+                                            await embed_service.update_mermaid_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                diagram_code=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                title=mermaid_metadata["title"],
+                                                diagram_kind=mermaid_metadata["diagram_kind"],
+                                                log_prefix=log_prefix,
+                                            )
+
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created Mermaid embed placeholder {current_code_embed_id}")
                                 else:
                                     replacement_target = await _select_any_code_full_replacement_target(
                                         request_data,
@@ -5106,6 +5151,7 @@ async def _consume_main_processing_stream(
                         is_document_html = _is_document_fence(current_code_language)
                         is_email_block_post_bare = current_code_language.lower() == 'email' if current_code_language else False
                         is_pcb_schematic_block_post_bare = _is_pcb_schematic_fence(current_code_language)
+                        is_mermaid_block_post_bare = _is_mermaid_fence(current_code_language)
                         if is_plot_block_post_bare:
                             in_plot_block = True
                         elif is_document_html:
@@ -5119,6 +5165,8 @@ async def _consume_main_processing_stream(
                                     current_document_title = title_match.group(1)
                         elif is_pcb_schematic_block_post_bare:
                             in_pcb_schematic_block = True
+                        elif is_mermaid_block_post_bare:
+                            in_mermaid_block = True
                         
                         if directus_service and encryption_service and user_vault_key_id:
                             try:
@@ -5264,6 +5312,46 @@ async def _consume_main_processing_stream(
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
                                         chunk = embed_reference_code
                                         logger.info(f"{log_prefix} Created PCB schematic embed placeholder {current_code_embed_id} (language resolved after bare fence)")
+                                    else:
+                                        chunk = ""
+                                elif is_mermaid_block_post_bare:
+                                    mermaid_metadata = _extract_mermaid_metadata(
+                                        current_code_language,
+                                        current_code_filename,
+                                        current_code_content,
+                                    )
+                                    embed_data = await embed_service.create_mermaid_embed_placeholder(
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        title=mermaid_metadata["title"],
+                                        diagram_kind=mermaid_metadata["diagram_kind"],
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    if embed_data:
+                                        current_code_embed_id = embed_data["embed_id"]
+
+                                        if current_code_content:
+                                            await embed_service.update_mermaid_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                diagram_code=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="processing",
+                                                title=mermaid_metadata["title"],
+                                                diagram_kind=mermaid_metadata["diagram_kind"],
+                                                log_prefix=log_prefix,
+                                            )
+
+                                        embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                        chunk = embed_reference_code
+                                        logger.info(f"{log_prefix} Created Mermaid embed placeholder {current_code_embed_id} (language resolved after bare fence)")
                                     else:
                                         chunk = ""
                                 else:
@@ -5539,6 +5627,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
+                            in_mermaid_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -5590,6 +5679,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
+                            in_mermaid_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -5641,6 +5731,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
+                            in_mermaid_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -5659,6 +5750,8 @@ async def _consume_main_processing_stream(
                             in_plot_block = False
                             in_document_block = False
                             in_email_block = False
+                            in_pcb_schematic_block = False
+                            in_mermaid_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -5762,6 +5855,26 @@ async def _consume_main_processing_stream(
                                     )
 
                                     logger.info(f"{log_prefix} Finalized PCB schematic embed {current_code_embed_id}")
+                                elif in_mermaid_block:
+                                    mermaid_metadata = _extract_mermaid_metadata(
+                                        current_code_language,
+                                        current_code_filename,
+                                        current_code_content,
+                                    )
+                                    await embed_service.update_mermaid_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        diagram_code=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        title=mermaid_metadata["title"],
+                                        diagram_kind=mermaid_metadata["diagram_kind"],
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    logger.info(f"{log_prefix} Finalized Mermaid embed {current_code_embed_id}")
                                 else:
                                     version_history_rows = None
                                     new_version = None
@@ -5886,6 +5999,7 @@ async def _consume_main_processing_stream(
                             in_document_block = False
                             in_email_block = False
                             in_pcb_schematic_block = False
+                            in_mermaid_block = False
                             current_document_title = None
                             current_code_language = ""
                             current_code_filename = None
@@ -5969,6 +6083,25 @@ async def _consume_main_processing_stream(
                                         log_prefix=log_prefix,
                                     )
                                     logger.debug(f"{log_prefix} Updated PCB schematic embed {current_code_embed_id} (per-line update)")
+                                elif in_mermaid_block:
+                                    mermaid_metadata = _extract_mermaid_metadata(
+                                        current_code_language,
+                                        current_code_filename,
+                                        current_code_content,
+                                    )
+                                    await embed_service.update_mermaid_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        diagram_code=current_code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="processing",
+                                        title=mermaid_metadata["title"],
+                                        diagram_kind=mermaid_metadata["diagram_kind"],
+                                        log_prefix=log_prefix,
+                                    )
+                                    logger.debug(f"{log_prefix} Updated Mermaid embed {current_code_embed_id} (per-line update)")
                                 else:
                                     await embed_service.update_code_embed_content(
                                         embed_id=current_code_embed_id,
@@ -6228,6 +6361,25 @@ async def _consume_main_processing_stream(
                     log_prefix=log_prefix
                 )
                 logger.info(f"{log_prefix} Finalized interrupted mail embed {current_code_embed_id}")
+            elif in_mermaid_block:
+                mermaid_metadata = _extract_mermaid_metadata(
+                    current_code_language,
+                    current_code_filename,
+                    current_code_content,
+                )
+                await embed_service.update_mermaid_embed_content(
+                    embed_id=current_code_embed_id,
+                    diagram_code=current_code_content,
+                    chat_id=request_data.chat_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    status="finished",
+                    title=mermaid_metadata["title"],
+                    diagram_kind=mermaid_metadata["diagram_kind"],
+                    log_prefix=log_prefix,
+                )
+                logger.info(f"{log_prefix} Finalized interrupted Mermaid embed {current_code_embed_id}")
             else:
                 # Finalize code embed with partial content (interrupted)
                 await embed_service.update_code_embed_content(
