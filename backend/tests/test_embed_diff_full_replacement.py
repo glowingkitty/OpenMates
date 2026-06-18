@@ -15,6 +15,7 @@ from backend.apps.ai.tasks.stream_consumer import (
     _select_cached_code_full_replacement_target,
     _select_full_replacement_target,
     _select_history_code_full_replacement_target,
+    _should_keep_regenerated_code_inline_for_edit_request,
 )
 
 
@@ -75,6 +76,24 @@ def test_does_not_reuse_embed_for_new_code_request() -> None:
     )
 
     assert _select_full_replacement_target(request, None) is None
+
+
+def test_keeps_regenerated_code_inline_when_edit_target_is_missing() -> None:
+    request = _request(
+        "Edit the existing code artifact from the previous turn and preserve the same artifact.",
+        {},
+    )
+
+    assert _should_keep_regenerated_code_inline_for_edit_request(request) is True
+
+
+def test_allows_new_code_embed_for_new_code_request() -> None:
+    request = _request(
+        "Create a new Python helper for parsing CSV files.",
+        {},
+    )
+
+    assert _should_keep_regenerated_code_inline_for_edit_request(request) is False
 
 
 def test_selects_prior_assistant_code_embed_when_ref_index_is_missing() -> None:

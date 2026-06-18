@@ -2651,6 +2651,11 @@ def _select_history_code_full_replacement_target(
     return None
 
 
+def _should_keep_regenerated_code_inline_for_edit_request(request_data: AskSkillRequest) -> bool:
+    """Avoid creating duplicate code artifacts when an edit turn has no target."""
+    return _is_edit_existing_artifact_request(request_data)
+
+
 async def _select_cached_code_full_replacement_target(
     request_data: AskSkillRequest,
     cache_service: Any,
@@ -4954,6 +4959,12 @@ async def _consume_main_processing_stream(
                                         logger.info(
                                             f"{log_prefix} [FULL_REPLACEMENT_EDIT] Reusing code embed "
                                             f"{target_embed_id} via ref {replacement_ref!r} for streaming block"
+                                        )
+                                    elif _should_keep_regenerated_code_inline_for_edit_request(request_data):
+                                        chunk = ""
+                                        logger.warning(
+                                            f"{log_prefix} [FULL_REPLACEMENT_EDIT] No reusable target found for "
+                                            f"regenerated code block; keeping it inline instead of creating a new embed"
                                         )
                                     else:
                                         embed_data = await embed_service.create_code_embed_placeholder(

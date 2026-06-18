@@ -1326,7 +1326,7 @@
             class:code-panel-code-run-split={codeRunOverlayActive}
             data-testid="code-source-panel"
           >
-            <div class="code-lines-container" role="presentation" bind:this={codeLinesContainer}>
+            <div class="code-lines-container" role="presentation" data-testid="code-fullscreen-code" bind:this={codeLinesContainer}>
               {#each highlightedLines as lineHtml, i}
                 {@const lineNum = i + 1}
                 {@const isHighlighted = highlightRange != null && lineNum >= highlightRange.start && lineNum <= highlightRange.end}
