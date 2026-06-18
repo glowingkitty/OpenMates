@@ -218,6 +218,16 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   // State for thinking section expansion
   let thinkingExpanded = $state(false);
 
+  function formatCredits(credits: number): string {
+    return credits.toLocaleString('de-DE');
+  }
+
+  let exampleResponseCredits = $derived(
+    typeof original_message?.example_response_credits === 'number' && Number.isFinite(original_message.example_response_credits)
+      ? original_message.example_response_credits
+      : null,
+  );
+
   // --- Sub-chats tracking for assistant message turn ---
 
   type SubChatPreview = Chat & {
@@ -3448,6 +3458,11 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
     {#if role === 'assistant' && model_name}
       <div class="generated-by-container">
         <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+        {#if exampleResponseCredits !== null}
+          <span class="generated-by-cost" data-testid="generated-by-cost">
+            {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
+          </span>
+        {/if}
         <button 
           class="report-bad-answer-btn" 
           class:hovered={isReportHovered}
@@ -4095,6 +4110,12 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
   .generated-by {
     font-size: var(--font-size-small);
     color: var(--color-grey-60);
+  }
+
+  .generated-by-cost {
+    color: var(--color-grey-60);
+    font-size: var(--font-size-small);
+    white-space: nowrap;
   }
 
   .generated-by-container {
