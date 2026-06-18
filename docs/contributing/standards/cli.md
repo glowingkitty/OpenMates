@@ -187,6 +187,11 @@ The CLI integration suite is separate from browser Playwright specs and fails
 when `OPENMATES_TEST_ACCOUNT_API_KEY` is missing. Do not hide live CLI coverage
 behind skipped Playwright phases.
 
+API-key integration tests should cover stateless REST-style CLI commands such as
+`openmates apps <app> <skill> --json`. Saved chat commands require a logged-in
+zero-knowledge CLI session because they need the user's master key for chat-key
+encryption; do not test them with only `--api-key`.
+
 ### E2E tests (Playwright — requires running dev server + CLI binary)
 
 ```bash

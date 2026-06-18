@@ -176,29 +176,6 @@ async function main() {
     }
   });
 
-  await recordTest("cli-integration/code-docs/chats-new", async () => {
-    let chatId = null;
-    try {
-      const result = await runCli(
-        ["chats", "new", "Show me React useState documentation", "--json"],
-        90_000,
-      );
-      assertCliSuccess(result, "openmates chats new");
-      const parsed = parseJsonOutput(result, "openmates chats new");
-      chatId = parsed?.chatId ?? parsed?.chat_id ?? null;
-      if (parsed?.status !== "completed" || typeof chatId !== "string" || chatId.length === 0) {
-        throw new Error(`Expected completed chat response with chatId, got:\n${truncate(JSON.stringify(parsed, null, 2))}`);
-      }
-      if (typeof parsed.assistant !== "string" || parsed.assistant.trim().length === 0) {
-        throw new Error(`Expected assistant response text, got:\n${truncate(JSON.stringify(parsed, null, 2))}`);
-      }
-    } finally {
-      if (chatId) {
-        const cleanup = await runCli(["chats", "delete", chatId, "--yes"], 30_000);
-        assertCliSuccess(cleanup, "openmates chats delete cleanup");
-      }
-    }
-  });
 }
 
 try {
