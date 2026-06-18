@@ -68,7 +68,7 @@ const {
   buildTurnTokenRefsRequestPayload,
   getClientMessagesVersionForSync,
 } = await import("../src/client.ts");
-const { decryptBytesWithAesGcm, decryptWithAesGcmCombined } = await import("../src/crypto.ts");
+const { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm } = await import("../src/crypto.ts");
 
 after(() => {
   if (originalHome === undefined) {
@@ -174,6 +174,95 @@ describe("OpenMatesClient session API URL", () => {
       const saved = JSON.parse(readFileSync(sessionPath, "utf-8"));
       assert.strictEqual(saved.wsToken, "fresh-ws-token");
     } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("persists pending AI responses during CLI sync", async () => {
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    const wsServer = new WebSocketServer({ server });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    const chatKey = new Uint8Array(32).fill(7);
+    const masterKey = new Uint8Array(32);
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, masterKey);
+    let completedPayload: Record<string, any> | null = null;
+
+    wsServer.once("connection", (socket: any) => {
+      socket.on("message", (raw: Buffer) => {
+        const frame = JSON.parse(raw.toString());
+        if (frame.type === "phased_sync_request") {
+          socket.send(JSON.stringify({
+            type: "pending_ai_response",
+            payload: {
+              chat_id: "chat-1",
+              message_id: "assistant-1",
+              content: "Completed while the first client was gone.",
+              fired_at: 1780000000,
+              category: "general_knowledge",
+              model_name: "Gemini 3 Flash",
+            },
+          }));
+          socket.send(JSON.stringify({
+            type: "phase_2_last_20_chats_ready",
+            payload: {
+              total_chat_count: 1,
+              chats: [{
+                chat_details: {
+                  id: "chat-1",
+                  encrypted_chat_key: encryptedChatKey,
+                  messages_v: 1,
+                  title_v: 0,
+                  draft_v: 0,
+                  last_edited_overall_timestamp: 1779999999,
+                },
+              }],
+            },
+          }));
+          socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+        }
+        if (frame.type === "ai_response_completed") {
+          completedPayload = frame.payload;
+          socket.send(JSON.stringify({
+            type: "ai_response_storage_confirmed",
+            payload: { message_id: "assistant-1" },
+          }));
+        }
+      });
+    });
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const cache = await client.ensureSynced(true);
+
+      assert.ok(completedPayload);
+      assert.equal(completedPayload.chat_id, "chat-1");
+      assert.equal(completedPayload.message.message_id, "assistant-1");
+      assert.equal(completedPayload.versions.messages_v, 2);
+      assert.equal(
+        await decryptWithAesGcmCombined(completedPayload.message.encrypted_content, chatKey),
+        "Completed while the first client was gone.",
+      );
+      assert.equal(cache.chats[0]?.messages.length, 1);
+      const cachedMessage = JSON.parse(cache.chats[0]?.messages[0] as string);
+      assert.equal(cachedMessage.message_id, "assistant-1");
+      assert.equal(
+        await decryptWithAesGcmCombined(cachedMessage.encrypted_content, chatKey),
+        "Completed while the first client was gone.",
+      );
+    } finally {
+      await new Promise<void>((resolve) => wsServer.close(() => resolve()));
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Connection Resilience Tests: Verifies that the app gracefully handles
@@ -8,7 +7,7 @@
  * 1. Connection drop during AI streaming -> recovery on reconnect
  * 2. Page reload after sending message -> AI response delivered on return
  * 3. IndexedDB v19 migration creates `pending_embed_operations` store
- * 4. Orphaned streaming messages cleaned up on reconnect
+ * 4. Orphaned streaming messages are preserved until authoritative sync arrives
  * 5. Pending embed operations queue flushed on reconnect
  *
  * REQUIRED ENV VARS:
@@ -46,8 +45,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	assertNoMissingTranslations,
-	getTestAccount,
-	getE2EDebugUrl
+	getTestAccount
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
@@ -291,9 +289,9 @@ test('IndexedDB has pending_embed_operations store after login', async ({ page }
 });
 
 // ---------------------------------------------------------------------------
-// Test 4: Orphaned streaming messages cleaned up on reconnect
+// Test 4: Orphaned streaming messages are not finalized locally on reconnect
 // ---------------------------------------------------------------------------
-test('orphaned streaming messages are cleaned up on reconnect', async ({ page, context }: { page: any; context: any }) => {
+test('orphaned streaming messages remain pending for authoritative sync on reconnect', async ({ page, context }: { page: any; context: any }) => {
 	page.on('console', (msg: any) => {
 		consoleLogs.push(`[${new Date().toISOString()}] [${msg.type()}] ${msg.text()}`);
 	});
@@ -366,7 +364,8 @@ test('orphaned streaming messages are cleaned up on reconnect', async ({ page, c
 	// Wait for reconnect and cleanup logic to run
 	await page.waitForTimeout(10000);
 
-	// Check that the orphaned message status was changed from "streaming" to "synced"
+	// Check that the orphaned message is NOT marked synced locally. The completed
+	// server response must arrive through pending delivery or phased sync instead.
 	const messageStatus = await page.evaluate(async (msgId: string) => {
 		const DB_NAME = 'chats_db';
 		const MESSAGES_STORE = 'messages';
@@ -393,9 +392,9 @@ test('orphaned streaming messages are cleaned up on reconnect', async ({ page, c
 	}, injectedId);
 
 	logCheckpoint(`Orphaned message status after reconnect: ${messageStatus}`);
-	expect(messageStatus).toBe('synced');
-	await takeStepScreenshot(page, 'orphan-cleaned');
-	logCheckpoint('Orphaned streaming message was cleaned up to "synced".');
+	expect(messageStatus).toBe('streaming');
+	await takeStepScreenshot(page, 'orphan-preserved');
+	logCheckpoint('Orphaned streaming message stayed pending for authoritative sync.');
 
 	// Cleanup
 	await deleteActiveChat(page, logCheckpoint);

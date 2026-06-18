@@ -76,6 +76,15 @@ export function getClientMessagesVersionForSync(cached: CachedChat): number {
   return typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
 }
 
+interface PendingAIResponseFrame {
+  chat_id?: string;
+  message_id?: string;
+  content?: string;
+  fired_at?: number;
+  model_name?: string;
+  category?: string;
+}
+
 export interface CliSubChatRequest {
   id?: string;
   chat_id?: string;
@@ -5120,6 +5129,7 @@ export class OpenMatesClient {
     const embedKeys: Record<string, unknown>[] = [];
     let newChatSuggestions: Record<string, unknown>[] = [];
     let totalChatCount = 0;
+    const pendingAIResponses: PendingAIResponseFrame[] = [];
 
     try {
       // Send phase:all so the server runs all sync phases over a single WS
@@ -5190,6 +5200,8 @@ export class OpenMatesClient {
           }
           if (p.embeds) embeds.push(...p.embeds);
           if (p.embed_keys) embedKeys.push(...p.embed_keys);
+        } else if (frame.type === "pending_ai_response") {
+          pendingAIResponses.push(frame.payload as PendingAIResponseFrame);
         }
       }
 
@@ -5203,8 +5215,9 @@ export class OpenMatesClient {
       }
 
       if (totalChatCount === 0) totalChatCount = chats.length;
-    } finally {
+    } catch (error) {
       ws.close();
+      throw error;
     }
 
     // Delta merge: server only sent new/changed chats. Carry forward
@@ -5293,6 +5306,12 @@ export class OpenMatesClient {
       chats.length = totalChatCount;
     }
 
+    try {
+      await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses);
+    } finally {
+      ws.close();
+    }
+
     const cache: SyncCache = {
       syncedAt: Date.now(),
       totalChatCount,
@@ -5305,6 +5324,99 @@ export class OpenMatesClient {
 
     saveSyncCache(cache);
     return cache;
+  }
+
+  private async persistPendingAIResponsesFromSync(
+    ws: OpenMatesWsClient,
+    chats: CachedChat[],
+    pendingResponses: PendingAIResponseFrame[],
+  ): Promise<void> {
+    if (pendingResponses.length === 0) return;
+
+    const masterKey = this.getMasterKeyBytes();
+
+    for (const pending of pendingResponses) {
+      const chatId = pending.chat_id;
+      const messageId = pending.message_id;
+      const content = pending.content;
+      if (!chatId || !messageId || !content) continue;
+
+      const chat = chats.find((candidate) => String(candidate.details.id ?? "") === chatId);
+      if (!chat) continue;
+
+      const existingIndex = chat.messages.findIndex((raw) => {
+        try {
+          const message = typeof raw === "string" ? JSON.parse(raw) : raw;
+          return message?.message_id === messageId || message?.id === messageId;
+        } catch {
+          return false;
+        }
+      });
+      if (existingIndex >= 0) {
+        const existingRaw = chat.messages[existingIndex];
+        try {
+          const existing = typeof existingRaw === "string" ? JSON.parse(existingRaw) : existingRaw;
+          if (existing?.role === "assistant" && existing?.encrypted_content) continue;
+        } catch {
+          // Replace malformed same-id rows with the pending authoritative response.
+        }
+      }
+
+      const encryptedChatKey =
+        typeof chat.details.encrypted_chat_key === "string"
+          ? chat.details.encrypted_chat_key
+          : null;
+      if (!encryptedChatKey) continue;
+
+      const chatKeyBytes = await this.decryptChatKey(encryptedChatKey, masterKey);
+      if (!chatKeyBytes) continue;
+
+      const completedAt = normalizeUnixSeconds(
+        pending.fired_at,
+        Math.floor(Date.now() / 1000),
+      );
+      const currentMessagesV =
+        typeof chat.details.messages_v === "number" ? chat.details.messages_v : 0;
+      const nextMessagesV = currentMessagesV + 1;
+      const encryptedMessage = {
+        message_id: messageId,
+        chat_id: chatId,
+        role: "assistant",
+        created_at: completedAt,
+        status: "synced",
+        encrypted_content: await encryptWithAesGcmCombined(content, chatKeyBytes),
+        encrypted_category: pending.category
+          ? await encryptWithAesGcmCombined(pending.category, chatKeyBytes)
+          : undefined,
+        encrypted_model_name: pending.model_name
+          ? await encryptWithAesGcmCombined(pending.model_name, chatKeyBytes)
+          : undefined,
+      };
+
+      const confirmed = ws.waitForMessage(
+        "ai_response_storage_confirmed",
+        (payload) => {
+          const p = payload as Record<string, unknown>;
+          return p.message_id === messageId;
+        },
+        20_000,
+      );
+      await ws.sendAsync("ai_response_completed", {
+        chat_id: chatId,
+        message: encryptedMessage,
+        versions: {
+          messages_v: nextMessagesV,
+          last_edited_overall_timestamp: completedAt,
+        },
+      });
+      await confirmed;
+
+      const serializedMessage = JSON.stringify(encryptedMessage);
+      if (existingIndex >= 0) chat.messages[existingIndex] = serializedMessage;
+      else chat.messages.push(serializedMessage);
+      chat.details.messages_v = nextMessagesV;
+      chat.details.last_edited_overall_timestamp = completedAt;
+    }
   }
 
   private async prompt(question: string): Promise<string> {
