@@ -1024,7 +1024,11 @@ async def _apply_diff_block_to_existing_embed(
         )
 
     cached_embed["version_number"] = new_version
-    await cache_service.set_embed_in_cache(target_embed_id, request_data.user_id, cached_embed)
+    await cache_service.set_embed_in_cache(
+        embed_id=target_embed_id,
+        embed_data=cached_embed,
+        chat_id=request_data.chat_id,
+    )
 
     embed_ref_json = json.dumps({
         "type": embed_type,

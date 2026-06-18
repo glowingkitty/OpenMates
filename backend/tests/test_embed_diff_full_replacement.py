@@ -206,8 +206,15 @@ class _FakeCacheService:
     async def get_embed_from_cache(self, embed_id: str) -> dict[str, object] | None:
         return self.embeds.get(embed_id)
 
-    async def set_embed_in_cache(self, embed_id: str, _user_id: str, embed: dict[str, object]) -> None:
-        self.embeds[embed_id] = embed
+    async def set_embed_in_cache(
+        self,
+        embed_id: str,
+        embed_data: dict[str, object],
+        chat_id: str,
+    ) -> bool:
+        assert chat_id
+        self.embeds[embed_id] = embed_data
+        return True
 
 
 class _FakeDirectusEmbedService:
@@ -347,3 +354,5 @@ async def test_applies_bare_diff_fence_to_existing_code_embed() -> None:
     assert "def calculate_average" not in embed_service.updated_code
     assert "@@" not in embed_service.updated_code
     assert embed_service.version_number == 2
+    assert isinstance(cache_service.embeds["embed-1"], dict)
+    assert cache_service.embeds["embed-1"]["version_number"] == 2
