@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from backend.apps.ai.tasks.stream_consumer import (
+    _apply_requested_symbol_rename,
     _is_edit_existing_artifact_request,
     _should_skip_code_block_for_embed,
     _select_cached_code_full_replacement_target,
@@ -77,6 +78,33 @@ def test_keeps_function_code_as_embed() -> None:
         "        return 0\n"
         "    return sum(numbers) / len(numbers)"
     ) is False
+
+
+def test_applies_requested_symbol_rename_to_regenerated_code() -> None:
+    request = SimpleNamespace(
+        current_user_content="Rename the function from calculate_average to compute_mean and add a type hint.",
+        message_history=[],
+    )
+
+    updated = _apply_requested_symbol_rename(
+        request,
+        "def calculate_average(numbers: list[float]) -> float:\n"
+        "    return sum(numbers) / len(numbers)\n"
+        "# print(calculate_average([1, 2, 3]))",
+    )
+
+    assert "def compute_mean" in updated
+    assert "calculate_average" not in updated
+
+
+def test_does_not_rename_when_model_already_used_new_symbol() -> None:
+    request = SimpleNamespace(
+        current_user_content="Rename the function from calculate_average to compute_mean.",
+        message_history=[],
+    )
+    code = "def compute_mean(numbers):\n    return sum(numbers) / len(numbers)"
+
+    assert _apply_requested_symbol_rename(request, code) == code
 
 
 def test_selects_single_prior_embed_for_full_replacement_edit() -> None:

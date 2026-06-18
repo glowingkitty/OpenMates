@@ -2601,6 +2601,10 @@ _EDIT_EXISTING_ARTIFACT_RE = re.compile(
     r"|\b(existing|previous|same|artifact|embed|code|function|file|document|table|email)\b.*\b(edit|modify|update|change|fix|rename|preserve|patch)\b",
     re.IGNORECASE | re.DOTALL,
 )
+_RENAME_SYMBOL_RE = re.compile(
+    r"\brename\s+(?:the\s+)?(?:(?:function|method|class|variable|constant)\s+)?(?:from\s+)?`?([A-Za-z_]\w*)`?\s+to\s+`?([A-Za-z_]\w*)`?",
+    re.IGNORECASE,
+)
 
 
 def _is_user_message_role(role: Any) -> bool:
@@ -2625,6 +2629,46 @@ def _is_edit_existing_artifact_request(request_data: AskSkillRequest) -> bool:
             return True
 
     return False
+
+
+def _iter_user_request_texts(request_data: AskSkillRequest) -> List[str]:
+    texts: List[str] = []
+    current_user_content = getattr(request_data, "current_user_content", None)
+    if isinstance(current_user_content, str):
+        texts.append(current_user_content)
+
+    for message in reversed(request_data.message_history or []):
+        role = message.role if hasattr(message, "role") else message.get("role") if isinstance(message, dict) else None
+        if not _is_user_message_role(role):
+            continue
+        content = message.content if hasattr(message, "content") else message.get("content") if isinstance(message, dict) else ""
+        if isinstance(content, str):
+            texts.append(content)
+    return texts
+
+
+def _apply_requested_symbol_rename(
+    request_data: AskSkillRequest,
+    code_content: str,
+    log_prefix: str = "",
+) -> str:
+    for text in _iter_user_request_texts(request_data):
+        match = _RENAME_SYMBOL_RE.search(text)
+        if not match:
+            continue
+        old_name, new_name = match.group(1), match.group(2)
+        if old_name == new_name or new_name in code_content or old_name not in code_content:
+            return code_content
+
+        updated = re.sub(rf"\b{re.escape(old_name)}\b", new_name, code_content)
+        if updated != code_content:
+            logger.info(
+                f"{log_prefix} [FULL_REPLACEMENT_EDIT] Applied requested symbol rename "
+                f"{old_name!r} → {new_name!r} to regenerated code block"
+            )
+        return updated
+
+    return code_content
 
 
 def _select_full_replacement_target(
@@ -5948,6 +5992,11 @@ async def _consume_main_processing_stream(
                                     version_history_rows = None
                                     new_version = None
                                     if current_code_replacement_ref:
+                                        current_code_content = _apply_requested_symbol_rename(
+                                            request_data,
+                                            current_code_content,
+                                            log_prefix,
+                                        )
                                         from toon_format import decode
 
                                         cached_embed = await cache_service.get_embed_from_cache(current_code_embed_id)
