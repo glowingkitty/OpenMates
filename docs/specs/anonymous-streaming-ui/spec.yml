@@ -1,0 +1,677 @@
+id: anonymous-streaming-ui
+title: Anonymous Streaming UI Parity
+status: draft
+
+goal: >
+  Make unauthenticated anonymous chat use the same frontend messaging pipeline,
+  streaming lifecycle, animations, pre-processing, main response rendering,
+  post-processing, sidebar metadata, and embed behavior as authenticated chat,
+  while billing a virtual anonymous budget instead of a user credit balance.
+
+scope:
+  in:
+    - Official-cloud web anonymous text chat uses the same frontend UI event contract as authenticated chat.
+    - Anonymous responses stream progressively through the same `aiTaskInitiated`, `aiTypingStarted`, `aiMessageChunk`, and completion lifecycle consumed by `ActiveChat` and `ChatHistory`.
+    - Anonymous pre-processing, response rendering, status overlays, rainbow typing animation, thinking UI, embed parsing, code previews, fullscreen embeds, title/category/icon metadata, follow-up suggestions, and post-processing UI match authenticated chat unless the spec names an explicit difference.
+    - Separate backend anonymous endpoint and budget service remain allowed, but the endpoint must produce or be adapted into the same frontend streaming event shape.
+    - Anonymous chat, message, metadata, PII mappings, drafts, and embeds remain encrypted locally and are not persisted server-side before signup.
+    - Anonymous charges are recorded against virtual anonymous accounting: per-anonymous local identity daily cap, per-IP daily cap, global daily cap, global weekly cap, and global monthly budget/usage accounting.
+    - Anonymous requests never debit or grant a regular authenticated user credit balance.
+    - Anonymous user-created chats appear before intro/example/legal chats and render their hydrated category/icon gradient correctly in the sidebar and navigation order.
+    - Existing anonymous chats can be promoted after signup through the existing encrypted account sync path.
+    - Web, backend, and Apple parity verification are required because the anonymous chat surface exists in all clients.
+  out:
+    - Anonymous file upload before signup.
+    - Anonymous connected-account skills, memories, reminders, notifications, teams, sharing, billing settings, exports, or server-side durable chat sync before signup.
+    - Replacing the authenticated WebSocket pipeline or rewriting `ActiveChat` wholesale.
+    - Server-side storage of anonymous prompts, responses, embed content, or encrypted anonymous chat blobs before signup.
+    - Strong fraud prevention beyond local anonymous ID, HMAC IP hash, rate limits, and global/per-identity budgets.
+    - Retrofitting full anonymous parity into CLI and Apple UI in the first web implementation slice, except that backend/API contracts must not make native parity impossible.
+
+context_discovery:
+  github_issues:
+    - "No public GitHub issue was provided. User-provided app issue IDs: d0ea394c-b547-48fe-829a-a7ff5427f69e and abecea47-62da-4879-a941-307100fa58b3. Raw private issue content stays out of git."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    - docs/architecture/frontend/virtual-scrolling-chat-history.md
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/frontend/data-driven-embed-fullscreen-routing.md
+    - docs/architecture/frontend/native-apps.md
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/services/embedResolver.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/stream_consumer.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+  tests:
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - frontend/apps/web_app/tests/server-anonymous-free-usage-budget.spec.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+  parity_expectations:
+    - Native anonymous chat must not regress while web changes the backend/API contract.
+    - Native should eventually consume the same backend streaming semantics or an equivalent native event adapter, with the same visible streaming/typing lifecycle as authenticated native chat.
+    - If the first implementation slice is web-only, backend changes must preserve a compatibility path or update native in the same deploy.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse"
+  intentional_native_differences:
+    - Native may use platform-local storage APIs instead of IndexedDB, but visible anonymous response streaming and virtual-budget billing semantics must match web.
+
+clarification:
+  rounds:
+    - question: Should unauthenticated anonymous messaging use the same frontend pipeline as authenticated chat instead of a separate UI processing flow?
+      answer: Yes. Anonymous messaging must use the same frontend pipeline and full streaming lifecycle as authenticated messaging.
+    - question: Which parts of the user experience must match authenticated chat?
+      answer: Pre-processing, chat creation animations, rainbow/typing animation, main streaming output, post-processing, chat summary/title/category/icon metadata, embeds, and fullscreen behavior must match.
+    - question: What are the allowed differences from authenticated chat?
+      answer: The backend endpoint may be different and billing must charge virtual anonymous budgets instead of a regular user balance. Anonymous file uploads and connected-account features remain signup-gated.
+    - question: Should anonymous billing charge global daily, weekly, and monthly anonymous credit amounts?
+      answer: Yes. Actual usage should count against per-identity virtual balance, HMAC IP daily cap, global daily cap, global weekly cap, and global monthly anonymous budget/usage. It must not debit a regular user balance.
+  vision_summary: >
+    A logged-out eligible user should experience anonymous chat as real OpenMates chat, not as a delayed one-shot demo. The UI should be driven by the same streaming event reducer and component state as authenticated chat, while anonymous-specific code is limited to transport, local encrypted storage, eligibility, signup gating, and virtual budget accounting.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Anonymous send enters normal streaming lifecycle
+    given:
+      - A logged-out eligible user opens the web app with anonymous free usage active.
+      - The user starts a new anonymous chat and types "Explain Madrid in one paragraph".
+    when:
+      - The user presses Send.
+    then:
+      - The same local user-message path used by authenticated chat adds the user bubble immediately.
+      - The chat header shows the same new-chat creation/title-generation animation as authenticated chat.
+      - The same `aiTaskInitiated` and `aiTypingStarted` frontend event contract starts the processing overlay and rainbow typing animation.
+      - The assistant message appears through `aiMessageChunk` updates in `ActiveChat.handleAiMessageChunk`, not through a separate anonymous final-message handler.
+      - The final chunk marks the user and assistant messages synced in local anonymous storage.
+
+  - id: S-2
+    title: Anonymous output streams progressively
+    given:
+      - The anonymous backend emits multiple chunks for a response.
+    when:
+      - The user watches the assistant response render.
+    then:
+      - The assistant bubble grows progressively with each chunk.
+      - "`ChatHistory.updateMessages` receives streaming updates the same way it does for authenticated chat."
+      - The centered processing overlay clears only after the assistant message has rendered.
+      - The bottom typing shimmer and rainbow state clear on the final chunk or terminal error.
+
+  - id: S-3
+    title: Anonymous pre-processing matches authenticated text chat where allowed
+    given:
+      - A logged-out eligible user sends text containing URLs and app-skill mentions that do not require connected accounts.
+    when:
+      - The anonymous request is prepared.
+    then:
+      - The same frontend pre-processing pipeline runs for allowed text-only behavior.
+      - URL previews and text-derived embeds supported without file upload are prepared through the same parser/storage primitives as authenticated chat, with anonymous-local storage.
+      - Connected-account or file-backed processing is blocked with a signup CTA before data leaves the browser.
+
+  - id: S-4
+    title: Anonymous code embeds render and open fullscreen
+    given:
+      - A logged-out eligible user asks for a Python example.
+      - The assistant streams a fenced Python code block.
+    when:
+      - The user clicks the generated code preview or fullscreen control.
+    then:
+      - The inline code preview has the actual code content, language, and status data.
+      - Fullscreen opens without WebSocket embed recovery or authenticated server embed lookup.
+      - The content is available from local anonymous embed storage or deterministic inline fallback data.
+      - Reloading the same anonymous session can reopen the code embed while the anonymous session marker remains present.
+
+  - id: S-5
+    title: Anonymous metadata uses normal post-processing UI
+    given:
+      - A logged-out eligible user sends the first anonymous message.
+    when:
+      - The backend creates title/category/icon/summary metadata.
+    then:
+      - The user sees the same title/category/icon generation states as authenticated chat.
+      - The final anonymous chat row has a decrypted title, category, icon, and gradient.
+      - Later follow-up response categories do not accidentally overwrite first-chat metadata unless the normal metadata update contract says they should.
+      - Metadata is encrypted locally at rest and hydrated through anonymous storage before sidebar rendering.
+
+  - id: S-6
+    title: Anonymous user chats appear before public chats
+    given:
+      - A logged-out user has at least one anonymous user-created chat in local storage.
+    when:
+      - The sidebar or chat navigation list is shown.
+    then:
+      - Anonymous user-created chats appear before intro, example, announcement, tips, and legal chats.
+      - Previous/next navigation treats anonymous chats as real user chats before public chats.
+      - Chat rows render the correct category gradient and icon after initial send and after same-session reload.
+
+  - id: S-7
+    title: Anonymous virtual budget charges actual credits once
+    given:
+      - Anonymous global daily, weekly, and monthly budget counters have remaining credits.
+      - The anonymous local identity and HMAC IP hash have remaining daily allowance.
+    when:
+      - A request reserves an estimate of 10 credits and finalizes with 125 actual credits.
+    then:
+      - The reservation is finalized exactly once with 125 credits.
+      - The per-local-identity daily used counter increases by 125.
+      - The per-IP daily used counter increases by 125 when different from the local identity hash.
+      - The global daily used counter increases by 125.
+      - The global weekly used counter increases by 125.
+      - The global monthly used counter or equivalent monthly remaining ledger increases/decreases by 125 according to the final accounting design.
+      - No authenticated user credit balance is debited or credited.
+
+  - id: S-8
+    title: Anonymous budget exhaustion uses normal chat error UI
+    given:
+      - Anonymous global, per-local-identity, per-IP, or monthly budget cannot cover the next request.
+    when:
+      - The user sends a message.
+    then:
+      - The local user message appears immediately.
+      - The rejection is rendered through the same streaming/error reducer as authenticated insufficient-credit responses.
+      - The message input offers login/signup without corrupting local anonymous chat history.
+      - The reservation is not left open and no budget is overcharged.
+
+  - id: S-9
+    title: Anonymous request failure releases reserved budget
+    given:
+      - An anonymous request reserves budget.
+    when:
+      - The AI provider, stream, client connection, or post-processing fails before final usage is known.
+    then:
+      - Unused reservation budget is released or finalized to the known actual usage exactly once.
+      - Daily, weekly, monthly, local-identity, and IP counters reconcile with finalized reservations plus open reservations.
+      - A deterministic audit can report any drift before users can burn untracked budget.
+
+  - id: S-10
+    title: Anonymous signup promotion preserves encrypted local results
+    given:
+      - A logged-out user has an anonymous chat with streamed text and local embeds.
+    when:
+      - The user signs up.
+    then:
+      - Anonymous chat keys are wrapped with the account master key.
+      - Encrypted messages, metadata, and supported local embeds are uploaded through normal sync.
+      - The promoted chat uses the regular authenticated chat pipeline after signup.
+
+  - id: S-11
+    title: Apple anonymous chat remains compatible
+    given:
+      - The backend anonymous contract changes to support streaming or stream-event adaptation.
+    when:
+      - The Apple app builds and the signed-out anonymous smoke test runs.
+    then:
+      - The native app still creates an anonymous chat, appends the user message immediately, receives an assistant response, and does not debit a user balance.
+      - Any web-only streaming adapter changes do not break the native fallback contract.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Anonymous web sends must use the same frontend event/reducer pipeline as authenticated chat for task start, typing, streaming chunks, and finalization.
+  - id: AC-2
+    scenario: S-2
+    text: Anonymous assistant text must render progressively while the response is in flight, with the same ChatHistory streaming behavior and rainbow/typing animations as authenticated chat.
+  - id: AC-3
+    scenario: S-3
+    text: Anonymous text pre-processing must reuse authenticated pre-processing primitives where permitted, while blocking file and connected-account work before upload or provider calls.
+  - id: AC-4
+    scenario: S-4
+    text: Anonymous generated code embeds must render inline and open fullscreen without authenticated WebSocket recovery or server embed lookup.
+  - id: AC-5
+    scenario: S-5
+    text: Anonymous title/category/icon/summary metadata must use the normal post-processing UI states and remain encrypted locally while hydrating correctly for display.
+  - id: AC-6
+    scenario: S-6
+    text: Anonymous user-created chats must sort and navigate before public intro/example/legal chats and keep their category gradient after reload.
+  - id: AC-7
+    scenario: S-7
+    text: Anonymous actual usage must charge per-identity, per-IP, global daily, global weekly, and global monthly virtual budget counters exactly once, without charging a user balance.
+  - id: AC-8
+    scenario: S-8
+    text: Anonymous budget exhaustion must render through the same chat error lifecycle as authenticated credit failures and must not leave open reservations.
+  - id: AC-9
+    scenario: S-9
+    text: Anonymous budget counters must reconcile to finalized plus open reservations, and failures must release or finalize reserved credits deterministically.
+  - id: AC-10
+    scenario: S-10
+    text: Signup promotion must preserve anonymous streamed text and supported local embeds through normal encrypted account sync.
+  - id: AC-11
+    scenario: S-11
+    text: Apple anonymous chat must continue to build and pass the signed-out anonymous smoke test after backend/API changes.
+
+contracts:
+  api:
+    - route: POST /v1/anonymous/chat/stream
+      request: >
+        { anonymous_id: string, client_chat_id: string, client_message_id: string,
+          plaintext_message: string, message_history: AnonymousHistoryMessage[],
+          requested_skill_ids?: string[], encrypted_context_metadata?: object }
+      response: >
+        Streaming response or stream-adaptable response that carries the same semantic fields as
+        authenticated ai_message_update events: task/message id, chat id, user message id,
+        sequence, full_content_so_far or delta, is_final_chunk, category, model_name,
+        thinking metadata, post-processing metadata, usage, and terminal error state.
+      errors:
+        - 403 signup_required when files, connected-account skills, or unsupported anonymous features are requested.
+        - 429 budget_exhausted or per_identity_exhausted when virtual anonymous budgets cannot cover the request.
+        - 500 anonymous_inference_failed only after any reserved budget is released or finalized to known actual usage.
+    - route: GET /v1/anonymous/free-usage/status
+      request: anonymous_id optional query/header plus request IP metadata.
+      response: >
+        { active: boolean, can_send_text: boolean, reason?: string, reset_at: string, cta: string }
+      errors:
+        - 404 on self-hosted editions.
+  data:
+    - Anonymous local chat rows keep `is_anonymous=true` and strip plaintext title/category/icon before IndexedDB persistence.
+    - Anonymous metadata and messages are encrypted with normal per-chat keys wrapped by the anonymous session key until signup.
+    - Anonymous local embed records or inline fallback records must be scoped to the anonymous chat and purged with anonymous data.
+    - Anonymous budget reservations must include request_id, local_id_hash, ip_hash, reserved_credits, finalized_credits, status, created_at, expires_at, and updated_at.
+    - Anonymous global budget must track enough fields to enforce and reconcile daily, weekly, and monthly budgets. If monthly usage is currently derived from weekly usage, implementation planning must either add an explicit monthly used counter or document and test the equivalent monthly remaining ledger.
+  ui_states:
+    - New chat creation header animation.
+    - Sending/pre-processing overlay.
+    - AI task initiated mate/model/status overlay.
+    - Rainbow typing animation while anonymous assistant is typing/streaming.
+    - Progressive assistant response chunks.
+    - Thinking section where supported by the model.
+    - Embed previews and fullscreen open state for generated code/content embeds.
+    - Post-processing metadata/title/category/icon completion.
+    - Budget exhausted/signup CTA rendered as a chat lifecycle error.
+  privacy_security:
+    - Anonymous prompt, response, embed content, metadata, and encrypted chat blobs are not persisted server-side before signup.
+    - Raw IP addresses and local anonymous IDs are never exposed to clients or public logs; only HMAC hashes are stored for budget enforcement.
+    - Anonymous file payload bytes never leave the browser before signup.
+    - Anonymous generated local embeds are purged when the anonymous session marker is absent.
+    - Connected-account skills fail closed unless metadata explicitly marks them anonymous-safe.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_anonymous_free_usage_budget.py
+    command: python3 -m pytest backend/tests/test_anonymous_free_usage_budget.py
+    covers:
+      - AC-7
+      - AC-8
+      - AC-9
+    assertions:
+      - finalizing actual credits increments local identity, IP identity, global daily, global weekly, and global monthly accounting once.
+      - failed requests release or finalize reservations and do not leave drift.
+      - no regular user credit balance field is created, debited, or credited.
+      - reconciliation helper reports zero drift for finalized plus open reservations.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_anonymous_skill_access.py
+    command: python3 -m pytest backend/tests/test_anonymous_skill_access.py
+    covers:
+      - AC-1
+      - AC-3
+      - AC-7
+    assertions:
+      - anonymous route invokes AI with streaming or stream-event-compatible semantics.
+      - connected-account and file/embed upload payloads fail before provider or inference work.
+      - response usage finalizes the anonymous reservation exactly once.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-VITEST-001
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    command: python3 scripts/run_tests.py --suite vitest
+    covers:
+      - AC-4
+      - AC-5
+      - AC-9
+      - AC-10
+    assertions:
+      - anonymous storage hydrates encrypted metadata for UI while raw IndexedDB rows omit plaintext title/category/icon.
+      - anonymous streaming saves messages through anonymous encrypted storage, not raw plaintext chatDB writes.
+      - anonymous local embed records or fallback data are saved and purged with anonymous chats.
+      - signup promotion can include supported local anonymous embeds.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    command: python3 scripts/run_tests.py --spec anonymous-free-chat.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-8
+    assertions:
+      - logged-out anonymous send shows the user bubble immediately.
+      - the same rainbow/typing and processing UI used by authenticated chat appears before the first assistant chunk.
+      - assistant text grows progressively before final completion.
+      - generated code preview opens fullscreen without authenticated embed recovery.
+      - anonymous chat row appears before intro/example/legal rows and keeps category gradient after reload.
+      - budget exhaustion renders a chat lifecycle error and signup CTA without corrupting history.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    command: python3 scripts/run_tests.py --spec chat-scroll-streaming.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - authenticated streaming behavior remains unchanged after the shared reducer/storage changes.
+      - ChatHistory spacer and scroll behavior still pass for regular authenticated chats.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-001
+    type: build
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse"
+    covers:
+      - AC-11
+    assertions:
+      - signed-out native anonymous chat still creates a chat and receives an assistant response.
+      - backend/API compatibility remains intact for native anonymous chat.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - Authenticated web chat already uses `chatSyncService.sendNewMessage`, backend WebSocket/Celery processing, `aiTypingStarted`, `aiMessageChunk`, and `ActiveChat.handleAiMessageChunk`.
+    - Anonymous chat currently uses `anonymousChatStorage.sendTextMessage`, HTTP final JSON, and `ActiveChat.handleAnonymousAssistantMessage`.
+    - "`ActiveChat.handleAiMessageChunk` already skips `sendCompletedAIResponse` for `currentChat.is_anonymous`, but it still needs anonymous-safe local persistence."
+    - Anonymous storage already encrypts local chat/message metadata and strips plaintext fields before IndexedDB persistence.
+    - The Apple app has a separate native anonymous service that must remain compatible with backend changes.
+  architecture: >
+    Keep anonymous eligibility, transport, and virtual budget accounting separate, but remove the separate anonymous UI reducer. Add a small transport adapter that turns anonymous backend stream events into the same frontend AI lifecycle events consumed by ActiveChat. Extract or parameterize message persistence so ActiveChat streaming saves anonymous chunks through anonymous encrypted storage instead of raw chatDB plaintext writes. Treat anonymous generated embeds as local anonymous embed records or self-contained fallback payloads so preview/fullscreen does not require authenticated recovery.
+  data_flow:
+    - MessageInput calls handleSend for both authenticated and anonymous users.
+    - Anonymous eligibility creates or loads an anonymous encrypted local chat and dispatches the same local sendMessage event as authenticated chat.
+    - Anonymous transport reserves virtual budget and starts inference via a streaming endpoint or stream-compatible adapter.
+    - The adapter emits aiTaskInitiated, aiTypingStarted, aiMessageChunk, and aiTaskEnded with the same payload semantics as authenticated chat.
+    - ActiveChat.handleAiMessageChunk updates ChatHistory and persists chunks through a chat-storage adapter selected by chat type.
+    - Anonymous post-processing metadata and embeds are encrypted locally and hydrated before sidebar rendering.
+    - Usage finalization charges virtual local identity, IP identity, global daily, global weekly, and global monthly counters exactly once.
+  affected_files:
+    - path: backend/core/api/app/routes/anonymous.py
+      reason: Anonymous endpoint must stream or expose stream-compatible events and finalize virtual budget usage correctly.
+    - path: backend/core/api/app/services/anonymous_free_usage_service.py
+      reason: Budget accounting must include reconcilable monthly usage and deterministic drift checks.
+    - path: backend/tests/test_anonymous_free_usage_budget.py
+      reason: Contract tests for daily/weekly/monthly virtual budget reconciliation.
+    - path: backend/tests/test_anonymous_skill_access.py
+      reason: Route-level streaming and anonymous-safe skill gating tests.
+    - path: frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+      reason: Anonymous send should dispatch into the same lifecycle as authenticated send after local anonymous eligibility/storage setup.
+    - path: frontend/packages/ui/src/services/anonymousChatStorage.ts
+      reason: Anonymous encrypted local storage and hydration need to support streaming chunks and local embeds.
+    - path: frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+      reason: Reuse or expose event-shaping helpers for anonymous stream events without duplicating reducer logic.
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Replace anonymous final-message handler with shared streaming path and chat-type-aware persistence.
+    - path: frontend/packages/ui/src/components/chats/Chat.svelte
+      reason: Hydrate anonymous metadata through anonymous storage before rendering category/icon gradient.
+    - path: frontend/packages/ui/src/components/chats/Chats.svelte
+      reason: Sort anonymous user-created chats before public chats for logged-out users.
+    - path: frontend/packages/ui/src/services/embedResolver.ts
+      reason: Anonymous local embeds must open without authenticated recovery.
+    - path: frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+      reason: End-to-end web parity coverage.
+    - path: apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+      reason: Potential native compatibility updates for backend anonymous stream contract.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/anonymous-streaming-ui/spec.yml
+    - python3 -m pytest backend/tests/test_anonymous_free_usage_budget.py
+    - python3 -m pytest backend/tests/test_anonymous_skill_access.py
+    - python3 scripts/run_tests.py --suite vitest
+    - python3 scripts/run_tests.py --spec anonymous-free-chat.spec.ts
+    - python3 scripts/run_tests.py --spec chat-scroll-streaming.spec.ts
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse"
+    - python3 scripts/spec_verify.py docs/specs/anonymous-streaming-ui/spec.yml
+  verification_order:
+    - Backend anonymous budget and route contracts first.
+    - Frontend unit/storage tests second.
+    - Web Playwright red before deploy, green after deploy.
+    - Authenticated streaming regression spec after anonymous web green.
+    - Apple remote status/build/test after web/API green.
+
+tasks:
+  - id: TASK-1
+    title: Add failing backend accounting and anonymous route contracts
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+        - S-9
+      acceptance_criteria:
+        - AC-7
+        - AC-8
+        - AC-9
+    expected_files:
+      - backend/tests/test_anonymous_free_usage_budget.py
+      - backend/tests/test_anonymous_skill_access.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-002
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add failing web anonymous streaming, embed, sidebar, and metadata tests
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+      - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    verification:
+      - T-VITEST-001
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement anonymous stream event adapter and storage persistence seam
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-8
+    expected_files:
+      - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+      - frontend/packages/ui/src/services/anonymousChatStorage.ts
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - backend/core/api/app/routes/anonymous.py
+    verification:
+      - T-PYTEST-002
+      - T-VITEST-001
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Implement anonymous local embed fullscreen support
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-10
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-10
+    expected_files:
+      - frontend/packages/ui/src/services/anonymousChatStorage.ts
+      - frontend/packages/ui/src/services/embedResolver.ts
+      - frontend/packages/ui/src/message_parsing/embedParsing.ts
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+    verification:
+      - T-VITEST-001
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Fix anonymous sidebar hydration and ordering
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+    expected_files:
+      - frontend/packages/ui/src/components/chats/Chat.svelte
+      - frontend/packages/ui/src/components/chats/Chats.svelte
+      - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Verify authenticated and Apple parity
+    covers:
+      scenarios:
+        - S-2
+        - S-11
+      acceptance_criteria:
+        - AC-2
+        - AC-11
+    expected_files:
+      - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+      - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    verification:
+      - T-E2E-002
+      - T-APPLE-001
+    independently_deployable: false
+
+risks:
+  - Streaming anonymous responses can accidentally persist plaintext if ActiveChat continues using raw chatDB writes for anonymous chunks.
+  - Backend streaming contract changes can break Apple unless compatibility or native updates land in the same deployment.
+  - Monthly budget accounting is currently less explicit than daily/weekly usage; implementation must avoid silent drift by adding or documenting a reconcilable monthly ledger.
+  - Reusing authenticated pre-processing must not allow anonymous file bytes, connected-account data, memories, or account-only context to leave the browser.
+  - E2E mocks can hide real streaming regressions unless at least one test observes multiple chunks before final completion.
+
+open_questions:
+  - Should the implementation add an explicit `monthly_used_credits` field, or define monthly remaining as the sum of finalized reservations in the current monthly window plus open reservations?
+  - Should the first implementation slice use true backend streaming immediately, or use a stream-event adapter over a final JSON response as a temporary bridge while preserving the frontend event/reducer contract?
