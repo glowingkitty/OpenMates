@@ -245,14 +245,14 @@ async function assertAssistantFeedbackReportIssueFlow(
 	await expect(feedback).toContainText('Rate assistant response:', { timeout: 10000 });
 	await expect(quickTipCard).toBeVisible({ timeout: 90000 });
 
-	const feedbackBeforeQuickTip = await page.evaluate(() => {
+	const feedbackAfterQuickTip = await page.evaluate(() => {
 		const feedbackEl = document.querySelector('[data-testid="assistant-response-feedback"]');
 		const quickTipEl = document.querySelector('[data-testid="quick-tip-card"]');
 		if (!feedbackEl || !quickTipEl) return false;
-		return Boolean(feedbackEl.compareDocumentPosition(quickTipEl) & Node.DOCUMENT_POSITION_FOLLOWING);
+		return Boolean(quickTipEl.compareDocumentPosition(feedbackEl) & Node.DOCUMENT_POSITION_FOLLOWING);
 	});
-	expect(feedbackBeforeQuickTip, 'Assistant response feedback should render before quick tips').toBe(true);
-	logCheckpoint('Assistant response feedback is visible before quick tips.');
+	expect(feedbackAfterQuickTip, 'Assistant response feedback should render after quick tips').toBe(true);
+	logCheckpoint('Assistant response feedback is visible after quick tips.');
 
 	await page.getByTestId('assistant-feedback-star-3').click();
 	const feedbackSubmit = page.getByTestId('assistant-feedback-submit');
