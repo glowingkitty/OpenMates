@@ -13,6 +13,7 @@ from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewFile,
     ApplicationPreviewPlanningError,
     _vite_allowed_hosts,
+    _wait_for_preview_ready,
     _with_vite_preview_settings,
     _with_vite_allowed_hosts,
     _write_vite_allowed_hosts_config,
@@ -179,6 +180,31 @@ def test_preview_keeps_existing_vite_config_for_framework_plugins() -> None:
 
     assert path is None
     assert sandbox.files.payloads == []
+
+
+def test_preview_readiness_waits_through_transient_e2b_502() -> None:
+    statuses = iter([502, 502, 200])
+    sleeps: list[float] = []
+
+    _wait_for_preview_ready(
+        "https://5173-example.e2b.app/",
+        timeout_seconds=5,
+        interval_seconds=0.01,
+        fetch_status=lambda _: next(statuses),
+        sleep=sleeps.append,
+    )
+
+    assert sleeps == [0.01, 0.01]
+
+
+def test_preview_readiness_times_out_with_last_status() -> None:
+    with pytest.raises(RuntimeError, match="last status 502"):
+        _wait_for_preview_ready(
+            "https://5173-example.e2b.app/",
+            timeout_seconds=0,
+            fetch_status=lambda _: 502,
+            sleep=lambda _: None,
+        )
 
 
 def test_preview_start_command_does_not_duplicate_vite_allowed_hosts_env() -> None:

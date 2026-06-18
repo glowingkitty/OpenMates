@@ -10,15 +10,22 @@ from __future__ import annotations
 import json
 import re
 import shlex
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 
 DEPENDENCY_FILENAMES = {"package.json", "package-lock.json", "requirements.txt"}
 VITE_ALLOWED_HOSTS_ENV = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"
 VITE_OPENMATES_CONFIG_PATH = "vite.config.openmates.mjs"
+PREVIEW_READINESS_TIMEOUT_SECONDS = 90.0
+PREVIEW_READINESS_INTERVAL_SECONDS = 1.5
+PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS = 5.0
 VITE_CONFIG_FILENAMES = {
     "vite.config.js",
     "vite.config.mjs",
@@ -273,6 +280,7 @@ def start_application_preview_in_e2b(
         )
 
     primary_name = "frontend" if "frontend" in upstream_base_urls else next(iter(upstream_base_urls))
+    _wait_for_preview_ready(upstream_base_urls[primary_name])
     return ApplicationPreviewRuntime(
         sandbox_id=str(getattr(sandbox, "sandbox_id", "")),
         upstream_base_url=upstream_base_urls[primary_name],
@@ -313,6 +321,45 @@ def _sandbox_host(sandbox: Any, port: int) -> str:
         host = ports.get_host(port)
         return str(host if str(host).startswith("http") else f"https://{host}")
     raise RuntimeError("E2B sandbox does not expose a preview host helper")
+
+
+def _wait_for_preview_ready(
+    url: str,
+    *,
+    timeout_seconds: float = PREVIEW_READINESS_TIMEOUT_SECONDS,
+    interval_seconds: float = PREVIEW_READINESS_INTERVAL_SECONDS,
+    fetch_status: Callable[[str], int] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    last_status: int | None = None
+    last_error: Exception | None = None
+    status_fetcher = fetch_status or _fetch_preview_status
+
+    while True:
+        try:
+            status = status_fetcher(url)
+            if status < 500:
+                return
+            last_status = status
+            last_error = None
+        except (TimeoutError, OSError, URLError) as exc:
+            last_error = exc
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            detail = f"last status {last_status}" if last_status is not None else f"last error {last_error}"
+            raise RuntimeError(f"Application preview did not become ready at {url}: {detail}")
+        sleep(min(interval_seconds, remaining))
+
+
+def _fetch_preview_status(url: str) -> int:
+    request = Request(url, headers={"User-Agent": "OpenMates application preview readiness"}, method="GET")
+    try:
+        with urlopen(request, timeout=PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS) as response:
+            return int(response.status)
+    except HTTPError as exc:
+        return int(exc.code)
 
 
 def _vite_allowed_hosts(upstream_base_urls: dict[str, str]) -> list[str]:
