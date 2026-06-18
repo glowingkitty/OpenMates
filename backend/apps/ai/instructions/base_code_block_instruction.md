@@ -33,9 +33,24 @@ Just use the language without filename:
 x = 42
 ```
 
+**6. Runnable web apps:**
+When creating a runnable web app, site, dashboard, or browser UI the user can test, return one `application_preview` block instead of setup commands plus separate files. Include at minimum `package.json`, an entry file (`src/main.ts`, `src/main.js`, or `index.html`), and the main source file:
+
+```application_preview
+json:package.json
+{"scripts":{"dev":"vite"},"dependencies":{"@sveltejs/vite-plugin-svelte":"latest","vite":"latest","svelte":"latest"},"devDependencies":{}}
+typescript:src/main.ts
+import App from './App.svelte';
+new App({ target: document.getElementById('app')! });
+svelte:src/App.svelte
+<main>Hello</main>
+```
+
+Do not provide `localhost` links for these apps; OpenMates creates the runnable preview from the application block.
+
 **Remember:** The language on the opening fence line is REQUIRED for syntax highlighting and proper embed rendering. Never put the language on a separate line.
 
-**6. Remotion video-create fences:**
+**7. Remotion video-create fences:**
 When creating deterministic videos with exact text, slides, product announcements, diagrams, charts, UI-like motion graphics, or branded layouts, use an explicit Remotion fence:
 
 ```remotion:ProductAnnouncement.tsx
