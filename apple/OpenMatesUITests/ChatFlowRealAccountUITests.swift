@@ -27,8 +27,8 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
     }
 
-    func testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse() throws {
-        try requireAnonymousFreeUsageActive()
+    func testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse() async throws {
+        try await requireAnonymousFreeUsageActive()
 
         let app = RealAccountUITestSupport.launchApp(
             preferPasswordLogin: false,
@@ -41,29 +41,10 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
     }
 
-    private func requireAnonymousFreeUsageActive() throws {
+    private func requireAnonymousFreeUsageActive() async throws {
         let url = URL(string: "https://api.dev.openmates.org/v1/anonymous/free-usage/status")!
-        let semaphore = DispatchSemaphore(value: 0)
-        var probeResult: Result<AnonymousFreeUsageProbe, Error>?
-
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            defer { semaphore.signal() }
-            if let error {
-                probeResult = .failure(error)
-                return
-            }
-            guard let data else {
-                probeResult = .failure(URLError(.badServerResponse))
-                return
-            }
-            probeResult = Result { try JSONDecoder().decode(AnonymousFreeUsageProbe.self, from: data) }
-        }.resume()
-
-        guard semaphore.wait(timeout: .now() + 10) == .success else {
-            throw XCTSkip("Anonymous free usage status probe timed out")
-        }
-
-        let status = try probeResult?.get() ?? AnonymousFreeUsageProbe(active: false, reason: "missing_status")
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let status = try JSONDecoder().decode(AnonymousFreeUsageProbe.self, from: data)
         guard status.active else {
             throw XCTSkip("Anonymous free usage inactive on dev: \(status.reason ?? "unknown")")
         }
