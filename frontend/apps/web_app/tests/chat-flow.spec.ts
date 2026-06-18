@@ -272,6 +272,10 @@ async function assertAssistantFeedbackReportIssueFlow(
 		await closeSettings.click();
 		await expect(page.getByTestId('settings-menu')).not.toHaveClass(/visible/, { timeout: 10000 });
 	}
+
+	await expect(page.getByTestId('assistant-feedback-thanks')).not.toBeVisible({ timeout: 6000 });
+	await expect(page.getByTestId('assistant-feedback-star-3')).not.toBeVisible();
+	await expect(page.getByTestId('chat-history-request-feature')).toBeVisible();
 }
 
 /**

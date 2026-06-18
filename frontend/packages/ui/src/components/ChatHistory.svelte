@@ -775,9 +775,16 @@
   });
 
   const ASSISTANT_RATING_VALUES = [1, 2, 3, 4, 5] as const;
+  const ASSISTANT_FEEDBACK_STORAGE_KEY = 'openmates.assistantFeedback.submitted.v1';
+  const ASSISTANT_FEEDBACK_THANKS_VISIBLE_MS = 2600;
+  const ASSISTANT_FEEDBACK_THANKS_FADE_MS = 260;
   let assistantFeedbackMessageId = $state<string | null>(null);
   let selectedAssistantRating = $state<number | null>(null);
   let assistantFeedbackSubmitted = $state(false);
+  let submittedAssistantFeedbackKeys = $state<string[]>([]);
+  let assistantFeedbackThanksState = $state<'hidden' | 'visible' | 'hiding'>('hidden');
+  let assistantFeedbackThanksTimer: ReturnType<typeof setTimeout> | null = null;
+  let assistantFeedbackThanksCleanupTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
   let showMessages = $state(true);
@@ -1118,17 +1125,73 @@
     !isCurrentlyStreaming
   );
 
+  let assistantFeedbackKey = $derived(
+    currentChatId && lastAssistantMessageId ? `${currentChatId}:${lastAssistantMessageId}` : null
+  );
+
   function handleQuickTipAction(tip: QuickTipDefinition): void {
     dispatch('quickTipAction', tip);
   }
 
   $effect(() => {
-    if (assistantFeedbackMessageId === lastAssistantMessageId) return;
+    const submittedForCurrentMessage = assistantFeedbackKey !== null && submittedAssistantFeedbackKeys.includes(assistantFeedbackKey);
+    if (assistantFeedbackMessageId === lastAssistantMessageId && assistantFeedbackSubmitted === submittedForCurrentMessage) return;
 
     assistantFeedbackMessageId = lastAssistantMessageId;
     selectedAssistantRating = null;
-    assistantFeedbackSubmitted = false;
+    assistantFeedbackSubmitted = submittedForCurrentMessage;
+    assistantFeedbackThanksState = 'hidden';
+    clearAssistantFeedbackThanksTimers();
   });
+
+  onMount(() => {
+    submittedAssistantFeedbackKeys = loadSubmittedAssistantFeedbackKeys();
+  });
+
+  onDestroy(() => {
+    clearAssistantFeedbackThanksTimers();
+  });
+
+  function loadSubmittedAssistantFeedbackKeys(): string[] {
+    try {
+      const stored = localStorage.getItem(ASSISTANT_FEEDBACK_STORAGE_KEY);
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === 'string') : [];
+    } catch (error) {
+      console.warn('[ChatHistory] Failed to load submitted assistant feedback state', error);
+      return [];
+    }
+  }
+
+  function persistSubmittedAssistantFeedbackKey(key: string): void {
+    const nextKeys = [key, ...submittedAssistantFeedbackKeys.filter((existing) => existing !== key)].slice(0, 200);
+    submittedAssistantFeedbackKeys = nextKeys;
+    try {
+      localStorage.setItem(ASSISTANT_FEEDBACK_STORAGE_KEY, JSON.stringify(nextKeys));
+    } catch (error) {
+      console.warn('[ChatHistory] Failed to persist submitted assistant feedback state', error);
+    }
+  }
+
+  function clearAssistantFeedbackThanksTimers(): void {
+    if (assistantFeedbackThanksTimer) clearTimeout(assistantFeedbackThanksTimer);
+    if (assistantFeedbackThanksCleanupTimer) clearTimeout(assistantFeedbackThanksCleanupTimer);
+    assistantFeedbackThanksTimer = null;
+    assistantFeedbackThanksCleanupTimer = null;
+  }
+
+  function showAssistantFeedbackThanks(): void {
+    clearAssistantFeedbackThanksTimers();
+    assistantFeedbackThanksState = 'visible';
+    assistantFeedbackThanksTimer = setTimeout(() => {
+      assistantFeedbackThanksState = 'hiding';
+      assistantFeedbackThanksCleanupTimer = setTimeout(() => {
+        assistantFeedbackThanksState = 'hidden';
+        assistantFeedbackThanksCleanupTimer = null;
+      }, ASSISTANT_FEEDBACK_THANKS_FADE_MS);
+      assistantFeedbackThanksTimer = null;
+    }, ASSISTANT_FEEDBACK_THANKS_VISIBLE_MS);
+  }
 
   function openReportIssue(issueType: 'bug_report' | 'feature_request', title?: string): void {
     reportIssueStore.set({
@@ -1145,7 +1208,11 @@
   function handleAssistantFeedbackSubmit(): void {
     if (selectedAssistantRating === null) return;
 
+    if (assistantFeedbackKey) {
+      persistSubmittedAssistantFeedbackKey(assistantFeedbackKey);
+    }
     assistantFeedbackSubmitted = true;
+    showAssistantFeedbackThanks();
 
     if (selectedAssistantRating <= 3) {
       openReportIssue('bug_report', $text('chat.assistant_feedback.report_title'));
@@ -2346,11 +2413,15 @@
             
             {#if showAssistantFeedback}
                 <div class="assistant-response-feedback" data-testid="assistant-response-feedback" in:fade={{ duration: 200 }}>
-                    {#if assistantFeedbackSubmitted}
-                        <p class="assistant-feedback-thanks" data-testid="assistant-feedback-thanks">
+                    {#if assistantFeedbackSubmitted && assistantFeedbackThanksState !== 'hidden'}
+                        <p
+                            class="assistant-feedback-thanks"
+                            class:hiding={assistantFeedbackThanksState === 'hiding'}
+                            data-testid="assistant-feedback-thanks"
+                        >
                             {$text('chat.assistant_feedback.thanks')}
                         </p>
-                    {:else}
+                    {:else if !assistantFeedbackSubmitted}
                         <div class="assistant-feedback-rating-row">
                             <span class="assistant-feedback-label">
                                 {$text('chat.assistant_feedback.rate_label')}
@@ -2594,17 +2665,19 @@
   .assistant-response-feedback {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--spacing-2);
     padding: 8px 20px 14px;
     box-sizing: border-box;
     width: 100%;
+    text-align: center;
   }
 
   .assistant-feedback-rating-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-2);
   }
 
@@ -2615,6 +2688,23 @@
     font-size: var(--font-size-xs);
     font-weight: 600;
     line-height: 1.35;
+  }
+
+  .assistant-feedback-thanks {
+    max-height: 2rem;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+      max-height 260ms var(--easing-default),
+      opacity 220ms var(--easing-default),
+      transform 220ms var(--easing-default);
+  }
+
+  .assistant-feedback-thanks.hiding {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-4px);
   }
 
   .assistant-feedback-stars {
