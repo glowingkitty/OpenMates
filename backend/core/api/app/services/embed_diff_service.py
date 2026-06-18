@@ -211,6 +211,68 @@ def apply_patch_fuzzy(content: str, diff: ParsedDiff, max_offset: int = 3) -> Pa
     )
 
 
+def apply_patch_unique_removals(content: str, diff: ParsedDiff) -> PatchResult:
+    """
+    Tier 2b: Apply hunks by uniquely matching removed line runs.
+
+    LLM-generated diffs sometimes include stale or incomplete context while the
+    actual removed lines are still exact and unique. This keeps those edits
+    auto-applicable without accepting ambiguous replacements.
+    """
+    content_lines = content.split('\n')
+    sorted_hunks = sorted(diff.hunks, key=lambda h: h.old_start, reverse=True)
+
+    for hunk in sorted_hunks:
+        replacements: List[tuple[List[str], List[str]]] = []
+        removed_run: List[str] = []
+        added_run: List[str] = []
+
+        for line in hunk.lines:
+            if line.startswith('-'):
+                removed_run.append(line[1:])
+            elif line.startswith('+'):
+                added_run.append(line[1:])
+            else:
+                if removed_run or added_run:
+                    replacements.append((removed_run, added_run))
+                    removed_run = []
+                    added_run = []
+        if removed_run or added_run:
+            replacements.append((removed_run, added_run))
+
+        for removed_lines, added_lines in reversed(replacements):
+            if not removed_lines:
+                return PatchResult(
+                    success=False, new_content=None, tier=2,
+                    error="Unique-removal fallback cannot apply insertion-only hunk"
+                )
+
+            matches = []
+            match_len = len(removed_lines)
+            for idx in range(0, len(content_lines) - match_len + 1):
+                if content_lines[idx:idx + match_len] == removed_lines:
+                    matches.append(idx)
+
+            if len(matches) != 1:
+                return PatchResult(
+                    success=False, new_content=None, tier=2,
+                    error=(
+                        f"Unique-removal fallback expected one match for hunk "
+                        f"@@ -{hunk.old_start},{hunk.old_count}, found {len(matches)}"
+                    )
+                )
+
+            start_idx = matches[0]
+            content_lines[start_idx:start_idx + match_len] = added_lines
+
+    return PatchResult(
+        success=True,
+        new_content='\n'.join(content_lines),
+        tier=2,
+        error=None
+    )
+
+
 def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
     """
     Apply a parsed diff to content using 3-tier fallback strategy.
@@ -241,16 +303,24 @@ def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
         return result
 
     tier2_error = result.error
+
+    result = apply_patch_unique_removals(content, diff)
+    if result.success:
+        logger.info(f"Patch applied successfully (tier 2, unique removals) for {diff.embed_ref}")
+        return result
+
+    tier2b_error = result.error
     logger.warning(
         f"Patch application failed for {diff.embed_ref}. "
         f"Tier 1: {tier1_error}. Tier 2: {tier2_error}. "
+        f"Tier 2b: {tier2b_error}. "
         f"Falling back to visual diff card (tier 3)."
     )
 
     # Tier 3: Visual fallback — return failure so caller renders diff as card
     return PatchResult(
         success=False, new_content=None, tier=3,
-        error=f"Exact: {tier1_error}. Fuzzy: {tier2_error}"
+        error=f"Exact: {tier1_error}. Fuzzy: {tier2_error}. Unique removals: {tier2b_error}"
     )
 
 

@@ -7,14 +7,11 @@ Tests the 3-tier fallback strategy:
 - Tier 3: Graceful failure (returns visual fallback)
 """
 
-import pytest
-
 from backend.core.api.app.services.embed_diff_service import (
-    DiffHunk,
-    ParsedDiff,
     apply_patch,
     apply_patch_exact,
     apply_patch_fuzzy,
+    apply_patch_unique_removals,
     is_diff_fence_open,
     parse_unified_diff,
 )
@@ -149,6 +146,39 @@ class TestFuzzyPatch:
         assert not result.success
 
 
+class TestUniqueRemovalPatch:
+    def test_applies_model_diff_with_stale_context_but_unique_removed_line(self):
+        code = """def calculate_average(numbers):
+    \"\"\"Calculate the average of a list.\"\"\"
+    if not numbers:
+        return 0
+    return sum(numbers) / len(numbers)"""
+        diff_text = """@@ -1,4 +1,4 @@
+-def calculate_average(numbers):
++def compute_mean(numbers) -> float:
+     if not numbers:
+         return 0.0 # stale model context
+     return sum(numbers) / len(numbers)"""
+
+        result = apply_patch_unique_removals(code, parse_unified_diff(diff_text, "math_utils.py-AbC"))
+
+        assert result.success
+        assert result.tier == 2
+        assert "def compute_mean(numbers) -> float:" in result.new_content
+        assert "def calculate_average" not in result.new_content
+        assert "Calculate the average" in result.new_content
+
+    def test_refuses_ambiguous_removed_line(self):
+        code = "value = 1\nprint(value)\nprint(value)"
+        diff_text = """@@ -2,1 +2,1 @@
+-print(value)
++print(value + 1)"""
+
+        result = apply_patch_unique_removals(code, parse_unified_diff(diff_text, "main.py-AbC"))
+
+        assert not result.success
+
+
 # ─── Tier 3: Full Pipeline ───────────────────────────────────────────
 
 class TestFullPipeline:
@@ -162,6 +192,25 @@ class TestFullPipeline:
         result = apply_patch(shifted_code, parse_unified_diff(RENAME_DIFF, "test"))
         assert result.success
         assert result.tier == 2
+
+    def test_unique_removal_fallback(self):
+        code = """def calculate_average(numbers):
+    \"\"\"Calculate the average of a list.\"\"\"
+    if not numbers:
+        return 0
+    return sum(numbers) / len(numbers)"""
+        diff_text = """@@ -1,4 +1,4 @@
+-def calculate_average(numbers):
++def compute_mean(numbers) -> float:
+     if not numbers:
+         return 0.0 # stale model context
+     return sum(numbers) / len(numbers)"""
+
+        result = apply_patch(code, parse_unified_diff(diff_text, "math_utils.py-AbC"))
+
+        assert result.success
+        assert result.tier == 2
+        assert "def compute_mean(numbers) -> float:" in result.new_content
 
     def test_total_failure_tier3(self):
         garbage = "completely different content\nnothing matches"
