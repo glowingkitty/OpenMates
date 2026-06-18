@@ -1246,7 +1246,7 @@ groq.privacy_policy_link:
   sv: Groqs integritetspolicy
   verified_by_human: []
   he: מדיניות פרטיות של Groq
-revolut_business.heading:
+providers.payments.revolut_business.heading:
   context: Section heading for Revolut Bank UAB as a payment provider in the privacy policy
   en: "3.15 Revolut Business (SEPA Bank Transfer)"
   de: "3.15 Revolut Business (SEPA-Banküberweisung)"
@@ -1270,7 +1270,7 @@ revolut_business.heading:
   sv: "3.15 Revolut Business (SEPA-banköverföring)"
   he: "3.15 Revolut Business (העברה בנקאית SEPA)"
   verified_by_human: []
-revolut_business.description:
+providers.payments.revolut_business.description:
   context: Description of Revolut Bank UAB as a receiving bank for SEPA transfers — clarifies minimal data sharing
   en: We use Revolut Bank UAB (Lithuania, EU) as our receiving bank for SEPA bank transfers. When you choose to pay via bank transfer, we display our Revolut IBAN to you. Revolut notifies us via a cryptographically signed webhook when a transfer arrives. We do not send your personal data to Revolut — only the transaction reference, amount, and Revolut's own transaction ID are processed.
   de: Wir nutzen Revolut Bank UAB (Litauen, EU) als Empfangsbank für SEPA-Überweisungen. Wenn Sie per Banküberweisung zahlen, zeigen wir Ihnen unsere Revolut-IBAN. Revolut benachrichtigt uns per kryptografisch signiertem Webhook, wenn eine Überweisung eingeht. Wir übermitteln keine persönlichen Daten an Revolut — nur Verwendungszweck, Betrag und Revoluts eigene Transaktions-ID werden verarbeitet.
@@ -1294,7 +1294,7 @@ revolut_business.description:
   sv: Vi använder Revolut Bank UAB (Litauen, EU) som mottagarbank för SEPA-banköverföringar. När du väljer att betala via banköverföring visar vi vår Revolut-IBAN. Revolut meddelar oss via en kryptografiskt signerad webhook när en överföring anländer. Vi skickar inte dina personuppgifter till Revolut — endast transaktionsreferens, belopp och Revoluts eget transaktions-ID behandlas.
   he: אנו משתמשים ב-Revolut Bank UAB (ליטא, האיחוד האירופי) כבנק מקבל להעברות בנקאיות SEPA. כאשר אתה בוחר לשלם באמצעות העברה בנקאית, אנו מציגים לך את ה-IBAN של Revolut שלנו. Revolut מודיע לנו דרך webhook חתום קריפטוגרפית כאשר העברה מגיעה. אנו לא שולחים את הנתונים האישיים שלך ל-Revolut — רק אסמכתא לעסקה, סכום ומזהה עסקה של Revolut עצמם מעובדים.
   verified_by_human: []
-revolut_business.privacy_policy_link:
+providers.payments.revolut_business.privacy_policy_link:
   context: Link text for Revolut Bank UAB's privacy policy
   en: Revolut Privacy Policy
   de: Revolut Datenschutzerklärung
