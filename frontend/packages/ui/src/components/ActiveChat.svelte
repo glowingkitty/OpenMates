@@ -4929,6 +4929,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Exception: 'compressing' phase shows the shimmer in the bottom indicator
         // since there is no centered overlay for compression.
         if (processingPhase !== null && processingPhase.phase !== 'compressing') {
+            if (currentChat?.is_anonymous) {
+                return processingPhase.statusLines;
+            }
             return [];
         }
         
@@ -5002,7 +5005,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // When centered indicator is active, bottom shows nothing
         // Exception: 'compressing' phase shows as 'typing' shimmer at the bottom
-        if (processingPhase !== null && processingPhase.phase !== 'compressing') return null;
+        if (processingPhase !== null && processingPhase.phase !== 'compressing') {
+            return currentChat?.is_anonymous ? 'typing' : null;
+        }
         
         if (processingPhase?.phase === 'compressing') return 'typing';
         
@@ -5816,6 +5821,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Force update currentChat immediately (fallback to DB if newChat wasn't provided)
             if (newChat) {
                 currentChat = newChat;
+                if (newChat.is_anonymous) {
+                    try {
+                        hydratedMessagesForChat = await anonymousChatStorage.getMessagesForChat(message.chat_id);
+                    } catch (err) {
+                        console.warn('[ActiveChat] Failed to hydrate anonymous pending messages for new chat:', err);
+                    }
+                }
             } else {
                 // If the chat already exists (e.g., as a draft shell), load it now so streaming chunks aren't dropped
                 try {
