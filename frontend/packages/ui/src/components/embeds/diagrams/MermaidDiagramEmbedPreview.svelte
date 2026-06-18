@@ -110,6 +110,7 @@
       {:else if renderedSvg}
         <div
           class="diagram-crop"
+          data-testid="mermaid-rendered-preview"
           style={`--diagram-scale: ${transform.scale}; --diagram-x: ${transform.offsetX}px; --diagram-y: ${transform.offsetY}px;`}
           aria-label={`${content.title} Mermaid diagram preview`}
         >
