@@ -142,7 +142,7 @@ private struct MermaidSourcePreview: View {
             .foregroundStyle(Color.fontSecondary)
             .padding(.spacing3)
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .background(Color.grey15)
+            .background(Color.grey10)
             .clipShape(RoundedRectangle(cornerRadius: .radius3))
             .lineLimit(lineLimit)
     }
