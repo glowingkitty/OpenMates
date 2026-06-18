@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-18
 key_files:
 - frontend/packages/ui/src/services/clientLogForwarder.ts
 - frontend/packages/ui/src/services/logCollector.ts
@@ -65,6 +65,12 @@ Browser (admin only)
   OpenObserve :5080 (stream: "client-console", job="client-console")
 ```
 
+Playwright E2E runs use the same collector and queue, but when the page is loaded
+with `#e2e-debug=...&e2e-token=...`, `clientLogForwarder.ts` sends the main queue
+only to `POST /e2e/client-logs` with `X-E2E-Debug-Token`. It intentionally skips
+the admin endpoint in E2E mode so admin test accounts do not produce browser CORS
+errors while the test-only log capture path remains active.
+
 ### Forwarder Lifecycle
 
 | Event                              | Action                                     |
@@ -73,6 +79,7 @@ Browser (admin only)
 | Session restore with `is_admin`    | `clientLogForwarder.start()`               |
 | Logout                             | `clientLogForwarder.stop()` (drains first) |
 | Session expiry                     | `clientLogForwarder.stop()`                |
+| E2E debug hash detected            | `clientLogForwarder.startE2E()`            |
 
 The `is_admin` flag comes from `/v1/auth/login` and `/v1/auth/session` responses, sourced from the Redis user profile cache. When admin status changes via `AdminMethods.make_user_admin()` / `revoke_admin_privileges()`, the cache key is deleted immediately.
 
