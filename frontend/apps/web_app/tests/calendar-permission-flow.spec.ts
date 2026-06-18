@@ -97,6 +97,8 @@ test.describe('Calendar permission flow', () => {
 			calendarSkillEmbed.first().locator('[data-testid="app-icon-circle"][data-app-icon="calendar"]')
 		).toBeVisible();
 		await expect(calendarSkillEmbed.first().locator('[data-skill-icon="search"]')).toBeVisible();
+		await expect(calendarSkillEmbed.first()).toContainText('Search');
+		await expect(calendarSkillEmbed.first()).not.toContainText('Calendar events');
 		await expect(page.getByTestId('message-assistant').first()).not.toContainText('"type":"app_skill_use"');
 		await expect(page.getByTestId('message-assistant').first()).not.toContainText('calendar | get-events');
 

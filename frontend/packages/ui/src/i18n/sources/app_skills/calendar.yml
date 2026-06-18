@@ -1,7 +1,7 @@
 get_events:
-  context: Skill name for reading calendar events
-  en: Get Events
-  de: Termine abrufen
+  context: Skill name for searching connected calendar events
+  en: Search
+  de: Suchen
   verified_by_human: [en, de]
 get_events.description:
   context: Description for reading calendar events

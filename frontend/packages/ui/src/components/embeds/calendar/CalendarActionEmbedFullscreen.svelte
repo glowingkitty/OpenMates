@@ -52,7 +52,7 @@
 
   function skillTitle(value: string): string {
     const titles: Record<string, string> = {
-      'get-events': 'Calendar events',
+      'get-events': 'Search',
       'create-event': 'Create calendar event',
       'update-event': 'Update calendar event',
       'delete-event': 'Delete calendar event'
@@ -76,7 +76,7 @@
 <UnifiedEmbedFullscreen
   appId="calendar"
   {skillId}
-  skillIconName="calendar"
+  skillIconName="search"
   embedHeaderTitle={title}
   embedHeaderSubtitle={subtitle}
   {onClose}

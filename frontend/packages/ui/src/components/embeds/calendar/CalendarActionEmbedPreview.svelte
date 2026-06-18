@@ -83,7 +83,7 @@
 
   function skillTitle(skillId: string): string {
     const titles: Record<string, string> = {
-      'get-events': 'Calendar events',
+      'get-events': 'Search',
       'create-event': 'Create calendar event',
       'update-event': 'Update calendar event',
       'delete-event': 'Delete calendar event'
