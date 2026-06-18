@@ -9,7 +9,11 @@ import XCTest
 
 @MainActor
 enum RealAccountUITestSupport {
-    static func launchApp(preferPasswordLogin: Bool = true, disableAuthCache: Bool = false) -> XCUIApplication {
+    static func launchApp(
+        preferPasswordLogin: Bool = true,
+        disableAuthCache: Bool = false,
+        extraArguments: [String] = []
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         var launchArguments: [String] = []
         if preferPasswordLogin {
@@ -18,6 +22,7 @@ enum RealAccountUITestSupport {
         if disableAuthCache {
             launchArguments.append("--ui-test-disable-auth-cache")
         }
+        launchArguments.append(contentsOf: extraArguments)
         app.launchArguments = launchArguments
         app.launch()
         return app

@@ -27,7 +27,11 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     func testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse() throws {
-        let app = RealAccountUITestSupport.launchApp(preferPasswordLogin: false, disableAuthCache: true)
+        let app = RealAccountUITestSupport.launchApp(
+            preferPasswordLogin: false,
+            disableAuthCache: true,
+            extraArguments: ["--ui-test-start-new-chat"]
+        )
 
         XCTAssertTrue(app.buttons["login-signup-button"].waitForExistence(timeout: 15))
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: anonymousPrompt)

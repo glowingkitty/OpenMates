@@ -593,7 +593,13 @@ struct MainAppView: View {
         guard !didApplyLaunchCommand else { return }
         didApplyLaunchCommand = true
 
-        if launchCommand?.action == .newChat {
+        #if DEBUG
+        let shouldStartNewChatForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
+        #else
+        let shouldStartNewChatForUITest = false
+        #endif
+
+        if launchCommand?.action == .newChat || shouldStartNewChatForUITest {
             openNewChatScreen()
         }
     }
