@@ -35,6 +35,7 @@ const {
 	createSignupLogger,
 	createStepScreenshotter,
 	getTestAccount,
+	withLiveRecordMarker
 } = require('./signup-flow-helpers');
 
 const fs = require('fs');
@@ -43,6 +44,21 @@ const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = requ
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
+const LIVE_INFERENCE_ENV = 'OPENMATES_EMBED_DIFF_LIVE_INFERENCE';
+const RECORD_FIXTURES_ENV = 'OPENMATES_EMBED_DIFF_RECORD_FIXTURES';
+const CODE_DIFF_LIVE_MOCK_GROUP = 'embed_diff_code_web';
+const SHEET_DIFF_LIVE_MOCK_GROUP = 'embed_diff_sheet_web';
+const DOC_DIFF_LIVE_MOCK_GROUP = 'embed_diff_doc_web';
+
+function withEmbedDiffMockMarker(message: string, groupId: string): string {
+	if (process.env[LIVE_INFERENCE_ENV] === '1') {
+		return message;
+	}
+	if (process.env.E2E_RECORD_LIVE_FIXTURES || process.env[RECORD_FIXTURES_ENV] === '1') {
+		return withLiveRecordMarker(message, groupId);
+	}
+	return `${message} <<<TEST_LIVE_MOCK:${groupId}>>>`;
+}
 
 // All tests in this file use the same long-lived account slot and create new
 // chats with embeds. Running them concurrently races last_opened/chat-key state
@@ -122,6 +138,16 @@ async function getAssistantMessageCount(page: any): Promise<number> {
 	return page.getByTestId('message-assistant').count();
 }
 
+async function getFinishedCodeEmbedIds(page: any): Promise<string[]> {
+	return page
+		.locator('[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]')
+		.evaluateAll((elements: Element[]) =>
+			elements
+				.map((element) => element.getAttribute('data-embed-id'))
+				.filter((renderedEmbedId): renderedEmbedId is string => Boolean(renderedEmbedId))
+		);
+}
+
 /**
  * Streaming completion only means the assistant text finished. Embed and
  * post-processing updates can still arrive a moment later; deleting the chat too
@@ -152,9 +178,10 @@ test.describe('Embed Diff-Based Editing', () => {
 		await startNewChat(page, log);
 		await screenshot(page, '02-new-chat');
 
-		// Turn 1: Generate a code embed (no mock — requires real AI inference)
+		// Turn 1: Generate a code embed. Live-mock replay is the default so the
+		// spec exercises the real backend pipeline without depending on model drift.
 		const turn1Prompt = 'Write a Python function called calculate_average that takes a list of numbers and returns their average. Keep it simple, just 5-10 lines.';
-		await sendMessage(page, turn1Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn1Prompt, CODE_DIFF_LIVE_MOCK_GROUP), log);
 		log('Turn 1 sent — waiting for code embed...');
 
 		await waitForStreamingComplete(page, log, 0);
@@ -163,11 +190,14 @@ test.describe('Embed Diff-Based Editing', () => {
 		const embedId = await waitForFinishedCodeEmbed(page, 0, log);
 		expect(embedId).toBeTruthy();
 		log(`Turn 1 code embed_id: ${embedId}`);
+		const preEditEmbedIds = await getFinishedCodeEmbedIds(page);
+		log(`Rendered code embed IDs before edit: ${preEditEmbedIds.join(', ')}`);
+		expect(preEditEmbedIds).toContain(embedId);
 		await screenshot(page, '03-turn1-code-embed');
 
 		// Turn 2: Ask to modify the code (should trigger diff)
 		const turn2Prompt = 'Rename the function from calculate_average to compute_mean and add a type hint for the return value (-> float).';
-		await sendMessage(page, turn2Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn2Prompt, CODE_DIFF_LIVE_MOCK_GROUP), log);
 		log('Turn 2 sent — waiting for diff application...');
 
 		await waitForStreamingComplete(page, log, 1);
@@ -188,13 +218,10 @@ test.describe('Embed Diff-Based Editing', () => {
 		log(`Total finished code embeds on page: ${embedCount}`);
 		expect(embedCount).toBeGreaterThanOrEqual(1);
 
-		const renderedEmbedIds = await allCodeEmbeds.evaluateAll((elements: Element[]) =>
-			elements
-				.map((element) => element.getAttribute('data-embed-id'))
-				.filter((renderedEmbedId): renderedEmbedId is string => Boolean(renderedEmbedId))
-		);
+		const renderedEmbedIds = await getFinishedCodeEmbedIds(page);
 		log(`Rendered code embed IDs after edit: ${renderedEmbedIds.join(', ')}`);
-		expect(new Set(renderedEmbedIds)).toEqual(new Set([embedId]));
+		expect(new Set(renderedEmbedIds)).toEqual(new Set(preEditEmbedIds));
+		expect(renderedEmbedIds).toContain(embedId);
 
 		// Check that the updated embed contains the new function name
 		// Open fullscreen to see the full code
@@ -243,7 +270,7 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		// Turn 1: Generate a table
 		const turn1Prompt = 'Create a comparison table of 3 programming languages (Python, JavaScript, Rust) with columns: Language, Typing, Speed, Use Case. Use a markdown table.';
-		await sendMessage(page, turn1Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn1Prompt, SHEET_DIFF_LIVE_MOCK_GROUP), log);
 		await waitForStreamingComplete(page, log, 0);
 
 		// Wait for sheet embed
@@ -267,7 +294,7 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		// Turn 2: Add a row
 		const turn2Prompt = 'Add Go to the table with typing: Static, speed: Fast, use case: Systems/Cloud.';
-		await sendMessage(page, turn2Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn2Prompt, SHEET_DIFF_LIVE_MOCK_GROUP), log);
 		await waitForStreamingComplete(page, log, 1);
 		await screenshot(page, '04-sheet-after-diff');
 
@@ -297,7 +324,7 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		// Turn 1: Generate a document
 		const turn1Prompt = 'Write a short cover letter document for a software engineer position at a startup. Title it "Cover Letter - Software Engineer". Keep it to 3 paragraphs.';
-		await sendMessage(page, turn1Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn1Prompt, DOC_DIFF_LIVE_MOCK_GROUP), log);
 		await waitForStreamingComplete(page, log, 0);
 
 		// Wait for document embed
@@ -321,7 +348,7 @@ test.describe('Embed Diff-Based Editing', () => {
 
 		// Turn 2: Modify the document
 		const turn2Prompt = 'Change the title from "Cover Letter - Software Engineer" to "Application - Senior Engineer" and update the first paragraph to mention 8 years of experience instead of generic language.';
-		await sendMessage(page, turn2Prompt, log);
+		await sendMessage(page, withEmbedDiffMockMarker(turn2Prompt, DOC_DIFF_LIVE_MOCK_GROUP), log);
 		await waitForStreamingComplete(page, log, 1);
 		await expect(
 			page.locator('[data-testid="embed-preview"][data-app-id="docs"][data-status="processing"]')
