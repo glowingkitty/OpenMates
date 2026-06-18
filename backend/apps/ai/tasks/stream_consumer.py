@@ -2571,6 +2571,31 @@ def _is_code_block_too_short_for_embed(code_content: str) -> bool:
     return len(code_content.strip()) < MIN_CODE_EMBED_CONTENT_LENGTH
 
 
+def _is_example_only_code_block(code_content: str) -> bool:
+    stripped = code_content.strip()
+    if not stripped:
+        return False
+
+    lowered = stripped.lower()
+    if "example usage" in lowered and not re.search(r"\b(def|class)\b", lowered):
+        return True
+
+    non_comment_lines = [
+        line.strip()
+        for line in stripped.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    return (
+        len(non_comment_lines) <= 2
+        and any("print(" in line for line in non_comment_lines)
+        and not any(re.search(r"\b(def|class)\b", line) for line in non_comment_lines)
+    )
+
+
+def _should_skip_code_block_for_embed(code_content: str) -> bool:
+    return _is_code_block_too_short_for_embed(code_content) or _is_example_only_code_block(code_content)
+
+
 _EDIT_EXISTING_ARTIFACT_RE = re.compile(
     r"\b(edit|modify|update|change|fix|rename|preserve|patch)\b.*\b(existing|previous|same|artifact|embed|code|function|file|document|table|email)\b"
     r"|\b(existing|previous|same|artifact|embed|code|function|file|document|table|email)\b.*\b(edit|modify|update|change|fix|rename|preserve|patch)\b",
@@ -4541,10 +4566,10 @@ async def _consume_main_processing_stream(
                                 else:
                                     # Skip tiny code blocks — keep as inline code, don't create embed
                                     # (fix for issue 6a948813: broken embeds from example fences)
-                                    if _is_code_block_too_short_for_embed(code_content):
+                                    if _should_skip_code_block_for_embed(code_content):
                                         logger.info(
-                                            f"{log_prefix} Skipping code embed for short code block "
-                                            f"({len(code_content.strip())} chars < {MIN_CODE_EMBED_CONTENT_LENGTH})"
+                                            f"{log_prefix} Skipping code embed for inline/example code block "
+                                            f"({len(code_content.strip())} chars)"
                                         )
                                         # Reset state — leave original chunk as-is
                                         in_code_block = False
@@ -5763,6 +5788,44 @@ async def _consume_main_processing_stream(
                             current_code_filename = None
                             current_code_content = ""
                             current_code_embed_id = None
+                        elif (
+                            current_code_embed_id
+                            and not current_code_replacement_ref
+                            and not in_plot_block
+                            and not in_document_block
+                            and not in_email_block
+                            and not in_pcb_schematic_block
+                            and not in_mermaid_block
+                            and _should_skip_code_block_for_embed(current_code_content)
+                            and directus_service
+                            and encryption_service
+                            and user_vault_key_id
+                        ):
+                            from backend.core.api.app.services.embed_service import EmbedService
+
+                            embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                            await embed_service.update_code_embed_content(
+                                embed_id=current_code_embed_id,
+                                code_content="",
+                                chat_id=request_data.chat_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                status="error",
+                                log_prefix=log_prefix,
+                            )
+                            logger.info(
+                                f"{log_prefix} Skipped finalized embed for inline/example streaming code block "
+                                f"{current_code_embed_id} ({len(current_code_content.strip())} chars)"
+                            )
+                            chunk = ""
+
+                            in_code_block = False
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
+                            current_code_replacement_ref = None
                         # Finalize embed (only for real code/document/plot blocks, not fake tool calls)
                         elif current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
                             try:

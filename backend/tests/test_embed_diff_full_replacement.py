@@ -13,6 +13,7 @@ import pytest
 
 from backend.apps.ai.tasks.stream_consumer import (
     _is_edit_existing_artifact_request,
+    _should_skip_code_block_for_embed,
     _select_cached_code_full_replacement_target,
     _select_full_replacement_target,
     _select_history_code_full_replacement_target,
@@ -61,6 +62,21 @@ def test_detects_enum_style_user_role_as_existing_artifact_edit() -> None:
     )
 
     assert _is_edit_existing_artifact_request(request) is True
+
+
+def test_skips_example_usage_snippet_code_embed() -> None:
+    assert _should_skip_code_block_for_embed(
+        "# Example usage:\nprint(calculate_average([10, 20, 30, 40]))  # Output: 25.0"
+    ) is True
+
+
+def test_keeps_function_code_as_embed() -> None:
+    assert _should_skip_code_block_for_embed(
+        "def calculate_average(numbers):\n"
+        "    if not numbers:\n"
+        "        return 0\n"
+        "    return sum(numbers) / len(numbers)"
+    ) is False
 
 
 def test_selects_single_prior_embed_for_full_replacement_edit() -> None:
