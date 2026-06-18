@@ -33,6 +33,15 @@ def test_stream_consumer_suppresses_deferred_application_preview_chunks() -> Non
     assert "replaced with an embed reference at close" in source
 
 
+def test_stream_consumer_strips_raw_application_source_after_parent_embed() -> None:
+    source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
+
+    assert "def _strip_generated_application_source_text" in source
+    assert "_find_application_embed_reference_start(response_text, bundle_start)" in source
+    assert "payload.get(\"type\") == \"application\"" in source
+    assert "_strip_generated_application_source_text(" in source
+
+
 def test_mermaid_instruction_requires_mermaid_fences_for_diagrams() -> None:
     instruction = MERMAID_INSTRUCTION_PATH.read_text(encoding="utf-8")
 

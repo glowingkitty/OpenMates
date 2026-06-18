@@ -2978,6 +2978,40 @@ def _extract_application_preview_files_from_markdown_code_block(
     return [], response_text
 
 
+def _find_application_embed_reference_start(response_text: str, start_index: int) -> int:
+    pattern = re.compile(r'```json\s*\n(?P<payload>.*?)\n\s*```', re.DOTALL)
+    for match in pattern.finditer(response_text, start_index):
+        try:
+            payload = json.loads(match.group("payload"))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and payload.get("type") == "application":
+            return match.start()
+    return len(response_text)
+
+
+def _strip_generated_application_source_text(response_text: str) -> str:
+    """Remove raw generated app file bundles once an application embed exists."""
+    if not response_text:
+        return response_text
+
+    bundle_start: Optional[int] = None
+    for match in re.finditer(r'(?m)^[ \t]*([a-zA-Z0-9_+.#-]{1,32}:.+)$', response_text):
+        if _parse_generated_app_file_header(match.group(1)):
+            bundle_start = match.start()
+            break
+
+    if bundle_start is None:
+        return response_text
+
+    bundle_end = _find_application_embed_reference_start(response_text, bundle_start)
+    cleaned = response_text[:bundle_start].rstrip()
+    suffix = response_text[bundle_end:].lstrip()
+    if cleaned and suffix:
+        return f"{cleaned}\n\n{suffix}".strip()
+    return f"{cleaned}{suffix}".strip()
+
+
 def _build_application_manifest_from_code_embeds(
     code_embeds: List[Dict[str, str]],
 ) -> Optional[Dict[str, Any]]:
@@ -6589,7 +6623,9 @@ async def _consume_main_processing_stream(
                         log_prefix=log_prefix,
                     )
                     if application_reference:
-                        aggregated_response = cleaned_response.rstrip() + "\n\n" + application_reference
+                        aggregated_response = _strip_generated_application_source_text(
+                            cleaned_response.rstrip() + "\n\n" + application_reference
+                        )
                         final_response_chunks = [aggregated_response]
                         application_parent_embed_created = True
                         logger.info(
@@ -6610,7 +6646,9 @@ async def _consume_main_processing_stream(
                     response_text=aggregated_response,
                 )
                 if application_reference:
-                    aggregated_response = aggregated_response.rstrip() + "\n\n" + application_reference
+                    aggregated_response = _strip_generated_application_source_text(
+                        aggregated_response.rstrip() + "\n\n" + application_reference
+                    )
                     final_response_chunks = [aggregated_response]
                     application_parent_embed_created = True
                     app_payload = _create_redis_payload(

@@ -25,6 +25,7 @@ try:
         _has_stream_ready_application_manifest,
         _parse_application_preview_combined_files,
         _parse_application_preview_json_bundle_files,
+        _strip_generated_application_source_text,
         _strip_code_file_header_from_content,
         _should_process_chunk_as_code_block,
     )
@@ -405,6 +406,26 @@ console.log('hello');
             {"language": "svelte", "filename": "src/App.svelte", "content": "<main />"},
         ]
         assert cleaned == "Intro\n\nOutro"
+
+    def test_strips_raw_application_source_text_before_application_embed(self):
+        response = (
+            "Here is the recipe manager app.\n\n"
+            "html:index.html\n"
+            "<div id=\"app\"></div>\n\n"
+            "svelte:src/App.svelte\n"
+            "<main>Recipe Manager</main>\n\n"
+            "typescript:src/main.ts\n"
+            "import App from './App.svelte';\n\n"
+            '```json\n{"type":"application","embed_id":"app-parent"}\n```\n'
+        )
+
+        cleaned = _strip_generated_application_source_text(response)
+
+        assert "Here is the recipe manager app." in cleaned
+        assert '"type":"application"' in cleaned
+        assert "html:index.html" not in cleaned
+        assert "svelte:src/App.svelte" not in cleaned
+        assert "Recipe Manager" not in cleaned
 
 
 class FakeApplicationArtifactEmbedService:
