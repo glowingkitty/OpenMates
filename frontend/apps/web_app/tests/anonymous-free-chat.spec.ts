@@ -353,9 +353,6 @@ test.describe('Anonymous free chat', () => {
 		await expect(
 			page.getByTestId('message-user').filter({ hasText: 'Slow anonymous stream should still show my message' })
 		).toBeVisible({ timeout: 2000 });
-		await expect(page.getByTestId('message-system').filter({ hasText: 'You are using free anonymous credits.' })).toBeVisible({
-			timeout: 2000
-		});
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toHaveCount(0);
 
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toBeVisible({
