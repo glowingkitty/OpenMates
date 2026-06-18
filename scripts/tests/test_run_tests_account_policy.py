@@ -60,6 +60,55 @@ def test_batch_size_is_capped_to_normal_account_pool():
     assert plan[13] == (1, "regular-13.spec.ts", 1)
 
 
+def test_dispatch_plan_can_use_preflight_available_normal_slots():
+    run_tests = load_run_tests_module()
+    regular_specs = [f"regular-{index}.spec.ts" for index in range(5)]
+
+    plan = run_tests.build_playwright_dispatch_plan(
+        regular_specs,
+        batch_size=20,
+        normal_account_slots=(1, 2),
+    )
+
+    assert plan == [
+        (0, "regular-0.spec.ts", 1),
+        (0, "regular-1.spec.ts", 2),
+        (1, "regular-2.spec.ts", 1),
+        (1, "regular-3.spec.ts", 2),
+        (2, "regular-4.spec.ts", 1),
+    ]
+
+
+def test_preflight_availability_reduces_normal_pool_and_blocks_reserved_specs():
+    run_tests = load_run_tests_module()
+    preflight_results = [
+        run_tests.SpecResult(name=run_tests.ACCOUNT_PREFLIGHT_SPEC, status="passed", account=1),
+        run_tests.SpecResult(name=run_tests.ACCOUNT_PREFLIGHT_SPEC, status="passed", account=2),
+        run_tests.SpecResult(name=run_tests.ACCOUNT_PREFLIGHT_SPEC, status="skipped", account=3),
+        run_tests.SpecResult(name=run_tests.ACCOUNT_PREFLIGHT_SPEC, status="skipped", account=14),
+        run_tests.SpecResult(name=run_tests.ACCOUNT_PREFLIGHT_SPEC, status="passed", account=15),
+    ]
+
+    runnable, blocked, normal_slots, reason = run_tests._apply_preflight_account_availability(
+        [
+            "regular.spec.ts",
+            "account-recovery-flow.spec.ts",
+            "backup-code-login-flow.spec.ts",
+        ],
+        preflight_results,
+    )
+
+    assert runnable == ["regular.spec.ts", "backup-code-login-flow.spec.ts"]
+    assert normal_slots == (1, 2)
+    assert len(blocked) == 1
+    assert blocked[0].file == "account-recovery-flow.spec.ts"
+    assert blocked[0].status == "failed"
+    assert blocked[0].account == 14
+    assert reason is not None
+    assert "Unavailable normal account slot(s)" in reason
+    assert "account-recovery-flow.spec.ts (slot 14)" in reason
+
+
 def test_hourly_dev_specs_exist():
     run_tests = load_run_tests_module()
     tests_dir = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
@@ -110,6 +159,27 @@ def test_extract_account_email_from_playwright_stdout(tmp_path):
     )
 
     assert run_tests.BatchRunner._extract_account_email_from_playwright_json(report) == "acct@example.test"
+
+
+def test_playwright_json_passed_with_skipped_phases_is_not_an_error(tmp_path):
+    run_tests = load_run_tests_module()
+    report = tmp_path / "playwright.json"
+    report.write_text(
+        '{"suites":[{"specs":[{"tests":[{"results":['
+        '{"status":"passed","steps":[]},'
+        '{"status":"skipped","steps":[]}'
+        ']}]}]}]}',
+        encoding="utf-8",
+    )
+
+    extracted_err, errors, steps, result_statuses = (
+        run_tests.BatchRunner._extract_structured_data_from_playwright_json(report)
+    )
+
+    assert extracted_err is None
+    assert errors == []
+    assert steps == []
+    assert set(result_statuses) == {"passed", "skipped"}
 
 
 def test_credit_guard_pipes_local_script_into_api_container(tmp_path, monkeypatch):

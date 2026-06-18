@@ -9,10 +9,11 @@ connected-account skills must be rejected before inference or provider work.
 from __future__ import annotations
 
 import sys
-from types import ModuleType, SimpleNamespace
+from types import ModuleType
 
 import pytest
 from fastapi import HTTPException
+from starlette.requests import Request
 
 import backend.core.api.app.routes.anonymous as anonymous_routes
 from backend.core.api.app.routes.anonymous import (
@@ -127,9 +128,14 @@ async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeyp
     monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
     monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
 
-    request = SimpleNamespace(
-        headers={"host": "api.dev.openmates.org"},
-        client=SimpleNamespace(host="198.51.100.7"),
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/v1/anonymous/chat/stream",
+            "headers": [(b"host", b"api.dev.openmates.org")],
+            "client": ("198.51.100.7", 443),
+        }
     )
     payload = AnonymousChatStreamRequest(
         anonymous_id="anon-1",

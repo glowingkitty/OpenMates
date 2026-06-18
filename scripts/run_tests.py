@@ -930,33 +930,101 @@ class GitHubActionsClient:
         return None
 
 
-def _effective_playwright_batch_size(requested_batch_size: int) -> int:
+def _effective_playwright_batch_size(
+    requested_batch_size: int,
+    normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
+) -> int:
     """Keep each batch from assigning the same normal account twice."""
+    if not normal_account_slots:
+        return 0
     if requested_batch_size <= 0:
-        return len(NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)
-    return min(requested_batch_size, len(NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS))
+        return len(normal_account_slots)
+    return min(requested_batch_size, len(normal_account_slots))
 
 
-def _account_for_spec_in_batch(spec: str, normal_index: int) -> int:
+def _account_for_spec_in_batch(
+    spec: str,
+    normal_index: int,
+    normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
+) -> int:
     """Return the reserved account for mutating specs, otherwise a normal slot."""
     reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(spec)
     if reserved_account is not None:
         return reserved_account
-    return NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[normal_index % len(NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)]
+    if not normal_account_slots:
+        raise ValueError("At least one normal Playwright account slot is required")
+    return normal_account_slots[normal_index % len(normal_account_slots)]
 
 
-def build_playwright_dispatch_plan(specs: list[str], batch_size: int) -> list[tuple[int, str, int]]:
+def build_playwright_dispatch_plan(
+    specs: list[str],
+    batch_size: int,
+    normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
+) -> list[tuple[int, str, int]]:
     """Build (batch_index, spec, account) tuples using the credential-isolation policy."""
-    effective_batch_size = _effective_playwright_batch_size(batch_size)
+    effective_batch_size = _effective_playwright_batch_size(batch_size, normal_account_slots)
+    if effective_batch_size <= 0:
+        return []
     plan: list[tuple[int, str, int]] = []
     for batch_idx, start in enumerate(range(0, len(specs), effective_batch_size)):
         normal_index = 0
         for spec in specs[start:start + effective_batch_size]:
-            account = _account_for_spec_in_batch(spec, normal_index)
+            account = _account_for_spec_in_batch(spec, normal_index, normal_account_slots)
             if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
                 normal_index += 1
             plan.append((batch_idx, spec, account))
     return plan
+
+
+def _passed_preflight_slots(results: list[SpecResult]) -> frozenset[int]:
+    """Return account slots that completed the preflight login successfully."""
+    return frozenset(
+        result.account
+        for result in results
+        if result.account is not None and result.status == "passed"
+    )
+
+
+def _apply_preflight_account_availability(
+    specs: list[str],
+    preflight_results: list[SpecResult],
+) -> tuple[list[str], list[SpecResult], tuple[int, ...], Optional[str]]:
+    """Filter out specs whose reserved account is unavailable.
+
+    Normal account slots are interchangeable, so missing optional normal slots
+    should reduce concurrency rather than abort the entire Playwright suite.
+    Reserved slots are tied to credential-mutating specs and must block only the
+    specs that require them.
+    """
+    passed_slots = _passed_preflight_slots(preflight_results)
+    normal_slots = tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot in passed_slots)
+    missing_normal_slots = tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot not in passed_slots)
+    blocked: list[SpecResult] = []
+    runnable: list[str] = []
+
+    for spec in specs:
+        reserved_slot = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(spec)
+        if reserved_slot is not None and reserved_slot not in passed_slots:
+            blocked.append(SpecResult(
+                name=spec,
+                file=spec,
+                status="failed",
+                error=f"Reserved Playwright account slot {reserved_slot} failed or was not configured in preflight",
+                account=reserved_slot,
+            ))
+            continue
+        runnable.append(spec)
+
+    reason_parts: list[str] = []
+    if missing_normal_slots:
+        reason_parts.append(
+            "Unavailable normal account slot(s): " + ", ".join(str(slot) for slot in missing_normal_slots)
+        )
+    if blocked:
+        blocked_labels = ", ".join(f"{result.file} (slot {result.account})" for result in blocked)
+        reason_parts.append("Blocked reserved-account spec(s): " + blocked_labels)
+    reason = "; ".join(reason_parts) if reason_parts else None
+    return runnable, blocked, normal_slots, reason
 
 
 # ---------------------------------------------------------------------------
@@ -973,12 +1041,14 @@ class BatchRunner:
         batch_size: int = 20,
         fail_fast: bool = True,
         use_mocks: bool = True,
+        normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
     ) -> None:
         self.client = client
         self.specs = specs
         self.batch_size = batch_size
         self.fail_fast = fail_fast
         self.use_mocks = use_mocks
+        self.normal_account_slots = normal_account_slots
 
     def run_all_batches(self) -> SuiteResult:
         """Execute all specs in batches. Returns aggregated SuiteResult."""
@@ -986,7 +1056,9 @@ class BatchRunner:
             return SuiteResult(status="skipped", reason="no specs to run")
 
         all_results: list[SpecResult] = []
-        effective_batch_size = _effective_playwright_batch_size(self.batch_size)
+        effective_batch_size = _effective_playwright_batch_size(self.batch_size, self.normal_account_slots)
+        if effective_batch_size <= 0:
+            return SuiteResult(status="failed", reason="no available normal Playwright account slots")
         total_batches = (len(self.specs) + effective_batch_size - 1) // effective_batch_size
         suite_start = time.time()
 
@@ -1046,7 +1118,7 @@ class BatchRunner:
             elif spec == ACCOUNT_PREFLIGHT_SPEC:
                 account = i + 1
             else:
-                account = _account_for_spec_in_batch(spec, normal_account_index)
+                account = _account_for_spec_in_batch(spec, normal_account_index, self.normal_account_slots)
             if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC and spec != ACCOUNT_PREFLIGHT_SPEC:
                 normal_account_index += 1
             _log(f"  Dispatching {spec} (account {account})")
@@ -1121,12 +1193,18 @@ class BatchRunner:
                     )
                     account_email = self._extract_account_email_from_playwright_json(pw_json)
                     if status == "passed" and pw_result_statuses:
+                        non_passing_statuses = {
+                            result_status
+                            for result_status in pw_result_statuses
+                            if result_status not in {"passed", "skipped"}
+                        }
                         if all(result_status == "skipped" for result_status in pw_result_statuses):
                             status = "skipped"
                             error = "Playwright spec skipped all tests"
-                        elif any(result_status != "passed" for result_status in pw_result_statuses):
+                        elif non_passing_statuses:
                             status = "failed"
-                            error = extracted_err or "Playwright JSON reported a non-passing result"
+                            status_summary = ", ".join(sorted(non_passing_statuses))
+                            error = extracted_err or f"Playwright JSON reported non-passing result(s): {status_summary}"
                     if extracted_err and status == "failed":
                         error = extracted_err
 
@@ -4964,10 +5042,25 @@ class TestOrchestrator:
 
         client = GitHubActionsClient()
 
+        blocked_preflight_results: list[SpecResult] = []
+        preflight_reason: Optional[str] = None
+        normal_account_slots = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+
         if not self.spec and not self.only_failed:
             preflight = self._run_account_preflight(client)
-            if preflight.status == "failed":
-                return preflight
+            preflight_results = [self._dict_to_spec_result(test) for test in preflight.tests]
+            specs, blocked_preflight_results, normal_account_slots, preflight_reason = (
+                _apply_preflight_account_availability(specs, preflight_results)
+            )
+            if not normal_account_slots:
+                return SuiteResult(
+                    status="failed",
+                    tests=[BatchRunner._spec_result_to_dict(result) for result in blocked_preflight_results],
+                    duration_seconds=preflight.duration_seconds,
+                    reason=(preflight_reason or "No available normal Playwright account slots"),
+                )
+            if preflight_reason:
+                _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
         elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
             account = _account_for_spec_in_batch(self.spec, 0)
             preflight = self._run_account_preflight(client, accounts=[account])
@@ -4980,8 +5073,21 @@ class TestOrchestrator:
             batch_size=self.max_concurrent,
             fail_fast=self.fail_fast,
             use_mocks=self.use_mocks,
+            normal_account_slots=normal_account_slots,
         )
         result = runner.run_all_batches()
+
+        if blocked_preflight_results:
+            result.tests = [
+                BatchRunner._spec_result_to_dict(blocked_result)
+                for blocked_result in blocked_preflight_results
+            ] + result.tests
+            result.status = "failed"
+        if preflight_reason:
+            result.reason = (
+                f"{preflight_reason}; {result.reason}"
+                if result.reason else preflight_reason
+            )
 
         # Aggregate storage-audit snapshots from this run into cookies.yml.
         # Skipped for single-spec runs (--spec) since coverage is intentionally
@@ -4991,6 +5097,20 @@ class TestOrchestrator:
             self._merge_cookie_audits()
 
         return result
+
+    @staticmethod
+    def _dict_to_spec_result(data: dict) -> SpecResult:
+        """Rehydrate a serialized spec result for account-planning helpers."""
+        return SpecResult(
+            name=str(data.get("name", "")),
+            file=data.get("file"),
+            status=str(data.get("status", "")),
+            duration_seconds=float(data.get("duration_seconds", 0) or 0),
+            error=data.get("error"),
+            run_id=data.get("run_id"),
+            account=data.get("account"),
+            account_email=data.get("account_email"),
+        )
 
     def _run_account_preflight(
         self,

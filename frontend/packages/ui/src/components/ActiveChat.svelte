@@ -8750,6 +8750,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 } else {
                     console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
+                    if (messageInputFieldRef.getTextContent().trim().length > 0) {
+                        console.debug(`[ActiveChat] Skipping no-draft clear for ${currentChat.chat_id}; composer has live input`);
+                        return;
+                    }
                     // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
                     await messageInputFieldRef.clearMessageField(false, true);
                 }
