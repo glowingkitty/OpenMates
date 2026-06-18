@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -154,9 +155,9 @@ def _redacted_accounts(
 ) -> list[dict[str, Any]]:
     accounts: list[dict[str, Any]] = []
     for account in connected_account_directory:
-        if account.get("app_id") != app_id:
+        if _normalize_app_id(account.get("app_id")) != app_id:
             continue
-        capabilities = list(account.get("capabilities") or [])
+        capabilities = _normalize_capabilities(account.get("capabilities"))
         if not _capabilities_allow_action(capabilities, action):
             continue
         accounts.append(
@@ -170,6 +171,30 @@ def _redacted_accounts(
             }
         )
     return accounts
+
+
+def _normalize_app_id(value: Any) -> str:
+    if value == "google_calendar":
+        return "calendar"
+    return str(value or "")
+
+
+def _normalize_capabilities(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, str)]
+    if isinstance(value, dict):
+        return _normalize_capabilities(value.get("capabilities"))
+    if not isinstance(value, str):
+        return []
+    known_capabilities = {"read", "write", "update", "delete"}
+    tokens = [token for token in _split_capability_string(value) if token]
+    if not tokens or any(token not in known_capabilities for token in tokens):
+        return []
+    return list(dict.fromkeys(tokens))
+
+
+def _split_capability_string(value: str) -> list[str]:
+    return re.split(r"[^a-z0-9]+", value.lower())
 
 
 def _capabilities_allow_action(capabilities: list[str], action: str) -> bool:

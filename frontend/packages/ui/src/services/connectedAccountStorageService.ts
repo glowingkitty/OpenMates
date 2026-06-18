@@ -181,10 +181,10 @@ export async function buildConnectedAccountSendContext(params: {
 				: Promise.resolve(undefined)
 		]);
 
-		const capabilityList = Array.isArray(capabilities)
-			? capabilities
-			: capabilities.capabilities ?? [];
+		const capabilityList = normalizeCapabilityList(capabilities);
 		const appId = normalizeConnectedAccountAppId(permissions.app_id ?? params.appId);
+		const fallbackCapabilities = capabilitiesForActions(permissions.allowed_actions ?? []);
+		const directoryCapabilities = normalizeCapabilityList(directoryHint?.capabilities);
 		const allowedActions = params.allowedActionsOverride
 			?? preauthorizedActions(
 				permissions.allowed_actions ?? params.defaultAllowedActions ?? [],
@@ -198,7 +198,11 @@ export async function buildConnectedAccountSendContext(params: {
 			app_id: appId,
 			account_ref: directoryHint?.account_ref ?? row.id,
 			label: directoryHint?.label ?? label,
-			capabilities: directoryHint?.capabilities ?? capabilityList,
+			capabilities: directoryCapabilities.length
+				? directoryCapabilities
+				: capabilityList.length
+					? capabilityList
+					: fallbackCapabilities,
 			runtime_modes: directoryHint?.runtime_modes
 		});
 		if (allowedActions.length > 0) {
@@ -247,16 +251,20 @@ export async function summarizeConnectedAccountRows(
 					)
 				: Promise.resolve(undefined)
 		]);
-		const capabilityList = Array.isArray(capabilities)
-			? capabilities
-			: capabilities.capabilities ?? [];
+		const capabilityList = normalizeCapabilityList(capabilities);
+		const fallbackCapabilities = capabilitiesForActions(permissions.allowed_actions ?? []);
+		const directoryCapabilities = normalizeCapabilityList(directoryHint?.capabilities);
 		summaries.push({
 			id: row.id,
 			provider_id: providerId,
 			app_id: normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId)),
 			account_ref: directoryHint?.account_ref ?? row.id,
 			label: directoryHint?.label ?? label,
-			capabilities: directoryHint?.capabilities ?? capabilityList,
+			capabilities: directoryCapabilities.length
+				? directoryCapabilities
+				: capabilityList.length
+					? capabilityList
+					: fallbackCapabilities,
 			runtime_modes: directoryHint?.runtime_modes ?? {},
 			updated_at: row.updated_at
 		});
@@ -273,6 +281,34 @@ function appIdForProvider(providerId: string): string {
 function normalizeConnectedAccountAppId(appId: string): string {
 	if (appId === 'google_calendar') return 'calendar';
 	return appId;
+}
+
+function normalizeCapabilityList(value: unknown): string[] {
+	if (Array.isArray(value)) {
+		return value.filter((item): item is string => typeof item === 'string');
+	}
+	if (value && typeof value === 'object' && Array.isArray((value as { capabilities?: unknown }).capabilities)) {
+		return normalizeCapabilityList((value as { capabilities?: unknown }).capabilities);
+	}
+	if (typeof value !== 'string') return [];
+	const knownCapabilities = new Set(['read', 'write', 'update', 'delete']);
+	const tokens = value
+		.toLowerCase()
+		.split(/[^a-z0-9]+/)
+		.filter(Boolean);
+	if (!tokens.length || tokens.some((token) => !knownCapabilities.has(token))) return [];
+	return Array.from(new Set(tokens));
+}
+
+function capabilitiesForActions(actions: string[]): string[] {
+	const capabilities = new Set<string>();
+	for (const action of actions) {
+		if (action === 'read') capabilities.add('read');
+		if (action === 'write') capabilities.add('write');
+		if (action === 'update') capabilities.add('update');
+		if (action === 'delete') capabilities.add('delete');
+	}
+	return Array.from(capabilities);
 }
 
 function preauthorizedActions(

@@ -171,6 +171,72 @@ describe('connectedAccountStorageService', () => {
 		});
 	});
 
+	it('builds approvable directory entries from legacy string capabilities', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:read-write',
+					encrypted_app_permissions:
+						'enc:{"app_id":"google_calendar","allowed_actions":["read","write","update"]}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}'
+				}
+			]
+		});
+
+		expect(context?.directory).toEqual([
+			{
+				connected_account_id: 'acct-1',
+				app_id: 'calendar',
+				account_ref: 'acct-1',
+				label: 'Work calendar',
+				capabilities: ['read', 'write'],
+				runtime_modes: undefined
+			}
+		]);
+		expect(context?.tokenRefInputs).toEqual([]);
+	});
+
+	it('does not broaden update-only action fallback into write capability', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:[]',
+					encrypted_app_permissions: 'enc:{"app_id":"calendar","allowed_actions":["update"]}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}'
+				}
+			]
+		});
+
+		expect(context?.directory?.[0].capabilities).toEqual(['update']);
+		expect(context?.directory?.[0].capabilities).not.toContain('write');
+	});
+
+	it('does not derive capabilities from ambiguous legacy strings', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'calendar',
+			rows: [
+				{
+					...encryptedRow,
+					hashed_user_id: 'hash:user-1',
+					encrypted_account_label: 'enc:"Work calendar"',
+					encrypted_capabilities: 'enc:cannot_delete',
+					encrypted_app_permissions: 'enc:{"app_id":"calendar","allowed_actions":[]}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"google"}'
+				}
+			]
+		});
+
+		expect(context?.directory?.[0].capabilities).toEqual([]);
+	});
+
 	it('summarizes connected account rows without decrypting refresh token envelopes', async () => {
 		const summaries = await summarizeConnectedAccountRows([
 			{
