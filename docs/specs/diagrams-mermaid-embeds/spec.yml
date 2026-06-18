@@ -406,16 +406,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "python3 scripts/audit_example_chats.py / 11 issues before German translation and content_embed_examples fixes"
+        timestamp: "2026-06-18T10:55:00Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/audit_example_chats.py"
+        timestamp: "2026-06-18T11:02:23Z"
 
   - id: T-PLAYWRIGHT-APPLE-CONTRACT
     type: playwright
@@ -546,14 +546,12 @@ implementation_plan:
       reason: Native preview/fullscreen Mermaid renderer.
     - path: apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
       reason: Add Diagrams app fixture.
-    - path: frontend/packages/ui/src/demo_chats/data/example_chats/<diagrams-mermaid-example>.ts
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/email-verification-sequence-diagram.ts
       reason: Canonical public example chat generated from a verified real natural-language chat.
-    - path: frontend/packages/ui/src/i18n/sources/example_chats/<diagrams_mermaid_example>.yml
+    - path: frontend/packages/ui/src/i18n/sources/example_chats/email_verification_sequence_diagram.yml
       reason: Localized public example chat title, description, and transcript text.
-    - path: frontend/packages/ui/src/demo_chats/exampleChatStore.ts
-      reason: Link the canonical example chat to the Diagrams/Mermaid content type if existing metadata does not cover it automatically.
-    - path: scripts/audit_example_chats.py
-      reason: Enforce renderable/public-safe Mermaid example chat coverage if the existing content catalog audit needs a Mermaid-specific check.
+    - path: frontend/packages/ui/src/demo_chats/exampleChatData.ts
+      reason: Register the canonical example chat in the public example chat catalog.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/diagrams-mermaid-embeds/spec.yml
     - Write or extend the listed tests before feature code and record red-phase evidence.
@@ -675,10 +673,9 @@ tasks:
       acceptance_criteria:
         - AC-7
     expected_files:
-      - frontend/packages/ui/src/demo_chats/data/example_chats/<diagrams-mermaid-example>.ts
-      - frontend/packages/ui/src/i18n/sources/example_chats/<diagrams_mermaid_example>.yml
-      - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
-      - scripts/audit_example_chats.py
+      - frontend/packages/ui/src/demo_chats/data/example_chats/email-verification-sequence-diagram.ts
+      - frontend/packages/ui/src/i18n/sources/example_chats/email_verification_sequence_diagram.yml
+      - frontend/packages/ui/src/demo_chats/exampleChatData.ts
     verification:
       - T-PLAYWRIGHT-MERMAID
       - T-EXAMPLE-CHAT-AUDIT
