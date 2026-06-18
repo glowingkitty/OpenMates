@@ -4,6 +4,7 @@
 // credentials are read only from the test process environment and are never
 // logged or committed.
 
+import Foundation
 import XCTest
 
 @MainActor
@@ -27,6 +28,8 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     func testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse() throws {
+        try requireAnonymousFreeUsageActive()
+
         let app = RealAccountUITestSupport.launchApp(
             preferPasswordLogin: false,
             disableAuthCache: true,
@@ -37,4 +40,37 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: anonymousPrompt)
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
     }
+
+    private func requireAnonymousFreeUsageActive() throws {
+        let url = URL(string: "https://api.dev.openmates.org/v1/anonymous/free-usage/status")!
+        let semaphore = DispatchSemaphore(value: 0)
+        var probeResult: Result<AnonymousFreeUsageProbe, Error>?
+
+        URLSession.shared.dataTask(with: url) { data, _, error in
+            defer { semaphore.signal() }
+            if let error {
+                probeResult = .failure(error)
+                return
+            }
+            guard let data else {
+                probeResult = .failure(URLError(.badServerResponse))
+                return
+            }
+            probeResult = Result { try JSONDecoder().decode(AnonymousFreeUsageProbe.self, from: data) }
+        }.resume()
+
+        guard semaphore.wait(timeout: .now() + 10) == .success else {
+            throw XCTSkip("Anonymous free usage status probe timed out")
+        }
+
+        let status = try probeResult?.get() ?? AnonymousFreeUsageProbe(active: false, reason: "missing_status")
+        guard status.active else {
+            throw XCTSkip("Anonymous free usage inactive on dev: \(status.reason ?? "unknown")")
+        }
+    }
+}
+
+private struct AnonymousFreeUsageProbe: Decodable {
+    let active: Bool
+    let reason: String?
 }
