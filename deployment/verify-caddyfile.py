@@ -63,6 +63,7 @@ FASTAPI_ROUTES = [
     ("/v1/push", "Push notifications", False),
     ("/v1/telemetry", "OTLP telemetry proxy", False),
     ("/v1/webhooks", "Webhooks", False),
+    ("/v1/electronics/pcb-schematic", "Electronics PCB schematic compile API", False),
     ("/v1/users", "Profile image API", False),
     ("/v1/creators", "Creators API", False),
     ("/v1/skills", "Skills API", False),
