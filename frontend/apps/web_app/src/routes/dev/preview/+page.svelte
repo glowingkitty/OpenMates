@@ -164,7 +164,6 @@
 			{#each ['code', 'docs', 'web', 'videos', 'images', 'news', 'travel', 'maps', 'math', 'events', 'reminder', 'sheets', 'audio', 'health', 'mail', 'pdf', 'shopping', 'home', 'nutrition'] as appSlug}
 				<a class="app-showcase-pill" href="/dev/preview/embeds/{appSlug}">{appSlug}</a>
 			{/each}
-			<a class="app-showcase-pill" href="/dev/preview/diagrams-mermaid">diagrams</a>
 		</div>
 	</div>
 

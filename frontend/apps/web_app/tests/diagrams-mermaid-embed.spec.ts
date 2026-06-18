@@ -10,20 +10,23 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 
-async function waitForShowcase(page: any) {
-	const response = await page.goto('/dev/preview/diagrams-mermaid', { waitUntil: 'networkidle' });
+async function waitForComponentPreview(page: any, componentPath: string, componentName: string) {
+	const response = await page.goto(`/dev/preview/${componentPath}`, { waitUntil: 'networkidle' });
 	expect(response?.status()).toBe(200);
-	await expect(page.getByTestId('diagrams-mermaid-preview-page')).toBeVisible();
+	await expect(page.getByTestId('breadcrumb-name')).toContainText(componentName);
+	await expect(page.getByTestId('preview-status-bar')).toContainText('preview.ts loaded');
+	await expect(page.getByTestId('render-error')).toHaveCount(0);
 }
 
 test.describe('Diagrams Mermaid embeds', () => {
 	test('preview and fullscreen render Mermaid controls and source fallback', async ({ page }: { page: any }) => {
-		await waitForShowcase(page);
+		await waitForComponentPreview(
+			page,
+			'embeds/diagrams/MermaidDiagramEmbedPreview',
+			'MermaidDiagramEmbedPreview'
+		);
 
-		const section = page.getByTestId('skill-section').filter({ hasText: 'Mermaid' });
-		await expect(section).toBeVisible();
-
-		const preview = section.getByTestId('mermaid-diagram-preview').first();
+		const preview = page.getByTestId('mermaid-diagram-preview').first();
 		await expect(preview).toBeVisible({ timeout: 20_000 });
 		await expect(async () => {
 			const renderedCount = await preview.getByTestId('mermaid-rendered-preview').count();
@@ -33,7 +36,13 @@ test.describe('Diagrams Mermaid embeds', () => {
 		await expect(preview).toContainText('Email Signup Sequence');
 		await expect(preview).toContainText('sequenceDiagram');
 
-		const fullscreen = section.getByTestId('fs-clip').first();
+		await waitForComponentPreview(
+			page,
+			'embeds/diagrams/MermaidDiagramEmbedFullscreen',
+			'MermaidDiagramEmbedFullscreen'
+		);
+
+		const fullscreen = page;
 		await expect(fullscreen.getByTestId('mermaid-diagram-fullscreen')).toBeVisible({ timeout: 20_000 });
 		await expect(fullscreen.getByTestId('mermaid-diagram-controls')).toBeVisible();
 		await expect(fullscreen.getByTestId('mermaid-zoom-in')).toBeVisible();
