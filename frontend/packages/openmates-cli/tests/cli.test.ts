@@ -25,6 +25,7 @@ import {
   serializeToYaml,
   getExtForLang,
   defaultCloneBranchForVersion,
+  buildAssistantFeedbackDecision,
 } from "../dist/index.js";
 
 const execFileAsync = promisify(execFile);
@@ -61,6 +62,52 @@ function runCliWithoutSessionResult(args: string[]): { status: number | null; st
       timeout: 15_000,
     });
     return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+  } finally {
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function runCliWithEmptyCacheSession(
+  apiUrl: string,
+  args: string[],
+): Promise<{ stderr: string; stdout: string }> {
+  const tempHome = join(tmpdir(), `openmates-cli-empty-cache-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+  writeFileSync(join(stateDir, "sync_cache.json"), `${JSON.stringify({
+    syncedAt: Date.now(),
+    totalChatCount: 0,
+    loadedChatCount: 0,
+    chats: [],
+    embeds: [],
+    embedKeys: [],
+  })}\n`);
+
+  try {
+    await execFileAsync("node", ["dist/cli.js", ...args], {
+      cwd: PACKAGE_ROOT,
+      encoding: "utf-8",
+      env: { ...process.env, TERM: "dumb", HOME: tempHome, USERPROFILE: tempHome, OPENMATES_API_URL: apiUrl },
+      timeout: 15_000,
+    });
+    assert.fail("restore should require local encrypted embed state");
+  } catch (error) {
+    return {
+      stderr: (error as { stderr?: string }).stderr ?? String(error),
+      stdout: (error as { stdout?: string }).stdout ?? "",
+    };
   } finally {
     rmSync(tempHome, { recursive: true, force: true });
   }
@@ -584,6 +631,46 @@ describe("SDK entrypoint", () => {
   });
 });
 
+describe("assistant response feedback parity", () => {
+  it("thanks only for 4-5 star ratings", () => {
+    assert.deepEqual(buildAssistantFeedbackDecision(5), {
+      rating: 5,
+      action: "thanks",
+      message: "Thanks for the feedback!",
+    });
+  });
+
+  it("prompts report issue with the web prefill for 1-3 star ratings", () => {
+    assert.deepEqual(buildAssistantFeedbackDecision(3), {
+      rating: 3,
+      action: "report_issue",
+      message: "Thanks for the feedback!",
+      reportTitle: "Assistant response quality bad:",
+    });
+  });
+
+  it("exposes the decision through the CLI command", () => {
+    const output = runCliWithoutSession([
+      "feedback",
+      "assistant-response",
+      "--rating",
+      "2",
+      "--json",
+    ]);
+    const parsed = JSON.parse(output) as {
+      rating: number;
+      action: string;
+      message: string;
+      reportTitle: string;
+    };
+
+    assert.equal(parsed.rating, 2);
+    assert.equal(parsed.action, "report_issue");
+    assert.equal(parsed.message, "Thanks for the feedback!");
+    assert.equal(parsed.reportTitle, "Assistant response quality bad:");
+  });
+});
+
 // ---------------------------------------------------------------------------
 // deriveAppUrl
 // ---------------------------------------------------------------------------
@@ -838,36 +925,16 @@ describe("embed version commands", () => {
 
   it("requires local encrypted cache for client-side restore before any server restore endpoint", async () => {
     await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
-      try {
-        await execFileAsync("node", ["dist/cli.js", "embeds", "versions", "restore", embedId, "--version", "1", "--yes"], {
-          cwd: PACKAGE_ROOT,
-          encoding: "utf-8",
-          env: { ...process.env, TERM: "dumb", OPENMATES_API_URL: apiUrl },
-          timeout: 15_000,
-        });
-        assert.fail("restore should require local encrypted embed state");
-      } catch (error) {
-        const stderr = (error as { stderr?: string }).stderr ?? String(error);
-        assert.match(stderr, /not found in local cache/);
-      }
+      const { stderr } = await runCliWithEmptyCacheSession(apiUrl, ["embeds", "versions", "restore", embedId, "--version", "1", "--yes"]);
+      assert.match(stderr, /not found in local cache/);
       assert.deepEqual(requests.filter((request) => request !== "POST /v1/auth/session"), []);
     });
   });
 
   it("does not attempt plaintext server restore for any version", async () => {
     await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
-      try {
-        await execFileAsync("node", ["dist/cli.js", "embeds", "versions", "restore", embedId, "--version", "2", "--yes"], {
-          cwd: PACKAGE_ROOT,
-          encoding: "utf-8",
-          env: { ...process.env, TERM: "dumb", OPENMATES_API_URL: apiUrl },
-          timeout: 15_000,
-        });
-        assert.fail("restore should require local encrypted embed state");
-      } catch (error) {
-        const stderr = (error as { stderr?: string }).stderr ?? String(error);
-        assert.match(stderr, /not found in local cache/);
-      }
+      const { stderr } = await runCliWithEmptyCacheSession(apiUrl, ["embeds", "versions", "restore", embedId, "--version", "2", "--yes"]);
+      assert.match(stderr, /not found in local cache/);
       assert.deepEqual(requests.filter((request) => request !== "POST /v1/auth/session"), []);
     });
   });
