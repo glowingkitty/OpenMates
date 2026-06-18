@@ -134,7 +134,7 @@ focuses:
     description_translation_key: app_focus_modes.openmates.welcome.description
     process_translation_key: focus_modes.openmates_welcome.process
     icon_image: openmates.svg
-    stage: production
+    stage: planning
     preprocessor_hint: >
       Select when the user is in an onboarding conversation after signup, or when a user
       explicitly asks for help understanding OpenMates features, how to get started, or
