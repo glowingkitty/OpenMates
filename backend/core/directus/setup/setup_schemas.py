@@ -165,6 +165,59 @@ def check_field_type(token, collection_name, field_name):
     except Exception:
         return None, None
 
+
+def primary_field_special(field_type):
+    """Return Directus special metadata for a primary field type."""
+    return ["uuid"] if normalize_directus_type(field_type) == "uuid" else []
+
+
+def repair_primary_field_metadata(token, collection_name, field_name, field_config):
+    """Align existing primary field metadata with the YAML schema.
+
+    Older setup runs marked every primary key as a UUID, even for string
+    singleton IDs such as "default". Directus uses that metadata when writing
+    rows, so repair it whenever schemas are processed.
+    """
+    desired_type = normalize_directus_type(field_config.get('type', 'uuid'))
+    desired_special = primary_field_special(field_config.get('type', 'uuid'))
+
+    try:
+        response = requests.get(
+            f"{CMS_URL}/fields/{collection_name}/{field_name}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if response.status_code != 200:
+            return
+
+        field_data = response.json().get('data', {})
+        meta = field_data.get('meta') or {}
+        existing_special = meta.get('special') or []
+        if not isinstance(existing_special, list):
+            existing_special = [existing_special] if existing_special else []
+
+        if field_data.get('type') == desired_type and existing_special == desired_special:
+            return
+
+        patch_data = {
+            "type": desired_type,
+            "meta": {
+                **meta,
+                "special": desired_special,
+            }
+        }
+        patch_response = requests.patch(
+            f"{CMS_URL}/fields/{collection_name}/{field_name}",
+            json=patch_data,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if patch_response.status_code >= 400:
+            print(f"Failed to repair primary field metadata for {collection_name}.{field_name}: {patch_response.status_code}")
+            print(f"Response body: {patch_response.text}")
+        else:
+            print(f"Repaired primary field metadata for {collection_name}.{field_name}")
+    except Exception as e:
+        print(f"Exception while repairing primary field metadata for {collection_name}.{field_name}: {str(e)}")
+
 def create_relation(token, collection_name, field_name, relation_config):
     """Create a relation between collections with improved error handling."""
     try:
@@ -472,11 +525,21 @@ def create_collection(token, schema_file):
             if collection.get('fields'):
                 for field_name, field_config in collection.get('fields').items():
                     if field_config.get('primary'):
+                        field_type = field_config.get('type', 'uuid')
                         primary_field = {
                             "field": field_name,
-                            "type": normalize_directus_type(field_config.get('type', 'uuid')),
-                            "meta": { "hidden": False, "readonly": False, "interface": "input", "special": ["uuid"] },
-                            "schema": { "is_primary_key": True, "has_auto_increment": False, "data_type": "uuid" }
+                            "type": normalize_directus_type(field_type),
+                            "meta": {
+                                "hidden": False,
+                                "readonly": False,
+                                "interface": "input",
+                                "special": primary_field_special(field_type),
+                            },
+                            "schema": {
+                                "is_primary_key": True,
+                                "has_auto_increment": False,
+                                "data_type": map_type(field_type, field_config.get('length')),
+                            }
                         }
                         break
             
@@ -539,6 +602,8 @@ def create_collection(token, schema_file):
                 for field_name, field_config in collection['fields'].items():
                     # Skip primary key fields (handled during collection creation or already exists)
                     if field_config.get('primary'):
+                        if exists:
+                            repair_primary_field_metadata(token, collection_name, field_name, field_config)
                         continue
                     
                     # Create or update the field, and check if it's a relation

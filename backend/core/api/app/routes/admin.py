@@ -388,6 +388,9 @@ async def update_free_testing_credits_budget(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        logger.error("Failed to save free testing credits budget: %s", exc, exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to save free testing credits budget") from exc
     return _free_testing_budget_response(status)
 
 
@@ -426,6 +429,9 @@ async def update_anonymous_free_usage_budget(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        logger.error("Failed to save anonymous free usage budget: %s", exc, exc_info=True)
+        raise HTTPException(status_code=502, detail="Failed to save anonymous free usage budget") from exc
     return _anonymous_free_usage_budget_response(status)
 
 
