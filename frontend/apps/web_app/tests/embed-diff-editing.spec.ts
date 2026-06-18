@@ -95,12 +95,20 @@ async function waitForFinishedCodeEmbed(
  */
 async function waitForStreamingComplete(page: any, log: any, previousAssistantCount?: number) {
 	if (previousAssistantCount !== undefined) {
+		const previousAssistantText = (await page.getByTestId('message-assistant').allTextContents()).join('\n');
 		await expect
-			.poll(async () => await getAssistantMessageCount(page), {
+			.poll(async () => {
+				const assistantCount = await getAssistantMessageCount(page);
+				if (assistantCount > previousAssistantCount) {
+					return true;
+				}
+				const currentAssistantText = (await page.getByTestId('message-assistant').allTextContents()).join('\n');
+				return currentAssistantText !== previousAssistantText;
+			}, {
 				timeout: 120000,
 				intervals: [1000, 2000, 5000]
 			})
-			.toBeGreaterThan(previousAssistantCount);
+			.toBe(true);
 	}
 	const typingIndicator = page.getByTestId('typing-indicator');
 	await expect(typingIndicator).not.toBeVisible({ timeout: 120000 });
