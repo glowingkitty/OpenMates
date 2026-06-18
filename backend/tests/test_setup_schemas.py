@@ -3,7 +3,7 @@ backend/tests/test_setup_schemas.py
 
 Regression tests for Directus YAML schema setup helpers. The tests keep the
 collection bootstrap contract deterministic without a running Directus instance,
-especially for singleton collections that store Directus-generated IDs in string
+especially for singleton collections that store app-generated IDs in string
 primary-key columns.
 """
 

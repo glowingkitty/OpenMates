@@ -15,6 +15,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
+from uuid import uuid4
 
 
 ANONYMOUS_BUDGET_COLLECTION = "anonymous_free_usage_budget"
@@ -123,7 +124,7 @@ class AnonymousFreeUsageService:
         else:
             success, row = await self.directus.create_item(
                 ANONYMOUS_BUDGET_COLLECTION,
-                {"created_at": now, **payload},
+                {"id": str(uuid4()), "created_at": now, **payload},
                 admin_required=True,
             )
             if not success:

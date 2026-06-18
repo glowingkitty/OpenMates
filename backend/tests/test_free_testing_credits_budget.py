@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from typing import Any
+from uuid import UUID
 
 import pytest
 
@@ -162,7 +163,9 @@ async def test_admin_budget_save_and_public_metadata_are_safe() -> None:
     assert "remaining_budget_credits" not in public
     assert "total_budget_credits" not in public
     assert directus.created_payloads[0][0] == FREE_TESTING_BUDGET_COLLECTION
-    assert "id" not in directus.created_payloads[0][1]
+    created_id = directus.created_payloads[0][1]["id"]
+    assert created_id != "default"
+    assert str(UUID(created_id)) == created_id
 
 
 @pytest.mark.asyncio

@@ -9,6 +9,7 @@ identity caps, and reservations stay deterministic without a running CMS.
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 import pytest
 
@@ -128,7 +129,9 @@ async def test_admin_budget_save_derives_caps_and_public_status_is_safe() -> Non
     assert public["active"] is True
     assert set(public) == {"active", "reason", "reset_at", "cta"}
     assert directus.created_payloads[0][0] == ANONYMOUS_BUDGET_COLLECTION
-    assert "id" not in directus.created_payloads[0][1]
+    created_id = directus.created_payloads[0][1]["id"]
+    assert created_id != "default"
+    assert str(UUID(created_id)) == created_id
 
 
 @pytest.mark.asyncio

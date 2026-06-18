@@ -16,6 +16,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +136,7 @@ class FreeTestingCreditsService:
         else:
             success, created = await self.directus.create_item(
                 FREE_TESTING_BUDGET_COLLECTION,
-                {"created_at": now, **payload},
+                {"id": str(uuid4()), "created_at": now, **payload},
                 admin_required=True,
             )
             if not success:
