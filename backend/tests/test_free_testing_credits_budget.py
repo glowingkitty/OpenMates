@@ -32,6 +32,8 @@ class FakeDirectus:
             "user-3": {"id": "user-3", "vault_key_id": "vault-3", "encrypted_credit_balance": "enc:0"},
         }
         self.updated_users: list[tuple[str, dict[str, Any]]] = []
+        self.created_payloads: list[tuple[str, dict[str, Any]]] = []
+        self.fail_budget_updates = False
 
     async def get_items(self, collection: str, params: dict[str, Any] | None = None, no_cache: bool = False, admin_required: bool = False) -> list[dict[str, Any]]:
         if collection == FREE_TESTING_BUDGET_COLLECTION:
@@ -47,6 +49,7 @@ class FakeDirectus:
         raise AssertionError(f"Unexpected collection: {collection}")
 
     async def create_item(self, collection: str, payload: dict[str, Any], admin_required: bool = False) -> tuple[bool, dict[str, Any]]:
+        self.created_payloads.append((collection, payload))
         if collection == FREE_TESTING_BUDGET_COLLECTION:
             self.budget = {"id": "default", **payload}
             return True, self.budget
@@ -58,6 +61,8 @@ class FakeDirectus:
 
     async def update_item(self, collection: str, item_id: str, data: dict[str, Any], admin_required: bool = False) -> dict[str, Any] | None:
         if collection == FREE_TESTING_BUDGET_COLLECTION:
+            if self.fail_budget_updates:
+                return None
             assert self.budget is not None
             self.budget.update(data)
             return self.budget
@@ -138,7 +143,7 @@ def make_service() -> tuple[FreeTestingCreditsService, FakeDirectus, FakeCache, 
 
 @pytest.mark.asyncio
 async def test_admin_budget_save_and_public_metadata_are_safe() -> None:
-    service, _, _, _, _ = make_service()
+    service, directus, _, _, _ = make_service()
 
     status = await service.save_budget(
         enabled=True,
@@ -156,6 +161,32 @@ async def test_admin_budget_save_and_public_metadata_are_safe() -> None:
     assert public == {"active": True, "grant_credits": 1_000}
     assert "remaining_budget_credits" not in public
     assert "total_budget_credits" not in public
+    assert directus.created_payloads[0][0] == FREE_TESTING_BUDGET_COLLECTION
+    assert "id" not in directus.created_payloads[0][1]
+
+
+@pytest.mark.asyncio
+async def test_admin_budget_update_failure_does_not_return_synthetic_success() -> None:
+    service, directus, _, _, _ = make_service()
+    await service.save_budget(
+        enabled=False,
+        total_budget_credits=0,
+        per_user_grant_credits=1_000,
+        admin_user_id="admin-1",
+    )
+    directus.fail_budget_updates = True
+
+    with pytest.raises(RuntimeError, match="Failed to update free testing budget"):
+        await service.save_budget(
+            enabled=True,
+            total_budget_credits=50_000,
+            per_user_grant_credits=1_000,
+            admin_user_id="admin-1",
+        )
+
+    assert directus.budget is not None
+    assert directus.budget["enabled"] is False
+    assert directus.budget["total_budget_credits"] == 0
 
 
 @pytest.mark.asyncio

@@ -25,6 +25,8 @@ class FakeDirectus:
         self.budget: dict[str, Any] | None = None
         self.identity_rows: dict[str, dict[str, Any]] = {}
         self.reservations: dict[str, dict[str, Any]] = {}
+        self.created_payloads: list[tuple[str, dict[str, Any]]] = []
+        self.fail_budget_updates = False
 
     async def get_items(
         self,
@@ -54,6 +56,7 @@ class FakeDirectus:
         payload: dict[str, Any],
         admin_required: bool = False,
     ) -> tuple[bool, dict[str, Any]]:
+        self.created_payloads.append((collection, payload))
         if collection == ANONYMOUS_BUDGET_COLLECTION:
             self.budget = {"id": "default", **payload}
             return True, self.budget
@@ -77,6 +80,8 @@ class FakeDirectus:
         admin_required: bool = False,
     ) -> dict[str, Any] | None:
         if collection == ANONYMOUS_BUDGET_COLLECTION:
+            if self.fail_budget_updates:
+                return None
             assert self.budget is not None
             self.budget.update(data)
             return self.budget
@@ -100,7 +105,7 @@ def make_service() -> tuple[AnonymousFreeUsageService, FakeDirectus]:
 
 @pytest.mark.asyncio
 async def test_admin_budget_save_derives_caps_and_public_status_is_safe() -> None:
-    service, _directus = make_service()
+    service, directus = make_service()
 
     status = await service.save_budget(
         enabled=True,
@@ -122,6 +127,36 @@ async def test_admin_budget_save_derives_caps_and_public_status_is_safe() -> Non
     assert status.active is True
     assert public["active"] is True
     assert set(public) == {"active", "reason", "reset_at", "cta"}
+    assert directus.created_payloads[0][0] == ANONYMOUS_BUDGET_COLLECTION
+    assert "id" not in directus.created_payloads[0][1]
+
+
+@pytest.mark.asyncio
+async def test_admin_budget_update_failure_does_not_return_synthetic_success() -> None:
+    service, directus = make_service()
+    await service.save_budget(
+        enabled=False,
+        monthly_budget_credits=0,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=400,
+        admin_user_id="admin-1",
+    )
+    directus.fail_budget_updates = True
+
+    with pytest.raises(RuntimeError, match="Failed to update anonymous free usage budget"):
+        await service.save_budget(
+            enabled=True,
+            monthly_budget_credits=60_000,
+            daily_hard_cap_percent=5,
+            weekly_cap_percent=25,
+            per_identity_daily_cap_credits=400,
+            admin_user_id="admin-1",
+        )
+
+    assert directus.budget is not None
+    assert directus.budget["enabled"] is False
+    assert directus.budget["monthly_budget_credits"] == 0
 
 
 @pytest.mark.asyncio

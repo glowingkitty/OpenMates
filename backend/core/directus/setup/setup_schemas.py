@@ -25,6 +25,16 @@ print(f"DIRECTUS_TOKEN: {'*****' if DIRECTUS_TOKEN else 'Not set'}")
 # Schema directories - use environment variable or default
 SCHEMAS_DIR = os.getenv('SCHEMAS_DIR', '/usr/src/app/schemas')
 
+BACKEND_PERMISSION_COLLECTIONS = (
+    'anonymous_free_usage_budget',
+    'anonymous_free_usage_identity_daily',
+    'anonymous_free_usage_reservations',
+    'free_testing_credit_grants',
+    'free_testing_credits_budget',
+)
+BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
+BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')
+
 # Print information about the schemas directory
 print(f"Using schemas from: {SCHEMAS_DIR}")
 if os.path.exists(SCHEMAS_DIR):
@@ -112,6 +122,13 @@ def field_exists(token, collection_name, field_name):
     except Exception:
         return False
 
+
+def _directus_id(value):
+    if isinstance(value, dict):
+        return value.get('id')
+    return value
+
+
 def map_type(type_name, length=None):
     """Map Directus types to SQL types."""
     type_map = {
@@ -174,8 +191,8 @@ def primary_field_special(field_type):
 def repair_primary_field_metadata(token, collection_name, field_name, field_config):
     """Align existing primary field metadata with the YAML schema.
 
-    Older setup runs marked every primary key as a UUID, even for string
-    singleton IDs such as "default". Directus uses that metadata when writing
+    Older setup runs marked every primary key as a UUID, even when the YAML
+    schema declared a string ID column. Directus uses that metadata when writing
     rows, so repair it whenever schemas are processed.
     """
     desired_type = normalize_directus_type(field_config.get('type', 'uuid'))
@@ -217,6 +234,106 @@ def repair_primary_field_metadata(token, collection_name, field_name, field_conf
             print(f"Repaired primary field metadata for {collection_name}.{field_name}")
     except Exception as e:
         print(f"Exception while repairing primary field metadata for {collection_name}.{field_name}: {str(e)}")
+
+
+def find_backend_permission_policy_id(token):
+    """Find the Directus policy used by backend service writes."""
+    try:
+        me_response = requests.get(
+            f"{CMS_URL}/users/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        if me_response.status_code == 200:
+            role = me_response.json().get('data', {}).get('role')
+            role_id = role.get('id') if isinstance(role, dict) else role
+            if role_id:
+                access_response = requests.get(
+                    f"{CMS_URL}/access",
+                    headers={"Authorization": f"Bearer {token}"},
+                    params={"filter[role][_eq]": role_id},
+                )
+                if access_response.status_code == 200:
+                    access_rows = access_response.json().get('data', [])
+                    for access_row in access_rows:
+                        policy = access_row.get('policy')
+                        policy_id = policy.get('id') if isinstance(policy, dict) else policy
+                        if policy_id:
+                            return policy_id
+
+        response = requests.get(
+            f"{CMS_URL}/policies",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        if response.status_code != 200:
+            print(f"Failed to fetch Directus policies: {response.status_code}")
+            print(f"Response body: {response.text}")
+            return None
+
+        policies = response.json().get('data', [])
+        for policy_name in BACKEND_PERMISSION_POLICY_NAMES:
+            for policy in policies:
+                if policy.get('name') == policy_name and policy.get('id'):
+                    return policy['id']
+        print("No backend Directus policy found for collection permissions")
+        return None
+    except Exception as e:
+        print(f"Exception while fetching Directus policies: {str(e)}")
+        return None
+
+
+def ensure_backend_collection_permissions(token):
+    """Ensure backend-owned budget collections have explicit CRUD permissions."""
+    policy_id = find_backend_permission_policy_id(token)
+    if not policy_id:
+        return False
+
+    try:
+        response = requests.get(
+            f"{CMS_URL}/permissions",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        if response.status_code != 200:
+            print(f"Failed to fetch Directus permissions: {response.status_code}")
+            print(f"Response body: {response.text}")
+            return False
+
+        existing_permissions = response.json().get('data', [])
+        existing = {
+            (permission.get('collection'), permission.get('action'), permission.get('policy'))
+            for permission in existing_permissions
+        }
+
+        success = True
+        for collection_name in BACKEND_PERMISSION_COLLECTIONS:
+            for action in BACKEND_PERMISSION_ACTIONS:
+                permission_key = (collection_name, action, policy_id)
+                if permission_key in existing:
+                    continue
+
+                payload = {
+                    "collection": collection_name,
+                    "action": action,
+                    "policy": policy_id,
+                    "permissions": {},
+                    "validation": None,
+                    "presets": None,
+                    "fields": ["*"],
+                }
+                create_response = requests.post(
+                    f"{CMS_URL}/permissions",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                if create_response.status_code >= 400:
+                    print(f"Failed to create permission for {collection_name}.{action}: {create_response.status_code}")
+                    print(f"Response body: {create_response.text}")
+                    success = False
+                else:
+                    print(f"Created permission for {collection_name}.{action}")
+        return success
+    except Exception as e:
+        print(f"Exception while ensuring backend collection permissions: {str(e)}")
+        return False
 
 def create_relation(token, collection_name, field_name, relation_config):
     """Create a relation between collections with improved error handling."""
@@ -778,6 +895,9 @@ def setup_schemas():
                     if success and newly_created and collection_name_from_file == 'invite_codes':
                         invite_codes_newly_created = True
                     print(f"--- Finished processing: {os.path.basename(schema_file)} (Success: {success}) ---")
+
+                print("\n--- Ensuring backend collection permissions ---")
+                ensure_backend_collection_permissions(token)
 
 
         # Only create the first signup invite code if the 'invite_codes'

@@ -3,8 +3,8 @@ backend/tests/test_setup_schemas.py
 
 Regression tests for Directus YAML schema setup helpers. The tests keep the
 collection bootstrap contract deterministic without a running Directus instance,
-especially for singleton collections that use stable string primary keys such as
-"default" instead of UUID-generated IDs.
+especially for singleton collections that store Directus-generated IDs in string
+primary-key columns.
 """
 
 from __future__ import annotations
@@ -122,3 +122,44 @@ def test_repair_primary_field_metadata_removes_stale_uuid_special(monkeypatch) -
             },
         }
     ]
+
+
+def test_ensure_backend_collection_permissions_creates_missing_crud(monkeypatch) -> None:
+    setup_schemas = load_setup_schemas_module()
+    posted_payloads: list[dict[str, Any]] = []
+
+    def fake_get(url: str, headers: dict[str, str], params: dict[str, Any] | None = None) -> FakeResponse:
+        if url.endswith("/users/me"):
+            return FakeResponse(200, {"data": {"role": "role-api"}})
+        if url.endswith("/access"):
+            return FakeResponse(200, {"data": [{"policy": "policy-api"}]})
+        if url.endswith("/permissions"):
+            return FakeResponse(200, {"data": []})
+        raise AssertionError(f"Unexpected GET {url}")
+
+    def fake_post(url: str, json: dict[str, Any], headers: dict[str, str]) -> FakeResponse:
+        assert url.endswith("/permissions")
+        posted_payloads.append(json)
+        return FakeResponse(200, {"data": json})
+
+    monkeypatch.setattr(setup_schemas.requests, "get", fake_get)
+    monkeypatch.setattr(setup_schemas.requests, "post", fake_post)
+
+    assert setup_schemas.ensure_backend_collection_permissions("token") is True
+
+    actions_by_collection: dict[str, set[str]] = {}
+    for payload in posted_payloads:
+        actions_by_collection.setdefault(payload["collection"], set()).add(payload["action"])
+        assert payload["policy"] == "policy-api"
+        assert payload["permissions"] == {}
+        assert payload["validation"] is None
+        assert payload["presets"] is None
+        assert payload["fields"] == ["*"]
+
+    assert actions_by_collection == {
+        "anonymous_free_usage_budget": {"create", "read", "update", "delete"},
+        "anonymous_free_usage_identity_daily": {"create", "read", "update", "delete"},
+        "anonymous_free_usage_reservations": {"create", "read", "update", "delete"},
+        "free_testing_credit_grants": {"create", "read", "update", "delete"},
+        "free_testing_credits_budget": {"create", "read", "update", "delete"},
+    }

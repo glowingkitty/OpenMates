@@ -118,11 +118,12 @@ class AnonymousFreeUsageService:
                 payload,
                 admin_required=True,
             )
-            row = row or {**existing, **payload}
+            if not row:
+                raise RuntimeError("Failed to update anonymous free usage budget")
         else:
             success, row = await self.directus.create_item(
                 ANONYMOUS_BUDGET_COLLECTION,
-                {"id": ANONYMOUS_BUDGET_ID, "created_at": now, **payload},
+                {"created_at": now, **payload},
                 admin_required=True,
             )
             if not success:
